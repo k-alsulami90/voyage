@@ -169,10 +169,10 @@ function App() {
     try { sessionStorage.setItem('voyage:route', JSON.stringify(route)); } catch (_) {}
   }, [route]);
 
-  // Redirect to trips once session is confirmed
+  // Redirect to trips once session is confirmed — UNLESS we're in a recovery
+  // session (user clicked the reset-password email link).
   React.useEffect(() => {
-    if (session) {
-      // Stay on the same trip/page if reload restored one; otherwise default to trips list
+    if (session && !window._authRecoveryActive) {
       setRoute((r) => r.scope === 'auth' ? { scope: 'app', name: 'trips' } : r);
     } else if (session === null) {
       setRoute({ scope: 'auth', name: 'signin' });
