@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background — warm cream, slight gradient -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f3eed8"/>
+      <stop offset="1" stop-color="#e8dfc3"/>
+    </linearGradient>
+    <linearGradient id="hill" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#cb6a3f"/>
+      <stop offset="1" stop-color="#7a3f23"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- Subtle mountain horizon -->
+  <path d="M0 360 L96 220 L180 290 L256 200 L340 280 L416 230 L512 290 L512 512 L0 512 Z" fill="url(#hill)" opacity="0.85"/>
+  <!-- Sun -->
+  <circle cx="392" cy="160" r="44" fill="#f4c66a"/>
+  <!-- Wordmark 'v' as paper plane silhouette -->
+  <path d="M120 130 L260 200 L120 270 L160 200 Z" fill="#221c16"/>
+  <!-- Voyage text -->
+  <text x="256" y="450" text-anchor="middle"
+        font-family="Georgia, 'Times New Roman', serif" font-style="italic"
+        font-size="68" font-weight="400" fill="#221c16" letter-spacing="-1">
+    voyage
+  </text>
+</svg>

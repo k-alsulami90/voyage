@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Offline · Voyage</title>
+<style>
+  :root {
+    --cream: oklch(0.965 0.012 80);
+    --ink: oklch(0.22 0.025 250);
+    --ink-soft: oklch(0.38 0.025 250);
+    --ink-mute: oklch(0.55 0.020 248);
+    --clay: oklch(0.62 0.13 35);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; min-height: 100dvh;
+    font-family: 'Geist', -apple-system, system-ui, sans-serif;
+    background: var(--cream); color: var(--ink);
+    display: grid; place-items: center; text-align: center; padding: 24px;
+  }
+  .wm { font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+        font-size: 36px; letter-spacing: -0.02em; margin-bottom: 24px; }
+  h1 { font-family: 'Instrument Serif', Georgia, serif; font-size: 28px; font-weight: 400;
+       line-height: 1.15; margin: 4px 0 8px; letter-spacing: -0.01em; }
+  p { font-size: 14px; color: var(--ink-soft); margin: 4px 0 24px; max-width: 280px; line-height: 1.5; }
+  .icon { width: 64px; height: 64px; border-radius: 20px; margin: 0 auto;
+          background: var(--cream); border: 1px solid rgba(0,0,0,0.08);
+          display: grid; place-items: center; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+  .btn { padding: 12px 24px; border-radius: 14px; border: 0;
+         background: var(--ink); color: var(--cream); font-size: 14px; font-weight: 600;
+         cursor: pointer; font-family: inherit; }
+  .btn:active { transform: translateY(1px); }
+</style>
+</head>
+<body>
+  <div>
+    <div class="wm">voyage</div>
+    <div class="icon">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" color="var(--ink-mute)">
+        <path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.58 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/>
+      </svg>
+    </div>
+    <h1>You're offline</h1>
+    <p>Check your connection and try again. Your trips and expenses are safely stored in the cloud.</p>
+    <button class="btn" onclick="location.reload()">Retry</button>
+  </div>
+</body>
+</html>

@@ -1,0 +1,257 @@
+// i18n.jsx — translations + direction helpers
+// Sets window.t(), window.isRTL, window.LANG
+
+const TRANSLATIONS = {
+  en: {
+    signIn:'Sign in', signUp:'Sign up', email:'Email', password:'Password',
+    fullName:'Full name', continue:'Continue', createLedger:'Create my ledger',
+    forgotPassword:'Forgot?', orContinueWith:'OR CONTINUE WITH',
+    alreadyHaveAccount:'ALREADY HAVE AN ACCOUNT?', newToVoyage:'NEW TO VOYAGE?',
+    createOne:'CREATE ONE', signinLink:'SIGN IN',
+    agreeTerms:"I agree to Voyage's Terms and Privacy. Trips are private by default.",
+    welcomeBack:'Welcome\nback.', startLedger:'Start your\ntravel ledger.',
+    tagline:'FOR PEOPLE WHO WANDER',
+    apple:'Apple', google:'Google', passkey:'Passkey',
+    yourTravels:'Your travels', all:'All', private:'Private', shared:'Shared',
+    currentlyTraveling:'Currently traveling', upcoming:'Upcoming', pastTrips:'Past trips',
+    seeAll:'See all', lifetimeAllTrips:'LIFETIME · ALL TRIPS',
+    countries:'countries', continents:'continents', travelDays:'travel days',
+    trips:'Trips', lifetime:'Lifetime', longest:'Longest', logged:'logged', spent:'spent',
+    crewPrivacy:'Crew lives inside each trip',
+    crewPrivacySub:"Guests only see what you've explicitly shared.",
+    sharedBudget:'SHARED BUDGET', leftOnPace:'left · on pace',
+    upNext:'Up next', quickActions:'Quick actions',
+    add:'Add', upload:'Upload', invite:'Invite', plan:'Plan',
+    recentActivity:'Recent activity', splitting:'splitting', daysLeft:'DAYS LEFT',
+    budget:'Budget', totalSpent:'TOTAL SPENT', ofPlanned:'of',
+    expenses:'Expenses', auditLog:'Audit log',
+    lodging:'Lodging', food:'Food', transit:'Transit', culture:'Culture', misc:'Misc',
+    added:'added', edited:'edited', uploaded:'uploaded', invited:'invited',
+    ofTotal:'% of total', used:'USED',
+    vault:'Vault', piles:'Piles', recentlyShared:'Recently shared',
+    addDocument:'Add document', uploadHint:'Drag a ticket or visa',
+    autoSort:"We'll auto-sort it into the right pile", browse:'Browse',
+    details:'Details', link:'Link', photos:'Photos', activity:'Activity',
+    edit:'Edit', share:'Share', uploadBtn:'Upload',
+    addLink:'Add a link', linkHint:'Maps, booking confirmation, website…',
+    linkPlaceholder:'https://maps.google.com/...', save:'Save', open:'Open',
+    addPhoto:'Add photo', sizeLbl:'SIZE', pagesLbl:'PAGES', syncedLbl:'SYNCED',
+    settings:'Settings', crewSection:'Crew', travelers:'travelers',
+    viewPermissions:'View role permissions', tripParameters:'Trip parameters',
+    notifications:'Notifications', tripLifecycle:'Trip lifecycle',
+    archiveTrip:'Archive trip', archiveSub:'Hides from active list, keeps data',
+    exportPDF:'Export as PDF', exportSub:'Receipts, audit log, summary',
+    deleteTrip:'Delete trip', deleteSub:"Permanent, can't be undone",
+    archived:'Archived', archivedSub:'Removed from active list', pdfReady:'PDF ready',
+    areYouSure:"Are you sure? This can't be undone.", cancel:'Cancel', delete:'Delete',
+    destination:'Destination', dates:'Dates', budgetCap:'Budget cap',
+    currencies:'Currencies', coverStyle:'Cover style',
+    newExpenses:'New expenses', memberJoins:'Member joins', docUploads:'Doc uploads',
+    hub:'Hub', budgetNav:'Budget', vaultNav:'Vault', statsNav:'Stats',
+    exitTrip:'Exit trip', myTrips:'Trips', insightsNav:'Insights', accountNav:'Account',
+    since2020:'SINCE 2020', travelDaysByYear:'Travel days · by year',
+    daysByContinent:'Days by continent', whereMoneyGoes:'Where your money goes',
+    topCategoryLifetime:'TOP CATEGORY · LIFETIME', acrossAllTrips:'across all trips',
+    proTraveler:'PRO · TRAVELER', preferences:'Preferences',
+    defaultCurrency:'Default currency', homeBase:'Home base',
+    appearance:'Appearance', units:'Units', privacy:'Privacy',
+    tripScopedCollab:'Trip-scoped collaboration',
+    tripScopedSub:"Guests invited to one trip can never see your other trips, profile data, or lifetime stats.",
+    dataExport:'Data export', connectedAccounts:'Connected accounts',
+    archivedTrips:'Archived trips', account:'Account',
+    referFriend:'Refer a friend', referSub:'Both get 30 days of Pro',
+    signOut:'Sign out', deleteAccount:'Delete account',
+    deleteAccountSub:'Wipes all trips and history',
+    scanToJoin:'Scan to join', guestsSeeOnly:'Guests only see this trip · expires in 7 days',
+    copy:'Copy', inviteWithRole:'Invite with role · scope: this trip only',
+    fullControl:'Full control', addExpenses:'Add expenses', readOnly:'Read only',
+    inviteTheCrew:'Invite the crew',
+    addExpenseTitle:'Add expense', amountJPY:'AMOUNT · JPY',
+    category:'Category', splitBetween:'Split between', people:'people', each:'each',
+    addToKyoto:'Add to Kyoto trip',
+    addDocTitle:'Add document', pile:'Pile',
+    pdfJpgPng:'PDF, JPG, PNG · up to 25 MB', dropHere:'Drop here',
+    dayLbl:'Day', ofLbl:'of', heySunday:'HEY MIRA · SUNDAY',
+    uploadedBy:'uploaded by', admin:'Admin', editor:'Editor', viewer:'Viewer',
+    onPace:'on pace', editCover:'Edit cover', tripScopedNote:'TRIP-SCOPED',
+    daily:'daily', planned:'planned',
+  },
+  ar: {
+    signIn:'تسجيل الدخول', signUp:'إنشاء حساب', email:'البريد الإلكتروني',
+    password:'كلمة المرور', fullName:'الاسم الكامل', continue:'متابعة',
+    createLedger:'إنشاء سجلي', forgotPassword:'نسيت؟', orContinueWith:'أو تابع بـ',
+    alreadyHaveAccount:'لديك حساب؟', newToVoyage:'جديد في Voyage؟',
+    createOne:'إنشاء حساب', signinLink:'دخول',
+    agreeTerms:'أوافق على شروط وخصوصية Voyage. الرحلات خاصة افتراضياً.',
+    welcomeBack:'أهلاً\nبعودتك.', startLedger:'ابدأ\nسجل رحلاتك.',
+    tagline:'لمن يحب التجوال',
+    apple:'آبل', google:'جوجل', passkey:'مفتاح',
+    yourTravels:'رحلاتك', all:'الكل', private:'خاصة', shared:'مشتركة',
+    currentlyTraveling:'في رحلة الآن', upcoming:'القادمة', pastTrips:'الرحلات السابقة',
+    seeAll:'عرض الكل', lifetimeAllTrips:'المجموع الكلي',
+    countries:'دولة', continents:'قارات', travelDays:'يوم سفر',
+    trips:'رحلات', lifetime:'المجموع', longest:'الأطول', logged:'مسجلة', spent:'أُنفق',
+    crewPrivacy:'الطاقم يعيش داخل كل رحلة',
+    crewPrivacySub:'الضيوف يرون فقط ما شاركته معهم.',
+    sharedBudget:'الميزانية المشتركة', leftOnPace:'متبقي · في المسار',
+    upNext:'القادم', quickActions:'إجراءات سريعة',
+    add:'إضافة', upload:'رفع', invite:'دعوة', plan:'تخطيط',
+    recentActivity:'النشاط الأخير', splitting:'مشاركة', daysLeft:'أيام متبقية',
+    budget:'الميزانية', totalSpent:'الإجمالي المنفق', ofPlanned:'من',
+    expenses:'المصروفات', auditLog:'سجل المراجعة',
+    lodging:'الإقامة', food:'الطعام', transit:'المواصلات', culture:'الثقافة', misc:'متنوع',
+    added:'أضاف', edited:'عدّل', uploaded:'رفع', invited:'دعا',
+    ofTotal:'٪ من الإجمالي', used:'مستخدم',
+    vault:'المستندات', piles:'المجلدات', recentlyShared:'مشاركة مؤخراً',
+    addDocument:'إضافة مستند', uploadHint:'اسحب تذكرة أو تأشيرة',
+    autoSort:'سيتم ترتيبه تلقائياً', browse:'استعراض',
+    details:'التفاصيل', link:'الرابط', photos:'الصور', activity:'النشاط',
+    edit:'تعديل', share:'مشاركة', uploadBtn:'رفع',
+    addLink:'إضافة رابط', linkHint:'خرائط، تأكيد الحجز، موقع إلكتروني…',
+    linkPlaceholder:'https://maps.google.com/...', save:'حفظ', open:'فتح',
+    addPhoto:'إضافة صورة', sizeLbl:'الحجم', pagesLbl:'الصفحات', syncedLbl:'تزامن',
+    settings:'الإعدادات', crewSection:'الطاقم', travelers:'مسافرون',
+    viewPermissions:'عرض الصلاحيات', tripParameters:'معطيات الرحلة',
+    notifications:'الإشعارات', tripLifecycle:'دورة الرحلة',
+    archiveTrip:'أرشفة الرحلة', archiveSub:'تخفيها مع حفظ البيانات',
+    exportPDF:'تصدير PDF', exportSub:'الإيصالات، السجل، الملخص',
+    deleteTrip:'حذف الرحلة', deleteSub:'دائم، لا يمكن التراجع',
+    archived:'مؤرشفة', archivedSub:'تمت إزالتها من القائمة', pdfReady:'PDF جاهز',
+    areYouSure:'متأكد؟ لا يمكن التراجع.', cancel:'إلغاء', delete:'حذف',
+    destination:'الوجهة', dates:'التواريخ', budgetCap:'حد الميزانية',
+    currencies:'العملات', coverStyle:'نمط الغلاف',
+    newExpenses:'مصروفات جديدة', memberJoins:'انضمام أعضاء', docUploads:'رفع مستندات',
+    hub:'الرئيسية', budgetNav:'الميزانية', vaultNav:'المستندات', statsNav:'إحصائيات',
+    exitTrip:'خروج', myTrips:'رحلاتي', insightsNav:'إحصائيات', accountNav:'الحساب',
+    since2020:'منذ 2020', travelDaysByYear:'أيام السفر · بالسنة',
+    daysByContinent:'الأيام بالقارة', whereMoneyGoes:'أين يذهب المال',
+    topCategoryLifetime:'أعلى فئة · مدى الحياة', acrossAllTrips:'عبر كل الرحلات',
+    proTraveler:'مسافر محترف', preferences:'التفضيلات',
+    defaultCurrency:'العملة الافتراضية', homeBase:'المدينة الرئيسية',
+    appearance:'المظهر', units:'الوحدات', privacy:'الخصوصية',
+    tripScopedCollab:'تعاون محدود بالرحلة',
+    tripScopedSub:'المدعوون لرحلة لا يرون رحلاتك الأخرى أو بياناتك الشخصية.',
+    dataExport:'تصدير البيانات', connectedAccounts:'الحسابات المرتبطة',
+    archivedTrips:'الرحلات المؤرشفة', account:'الحساب',
+    referFriend:'دعوة صديق', referSub:'كلاكما يحصل على 30 يوماً مجاناً',
+    signOut:'تسجيل الخروج', deleteAccount:'حذف الحساب',
+    deleteAccountSub:'يحذف كل الرحلات والتاريخ',
+    scanToJoin:'امسح للانضمام إلى', guestsSeeOnly:'الضيوف يرون هذه الرحلة فقط · تنتهي خلال 7 أيام',
+    copy:'نسخ', inviteWithRole:'دعوة بصلاحية · نطاق: هذه الرحلة فقط',
+    fullControl:'تحكم كامل', addExpenses:'إضافة مصروفات', readOnly:'قراءة فقط',
+    inviteTheCrew:'دعوة الطاقم',
+    addExpenseTitle:'إضافة مصروف', amountJPY:'المبلغ · ين',
+    category:'الفئة', splitBetween:'توزيع بين', people:'أشخاص', each:'لكل',
+    addToKyoto:'إضافة إلى رحلة كيوتو',
+    addDocTitle:'إضافة مستند', pile:'المجلد',
+    pdfJpgPng:'PDF، JPG، PNG · حتى 25 ميغابايت', dropHere:'أفلت هنا',
+    dayLbl:'اليوم', ofLbl:'من', heySunday:'مرحباً · الأحد',
+    uploadedBy:'رُفع بواسطة', admin:'مشرف', editor:'محرر', viewer:'قارئ',
+    onPace:'في المسار', editCover:'تعديل الغلاف', tripScopedNote:'محدود بالرحلة',
+    daily:'يومي', planned:'مخطط',
+  },
+};
+
+window.LANG = 'en';
+window.isRTL = false;
+window.t = function(key) {
+  return (TRANSLATIONS[window.LANG] && TRANSLATIONS[window.LANG][key])
+    || TRANSLATIONS.en[key] || key;
+};
+
+// Format any date-ish input as YY/MM/DD (e.g. "25/11/12")
+window.fmtDate = function(input) {
+  if (!input) return '';
+  const d = (input instanceof Date) ? input : new Date(input);
+  if (isNaN(d.getTime())) return String(input);
+  const yy = String(d.getFullYear()).slice(-2);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yy}/${mm}/${dd}`;
+};
+// Range helper: "25/11/08 → 25/11/27"
+window.fmtDateRange = function(a, b) {
+  const arrow = window.isRTL ? '←' : '→';
+  return `${window.fmtDate(a)} ${arrow} ${window.fmtDate(b)}`;
+};
+
+// ── Currency formatting ─────────────────────────────────────
+// Symbols by ISO code. Trailing space for letter codes so they read nicely.
+window.CUR_SYM = {
+  USD:'$', EUR:'€', GBP:'£', JPY:'¥',
+  SAR:'SAR ', AED:'AED ', EGP:'EGP ', MAD:'MAD ',
+  CHF:'CHF ', TRY:'₺', INR:'₹', KWD:'KWD ', BHD:'BHD ',
+};
+// Currencies that shouldn't show decimals
+window.CUR_WHOLE = new Set(['JPY','SAR','KWD','BHD','EGP']);
+
+// USD-based FX rates: 1 USD = N <code>. Realistic mid-market rates (Nov 2025-ish).
+// User can override per trip via Settings → Currencies → FX rate (stored in trip.fx
+// as USD→home rate). For local currency we always fall back to this table.
+// Bump this date whenever you refresh the table.
+window.FX_RATES_UPDATED = '2025-11-15';
+window.FX_RATES = {
+  USD: 1,
+  EUR: 0.92,
+  GBP: 0.79,
+  JPY: 149,
+  CHF: 0.88,
+  SAR: 3.75,
+  AED: 3.67,
+  EGP: 48,
+  MAD: 9.85,
+  TRY: 32,
+  INR: 83,
+  KWD: 0.31,
+  BHD: 0.38,
+};
+// Effective rate USD → code. Trip-specific override for home currency, else table.
+window.fxRate = function(code) {
+  if (!code || code === 'USD') return 1;
+  const trip = window.TRIP || {};
+  if (code === trip.homeCurrency && trip.fx && trip.fx > 0) return trip.fx;
+  return window.FX_RATES[code] || 1;
+};
+
+// Format a USD-based amount in the trip's chosen display currency.
+// Pass { in: 'home' | 'local' | 'USD' | <ISO> } to override which currency to show.
+window.fmtMoney = function(usdAmount, opts) {
+  const trip = window.TRIP || {};
+  const home  = trip.homeCurrency  || 'USD';
+  const local = trip.localCurrency || home;
+  const in_   = (opts && opts.in) || 'home';
+
+  let code;
+  if (in_ === 'home')  code = home;
+  else if (in_ === 'local') code = local;
+  else code = in_; // explicit ISO code
+
+  const rate = window.fxRate(code);
+  const v = (usdAmount || 0) * rate;
+  const sym = window.CUR_SYM[code] || (code + ' ');
+  const whole = window.CUR_WHOLE.has(code);
+  const formatted = v.toLocaleString('en', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: whole ? 0 : 2,
+  });
+  return `${sym}${formatted}`;
+};
+
+// Reverse: take an amount entered in any currency code, return USD value.
+window.toUSD = function(amount, fromCode) {
+  const n = parseFloat(amount) || 0;
+  if (!fromCode || fromCode === 'USD') return n;
+  const rate = window.fxRate(fromCode);
+  return rate > 0 ? n / rate : n;
+};
+
+// RTL-aware flex row style helper — spread this into any horizontal flex container
+window.fRow = function(extra) {
+  return Object.assign(
+    { display: 'flex', flexDirection: window.isRTL ? 'row-reverse' : 'row', alignItems: 'center' },
+    extra || {}
+  );
+};
+// Flip a left/right pixel value based on direction
+window.fStart = function(val) { return window.isRTL ? { right: val } : { left: val }; };
+window.fEnd   = function(val) { return window.isRTL ? { left:  val } : { right: val }; };

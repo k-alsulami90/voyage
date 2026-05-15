@@ -1,0 +1,444 @@
+// Budget screen — donut chart, currency toggle, expense list with swipe + audit log
+
+function ScreenBudget({ go, openSheet, loading }) {
+  const trip = window.TRIP;
+  // Default display currency = home. Toggle switches between home and local.
+  const [displayMode, setDisplayMode] = React.useState('home'); // 'home' | 'local'
+  const [filter, setFilter]   = React.useState('all');     // category
+  const [paidBy, setPaidBy]   = React.useState('all');     // member.id or 'all'
+  const [dayFilter, setDayFilter] = React.useState('all'); // 'all' | day number
+  const [search, setSearch]   = React.useState('');
+  const [showSearch, setShowSearch] = React.useState(false);
+  const [showFilters, setShowFilters] = React.useState(false);
+  const cats = window.CATEGORIES || [];
+
+  // Compute "day N" for each expense relative to trip start date
+  const tripStart = trip?.startDate ? new Date(trip.startDate) : null;
+  const dayOf = (createdAt) => {
+    if (!tripStart || !createdAt) return 0;
+    const diff = Math.floor((new Date(createdAt) - tripStart) / 86400000) + 1;
+    return Math.max(1, Math.min(diff, trip?.daysTotal || 30));
+  };
+  const daysAvailable = trip?.daysTotal ? Array.from({ length: trip.daysTotal }, (_, i) => i + 1) : [];
+
+  // Show skeleton while loading, empty state only when truly no trip
+  if (loading || !trip) {
+    return (
+      <div style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>
+        <Header title={t('budget')} onBack={() => go('hub')} />
+        {loading ? <TripSkeleton /> : (
+          <div style={{ padding: '48px 32px', textAlign: 'center', color: 'var(--ink-mute)' }}>
+            <div className="serif" style={{ fontSize: 18 }}>
+              {window.isRTL ? 'الرجاء فتح رحلة أولاً' : 'Open a trip first'}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const home  = trip.homeCurrency  || 'USD';
+  const local = trip.localCurrency || home;
+  const sameHomeLocal = home === local;
+  const conv = (usd) => window.fmtMoney(usd, { in: displayMode === 'home' ? home : local });
+
+  // Live totals from real expenses (in USD base)
+  const expenses = window.EXPENSES || [];
+  const realSpent = expenses.reduce((s, e) => s + (e.usd || 0), 0);
+  const planned = trip.budget?.plannedUSD || 0;
+  const remaining = planned - realSpent;
+  const overBudget = planned > 0 && realSpent > planned;
+  const overPct = planned > 0 ? Math.round(((realSpent - planned) / planned) * 100) : 0;
+
+  // Donut math
+  const R = 64, C = 2 * Math.PI * R;
+  let offset = 0;
+
+  return (
+    <div data-screen-label="02 Budget" style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>
+      {/* Header */}
+      <Header title={t('budget')} onBack={() => go('hub')} />
+
+      {/* OVER-BUDGET BANNER */}
+      {overBudget && (
+        <div style={{ padding: '4px 14px 0' }}>
+          <div style={{
+            borderRadius: 18, padding: '12px 14px',
+            background: 'linear-gradient(135deg, var(--clay) 0%, var(--clay-deep) 100%)',
+            color: '#fff', boxShadow: 'var(--shadow-md)',
+            display: 'flex', alignItems: 'center', gap: 12,
+            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+          }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+              background: 'rgba(255,255,255,0.18)', display: 'grid', placeItems: 'center',
+              fontSize: 18,
+            }}>⚠</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>
+                {window.isRTL ? `تجاوزت الميزانية بنسبة ${overPct}٪` : `Over budget by ${overPct}%`}
+              </div>
+              <div style={{ fontSize: 11.5, opacity: 0.85, marginTop: 2 }}>
+                {conv(realSpent - planned)} {window.isRTL ? 'فوق الحد المخطط' : 'above your planned cap'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DONUT + STAT — overlapping */}
+      <div style={{ padding: '6px 14px 0', position: 'relative' }}>
+        <div style={{
+          background: 'var(--statement)', color: 'var(--statement-fg)',
+          borderRadius: 28, padding: '22px 22px 26px',
+          position: 'relative', overflow: 'hidden',
+          boxShadow: 'var(--shadow-card)',
+        }}>
+          {/* Beam */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'radial-gradient(60% 50% at 80% 0%, oklch(0.40 0.06 35 / 0.6) 0%, transparent 60%)',
+            pointerEvents: 'none',
+          }} />
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            position: 'relative',
+          }}>
+            <div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.55 }}>
+                {t('totalSpent')}
+              </div>
+              <div style={{ fontFamily: 'var(--serif)', fontSize: 44, lineHeight: 1, marginTop: 4 }}>
+                {conv(realSpent)}
+              </div>
+              <div style={{ fontSize: 12, opacity: 0.6, marginTop: 4 }}>
+                {t('ofPlanned')} {conv(planned)} {t('planned')}
+              </div>
+              {/* Currency toggle — Home ↔ Local (only shown if they differ) */}
+              {!sameHomeLocal && (
+                <div style={{
+                  marginTop: 14, display: 'inline-flex', padding: 3,
+                  background: 'rgba(255,255,255,0.08)', borderRadius: 999,
+                  border: '0.5px solid rgba(255,255,255,0.1)',
+                  flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                }}>
+                  {[['home', home], ['local', local]].map(([m, code]) => (
+                    <button key={m} onClick={() => setDisplayMode(m)} style={{
+                      padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 500,
+                      background: displayMode === m ? 'var(--cream)' : 'transparent',
+                      color: displayMode === m ? 'var(--ink)' : 'var(--cream)',
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                    }}>
+                      {displayMode !== m && <IconSwap size={11} stroke="currentColor" />}
+                      {code}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Donut */}
+            <div style={{ position: 'relative', width: 150, height: 150, flexShrink: 0 }}>
+              <svg width="150" height="150" viewBox="0 0 150 150" style={{ transform: 'rotate(-90deg)' }}>
+                <circle cx="75" cy="75" r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="14" />
+                {cats.map((c) => {
+                  const len = (c.pct / 100) * C;
+                  const dasharray = `${len} ${C - len}`;
+                  const el = (
+                    <circle key={c.key} cx="75" cy="75" r={R} fill="none"
+                            stroke={c.color} strokeWidth="14" strokeLinecap="butt"
+                            strokeDasharray={dasharray} strokeDashoffset={-offset} />
+                  );
+                  offset += len + 2; // small gap
+                  return el;
+                })}
+              </svg>
+              <div style={{
+                position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', textAlign: 'center',
+              }}>
+                <div style={{ fontFamily: 'var(--serif)', fontSize: 34, lineHeight: 1 }}>
+                  {planned > 0 ? Math.min(Math.round((realSpent / planned) * 100), 999) : 0}<span style={{ fontSize: 16 }}>%</span>
+                </div>
+                <div style={{ fontSize: 10, opacity: 0.6, fontFamily: 'var(--mono)', letterSpacing: '0.12em', marginTop: 2 }}>{t('used')}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Category cards row */}
+        <div style={{
+          marginTop: 12, display: 'flex', gap: 9, overflowX: 'auto', padding: '0 4px 8px',
+          flexDirection: window.isRTL ? 'row-reverse' : 'row',
+        }} className="no-scrollbar">
+          {cats.map((c) => (
+            <div key={c.key} style={{
+              flexShrink: 0, minWidth: 110,
+              background: 'var(--cream-2)', borderRadius: 18, padding: '12px 14px',
+              boxShadow: 'var(--shadow-sm)', border: '0.5px solid var(--hairline)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+                <span style={{ width: 7, height: 7, borderRadius: 2, background: c.color }} />
+                <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--ink-soft)' }}>{c.label}</span>
+              </div>
+              <div className="mono" style={{ fontSize: 17, marginTop: 4, color: 'var(--ink)', fontWeight: 500 }}>
+                {conv(c.amt)}
+              </div>
+              <div style={{ fontSize: 10.5, color: 'var(--ink-mute)', marginTop: 1, fontFamily: 'var(--mono)' }}>
+                {c.pct}{t('ofTotal')}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* FILTER + LIST */}
+      <div style={{ padding: '18px 14px 0' }}>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flexDirection: window.isRTL ? 'row-reverse' : 'row',
+          padding: '0 8px 10px',
+        }}>
+          <div className="serif" style={{ fontSize: 22 }}>{t('expenses')}</div>
+          <div style={{ display: 'flex', gap: 5, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+            <button onClick={() => { setShowSearch(!showSearch); setSearch(''); }} style={{
+              width: 30, height: 30, borderRadius: 10,
+              background: showSearch ? 'var(--ink)' : 'var(--cream-2)',
+              border: '0.5px solid var(--hairline)', display: 'grid', placeItems: 'center',
+            }}><IconSearch size={14} stroke={showSearch ? 'var(--cream)' : 'var(--ink-soft)'} /></button>
+          </div>
+        </div>
+
+        {showSearch && (
+          <div style={{ padding: '0 8px 10px' }}>
+            <input
+              autoFocus
+              type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder={window.isRTL ? 'ابحث في المصروفات...' : 'Search expenses...'}
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 12,
+                border: '1px solid var(--clay)', background: 'var(--cream)',
+                color: 'var(--ink)', fontSize: 13.5, outline: 'none',
+                textAlign: window.isRTL ? 'right' : 'left',
+              }}
+            />
+          </div>
+        )}
+
+        {/* Category chips + filter toggle */}
+        <div style={{ display: 'flex', gap: 6, padding: '0 4px 10px', overflowX: 'auto', flexDirection: window.isRTL ? 'row-reverse' : 'row', alignItems: 'center' }} className="no-scrollbar">
+          <Chip active={filter === 'all'} onClick={() => setFilter('all')}>
+            {t('all')} · {window.EXPENSES.length}
+          </Chip>
+          {cats.map((c) => (
+            <Chip key={c.key} active={filter === c.key} onClick={() => setFilter(c.key)}>{c.label}</Chip>
+          ))}
+          <div style={{ flex: 1 }} />
+          <button onClick={() => setShowFilters(!showFilters)} style={{
+            flexShrink: 0, padding: '6px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 500,
+            background: showFilters || paidBy !== 'all' || dayFilter !== 'all' ? 'var(--ink)' : 'var(--cream-2)',
+            color: showFilters || paidBy !== 'all' || dayFilter !== 'all' ? 'var(--cream)' : 'var(--ink-soft)',
+            border: '0.5px solid var(--hairline)',
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+          }}>
+            ⚙ {window.isRTL ? 'فلاتر' : 'Filters'}
+            {(paidBy !== 'all' || dayFilter !== 'all') && (
+              <span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--clay)' }} />
+            )}
+          </button>
+        </div>
+
+        {/* Expanded filters: Day + Paid by */}
+        {showFilters && (
+          <div style={{
+            margin: '0 4px 12px', padding: '12px 14px', borderRadius: 16,
+            background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+            display: 'flex', flexDirection: 'column', gap: 12,
+          }}>
+            {/* Paid by row */}
+            <div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.12em', color: 'var(--ink-mute)', textTransform: 'uppercase', marginBottom: 6 }}>
+                {window.isRTL ? 'دفع بواسطة' : 'Paid by'}
+              </div>
+              <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+                <Chip active={paidBy === 'all'} onClick={() => setPaidBy('all')}>{t('all')}</Chip>
+                {(window.MEMBERS || []).map((m) => (
+                  <Chip key={m.id} active={paidBy === m.id} onClick={() => setPaidBy(m.id)}>
+                    {m.name.split(' ')[0]}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+
+            {/* Day row */}
+            {daysAvailable.length > 0 && (
+              <div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.12em', color: 'var(--ink-mute)', textTransform: 'uppercase', marginBottom: 6 }}>
+                  {window.isRTL ? 'اليوم' : 'Day'}
+                </div>
+                <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+                  <Chip active={dayFilter === 'all'} onClick={() => setDayFilter('all')}>{t('all')}</Chip>
+                  {daysAvailable.map((d) => (
+                    <Chip key={d} active={dayFilter === d} onClick={() => setDayFilter(d)}>
+                      {window.isRTL ? `يوم ${d}` : `Day ${d}`}
+                    </Chip>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Clear filters */}
+            {(paidBy !== 'all' || dayFilter !== 'all' || filter !== 'all') && (
+              <button onClick={() => { setPaidBy('all'); setDayFilter('all'); setFilter('all'); }} style={{
+                alignSelf: 'flex-start', padding: '6px 12px', borderRadius: 999, fontSize: 11.5,
+                background: 'var(--cream)', border: '0.5px solid var(--hairline-2)', color: 'var(--ink-soft)',
+              }}>
+                {window.isRTL ? 'مسح الفلاتر' : 'Clear filters'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {window.EXPENSES.length === 0 && (
+          <div style={{
+            padding: '32px 16px', textAlign: 'center', display: 'flex',
+            flexDirection: 'column', alignItems: 'center', gap: 10,
+          }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: 14, background: 'var(--cream-2)',
+              display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
+            }}><IconWallet size={22} stroke="var(--ink-mute)" /></div>
+            <div className="serif" style={{ fontSize: 18, color: 'var(--ink)' }}>
+              {window.isRTL ? 'لا توجد مصروفات بعد' : 'No expenses yet'}
+            </div>
+            <div style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>
+              {window.isRTL ? 'اضغط + لإضافة أول مصروف' : 'Tap + to add your first expense'}
+            </div>
+          </div>
+        )}
+
+        {/* Expense rows — swipeable with delete */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 4px' }}>
+          {window.EXPENSES.filter((e) =>
+            (filter === 'all' || e.cat === filter) &&
+            (paidBy === 'all' || e.who === paidBy) &&
+            (dayFilter === 'all' || dayOf(e.createdAt) === dayFilter) &&
+            (!search || e.title?.toLowerCase().includes(search.toLowerCase()) || e.note?.toLowerCase().includes(search.toLowerCase()))
+          ).map((e) => {
+            const m = window.MEMBERS.find((x) => x.id === e.who) || { name: 'Unknown', hue: 200, initials: '?' };
+            const c = cats.find((x) => x.key === e.cat) || { color: 'var(--ink-mute)' };
+            const localAmt = e.jpy > 0 ? `¥${e.jpy.toLocaleString()}` : null;
+            return (
+              <SwipeRow key={e.id}
+                actions={[
+                  { key: 'delete', bg: 'var(--clay)', icon: <IconTrash size={18} stroke="#fff" /> },
+                ]}
+                onAction={async (key) => {
+                  if (key === 'delete') {
+                    try {
+                      await window.deleteExpense(e.id, trip.id);
+                      await window.loadExpenses(trip.id);
+                    } catch (err) { console.error(err); }
+                  }
+                }}>
+                <div onClick={() => openSheet?.('editExpense', e)} style={{
+                  background: 'var(--cream-2)', borderRadius: 18, cursor: 'pointer',
+                  padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12,
+                  flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                  border: '0.5px solid var(--hairline)',
+                }}>
+                  <div style={{
+                    width: 6, alignSelf: 'stretch', borderRadius: 3,
+                    background: c.color, marginRight: window.isRTL ? 0 : -2,
+                    marginLeft: window.isRTL ? -2 : 0,
+                  }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink)' }}>{e.title}</div>
+                    <div style={{
+                      fontSize: 11, color: 'var(--ink-mute)', marginTop: 3,
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                    }}>
+                      <Avatar m={m} size={15} />
+                      <span>{m.name.split(' ')[0]} · {e.when}</span>
+                      {e.note && <span style={{ opacity: 0.7 }}>· {e.note}</span>}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: window.isRTL ? 'left' : 'right' }}>
+                    <div className="mono" style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>
+                      {conv(e.usd)}
+                    </div>
+                    {!sameHomeLocal && (
+                      <div className="mono" style={{ fontSize: 10, color: 'var(--ink-mute)' }}>
+                        {window.fmtMoney(e.usd, { in: displayMode === 'home' ? local : home })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </SwipeRow>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* AUDIT LOG */}
+      <div style={{ padding: '22px 14px 0' }}>
+        <SectionLabel>{t('auditLog')}</SectionLabel>
+        <div style={{
+          background: 'var(--cream-2)', borderRadius: 22, padding: '14px 16px',
+          margin: '0 8px', border: '0.5px solid var(--hairline)',
+        }}>
+          {window.AUDIT.map((a, i) => {
+            const m = window.MEMBERS.find((x) => x.id === a.who);
+            return (
+              <div key={a.id} style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                padding: '7px 0',
+                borderTop: i ? '0.5px solid var(--hairline)' : 'none',
+              }}>
+                <Avatar m={m} size={22} />
+                <div style={{ flex: 1, fontSize: 12.5, color: 'var(--ink-soft)', textAlign: window.isRTL ? 'right' : 'left' }}>
+                  <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{m.name.split(' ')[0]}</span>
+                  <span style={{ color: 'var(--ink-mute)' }}> {a.action} </span>
+                  <span style={{ fontWeight: 500 }}>{a.target}</span>
+                </div>
+                <div className="mono" style={{ fontSize: 10.5, color: 'var(--ink-mute)' }}>{a.when}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Shared header for sub-screens
+function Header({ title, onBack, action }) {
+  return (
+    <div style={{
+      position: 'sticky', top: 0, zIndex: 20,
+      padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 18px 14px',
+      background: 'linear-gradient(180deg, var(--cream) 85%, transparent)',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      flexDirection: window.isRTL ? 'row-reverse' : 'row',
+    }}>
+      <button onClick={onBack} style={{
+        width: 36, height: 36, borderRadius: 999,
+        background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+        display: 'grid', placeItems: 'center', color: 'var(--ink)',
+      }}>
+        <span className="icon-flip"><IconBack size={17} /></span>
+      </button>
+      <div className="serif" style={{ fontSize: 22, color: 'var(--ink)' }}>{title}</div>
+      <div style={{ width: 36, height: 36, display: 'grid', placeItems: 'center' }}>
+        {action || <IconMore size={18} stroke="var(--ink-soft)" />}
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { ScreenBudget, Header });

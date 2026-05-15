@@ -1,0 +1,34 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+
+# Logs
+*.log
+npm-debug.log*
+
+# Env (we don't have any yet — but never commit if added)
+.env
+.env.local
+.env.*.local
+
+# Node (in case Vite migration happens)
+node_modules/
+dist/
+build/
+.vite/
+
+# Vercel
+.vercel/
+
+# Claude / agents internal state
+.agents/
+.claude/
+.mcp.json
+skills-lock.json
+
+# Local serve cache
+.serve-cache/

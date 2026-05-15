@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Voyage — Travel Tracker</title>
+
+<!-- PWA manifest + theme -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#221c16" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#f3eed8" media="(prefers-color-scheme: light)" />
+<meta name="description" content="Plan trips, track expenses, share with your crew — designed for Gulf travelers." />
+
+<!-- iOS / Apple -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Voyage" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Cairo:wght@300;400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Amiri:ital@0;1&family=Markazi+Text:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  body {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    background:
+      radial-gradient(ellipse 60% 50% at 30% 20%, oklch(0.32 0.04 40) 0%, transparent 60%),
+      radial-gradient(ellipse 80% 60% at 80% 100%, oklch(0.28 0.03 220) 0%, transparent 55%),
+      #14110d;
+    padding: 32px 16px;
+  }
+  /* Stage shadow under the device */
+  .device-stage {
+    position: relative;
+    filter: drop-shadow(0 50px 60px rgba(0,0,0,0.6));
+  }
+
+  @media (max-width: 500px) {
+    body {
+      display: block;
+      background: var(--cream);
+      padding: 0;
+      min-height: 100dvh;
+      overflow: hidden;
+    }
+    #root { height: 100dvh; }
+  }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin="anonymous"></script>
+
+  <!-- React + Babel pinned -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <!-- Local components -->
+  <script type="text/babel" src="i18n.jsx"></script>
+  <script type="text/babel" src="supabase/client.jsx"></script>
+  <script type="text/babel" src="ios-frame.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="data.jsx"></script>
+  <script type="text/babel" src="icons.jsx"></script>
+  <script type="text/babel" src="ui.jsx"></script>
+  <script type="text/babel" src="screen-auth.jsx"></script>
+  <script type="text/babel" src="screen-trips.jsx"></script>
+  <script type="text/babel" src="screen-insights.jsx"></script>
+  <script type="text/babel" src="screen-app-settings.jsx"></script>
+  <script type="text/babel" src="screen-hub.jsx"></script>
+  <script type="text/babel" src="screen-budget.jsx"></script>
+  <script type="text/babel" src="screen-analytics.jsx"></script>
+  <script type="text/babel" src="screen-docs.jsx"></script>
+  <script type="text/babel" src="screen-doc-detail.jsx"></script>
+  <script type="text/babel" src="screen-add-doc.jsx"></script>
+  <script type="text/babel" src="screen-settings.jsx"></script>
+  <script type="text/babel" src="app.jsx"></script>
+
+  <!-- ── PWA: service worker + install prompt ── -->
+  <script>
+    // Register service worker (only over https or localhost; skip in dev iframes)
+    if ('serviceWorker' in navigator &&
+        (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch((err) => {
+          console.warn('SW registration failed:', err);
+        });
+      });
+    }
+
+    // Capture the install prompt so we can trigger it from a UI button
+    window._deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      window._deferredInstallPrompt = e;
+      // Let React listen for this
+      window.dispatchEvent(new CustomEvent('voyage:install-available'));
+    });
+    window.addEventListener('appinstalled', () => {
+      window._deferredInstallPrompt = null;
+      window.toast?.('Voyage installed', 'success');
+    });
+
+    // Detect iOS Safari (no beforeinstallprompt support — needs manual instructions)
+    window.isIOSStandalone = () => window.navigator.standalone === true;
+    window.isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  </script>
+</body>
+</html>

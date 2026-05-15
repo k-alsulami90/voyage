@@ -1,0 +1,521 @@
+// Supabase client — loaded once, available as window.sb everywhere
+
+const _SUPABASE_URL  = 'https://ydbpkimqibfviqxaicld.supabase.co';
+const _SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlkYnBraW1xaWJmdmlxeGFpY2xkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODUzMjYsImV4cCI6MjA5NDI2MTMyNn0.3dgxXZz-xyB7DLVmXUQUrbjhXS_uRs69Ue-9VRuo0ko';
+
+window.sb = window.supabase.createClient(_SUPABASE_URL, _SUPABASE_ANON);
+
+// ── Auth helpers ─────────────────────────────────────────────
+
+window.sbSignIn = async (email, password) => {
+  const { data, error } = await window.sb.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  return data;
+};
+
+window.sbSignUp = async (email, password, name) => {
+  const initials = name
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+  const hue = Math.floor(Math.random() * 360);
+
+  const { data, error } = await window.sb.auth.signUp({
+    email,
+    password,
+    options: { data: { name, initials, avatar_hue: hue } },
+  });
+  if (error) throw error;
+
+  // Create profile row (RLS allows insert for own id)
+  if (data.user) {
+    await window.sb.from('profiles').upsert({
+      id: data.user.id,
+      name,
+      initials,
+      avatar_hue: hue,
+      default_currency: 'USD',
+    });
+  }
+  return data;
+};
+
+window.sbSignOut = () => window.sb.auth.signOut();
+
+// Send a password-reset email. User clicks the link and lands back on the app
+// with a recovery session; PASSWORD_RECOVERY event fires onAuthStateChange.
+window.sbResetPassword = async (email) => {
+  const redirectTo = `${window.location.origin}${window.location.pathname}#reset`;
+  const { error } = await window.sb.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) throw error;
+};
+
+// Set a new password (only works while in a recovery session)
+window.sbUpdatePassword = async (newPassword) => {
+  const { error } = await window.sb.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+};
+
+// Re-send the email-confirmation email
+window.sbResendConfirmation = async (email) => {
+  const { error } = await window.sb.auth.resend({ type: 'signup', email });
+  if (error) throw error;
+};
+
+// ── Clear ALL mock data — call immediately on sign-in ────────
+window.clearAllMockData = () => {
+  window.TRIPS         = [];
+  window.TRIP          = null;
+  window.MEMBERS       = [];
+  window.EXPENSES      = [];
+  window.DOCS          = [];
+  window.AUDIT         = [];
+  window.DOCS_BY_CAT   = { flights: [], lodging: [], visas: [], transport: [] };
+  window.DOC_CATEGORIES = window.DOC_CATEGORIES?.map((c) => ({ ...c, count: 0 })) || [];
+  window.CATEGORIES    = window.CATEGORIES?.map((c) => ({ ...c, amt: 0, pct: 0 })) || [];
+  window.TRIP_ANALYTICS = {
+    dailyAvgUSD: 0, dailyPlanUSD: 0,
+    topDay: { date: '--', usd: 0 },
+    contribs: [], spendByDay: [],
+  };
+  window.GLOBAL = {
+    countries: 0, continents: 0, days: 0, lifetimeUSD: 0,
+    longestTrip: { name: '--', days: 0 },
+    topCategory: { name: '--', usd: 0, pct: 0 },
+    byContinent: [], yearly: [],
+  };
+};
+
+// ── Data loaders — populate window globals used by screens ───
+
+window.loadTrips = async (userId) => {
+
+  // RLS already filters to trips the user owns or is a member of
+  const { data, error } = await window.sb
+    .from('trips')
+    .select('*, trip_members(user_id, role)')
+    .order('start_date', { ascending: false });
+
+  if (error) { console.error('loadTrips', error); return; }
+
+  window.TRIPS = (data || []).map((r) => ({
+    id:           r.id,
+    title:        r.title,
+    sub:          r.subtitle || '',
+    dates:        window.fmtDateRange(r.start_date, r.end_date),
+    country:      r.country_code || '',
+    shared:       (r.trip_members || []).length > 1,
+    members:      (r.trip_members || []).length,
+    cover:        r.cover_style || 'kyoto',
+    coverImageUrl: r.cover_image_url || null,
+    budgetPct:    0,
+    status:       r.status,
+  }));
+
+  // Also set the single-trip detail for the active trip
+  const active = data?.find((r) => r.status === 'active') || data?.[0];
+  if (active) {
+    window.TRIP = {
+      id:             active.id,
+      title:          active.title,
+      subtitle:       active.subtitle || '',
+      dates:          window.fmtDateRange(active.start_date, active.end_date),
+      startDate:      active.start_date,
+      endDate:        active.end_date,
+      daysIn:         1,
+      daysTotal:      Math.ceil(
+        (new Date(active.end_date) - new Date(active.start_date)) / 86400000
+      ),
+      homeCurrency:   active.home_currency,
+      localCurrency:  active.local_currency || 'USD',
+      fx:             parseFloat(active.fx_rate) || 1,
+      budget:         { plannedUSD: parseFloat(active.budget_planned_usd) || 0, spentUSD: 0 },
+      cover:          active.cover_style || 'kyoto',
+      weather:        { temp: '--', cond: '' },
+      next:           { label: '', when: '' },
+    };
+  }
+};
+
+window.loadExpenses = async (tripId) => {
+  const { data, error } = await window.sb
+    .from('expenses')
+    .select('*, profiles ( name, initials, avatar_hue )')
+    .eq('trip_id', tripId)
+    .order('created_at', { ascending: false });
+
+  if (error) { console.error('loadExpenses', error); return; }
+
+  window.EXPENSES = (data || []).map((r) => ({
+    id:        r.id,
+    who:       r.created_by,
+    cat:       r.category,
+    title:     r.title,
+    jpy:       r.local_currency === 'JPY' ? parseFloat(r.amount_local) : 0,
+    usd:       parseFloat(r.amount_usd),
+    when:      window.fmtDate(r.created_at),
+    createdAt: r.created_at,
+    note:      r.note || '',
+  }));
+
+  // Recalculate category totals
+  const totals = {};
+  window.EXPENSES.forEach((e) => {
+    totals[e.cat] = (totals[e.cat] || 0) + e.usd;
+  });
+  const total = Object.values(totals).reduce((s, v) => s + v, 0) || 1;
+  window.CATEGORIES = window.CATEGORIES.map((c) => ({
+    ...c,
+    amt: totals[c.key] || 0,
+    pct: Math.round(((totals[c.key] || 0) / total) * 100),
+  }));
+
+  // Update TRIP budget spent
+  if (window.TRIP && window.TRIP.id === tripId) {
+    window.TRIP.budget.spentUSD = total;
+  }
+};
+
+window.loadMembers = async (tripId) => {
+  const { data, error } = await window.sb
+    .from('trip_members')
+    .select('*, profiles ( name, initials, avatar_hue )')
+    .eq('trip_id', tripId);
+
+  if (error) { console.error('loadMembers', error); return; }
+
+  window.MEMBERS = (data || []).map((r) => ({
+    id:       r.user_id,
+    name:     r.profiles?.name || 'Unknown',
+    role:     r.role,
+    hue:      r.profiles?.avatar_hue || 35,
+    initials: r.profiles?.initials || '?',
+  }));
+};
+
+window.loadDocuments = async (tripId) => {
+  const { data, error } = await window.sb
+    .from('documents')
+    .select('*, document_photos ( storage_path )')
+    .eq('trip_id', tripId)
+    .order('created_at', { ascending: false });
+
+  if (error) { console.error('loadDocuments', error); return; }
+
+  const byCat = { flights: [], lodging: [], visas: [], transport: [] };
+  (data || []).forEach((r) => {
+    // Links come ONLY from Supabase Storage — external link_url is ignored.
+    // User must upload the file via the Upload button to get a working link.
+    let resolvedLink = null;
+    let resolvedLabel = null;
+    if (r.file_path) {
+      const { data: { publicUrl } } = window.sb.storage
+        .from('documents').getPublicUrl(r.file_path);
+      resolvedLink  = publicUrl;
+      resolvedLabel = window.isRTL ? 'فتح PDF' : 'Open PDF';
+    }
+    const doc = {
+      id:        r.id,
+      kind:      r.kind,
+      title:     r.title,
+      sub:       r.subtitle || '',
+      size:      r.file_size_bytes
+        ? `${(r.file_size_bytes / 1024 / 1024).toFixed(1)} MB`
+        : (r.file_path ? '...' : '--'),
+      tint:      r.tint,
+      filePath:  r.file_path || null,
+      link:      resolvedLink,
+      linkLabel: resolvedLabel,
+      photos:    (r.document_photos || []).map((p) => p.storage_path),
+    };
+    if (byCat[r.category]) byCat[r.category].push(doc);
+  });
+  window.DOCS_BY_CAT = byCat;
+
+  window.DOC_CATEGORIES = window.DOC_CATEGORIES.map((c) => ({
+    ...c,
+    count: (byCat[c.key] || []).length,
+  }));
+};
+
+// Upload a PDF/image to Supabase Storage and link it to a document record
+window.uploadDocumentFile = async (docId, tripId, file) => {
+  const ext  = file.name.split('.').pop().toLowerCase();
+  const path = `${tripId}/${docId}.${ext}`;
+  const { error: upErr } = await window.sb.storage
+    .from('documents').upload(path, file, { upsert: true, contentType: file.type });
+  if (upErr) throw upErr;
+
+  const { data: { publicUrl } } = window.sb.storage
+    .from('documents').getPublicUrl(path);
+
+  const { error: dbErr } = await window.sb.from('documents').update({
+    file_path:       path,
+    file_size_bytes: file.size,
+    link_url:        publicUrl,
+    link_label:      'Open PDF',
+  }).eq('id', docId);
+  if (dbErr) throw dbErr;
+
+  return publicUrl;
+};
+
+window.loadAuditLog = async (tripId) => {
+  const { data, error } = await window.sb
+    .from('audit_log')
+    .select('*, profiles ( name, initials, avatar_hue )')
+    .eq('trip_id', tripId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) { console.error('loadAuditLog', error); return; }
+
+  window.AUDIT = (data || []).map((r) => ({
+    id:     r.id,
+    who:    r.user_id,
+    action: r.action,
+    target: r.target,
+    when:   new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  }));
+};
+
+// ── Write helpers ────────────────────────────────────────────
+
+window.addExpense = async (tripId, userId, fields) => {
+  const { data, error } = await window.sb.from('expenses').insert({
+    trip_id:        tripId,
+    created_by:     userId,
+    title:          fields.title,
+    category:       fields.category,
+    amount_usd:     fields.amountUSD,
+    amount_local:   fields.amountLocal,
+    local_currency: fields.localCurrency,
+    note:           fields.note || null,
+  }).select().single();
+  if (error) throw error;
+
+  await window.sb.from('audit_log').insert({
+    trip_id: tripId,
+    user_id: userId,
+    action:  'added',
+    target:  fields.title,
+  });
+  return data;
+};
+
+window.addDocument = async (tripId, userId, fields) => {
+  const { data, error } = await window.sb.from('documents').insert({
+    trip_id:     tripId,
+    uploaded_by: userId,
+    title:       fields.title,
+    subtitle:    fields.subtitle || null,
+    category:    fields.category,
+    kind:        fields.kind || 'pdf',
+    tint:        fields.tint || 'clay',
+    link_url:    fields.linkUrl || null,
+    link_label:  fields.linkLabel || null,
+  }).select().single();
+  if (error) throw error;
+
+  await window.sb.from('audit_log').insert({
+    trip_id: tripId,
+    user_id: userId,
+    action:  'uploaded',
+    target:  fields.title,
+  });
+  return data;
+};
+
+// Load a single trip's full detail into window.TRIP
+window.loadTripDetail = async (tripId) => {
+  const { data, error } = await window.sb
+    .from('trips').select('*').eq('id', tripId).single();
+  if (error) { console.error('loadTripDetail', error); return; }
+  const start = new Date(data.start_date);
+  const end   = new Date(data.end_date);
+  const today = new Date();
+  const daysIn    = Math.max(1, Math.floor((today - start) / 86400000) + 1);
+  const daysTotal = Math.max(1, Math.ceil((end - start) / 86400000));
+  window.TRIP = {
+    id:            data.id,
+    title:         data.title,
+    subtitle:      data.subtitle || '',
+    dates:         window.fmtDateRange(data.start_date, data.end_date),
+    startDate:     data.start_date,
+    endDate:       data.end_date,
+    daysIn:        Math.min(daysIn, daysTotal),
+    daysTotal,
+    homeCurrency:  data.home_currency || 'USD',
+    localCurrency: data.local_currency || 'USD',
+    fx:            parseFloat(data.fx_rate) || 1,
+    budget:        { plannedUSD: parseFloat(data.budget_planned_usd) || 0, spentUSD: 0 },
+    cover:         data.cover_style || 'kyoto',
+    coverImageUrl: data.cover_image_url || null,
+    status:        data.status,
+    weather:       { temp: '--', cond: '' },
+    next:          { label: '', when: '' },
+  };
+};
+
+// Upload a cover image and update the trip record
+window.uploadTripCover = async (tripId, file) => {
+  const ext  = file.name.split('.').pop();
+  const path = `${window.currentUserId}/${tripId}.${ext}`;
+  const { error: upErr } = await window.sb.storage
+    .from('covers').upload(path, file, { upsert: true });
+  if (upErr) throw upErr;
+
+  const { data: { publicUrl } } = window.sb.storage
+    .from('covers').getPublicUrl(path);
+
+  const { error: dbErr } = await window.sb
+    .from('trips').update({ cover_image_url: publicUrl }).eq('id', tripId);
+  if (dbErr) throw dbErr;
+
+  if (window.TRIP?.id === tripId) window.TRIP.coverImageUrl = publicUrl;
+  return publicUrl;
+};
+
+window.createTrip = async (fields) => {
+  const userId = window.currentUserId;
+  if (!userId) throw new Error('Not signed in');
+
+  // Generate a URL-safe id from title + year
+  const slug = fields.title.toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    .slice(0, 20) + '-' + new Date().getFullYear().toString().slice(2);
+  const uniqueId = slug + '-' + Math.random().toString(36).slice(2, 6);
+
+  const { data: trip, error: tripErr } = await window.sb.from('trips').insert({
+    id:                 uniqueId,
+    owner_id:           userId,
+    title:              fields.title,
+    subtitle:           fields.subtitle || null,
+    start_date:         fields.startDate,
+    end_date:           fields.endDate,
+    country_code:       fields.countryCode || null,
+    home_currency:      'USD',
+    local_currency:     fields.localCurrency || 'USD',
+    fx_rate:            fields.fxRate || 1,
+    budget_planned_usd: fields.budgetUSD || null,
+    cover_style:        fields.coverStyle || 'kyoto',
+    status:             fields.status || 'upcoming',
+  }).select().single();
+
+  if (tripErr) throw tripErr;
+
+  // Add owner as Admin member
+  await window.sb.from('trip_members').insert({
+    trip_id: trip.id,
+    user_id: userId,
+    role:    'Admin',
+  });
+
+  return trip;
+};
+
+window.removeMember = async (tripId, userId) => {
+  const { error } = await window.sb.from('trip_members')
+    .delete()
+    .eq('trip_id', tripId)
+    .eq('user_id', userId);
+  if (error) throw error;
+};
+
+window.updateMemberRole = async (tripId, userId, role) => {
+  const { error } = await window.sb.from('trip_members')
+    .update({ role })
+    .eq('trip_id', tripId)
+    .eq('user_id', userId);
+  if (error) throw error;
+};
+
+window.updateExpense = async (expenseId, tripId, fields) => {
+  const { error } = await window.sb.from('expenses').update({
+    title:          fields.title,
+    category:       fields.category,
+    amount_usd:     fields.amountUSD,
+    amount_local:   fields.amountLocal,
+    local_currency: fields.localCurrency,
+    note:           fields.note || null,
+  }).eq('id', expenseId);
+  if (error) throw error;
+  await window.sb.from('audit_log').insert({
+    trip_id: tripId,
+    user_id: window.currentUserId,
+    action:  'edited',
+    target:  fields.title,
+  });
+};
+
+window.deleteExpense = async (expenseId, tripId) => {
+  const { error } = await window.sb.from('expenses').delete().eq('id', expenseId);
+  if (error) throw error;
+  await window.sb.from('audit_log').insert({
+    trip_id: tripId,
+    user_id: window.currentUserId,
+    action:  'removed',
+    target:  `Expense ${expenseId}`,
+  }).then(() => {});
+};
+
+window.updateExpenseLink = async (docId, linkUrl, linkLabel) => {
+  const { error } = await window.sb.from('documents')
+    .update({ link_url: linkUrl, link_label: linkLabel })
+    .eq('id', docId);
+  if (error) throw error;
+};
+
+window.deleteDocument = async (docId, tripId, title) => {
+  const { error } = await window.sb.from('documents').delete().eq('id', docId);
+  if (error) throw error;
+  await window.sb.from('audit_log').insert({
+    trip_id: tripId,
+    user_id: window.currentUserId,
+    action:  'removed',
+    target:  title || `Document ${docId}`,
+  }).then(() => {});
+};
+
+// ── Real-time subscriptions ───────────────────────────────────
+// Returns an unsubscribe function — call it on component unmount.
+// Idempotent: if a channel for this trip already exists, remove it first to avoid duplicate callbacks.
+window._activeRtChannels = window._activeRtChannels || new Map();
+window.subscribeToTrip = (tripId, onChange) => {
+  // Tear down any existing channel for this trip first
+  const existing = window._activeRtChannels.get(tripId);
+  if (existing) { try { window.sb.removeChannel(existing); } catch (_) {} window._activeRtChannels.delete(tripId); }
+
+  const channel = window.sb
+    .channel(`trip:${tripId}`)
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'expenses',
+      filter: `trip_id=eq.${tripId}`,
+    }, async () => {
+      await window.loadExpenses(tripId);
+      onChange?.();
+    })
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'documents',
+      filter: `trip_id=eq.${tripId}`,
+    }, async () => {
+      await window.loadDocuments(tripId);
+      onChange?.();
+    })
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'trip_members',
+      filter: `trip_id=eq.${tripId}`,
+    }, async () => {
+      await window.loadMembers(tripId);
+      onChange?.();
+    })
+    .subscribe();
+
+  window._activeRtChannels.set(tripId, channel);
+  return () => {
+    try { window.sb.removeChannel(channel); } catch (_) {}
+    window._activeRtChannels.delete(tripId);
+  };
+};
