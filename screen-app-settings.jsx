@@ -248,6 +248,20 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
           border: '0.5px solid var(--hairline)',
         }}>
           <ActionRow icon={<IconShare size={17} stroke="var(--ink)" />}    label={t('referFriend')}  sub={t('referSub')} />
+          <ActionRow onClick={async () => {
+            if (!confirm(window.isRTL ? 'مسح ذاكرة التخزين المؤقت وإعادة التحميل؟ بياناتك في السحابة آمنة.' : 'Clear cache and reload? Your cloud data is safe.')) return;
+            try {
+              if ('caches' in window) {
+                const names = await caches.keys();
+                await Promise.all(names.map((n) => caches.delete(n)));
+              }
+              if ('serviceWorker' in navigator) {
+                const regs = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(regs.map((r) => r.unregister()));
+              }
+              try { sessionStorage.clear(); } catch (_) {}
+            } finally { location.reload(); }
+          }} icon={<IconGear size={17} stroke="var(--ink)" />} label={window.isRTL ? 'إعادة تعيين التطبيق' : 'Reset app cache'} sub={window.isRTL ? 'مسح والتحميل من جديد إذا حدث خلل' : 'Clear cache & reload if something looks broken'} />
           <ActionRow onClick={onSignOut} icon={<span className="icon-flip"><IconBack size={17} stroke="var(--ink)" /></span>} label={t('signOut')}  sub={`Last seen ${me.name.split(' ')[0]} · Amsterdam`} />
           <ActionRow icon={<IconTrash size={17} stroke="var(--clay-deep)" />} labelColor="var(--clay-deep)" label={t('deleteAccount')} sub={t('deleteAccountSub')} last />
         </div>

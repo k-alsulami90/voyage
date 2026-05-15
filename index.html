@@ -52,7 +52,38 @@
 </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <!-- Hardcoded fallback: shown if React/Babel never mount within 8s.
+         No DevTools required — user just taps a button. -->
+    <div id="mount-fallback" style="display:none; position:fixed; inset:0;
+         background:#f3eed8; color:#221c16; padding:24px;
+         font-family:-apple-system, system-ui, sans-serif;
+         display:none; place-items:center; text-align:center;">
+      <div style="max-width:300px;">
+        <div style="font-family:'Instrument Serif', Georgia, serif; font-style:italic; font-size:36px; margin-bottom:24px;">voyage</div>
+        <div style="font-family:'Instrument Serif', Georgia, serif; font-size:22px; margin-bottom:8px;">Trouble loading</div>
+        <div style="font-size:13px; color:#666; margin-bottom:20px; line-height:1.5;">
+          Check your connection. If the issue continues, tap Reset.
+        </div>
+        <div style="display:flex; gap:8px; justify-content:center;">
+          <button onclick="location.reload()" style="padding:12px 20px; border-radius:14px; border:0; background:#221c16; color:#f3eed8; font-weight:600; font-size:14px;">Reload</button>
+          <button onclick="(async()=>{try{const n=await caches.keys();await Promise.all(n.map(x=>caches.delete(x)));const r=await navigator.serviceWorker.getRegistrations();await Promise.all(r.map(x=>x.unregister()));}catch(e){}finally{location.reload();}})()" style="padding:12px 20px; border-radius:14px; border:1px solid rgba(0,0,0,0.15); background:#fff; color:#221c16; font-weight:600; font-size:14px;">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    // If React hasn't mounted into #root within 8s, show the fallback.
+    window._mountTimer = setTimeout(() => {
+      const root = document.getElementById('root');
+      // Heuristic: an unmounted #root has only our fallback child OR is empty
+      if (root && root.children.length <= 1) {
+        const fb = document.getElementById('mount-fallback');
+        if (fb) fb.style.display = 'grid';
+      }
+    }, 8000);
+    // React will overwrite #root, killing the timer's relevance — that's fine.
+  </script>
 
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin="anonymous"></script>
@@ -85,13 +116,44 @@
 
   <!-- ── PWA: service worker + install prompt ── -->
   <script>
-    // Register service worker (only over https or localhost; skip in dev iframes)
+    // Register service worker + auto-update flow.
+    // Critical for production: when a new SW is deployed, users on the old
+    // version must NOT get stuck. We listen for the new SW activating
+    // and reload the page once (guarded by a flag to prevent infinite loops).
     if ('serviceWorker' in navigator &&
         (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch((err) => {
+      window.addEventListener('load', async () => {
+        try {
+          const reg = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+
+          // If a new SW takes control of this page → reload once so user gets fresh assets
+          let refreshing = false;
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshing) return;
+            refreshing = true;
+            location.reload();
+          });
+
+          // Check for updates every time the tab regains focus / every 5 min
+          const checkForUpdate = () => reg.update().catch(() => {});
+          window.addEventListener('focus', checkForUpdate);
+          setInterval(checkForUpdate, 5 * 60 * 1000);
+
+          // Listen for an updated SW that's waiting to take over → notify + skip waiting
+          reg.addEventListener('updatefound', () => {
+            const installing = reg.installing;
+            if (!installing) return;
+            installing.addEventListener('statechange', () => {
+              if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                // New version installed alongside the current one — activate it immediately
+                window.toast?.('Updating to latest version…', 'info');
+                installing.postMessage({ type: 'SKIP_WAITING' });
+              }
+            });
+          });
+        } catch (err) {
           console.warn('SW registration failed:', err);
-        });
+        }
       });
     }
 

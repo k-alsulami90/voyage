@@ -5,7 +5,9 @@
 //   - Supabase API / Storage: ALWAYS network, never cached (auth tokens + RLS)
 //   - Google Fonts: cache-first (rarely change)
 
-const VERSION = 'v1';
+// Bump this on every deploy that changes shell behaviour. Vercel deploys
+// rebuild the file from git so the string itself is enough — no build step needed.
+const VERSION = 'v2-2025-11-15';
 const SHELL_CACHE  = `voyage-shell-${VERSION}`;
 const STATIC_CACHE = `voyage-static-${VERSION}`;
 const FONT_CACHE   = `voyage-fonts-${VERSION}`;
@@ -59,6 +61,15 @@ self.addEventListener('activate', (event) => {
     )
   );
   self.clients.claim();
+});
+
+// ── Listen for SKIP_WAITING from the page ───────────────────
+// When the app detects a new SW is waiting, it posts this message so
+// the new version activates immediately instead of waiting for all tabs to close.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // ── Fetch ───────────────────────────────────────────────────

@@ -344,4 +344,78 @@ function ToastHost() {
 }
 window.ToastHost = ToastHost;
 
-Object.assign(window, { Avatar, AvatarStack, RoleBadge, Chip, SectionLabel, KyotoHero, TintCard, Sheet, SwipeRow, Skeleton, TripSkeleton, ToastHost });
+// ── ErrorBoundary ────────────────────────────────────────────
+// Catches any React crash anywhere in the tree and shows a friendly
+// "Something went wrong" screen with hard-recovery options. Without
+// this, a single thrown error blanks the page and the user is stuck.
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error, info) {
+    console.error('[ErrorBoundary]', error, info);
+  }
+  async hardReset() {
+    try {
+      if ('caches' in window) {
+        const names = await caches.keys();
+        await Promise.all(names.map((n) => caches.delete(n)));
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+      try { sessionStorage.clear(); } catch (_) {}
+    } catch (_) {}
+    location.reload();
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    const rtl = window.isRTL;
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, background: '#f3eed8', color: '#221c16',
+        display: 'grid', placeItems: 'center', textAlign: 'center', padding: 24,
+        fontFamily: '-apple-system, system-ui, sans-serif', direction: rtl ? 'rtl' : 'ltr',
+      }}>
+        <div style={{ maxWidth: 320 }}>
+          <div style={{ fontFamily: 'Instrument Serif, Georgia, serif', fontStyle: 'italic', fontSize: 36, marginBottom: 24 }}>voyage</div>
+          <div style={{
+            width: 64, height: 64, borderRadius: 20, margin: '0 auto 16px',
+            background: '#fff', border: '1px solid rgba(0,0,0,0.08)',
+            display: 'grid', placeItems: 'center', fontSize: 28,
+          }}>⚠</div>
+          <div style={{ fontFamily: 'Instrument Serif, Georgia, serif', fontSize: 24, marginBottom: 6 }}>
+            {rtl ? 'حدث خطأ ما' : 'Something went wrong'}
+          </div>
+          <div style={{ fontSize: 13, color: '#666', marginBottom: 20, lineHeight: 1.5 }}>
+            {rtl ? 'حاول تحديث الصفحة. إذا استمرت المشكلة، اضغط على إعادة التعيين.' : 'Try reloading. If the problem persists, tap Reset.'}
+          </div>
+          {this.state.error?.message && (
+            <details style={{ fontSize: 11, color: '#888', marginBottom: 16, textAlign: 'left' }}>
+              <summary style={{ cursor: 'pointer' }}>{rtl ? 'التفاصيل التقنية' : 'Technical details'}</summary>
+              <pre style={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginTop: 8 }}>
+                {String(this.state.error?.message)}
+              </pre>
+            </details>
+          )}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            <button onClick={() => location.reload()} style={{
+              padding: '12px 20px', borderRadius: 14, border: 0,
+              background: '#221c16', color: '#f3eed8', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+            }}>{rtl ? 'تحديث' : 'Reload'}</button>
+            <button onClick={() => this.hardReset()} style={{
+              padding: '12px 20px', borderRadius: 14, border: '1px solid rgba(0,0,0,0.15)',
+              background: '#fff', color: '#221c16', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+            }}>{rtl ? 'إعادة تعيين' : 'Reset app'}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+window.ErrorBoundary = ErrorBoundary;
+
+Object.assign(window, { Avatar, AvatarStack, RoleBadge, Chip, SectionLabel, KyotoHero, TintCard, Sheet, SwipeRow, Skeleton, TripSkeleton, ToastHost, ErrorBoundary });
