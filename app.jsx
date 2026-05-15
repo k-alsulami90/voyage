@@ -85,6 +85,28 @@ function App() {
       return;
     }
 
+    // Manually process recovery links that arrive as #reset&token_hash=...&type=recovery
+    // (Supabase only auto-processes the legacy #access_token=... format.)
+    (async () => {
+      const hash = window.location.hash || '';
+      if (hash.includes('token_hash=') && hash.includes('type=recovery')) {
+        const params = new URLSearchParams(hash.replace(/^#/, '').replace(/^reset&/, ''));
+        const token_hash = params.get('token_hash');
+        if (token_hash) {
+          window._authRecoveryActive = true;
+          try {
+            const { error } = await window.sb.auth.verifyOtp({ type: 'recovery', token_hash });
+            if (error) throw error;
+            window.location.hash = '';
+          } catch (err) {
+            console.error('Recovery verifyOtp failed', err);
+            window.toast?.(err.message || 'Recovery link invalid or expired', 'error');
+            window._authRecoveryActive = false;
+          }
+        }
+      }
+    })();
+
     const hydrateForUser = async (userId) => {
       window.currentUserId = userId;
       // Only wipe globals on the FIRST sign-in for this user; otherwise just refresh trips
