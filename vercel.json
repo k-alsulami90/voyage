@@ -53,13 +53,19 @@
       ]
     },
     {
-      "source": "/icons/(.*)",
+      "source": "/icons/:path*",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
-      "source": "/(.*\\.(jsx|css|svg|png|jpg|jpeg|webp|woff2|woff))",
+      "source": "/:file(.+\\.jsx)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/:file(.+\\.css)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" }
       ]
