@@ -134,11 +134,10 @@ function App() {
         setSession(null);
         setDataVersion((v) => v + 1);
       } else if (event === 'PASSWORD_RECOVERY') {
-        // User clicked the reset link → flip to the reset form
+        // User clicked the reset link → flip to the dedicated reset form
         window._authRecoveryActive = true;
-        window.location.hash = '#reset';
         setSession((prev) => s || prev);
-        setRoute({ scope: 'auth', name: 'signin' });
+        setRoute({ scope: 'auth', name: 'reset' });
       } else {
         // TOKEN_REFRESHED, USER_UPDATED, INITIAL_SESSION — keep state intact
         setSession((prev) => s || prev);
@@ -236,7 +235,8 @@ function App() {
   // Resolve screen
   let screenNode;
   if (route.scope === 'auth') {
-    screenNode = <window.ScreenAuth mode={route.name === 'signup' ? 'signup' : 'signin'} go={go} />;
+    const authMode = ['signup', 'forgot', 'reset'].includes(route.name) ? route.name : 'signin';
+    screenNode = <window.ScreenAuth mode={authMode} go={go} />;
   } else if (route.scope === 'app') {
     if (route.name === 'insights') screenNode = <window.ScreenInsights go={go} />;
     else if (route.name === 'appSettings') screenNode = <window.ScreenAppSettings go={go} onSignOut={async () => { await window.sbSignOut(); }} dark={tw.dark} lang={tw.lang} onDarkToggle={(v) => setTweak('dark', v)} onLangChange={(v) => setTweak('lang', v)} />;

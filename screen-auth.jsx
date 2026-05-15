@@ -13,11 +13,15 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
   const [checkEmail, setCheckEmail] = React.useState(false);
   const [resetSent,  setResetSent]  = React.useState(false);
 
-  // If the user lands on the page with a recovery session, switch to reset mode
+  // If the parent updates the prop (e.g. PASSWORD_RECOVERY auth event flips
+  // the route to 'reset'), sync the internal mode.
   React.useEffect(() => {
-    if (window.location.hash === '#reset' || window._authRecoveryActive) {
-      setMode('reset');
-    }
+    setMode(initMode);
+  }, [initMode]);
+
+  // Belt + suspenders: also flip on the recovery flag set by the auth handler.
+  React.useEffect(() => {
+    if (window._authRecoveryActive) setMode('reset');
   }, []);
 
   const handleSubmit = async () => {
@@ -47,10 +51,13 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
         if (password !== confirmPw) throw new Error(window.isRTL ? 'كلمتا المرور غير متطابقتين' : "Passwords don't match");
         await window.sbUpdatePassword(password);
         window.toast?.(window.isRTL ? 'تم تحديث كلمة المرور' : 'Password updated', 'success');
+        window._authRecoveryActive = false;
         window.location.hash = '';
-        setMode('signin');
         setPass(''); setConfirmPw('');
         setLoading(false);
+        // After password update the recovery session becomes a normal session —
+        // route to the trips list (will be handled by the session useEffect in App)
+        go && go('trips');
         return;
       }
     } catch (err) {
