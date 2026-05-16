@@ -57,7 +57,15 @@ function ScreenBudget({ go, openSheet, loading }) {
   return (
     <div data-screen-label="02 Budget" style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>
       {/* Header */}
-      <Header title={t('budget')} onBack={() => go('hub')} />
+      <Header title={t('budget')} onBack={() => go('hub')} action={
+        <button onClick={() => openSheet?.('addExpense')} aria-label={t('add')} style={{
+          width: 36, height: 36, borderRadius: 999,
+          background: 'var(--clay)', display: 'grid', placeItems: 'center',
+          boxShadow: '0 4px 10px oklch(0.62 0.13 35 / 0.4)',
+        }}>
+          <IconPlus size={16} stroke="#fff" />
+        </button>
+      } />
 
       {/* OVER-BUDGET BANNER */}
       {overBudget && (
@@ -181,7 +189,7 @@ function ScreenBudget({ go, openSheet, loading }) {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row' }}>
                 <span style={{ width: 7, height: 7, borderRadius: 2, background: c.color }} />
-                <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--ink-soft)' }}>{c.label}</span>
+                <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--ink-soft)' }}>{t(c.key) || c.label}</span>
               </div>
               <div className="mono" style={{ fontSize: 17, marginTop: 4, color: 'var(--ink)', fontWeight: 500 }}>
                 {conv(c.amt)}
@@ -233,7 +241,7 @@ function ScreenBudget({ go, openSheet, loading }) {
             {t('all')} · {window.EXPENSES.length}
           </Chip>
           {cats.map((c) => (
-            <Chip key={c.key} active={filter === c.key} onClick={() => setFilter(c.key)}>{c.label}</Chip>
+            <Chip key={c.key} active={filter === c.key} onClick={() => setFilter(c.key)}>{t(c.key) || c.label}</Chip>
           ))}
           <div style={{ flex: 1 }} />
           <button onClick={() => setShowFilters(!showFilters)} style={{
