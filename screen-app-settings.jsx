@@ -154,40 +154,7 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
           </div>
 
           {/* Static rows */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            flexDirection: 'row',
-            padding: '13px 16px', borderTop: '0.5px solid var(--hairline)',
-          }}>
-            <div style={{
-              width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
-              background: 'var(--cream)', border: '0.5px solid var(--hairline)',
-            }}><IconWallet size={16} stroke="var(--ink)" /></div>
-            <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)', textAlign: 'start' }}>
-              {t('defaultCurrency')}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row' }}>
-              <span style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>USD</span>
-              <IconChevron size={13} stroke="var(--ink-mute)" />
-            </div>
-          </div>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            flexDirection: 'row',
-            padding: '13px 16px', borderTop: '0.5px solid var(--hairline)',
-          }}>
-            <div style={{
-              width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
-              background: 'var(--cream)', border: '0.5px solid var(--hairline)',
-            }}><IconCompass size={16} stroke="var(--ink)" /></div>
-            <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)', textAlign: 'start' }}>
-              {t('homeBase')}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row' }}>
-              <span style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>Amsterdam</span>
-              <IconChevron size={13} stroke="var(--ink-mute)" />
-            </div>
-          </div>
+          <ProfileEditRows me={me} />
         </div>
       </div>
 
@@ -238,7 +205,7 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
               try { sessionStorage.clear(); } catch (_) {}
             } finally { location.reload(); }
           }} icon={<IconGear size={17} stroke="var(--ink)" />} label={window.isRTL ? 'إعادة تعيين التطبيق' : 'Reset app cache'} sub={window.isRTL ? 'مسح والتحميل من جديد إذا حدث خلل' : 'Clear cache & reload if something looks broken'} />
-          <ActionRow onClick={onSignOut} icon={<span className="icon-flip"><IconBack size={17} stroke="var(--ink)" /></span>} label={t('signOut')}  sub={`Last seen ${me.name.split(' ')[0]} · Amsterdam`} />
+          <ActionRow onClick={onSignOut} icon={<span className="icon-flip"><IconBack size={17} stroke="var(--ink)" /></span>} label={t('signOut')} sub={email ? `${me.name.split(' ')[0]} · ${email}` : me.name.split(' ')[0]} />
           <ActionRow icon={<IconTrash size={17} stroke="var(--clay-deep)" />} labelColor="var(--clay-deep)" label={t('deleteAccount')} sub={t('deleteAccountSub')} last />
         </div>
       </div>
@@ -246,7 +213,7 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
       <div style={{ textAlign: 'center', padding: '32px 0 20px', color: 'var(--ink-mute)' }}>
         <div className="serif-italic" style={{ fontSize: 18 }}>voyage</div>
         <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.16em', marginTop: 4 }}>
-          v 2.4.1 · BUILT IN AMSTERDAM
+          v 1.0.0 · {window.isRTL ? 'صُنع في مكة' : 'BUILT IN MAKKAH'}
         </div>
       </div>
     </div>
@@ -335,4 +302,127 @@ const statPill = {
   fontFamily: 'var(--mono)', letterSpacing: '0.08em',
 };
 
-Object.assign(window, { ScreenAppSettings, InstallCard });
+// Editable profile preferences — default currency + home city.
+// Saves to public.profiles. Component lives at module scope so inputs don't
+// remount on every keystroke (React anti-pattern when defined inside parent).
+function ProfileEditRows({ me }) {
+  const [editing, setEditing] = React.useState(null);  // 'currency' | 'home' | null
+  const [currency, setCurrency] = React.useState('USD');
+  const [home,     setHome]     = React.useState('');
+  const [saving,   setSaving]   = React.useState(false);
+
+  // Hydrate from server
+  React.useEffect(() => {
+    if (!window.sb || !window.currentUserId) return;
+    window.sb.from('profiles').select('default_currency, home_base').eq('id', window.currentUserId).single()
+      .then(({ data }) => {
+        if (data) {
+          setCurrency((data.default_currency || 'USD').trim());
+          setHome(data.home_base || '');
+        }
+      }).catch(() => {});
+  }, []);
+
+  const save = async (fields) => {
+    setSaving(true);
+    try {
+      const { error } = await window.sb.from('profiles').update(fields).eq('id', window.currentUserId);
+      if (error) throw error;
+      window.toast?.(window.isRTL ? 'تم الحفظ' : 'Saved', 'success');
+      setEditing(null);
+    } catch (err) {
+      window.toast?.(err.message || 'Save failed', 'error');
+    } finally { setSaving(false); }
+  };
+
+  const CURRENCIES = ['USD','SAR','EUR','GBP','JPY','AED','EGP','MAD','TRY','INR','CHF','KWD','BHD'];
+  const rowStyle = {
+    display: 'flex', alignItems: 'center', gap: 12, flexDirection: 'row',
+    padding: '13px 16px', width: '100%', textAlign: 'start',
+    borderTop: '0.5px solid var(--hairline)',
+  };
+  const iconBox = {
+    width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
+    background: 'var(--cream)', border: '0.5px solid var(--hairline)',
+  };
+  const inputStyle = {
+    width: '100%', padding: '10px 12px', borderRadius: 10,
+    border: '0.5px solid var(--hairline-2)', background: 'var(--cream)',
+    color: 'var(--ink)', fontSize: 14, outline: 'none', textAlign: 'start',
+  };
+
+  return (
+    <>
+      {/* Default currency — picker */}
+      <div>
+        <button onClick={() => setEditing(editing === 'currency' ? null : 'currency')} style={rowStyle}>
+          <div style={iconBox}><IconWallet size={16} stroke="var(--ink)" /></div>
+          <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)' }}>{t('defaultCurrency')}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row' }}>
+            <span style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>{currency}</span>
+            <span style={{ transform: editing === 'currency' ? 'rotate(90deg)' : 'none', transition: 'transform 200ms', display: 'inline-block' }}>
+              <IconChevron size={13} stroke="var(--ink-mute)" />
+            </span>
+          </div>
+        </button>
+        {editing === 'currency' && (
+          <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {CURRENCIES.map((c) => (
+                <button key={c} onClick={() => setCurrency(c)} style={{
+                  padding: '6px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 500,
+                  background: currency === c ? 'var(--ink)' : 'var(--cream)',
+                  color: currency === c ? 'var(--cream)' : 'var(--ink-soft)',
+                  border: '0.5px solid var(--hairline)',
+                }}>{c}</button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+              <button disabled={saving} onClick={() => save({ default_currency: currency })} style={{
+                flex: 1, padding: '10px', borderRadius: 10, fontSize: 12.5, fontWeight: 600,
+                background: saving ? 'var(--ink-mute)' : 'var(--ink)', color: 'var(--cream)',
+              }}>{saving ? '…' : (window.isRTL ? 'حفظ' : 'Save')}</button>
+              <button disabled={saving} onClick={() => setEditing(null)} style={{
+                padding: '10px 16px', borderRadius: 10, fontSize: 12.5,
+                background: 'var(--cream)', border: '0.5px solid var(--hairline-2)', color: 'var(--ink-soft)',
+              }}>{window.isRTL ? 'إلغاء' : 'Cancel'}</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Home base — free text */}
+      <div>
+        <button onClick={() => setEditing(editing === 'home' ? null : 'home')} style={rowStyle}>
+          <div style={iconBox}><IconCompass size={16} stroke="var(--ink)" /></div>
+          <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)' }}>{t('homeBase')}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row' }}>
+            <span style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>{home || (window.isRTL ? 'لم تُحدد' : 'Not set')}</span>
+            <span style={{ transform: editing === 'home' ? 'rotate(90deg)' : 'none', transition: 'transform 200ms', display: 'inline-block' }}>
+              <IconChevron size={13} stroke="var(--ink-mute)" />
+            </span>
+          </div>
+        </button>
+        {editing === 'home' && (
+          <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <input value={home} onChange={(e) => setHome(e.target.value)}
+              placeholder={window.isRTL ? 'مثال: مكة، الرياض، جدة' : 'e.g. Makkah, Riyadh, Dubai'}
+              style={inputStyle} />
+            <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+              <button disabled={saving} onClick={() => save({ home_base: home.trim() || null })} style={{
+                flex: 1, padding: '10px', borderRadius: 10, fontSize: 12.5, fontWeight: 600,
+                background: saving ? 'var(--ink-mute)' : 'var(--ink)', color: 'var(--cream)',
+              }}>{saving ? '…' : (window.isRTL ? 'حفظ' : 'Save')}</button>
+              <button disabled={saving} onClick={() => setEditing(null)} style={{
+                padding: '10px 16px', borderRadius: 10, fontSize: 12.5,
+                background: 'var(--cream)', border: '0.5px solid var(--hairline-2)', color: 'var(--ink-soft)',
+              }}>{window.isRTL ? 'إلغاء' : 'Cancel'}</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+Object.assign(window, { ScreenAppSettings, InstallCard, ProfileEditRows });

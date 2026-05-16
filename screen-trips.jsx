@@ -30,6 +30,14 @@ function ScreenTrips({ goTrip, go }) {
   const [showSearch, setShowSearch] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const [initialLoad, setInitialLoad] = React.useState(!window.TRIPS || window.TRIPS.length === 0);
+  const [stats, setStats] = React.useState(window.LIFETIME_STATS || null);
+
+  // Lazy-load lifetime stats once trips exist
+  React.useEffect(() => {
+    if (!stats && window.TRIPS && window.TRIPS.length > 0 && window.loadLifetimeStats) {
+      window.loadLifetimeStats().then((s) => setStats(s)).catch(() => {});
+    }
+  }, [stats, window.TRIPS?.length]);
 
   // Mark initial load complete once TRIPS appears
   React.useEffect(() => {
@@ -129,19 +137,19 @@ function ScreenTrips({ goTrip, go }) {
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 8, flexDirection: 'row' }}>
-              <span className="serif" style={{ fontSize: 56, lineHeight: 0.9 }}>{window.GLOBAL.countries}</span>
-              <span style={{ fontSize: 14, opacity: 0.65, marginInlineStart: 6 }}>{t('countries')}</span>
+              <span className="serif" style={{ fontSize: 56, lineHeight: 0.9 }}>{stats?.countries || 0}</span>
+              <span style={{ fontSize: 14, opacity: 0.72, marginInlineStart: 6 }}>{t('countries')}</span>
             </div>
-            <div style={{ fontSize: 12, opacity: 0.62, marginTop: 4 }}>
-              {window.GLOBAL.continents} {t('continents')} · {window.GLOBAL.days} {t('travelDays')}
+            <div style={{ fontSize: 12, opacity: 0.72, marginTop: 4 }}>
+              {stats?.totalDays || 0} {t('travelDays')} · {stats?.expenseCount || 0} {window.isRTL ? 'مصروف' : 'expenses'}
             </div>
 
             {/* Overlapping stat trio */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 18 }}>
               {[
-                { l: t('trips'),   v: window.TRIPS.length, s: t('logged') },
-                { l: t('lifetime'), v: `$${(window.GLOBAL.lifetimeUSD / 1000).toFixed(1)}k`, s: t('spent') },
-                { l: t('longest'),  v: `${window.GLOBAL.longestTrip.days}d`, s: window.GLOBAL.longestTrip.name },
+                { l: t('trips'),    v: stats?.totalTrips || (window.TRIPS || []).length, s: t('logged') },
+                { l: t('lifetime'), v: stats?.totalSpentUSD > 0 ? window.fmtMoney(stats.totalSpentUSD, { in: 'home' }) : '—', s: t('spent') },
+                { l: t('longest'),  v: stats?.longestTrip ? `${stats.longestTrip.dur}d` : '—', s: stats?.longestTrip?.title || (window.isRTL ? '—' : '—') },
               ].map((s, i) => (
                 <div key={i} style={{
                   padding: '10px 12px', borderRadius: 14,
