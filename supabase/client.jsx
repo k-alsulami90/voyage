@@ -109,6 +109,9 @@ window.loadTrips = async (userId) => {
     startDate:    r.start_date,
     endDate:      r.end_date,
     country:      r.country_code || '',
+    countries:    Array.isArray(r.countries) && r.countries.length > 0
+                    ? r.countries.filter(Boolean)
+                    : (r.country_code ? [r.country_code] : []),
     shared:       (r.trip_members || []).length > 1,
     members:      (r.trip_members || []).length,
     cover:        r.cover_style || 'kyoto',
@@ -130,6 +133,10 @@ window.loadTrips = async (userId) => {
       dates:          window.fmtDateRange(active.start_date, active.end_date),
       startDate:      active.start_date,
       endDate:        active.end_date,
+      country:        active.country_code || '',
+      countries:      Array.isArray(active.countries) && active.countries.length > 0
+                        ? active.countries.filter(Boolean)
+                        : (active.country_code ? [active.country_code] : []),
       daysIn:         1,
       daysTotal:      Math.ceil(
         (new Date(active.end_date) - new Date(active.start_date)) / 86400000
@@ -292,8 +299,13 @@ window.loadLifetimeStats = async () => {
     totalDays += Math.max(1, Math.round(ms / 86400000) + 1);
   });
 
-  // ── Distinct countries
-  const countries = [...new Set(trips.map((t) => t.country).filter(Boolean))];
+  // ── Distinct countries — union of every trip's countries[] array
+  const countriesSet = new Set();
+  trips.forEach((t) => {
+    (t.countries || []).forEach((c) => c && countriesSet.add(c));
+    if (t.country) countriesSet.add(t.country);
+  });
+  const countries = [...countriesSet];
 
   // ── By year
   const byYearMap = {};
@@ -473,6 +485,10 @@ window.loadTripDetail = async (tripId) => {
     dates:         window.fmtDateRange(data.start_date, data.end_date),
     startDate:     data.start_date,
     endDate:       data.end_date,
+    country:       data.country_code || '',
+    countries:     Array.isArray(data.countries) && data.countries.length > 0
+                     ? data.countries.filter(Boolean)
+                     : (data.country_code ? [data.country_code] : []),
     daysIn:        Math.min(daysIn, daysTotal),
     daysTotal,
     homeCurrency:  data.home_currency || 'USD',

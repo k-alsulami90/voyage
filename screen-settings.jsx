@@ -234,16 +234,6 @@ function ScreenSettings({ go, openSheet }) {
         <EditableTripParams trip={trip} />
       </div>
 
-      {/* Notifications */}
-      <div style={{ padding: '18px 14px 0' }}>
-        <SectionLabel>{t('notifications')}</SectionLabel>
-        <ParamGroup items={[
-          { icon: <IconBell size={16} stroke="var(--ink)" />,  label: t('newExpenses'), toggle: true, on: true },
-          { icon: <IconUsers size={16} stroke="var(--ink)" />, label: t('memberJoins'), toggle: true, on: true },
-          { icon: <IconDoc size={16} stroke="var(--ink)" />,   label: t('docUploads'),  toggle: true, on: false, last: true },
-        ]} />
-      </div>
-
       {/* Lifecycle */}
       <LifecycleActions />
 
@@ -380,12 +370,6 @@ function LifecycleActions() {
           labelColor={archived ? 'var(--moss)' : undefined}
           sub={archived ? t('archivedSub') : t('archiveSub')}
           onClick={() => setArchived(!archived)} />
-        <ActionRow
-          icon={<IconShare size={17} stroke={exported ? 'var(--indigo)' : 'var(--ink)'} />}
-          label={exported ? t('pdfReady') : t('exportPDF')}
-          labelColor={exported ? 'var(--indigo)' : undefined}
-          sub={t('exportSub')}
-          onClick={() => setExported(true)} />
         {confirmDelete ? (
           <div style={{
             padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10,
@@ -449,6 +433,7 @@ function EditableTripParams({ trip: tripProp }) {
   const [localCur, setLocalCur] = React.useState(trip.localCurrency || 'USD');
   const [fx,       setFx]       = React.useState(trip.fx || window.FX_RATES[trip.homeCurrency || 'USD'] || 1);
   const [cover,    setCover]    = React.useState(trip.cover || 'kyoto');
+  const [countries, setCountries] = React.useState((trip.countries || []).join(', '));
 
   React.useEffect(() => {
     setTitle(trip.title || ''); setSubtitle(trip.subtitle || '');
@@ -461,7 +446,8 @@ function EditableTripParams({ trip: tripProp }) {
     setLocalCur(trip.localCurrency || 'USD');
     setFx(trip.fx || window.FX_RATES[home] || 1);
     setCover(trip.cover || 'kyoto');
-  }, [trip.id, trip.budget?.plannedUSD, trip.homeCurrency, trip.localCurrency, trip.fx]);
+    setCountries((trip.countries || []).join(', '));
+  }, [trip.id, trip.budget?.plannedUSD, trip.homeCurrency, trip.localCurrency, trip.fx, trip.countries?.length]);
 
   const CURRENCIES = ['USD','SAR','EUR','GBP','JPY','AED','EGP','MAD','TRY','INR','CHF'];
   const COVERS = ['kyoto','lisbon','oaxaca','lofoten','patagon'];
@@ -532,6 +518,34 @@ function EditableTripParams({ trip: tripProp }) {
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={window.isRTL ? 'اسم الرحلة' : 'Trip title'} style={inputStyle} />
         <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder={window.isRTL ? 'وصف' : 'Subtitle'} style={inputStyle} />
         <SaveCancelBar saving={saving} onSave={() => save({ title: title.trim(), subtitle: subtitle.trim() || null })} onCancel={() => setEditing(null)} />
+      </Row>
+
+      {/* Countries (comma-separated list — supports multi-country trips) */}
+      <Row icon={<IconPin size={16} stroke="var(--ink)" />}
+           label={window.isRTL ? 'الدول' : 'Countries'}
+           value={(trip.countries || []).length > 0 ? trip.countries.join(' · ') : (window.isRTL ? 'لم تُحدد' : 'Not set')}
+           fieldKey="countries">
+        <div style={{ fontSize: 11, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', letterSpacing: '0.08em' }}>
+          {window.isRTL ? 'افصل بفاصلة — مثال: سويسرا, البرتغال, اسكتلندا' : 'Comma-separated — e.g. Switzerland, Portugal, Scotland'}
+        </div>
+        <input value={countries} onChange={(e) => setCountries(e.target.value)}
+          placeholder={window.isRTL ? 'الدول التي زرتها' : 'Countries you visited'}
+          style={inputStyle} />
+        {/* Live preview pills */}
+        {countries.trim() && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+            {countries.split(',').map((c) => c.trim()).filter(Boolean).map((c, i) => (
+              <span key={i} style={{
+                padding: '4px 9px', borderRadius: 999, fontSize: 11, fontWeight: 500,
+                background: 'var(--sand)', color: 'var(--ink-soft)',
+              }}>{c}</span>
+            ))}
+          </div>
+        )}
+        <SaveCancelBar saving={saving} onSave={() => {
+          const list = countries.split(',').map((s) => s.trim()).filter(Boolean);
+          return save({ countries: list, country_code: list[0]?.slice(0, 2)?.toUpperCase() || null });
+        }} onCancel={() => setEditing(null)} />
       </Row>
 
       {/* Dates */}

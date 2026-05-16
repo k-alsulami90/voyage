@@ -198,17 +198,7 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
         </div>
       </div>
 
-      {/* NOTIFICATIONS */}
-      <div style={{ padding: '18px 14px 0' }}>
-        <SectionLabel>{t('notifications')}</SectionLabel>
-        <ParamGroup items={[
-          { icon: <IconBell size={16} stroke="var(--ink)" />,  label: t('recentActivity'),  toggle: true, on: true },
-          { icon: <IconUsers size={16} stroke="var(--ink)" />, label: t('invite'),           toggle: true, on: true },
-          { icon: <IconCloud size={16} stroke="var(--ink)" />, label: 'Backup reminders',   toggle: true, on: false, last: true },
-        ]} />
-      </div>
-
-      {/* PRIVACY — emphasizes trip-isolated collaboration */}
+      {/* PRIVACY — explainer card only (no stub settings) */}
       <div style={{ padding: '18px 14px 0' }}>
         <SectionLabel>{t('privacy')}</SectionLabel>
         <div style={{
@@ -231,12 +221,6 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
             </div>
           </div>
         </div>
-        <div style={{ height: 10 }} />
-        <ParamGroup items={[
-          { icon: <IconGear size={16} stroke="var(--ink)" />,    label: t('dataExport'),        value: '.zip' },
-          { icon: <IconLink size={16} stroke="var(--ink)" />,    label: t('connectedAccounts'), value: 'Apple · Google' },
-          { icon: <IconArchive size={16} stroke="var(--ink)" />, label: t('archivedTrips'),     value: '3', last: true },
-        ]} />
       </div>
 
       {/* DANGER */}
@@ -247,7 +231,6 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
           margin: '0 8px', overflow: 'hidden',
           border: '0.5px solid var(--hairline)',
         }}>
-          <ActionRow icon={<IconShare size={17} stroke="var(--ink)" />}    label={t('referFriend')}  sub={t('referSub')} />
           <ActionRow onClick={async () => {
             if (!confirm(window.isRTL ? 'مسح ذاكرة التخزين المؤقت وإعادة التحميل؟ بياناتك في السحابة آمنة.' : 'Clear cache and reload? Your cloud data is safe.')) return;
             try {

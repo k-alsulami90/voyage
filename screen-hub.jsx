@@ -83,82 +83,73 @@ function ScreenHub({ go, openSheet, loading }) {
             <CoverArt kind={trip.cover || 'kyoto'} />
           )}
 
-          {/* Inner labels — top-left tag */}
-          <div style={{
-            position: 'absolute', top: 18,
-            insetInlineStart: 18,
-            display: 'flex', alignItems: 'center', gap: 6,
-            flexDirection: 'row',
-            padding: '5px 11px 5px 9px', borderRadius: 999,
-            background: 'rgba(255,255,255,0.18)',
-            backdropFilter: 'blur(10px)', color: '#fff',
-            fontSize: 11, fontWeight: 500, letterSpacing: 0.04,
-          }}>
-            <IconPin size={12} stroke="#fff" /> {trip.subtitle || trip.title}
-          </div>
+          {/* Inner labels — top-leading countries chip */}
+          {(trip.countries && trip.countries.length > 0) && (
+            <div style={{
+              position: 'absolute', top: 18,
+              insetInlineStart: 18,
+              display: 'flex', alignItems: 'center', gap: 6,
+              flexDirection: 'row', maxWidth: '60%',
+              padding: '5px 11px 5px 9px', borderRadius: 999,
+              background: 'rgba(255,255,255,0.18)',
+              backdropFilter: 'blur(10px)', color: '#fff',
+              fontSize: 11, fontWeight: 500, letterSpacing: 0.04,
+            }}>
+              <IconPin size={12} stroke="#fff" />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {trip.countries.join(' · ')}
+              </span>
+            </div>
+          )}
 
-          {/* Date + temperature */}
+          {/* Dates — top-right */}
           <div style={{
             position: 'absolute', top: 18,
             insetInlineEnd: 18,
             color: '#fff', textAlign: 'end',
           }}>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, opacity: 0.85, letterSpacing: '0.1em' }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, opacity: 0.9, letterSpacing: '0.1em' }}>
               {trip.dates.toUpperCase()}
             </div>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 5,
-              flexDirection: 'row',
-              fontSize: 12.5, fontWeight: 500,
-            }}>
-              <IconCloud size={14} stroke="#fff" /> {trip.weather.cond} · {trip.weather.temp}°
-            </div>
           </div>
 
-          {/* Subtitle */}
+          {/* Bottom overlay — title + key stats on the cover itself */}
           <div style={{
-            position: 'absolute',
-            insetInlineStart: 22,
-            bottom: 64, color: '#fff',
-            fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '0.16em',
-            textTransform: 'uppercase', opacity: 0.9,
-          }}>{trip.subtitle}</div>
-        </div>
-
-        {/* TITLE — bleeds out of the hero card */}
-        <div style={{
-          position: 'relative', marginTop: -50, marginInlineStart: 8,
-          fontFamily: 'var(--serif)', fontStyle: 'italic',
-          fontSize: 64, lineHeight: 0.95,
-          color: '#fff', letterSpacing: '-0.03em',
-          textShadow: '0 6px 24px rgba(0,0,0,0.18)',
-          zIndex: 2, pointerEvents: 'none',
-        }}>{(trip.title || '').split(' ').slice(0, 2).join(' ')}<br /><span style={{
-          fontStyle: 'normal', fontFamily: 'var(--sans)', fontSize: 20,
-          color: 'var(--ink)', textShadow: 'none',
-          letterSpacing: '-0.01em', fontWeight: 500,
-        }}>· {trip.subtitle || trip.dates}</span></div>
-
-        {/* OVERLAPPING STAT TRIO — tilted off the hero */}
-        <div style={{
-          position: 'absolute',
-          insetInlineEnd: 22,
-          top: 318, zIndex: 4,
-          display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end',
-        }}>
-          {/* Days card — small, slightly rotated */}
-          <div className="lift" style={{
-            ...miniCard, transform: 'rotate(3deg)',
-            background: 'var(--cream)',
+            position: 'absolute', insetInlineStart: 0, insetInlineEnd: 0, bottom: 0,
+            padding: '60px 22px 18px',
+            background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.45) 50%, transparent 100%)',
+            color: '#fff',
           }}>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, color: 'var(--ink-mute)', letterSpacing: '0.12em' }}>
-              {t('daysLeft')}
+            <div className="serif-italic" style={{ fontSize: 32, lineHeight: 1.05, letterSpacing: '-0.02em' }}>
+              {trip.title || (window.isRTL ? 'رحلة' : 'Trip')}
             </div>
-            <div style={{ fontFamily: 'var(--serif)', fontSize: 36, lineHeight: 1, marginTop: 2, color: 'var(--ink)' }}>
-              {trip.daysTotal - trip.daysIn}<span style={{ fontSize: 14, color: 'var(--ink-mute)', marginInlineStart: 3 }}>/{trip.daysTotal}</span>
+            {trip.subtitle && (
+              <div style={{ fontSize: 12.5, opacity: 0.92, marginTop: 4, fontWeight: 500 }}>
+                {trip.subtitle}
+              </div>
+            )}
+            {/* Live stats row — day + spent */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 14, marginTop: 12,
+              flexDirection: 'row', flexWrap: 'wrap',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <span className="mono" style={{ fontSize: 16, fontWeight: 600 }}>{trip.daysIn}</span>
+                <span style={{ fontSize: 11, opacity: 0.75 }}>/{trip.daysTotal} {window.isRTL ? 'يوم' : 'days'}</span>
+              </div>
+              {planned > 0 && (
+                <>
+                  <span style={{ width: 3, height: 3, borderRadius: 999, background: 'rgba(255,255,255,0.5)' }} />
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                    <span className="mono" style={{ fontSize: 16, fontWeight: 600 }}>{fmtC(spent)}</span>
+                    <span style={{ fontSize: 11, opacity: 0.75 }}>/ {fmtC(planned)}</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
+
       </div>
 
       {/* OVER-BUDGET BANNER — only when spent > planned */}
@@ -226,85 +217,54 @@ function ScreenHub({ go, openSheet, loading }) {
             <IconChevron size={16} stroke="var(--ink-mute)" />
           </div>
 
-          {/* Stacked-bar visualization — categories overlap each other slightly */}
-          <div style={{
-            display: 'flex', borderRadius: 12, overflow: 'hidden',
-            height: 16, marginBottom: 14,
-            boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,0.05)',
-            flexDirection: 'row',
-          }}>
-            {window.CATEGORIES.map((c, i) => (
-              <div key={c.key} style={{
-                flex: c.pct, background: c.color,
-                position: 'relative',
-                boxShadow: i > 0 ? 'inset 2px 0 0 var(--cream-2)' : 'none',
-              }} />
-            ))}
-          </div>
-
-          {/* Category legend — two cols */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 14px' }}>
-            {window.CATEGORIES.slice(0, 4).map((c) => (
-              <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: 'row' }}>
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: c.color }} />
-                <span style={{ fontSize: 12.5, color: 'var(--ink-soft)', flex: 1 }}>{c.label}</span>
-                <span className="mono" style={{ fontSize: 11.5, color: 'var(--ink)', fontWeight: 500 }}>
-                  {fmtC(c.amt)}
-                </span>
+          {/* Stacked-bar + legend only when we have spending */}
+          {spent > 0 && (window.CATEGORIES || []).some((c) => c.amt > 0) && (
+            <>
+              <div style={{
+                display: 'flex', borderRadius: 12, overflow: 'hidden',
+                height: 16, marginBottom: 14,
+                boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,0.05)',
+                flexDirection: 'row',
+              }}>
+                {window.CATEGORIES.filter((c) => c.amt > 0).map((c, i) => (
+                  <div key={c.key} style={{
+                    flex: c.pct || c.amt, background: c.color,
+                    boxShadow: i > 0 ? 'inset 2px 0 0 var(--cream-2)' : 'none',
+                  }} />
+                ))}
               </div>
-            ))}
-          </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 14px' }}>
+                {window.CATEGORIES.filter((c) => c.amt > 0).slice(0, 4).map((c) => (
+                  <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: 'row' }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 2, background: c.color }} />
+                    <span style={{ fontSize: 12.5, color: 'var(--ink-soft)', flex: 1 }}>{t(c.key) || c.label}</span>
+                    <span className="mono" style={{ fontSize: 11.5, color: 'var(--ink)', fontWeight: 500 }}>
+                      {fmtC(c.amt)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
 
-          {/* Members chip overlapping bottom-left */}
-          <div style={{
-            position: 'absolute', bottom: -14,
-            insetInlineStart: 22,
-            display: 'flex', alignItems: 'center', gap: 8,
-            flexDirection: 'row',
-            padding: '7px 12px 7px 8px', borderRadius: 999,
-            background: 'var(--ink)', color: 'var(--cream)',
-            boxShadow: '0 6px 16px rgba(34,28,22,0.3)',
-          }}>
-            <AvatarStack members={(window.MEMBERS || []).slice(0, 3)} size={20} />
-            <span style={{ fontSize: 11.5, fontWeight: 500 }}>
-              {Math.max(0, (window.MEMBERS || []).length - 3)} {t('splitting')}
-            </span>
-          </div>
+          {/* Members chip — only for shared trips */}
+          {(window.MEMBERS || []).length > 1 && (
+            <div style={{
+              position: 'absolute', bottom: -14,
+              insetInlineStart: 22,
+              display: 'flex', alignItems: 'center', gap: 8,
+              flexDirection: 'row',
+              padding: '7px 12px 7px 8px', borderRadius: 999,
+              background: 'var(--statement)', color: 'var(--statement-fg)',
+              boxShadow: '0 6px 16px rgba(0,0,0,0.3)',
+            }}>
+              <AvatarStack members={(window.MEMBERS || []).slice(0, 3)} size={20} />
+              <span style={{ fontSize: 11.5, fontWeight: 500 }}>
+                {window.MEMBERS.length} {t('splitting')}
+              </span>
+            </div>
+          )}
         </button>
-      </div>
-
-      {/* UP NEXT — agenda card with overlapping pin */}
-      <div style={{ padding: '28px 14px 0' }}>
-        <SectionLabel>{t('upNext')}</SectionLabel>
-        <div style={{
-          background: 'linear-gradient(160deg, oklch(0.36 0.05 285) 0%, oklch(0.22 0.04 280) 100%)',
-          color: '#fff', borderRadius: 26,
-          padding: window.isRTL ? '18px 60px 18px 18px' : '18px 18px 18px 60px',
-          position: 'relative', boxShadow: 'var(--shadow-card)',
-          overflow: 'hidden', marginInlineStart: 22, marginInlineEnd: 14,
-        }}>
-          {/* Overlapping clock badge — bleeds off the left/right */}
-          <div style={{
-            position: 'absolute', top: '50%',
-            insetInlineStart: -22,
-            transform: 'translateY(-50%)',
-            width: 64, height: 64, borderRadius: 20,
-            background: 'var(--clay)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 10px 22px rgba(60,30,15,0.4)',
-            border: '4px solid var(--cream)',
-          }}>
-            <IconClock size={26} stroke="#fff" />
-          </div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.7 }}>
-            {trip.dates}
-          </div>
-          <div style={{ fontSize: 16, fontWeight: 500, marginTop: 4 }}>
-            {trip.title}
-          </div>
-          <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
-            {trip.subtitle || `${trip.daysIn} ${t('ofLbl')} ${trip.daysTotal} ${t('travelDays')}`}
-          </div>
-        </div>
       </div>
 
       {/* QUICK ACTIONS */}
@@ -340,13 +300,14 @@ function ScreenHub({ go, openSheet, loading }) {
         </div>
       </div>
 
-      {/* RECENT — overlapping receipt-stack preview */}
+      {/* RECENT — only when there are expenses */}
+      {(window.EXPENSES || []).length > 0 && (
       <div style={{ padding: '24px 14px 0' }}>
         <SectionLabel action={t('seeAll')} onAction={() => go('budget')}>{t('recentActivity')}</SectionLabel>
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
-          {window.EXPENSES.slice(0, 3).map((e, i) => {
-            const m = window.MEMBERS.find((x) => x.id === e.who);
-            const c = window.CATEGORIES.find((x) => x.key === e.cat);
+          {(window.EXPENSES || []).slice(0, 3).map((e, i) => {
+            const m = (window.MEMBERS || []).find((x) => x.id === e.who) || { name: '—', hue: 200, initials: '?' };
+            const c = (window.CATEGORIES || []).find((x) => x.key === e.cat) || { color: 'var(--ink-mute)', label: e.cat || '—' };
             return (
               <div key={e.id} style={{
                 background: 'var(--cream-2)', borderRadius: 18,
@@ -383,6 +344,7 @@ function ScreenHub({ go, openSheet, loading }) {
           })}
         </div>
       </div>
+      )}
     </div>
   );
 }
