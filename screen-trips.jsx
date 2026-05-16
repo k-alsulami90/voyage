@@ -29,6 +29,34 @@ function ScreenTrips({ goTrip, go }) {
   const [scope, setScope] = React.useState('all'); // all | private | shared
   const [showSearch, setShowSearch] = React.useState(false);
   const [search, setSearch] = React.useState('');
+  const [initialLoad, setInitialLoad] = React.useState(!window.TRIPS || window.TRIPS.length === 0);
+
+  // Mark initial load complete once TRIPS appears
+  React.useEffect(() => {
+    if ((window.TRIPS || []).length > 0) setInitialLoad(false);
+    else {
+      const t = setTimeout(() => setInitialLoad(false), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [window.TRIPS?.length]);
+
+  // Show skeleton if we're waiting for the first load and have no data
+  if (initialLoad && (!window.TRIPS || window.TRIPS.length === 0)) {
+    return (
+      <div style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>
+        <div style={{ padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 22px 14px' }}>
+          <Skeleton w={120} h={12} style={{ marginBottom: 8 }} />
+          <Skeleton w={200} h={28} r={6} />
+        </div>
+        <div style={{ padding: '0 14px' }}>
+          <Skeleton h={180} r={28} style={{ marginBottom: 24 }} />
+          <Skeleton h={48} r={14} style={{ marginBottom: 12 }} />
+          <Skeleton h={48} r={14} style={{ marginBottom: 12 }} />
+          <Skeleton h={48} r={14} />
+        </div>
+      </div>
+    );
+  }
 
   // Compute temporal state for every trip once per render
   const enrichedTrips = (window.TRIPS || []).map((trip) => ({

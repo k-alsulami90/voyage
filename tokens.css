@@ -277,3 +277,57 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 /* RTL scroll containers start from the right */
 [dir="rtl"] .no-scrollbar { direction: rtl; }
+
+/* ─────────────────────────────────────────────────────────────
+   Animations / micro-interactions
+   ───────────────────────────────────────────────────────────── */
+
+/* Page fade-in — applied to top-level screen containers */
+@keyframes screenIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+[data-screen-label] {
+  animation: screenIn 280ms cubic-bezier(.32,.72,0,1);
+}
+
+/* Section stagger — for cards as they appear inside a screen */
+@keyframes sectionIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.section-in {
+  animation: sectionIn 360ms cubic-bezier(.32,.72,0,1) both;
+}
+
+/* Pull-to-refresh indicator */
+.ptr-indicator {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+  height: 0; opacity: 0;
+  transition: height 200ms cubic-bezier(.32,.72,0,1), opacity 200ms;
+  color: var(--ink-mute);
+  z-index: 1;
+}
+.ptr-indicator.armed { color: var(--clay); }
+.ptr-spin {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--hairline-2);
+  border-top-color: var(--clay);
+  animation: ptrspin 0.8s linear infinite;
+}
+@keyframes ptrspin { to { transform: rotate(360deg); } }
+
+/* Network offline banner */
+.offline-banner {
+  position: fixed; top: 0; left: 0; right: 0;
+  background: var(--clay-deep); color: #fff;
+  padding: calc(env(safe-area-inset-top) + 6px) 16px 6px;
+  text-align: center;
+  font-size: 12px; font-weight: 500;
+  z-index: 200;
+  transform: translateY(-100%);
+  animation: slideDown 240ms cubic-bezier(.32,.72,0,1) forwards;
+}
+@keyframes slideDown { to { transform: translateY(0); } }

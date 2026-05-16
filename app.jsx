@@ -375,6 +375,7 @@ function App() {
       }} data-theme={tw.dark ? 'dark' : 'light'} dir={tw.lang === 'ar' ? 'rtl' : 'ltr'} lang={tw.lang}>
         {appShell}
         <ToastHost />
+        <OfflineBanner />
       </div>
     );
   }
@@ -385,6 +386,7 @@ function App() {
         {appShell}
       </IOSDevice>
       <ToastHost />
+      <OfflineBanner />
 
       <TweaksPanel>
         <TweakSection label="Theme">
@@ -447,6 +449,13 @@ const navBtn = (active) => ({
   fontSize: 12, fontWeight: 500,
 });
 
+// Scroll-to-top: tap the currently-active tab to smooth-scroll to top.
+function scrollActiveToTop() {
+  const scroller = document.querySelector('[class="no-scrollbar"]:not(.ptr-indicator)') || document.querySelector('.no-scrollbar');
+  if (!scroller) return;
+  scroller.scrollTo?.({ top: 0, behavior: 'smooth' });
+}
+
 // ── App-scope bottom nav ──
 function AppNav({ active, onChange, onAdd }) {
   const tabs = [
@@ -459,7 +468,7 @@ function AppNav({ active, onChange, onAdd }) {
       {tabs.map((t) => {
         const isActive = active === t.k;
         return (
-          <button key={t.k} onClick={() => onChange(t.k)} style={navItem(isActive)}>
+          <button key={t.k} onClick={() => isActive ? scrollActiveToTop() : onChange(t.k)} style={navItem(isActive)}>
             <t.i size={18} stroke="currentColor" />
             {isActive && <span style={{
               fontSize: window.isRTL ? 10 : 12, fontWeight: 600,
@@ -500,7 +509,7 @@ function TripNav({ active, onChange, onExit, onAdd }) {
         {tabs.map((t) => {
           const isActive = active === t.k;
           return (
-            <button key={t.k} onClick={() => onChange(t.k)} style={navItem(isActive)}>
+            <button key={t.k} onClick={() => isActive ? scrollActiveToTop() : onChange(t.k)} style={navItem(isActive)}>
               <t.i size={18} stroke="currentColor" />
               {isActive && <span style={{
                 fontSize: window.isRTL ? 9.5 : 11.5, fontWeight: 600,

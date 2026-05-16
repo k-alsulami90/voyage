@@ -423,4 +423,96 @@ class ErrorBoundary extends React.Component {
 }
 window.ErrorBoundary = ErrorBoundary;
 
-Object.assign(window, { Avatar, AvatarStack, RoleBadge, Chip, SectionLabel, KyotoHero, TintCard, Sheet, SwipeRow, Skeleton, TripSkeleton, ToastHost, ErrorBoundary });
+// ── Pull-to-refresh ─────────────────────────────────────────
+// Wrap any scroll container with <PullToRefresh onRefresh={async () => {...}}>.
+// Triggers when user drags past 70px from the top.
+function PullToRefresh({ onRefresh, children }) {
+  const [pull, setPull] = React.useState(0);
+  const [refreshing, setRefreshing] = React.useState(false);
+  const startY = React.useRef(null);
+  const scrollerRef = React.useRef(null);
+
+  const THRESHOLD = 70;
+
+  const onTouchStart = (e) => {
+    if (!scrollerRef.current || scrollerRef.current.scrollTop > 0) return;
+    startY.current = e.touches[0].clientY;
+  };
+  const onTouchMove = (e) => {
+    if (startY.current == null || refreshing) return;
+    const dy = e.touches[0].clientY - startY.current;
+    if (dy <= 0) return;
+    // Damped pull — feels native
+    const damped = Math.min(120, Math.pow(dy, 0.85));
+    setPull(damped);
+  };
+  const onTouchEnd = async () => {
+    if (startY.current == null) return;
+    const triggered = pull >= THRESHOLD;
+    startY.current = null;
+    if (triggered) {
+      setRefreshing(true);
+      setPull(THRESHOLD);
+      try { await onRefresh?.(); } catch (e) { window.toast?.(e.message || 'Refresh failed', 'error'); }
+      finally {
+        setRefreshing(false);
+        setPull(0);
+      }
+    } else {
+      setPull(0);
+    }
+  };
+
+  return (
+    <div style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>
+      <div className={`ptr-indicator ${pull >= THRESHOLD ? 'armed' : ''}`} style={{
+        height: pull, opacity: pull > 0 ? 1 : 0,
+      }}>
+        {refreshing
+          ? <div className="ptr-spin" />
+          : <span style={{ fontSize: 12, fontWeight: 500 }}>
+              {pull >= THRESHOLD
+                ? (window.isRTL ? 'حرّر للتحديث' : 'Release to refresh')
+                : (window.isRTL ? 'اسحب للتحديث' : 'Pull to refresh')}
+            </span>}
+      </div>
+      <div
+        ref={scrollerRef}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        style={{
+          height: '100%', overflow: 'auto', WebkitOverflowScrolling: 'touch',
+          transform: `translateY(${pull}px)`,
+          transition: startY.current === null ? 'transform 220ms cubic-bezier(.32,.72,0,1)' : 'none',
+        }}
+        className="no-scrollbar"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ── Offline banner ──────────────────────────────────────────
+function OfflineBanner() {
+  const [online, setOnline] = React.useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  React.useEffect(() => {
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener('online', up);
+    window.addEventListener('offline', down);
+    return () => {
+      window.removeEventListener('online', up);
+      window.removeEventListener('offline', down);
+    };
+  }, []);
+  if (online) return null;
+  return (
+    <div className="offline-banner">
+      {window.isRTL ? '⚠ غير متصل · بياناتك محفوظة محلياً' : '⚠ Offline · changes will sync when you reconnect'}
+    </div>
+  );
+}
+
+Object.assign(window, { Avatar, AvatarStack, RoleBadge, Chip, SectionLabel, KyotoHero, TintCard, Sheet, SwipeRow, Skeleton, TripSkeleton, ToastHost, ErrorBoundary, PullToRefresh, OfflineBanner });
