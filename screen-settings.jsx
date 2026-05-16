@@ -60,7 +60,7 @@ function ScreenSettings({ go, openSheet }) {
           </div>
           <button onClick={() => coverInputRef.current?.click()} className="glass" style={{
             position: 'absolute', top: 14,
-            ...(window.isRTL ? { left: 14 } : { right: 14 }),
+            insetInlineEnd: 14,
             padding: '6px 12px', borderRadius: 999, fontSize: 11, fontWeight: 500, color: '#fff',
             background: uploading ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.18)',
             display: 'flex', alignItems: 'center', gap: 5,
@@ -98,12 +98,12 @@ function ScreenSettings({ go, openSheet }) {
               <button onClick={() => openSheet('share')} style={{
                 width: 36, height: 36, borderRadius: '50%',
                 background: 'var(--cream)', color: 'var(--ink)',
-                marginLeft: -14, zIndex: 5,
+                marginInlineStart: -14, zIndex: 5,
                 display: 'grid', placeItems: 'center',
                 boxShadow: '0 0 0 2px var(--ink), 0 4px 8px rgba(0,0,0,0.3)',
               }}><IconPlus size={18} /></button>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.14em', opacity: 0.55 }}>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.14em', opacity: 0.72 }}>
                   {t('tripScopedNote')}
                 </div>
                 <div className="serif" style={{ fontSize: 20, lineHeight: 1.05, marginTop: 1 }}>
@@ -118,7 +118,7 @@ function ScreenSettings({ go, openSheet }) {
                   background: 'rgba(255,255,255,0.06)',
                   border: '0.5px solid rgba(255,255,255,0.08)',
                 }}>
-                  <div style={{ fontSize: 9.5, opacity: 0.55, fontFamily: 'var(--mono)', letterSpacing: '0.1em' }}>
+                  <div style={{ fontSize: 9.5, opacity: 0.72, fontFamily: 'var(--mono)', letterSpacing: '0.1em' }}>
                     {r === 'Admin' ? t('admin') : r === 'Editor' ? t('editor') : t('viewer')}
                   </div>
                   <div className="serif" style={{ fontSize: 22, lineHeight: 1, marginTop: 2 }}>
@@ -338,7 +338,7 @@ function RoleSelect({ role, onChange }) {
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 30 }} />
           <div style={{
             position: 'absolute', top: 'calc(100% + 6px)',
-            ...(window.isRTL ? { left: 0 } : { right: 0 }),
+            insetInlineEnd: 0,
             zIndex: 40,
             background: 'var(--cream)', borderRadius: 14, padding: 6,
             boxShadow: 'var(--shadow-lg)', border: '0.5px solid var(--hairline)',

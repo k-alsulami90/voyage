@@ -135,7 +135,7 @@ function ScreenAnalytics({ go, loading }) {
             flexDirection: 'row',
           }}>
             <div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.55 }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.72 }}>
                 {window.isRTL ? 'المعدل اليومي' : 'DAILY AVERAGE'}
               </div>
               <div className="serif" style={{ fontSize: 44, lineHeight: 1, marginTop: 4 }}>
@@ -177,7 +177,7 @@ function ScreenAnalytics({ go, loading }) {
                       borderRadius: '3px 3px 0 0', minHeight: 4,
                     }} />
                   </div>
-                  <div style={{ fontSize: 8.5, opacity: 0.5, fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: 8.5, opacity: 0.7, fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>
                     {date.split(' ')[1] || date.slice(-5)}
                   </div>
                 </div>
@@ -195,7 +195,7 @@ function ScreenAnalytics({ go, loading }) {
             border: '0.5px solid var(--hairline)', position: 'relative', overflow: 'hidden',
           }}>
             <div style={{
-              position: 'absolute', top: -12, right: -12, width: 48, height: 48,
+              position: 'absolute', top: -12, insetInlineEnd: -12, width: 48, height: 48,
               borderRadius: '50%', background: 'var(--clay)', opacity: 0.12,
             }} />
             <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 4 }}>
@@ -209,7 +209,7 @@ function ScreenAnalytics({ go, loading }) {
             border: '0.5px solid var(--hairline)', position: 'relative', overflow: 'hidden',
           }}>
             <div style={{
-              position: 'absolute', top: -12, right: -12, width: 48, height: 48,
+              position: 'absolute', top: -12, insetInlineEnd: -12, width: 48, height: 48,
               borderRadius: '50%', background: 'var(--moss)', opacity: 0.12,
             }} />
             <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 4 }}>
@@ -353,7 +353,7 @@ function ScreenAnalytics({ go, loading }) {
               { l: window.isRTL ? 'التوقع' : 'Projected', v: fmtC(dailyAvg * daysTotal) },
             ].map((s, i) => (
               <div key={i}>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, opacity: 0.55, letterSpacing: '0.1em' }}>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, opacity: 0.72, letterSpacing: '0.1em' }}>
                   {s.l.toUpperCase()}
                 </div>
                 <div className="serif" style={{ fontSize: 26, lineHeight: 1.1, marginTop: 3 }}>{s.v}</div>

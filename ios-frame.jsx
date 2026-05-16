@@ -20,7 +20,7 @@ function IOSStatusBar({ dark = false, time = '9:41' }) {
           fontSize: 17, lineHeight: '22px', color: c,
         }}>{time}</span>
       </div>
-      <div style={{ flex: 1, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, paddingTop: 1, paddingRight: 1 }}>
+      <div style={{ flex: 1, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, paddingTop: 1, paddingInlineEnd: 1 }}>
         <svg width="19" height="12" viewBox="0 0 19 12">
           <rect x="0" y="7.5" width="3.2" height="4.5" rx="0.7" fill={c}/>
           <rect x="4.8" y="5" width="3.2" height="7" rx="0.7" fill={c}/>
@@ -102,7 +102,7 @@ function IOSNavBar({ title = 'Title', dark = false, trailingIcon = true }) {
       }}>
         {/* back chevron */}
         {pillIcon(
-          <svg width="12" height="20" viewBox="0 0 12 20" fill="none" style={{ marginLeft: -1 }}>
+          <svg width="12" height="20" viewBox="0 0 12 20" fill="none" style={{ marginInlineStart: -1 }}>
             <path d="M10 2L2 10l8 8" stroke={muted} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         )}
@@ -144,11 +144,11 @@ function IOSListRow({ title, detail, icon, chevron = true, isLast = false, dark 
       {icon && (
         <div style={{
           width: 30, height: 30, borderRadius: 7, background: icon,
-          marginRight: 12, flexShrink: 0,
+          marginInlineEnd: 12, flexShrink: 0,
         }} />
       )}
       <div style={{ flex: 1, color: text }}>{title}</div>
-      {detail && <span style={{ color: sec, marginRight: 6 }}>{detail}</span>}
+      {detail && <span style={{ color: sec, marginInlineEnd: 6 }}>{detail}</span>}
       {chevron && (
         <svg width="8" height="14" viewBox="0 0 8 14" style={{ flexShrink: 0 }}>
           <path d="M1 1l6 6-6 6" stroke={ter} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>

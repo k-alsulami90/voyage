@@ -66,7 +66,7 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
           {/* Overflowing avatar — bleeds off left (or right in RTL) */}
           <div style={{
             position: 'absolute', top: '50%',
-            ...(window.isRTL ? { right: -10 } : { left: -10 }),
+            insetInlineStart: -10,
             transform: 'translateY(-50%) rotate(-4deg)',
             width: 86, height: 86, borderRadius: 22, overflow: 'hidden',
             background: `linear-gradient(140deg, oklch(0.78 0.09 ${me.hue}) 0%, oklch(0.50 0.13 ${me.hue}) 100%)`,
@@ -77,7 +77,7 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
           }}>{me.initials}</div>
 
           <div style={{ position: 'relative' }}>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.55 }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.72 }}>
               {t('proTraveler')}
             </div>
             <div className="serif" style={{ fontSize: 22, lineHeight: 1.05, marginTop: 2 }}>{me.name}</div>

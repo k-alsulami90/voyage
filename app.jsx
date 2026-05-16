@@ -740,7 +740,7 @@ function AddExpenseSheet({ onDone, onAdded, existing }) {
           alignItems: 'center', marginBottom: 10,
           flexDirection: 'row',
         }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.55 }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.72 }}>
             {inputCur} {window.isRTL ? 'المبلغ' : 'AMOUNT'}
           </div>
           {!sameHomeLocal && (
@@ -766,7 +766,7 @@ function AddExpenseSheet({ onDone, onAdded, existing }) {
             textAlign: 'start',
           }}
         />
-        <div style={{ fontSize: 12, opacity: 0.55, marginTop: 4 }}>
+        <div style={{ fontSize: 12, opacity: 0.72, marginTop: 4 }}>
           {!sameHomeLocal && amtNum > 0
             ? `≈ ${(window.CUR_SYM[otherCur] || (otherCur + ' '))}${otherVal.toLocaleString('en', { maximumFractionDigits: window.CUR_WHOLE.has(otherCur) ? 0 : 2 })}`
             : ''}

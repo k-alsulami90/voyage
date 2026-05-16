@@ -37,7 +37,7 @@ function ScreenDocDetail({ doc, category, go, back, openSheet }) {
     }}>
       {/* HEADER — translucent over preview */}
       <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
+        position: 'absolute', top: 0, insetInlineStart: 0, insetInlineEnd: 0, zIndex: 20,
         padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 18px 12px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         flexDirection: 'row',
@@ -106,9 +106,9 @@ function ScreenDocDetail({ doc, category, go, back, openSheet }) {
                 background: `linear-gradient(155deg, oklch(0.72 0.08 60) 0%, oklch(0.42 0.10 30) 100%)`,
                 position: 'relative', overflow: 'hidden',
               }}>
-                <div style={{ position: 'absolute', top: 28, left: 28, width: 20, height: 20, borderRadius: '50%', background: 'rgba(255,255,255,0.85)' }} />
+                <div style={{ position: 'absolute', top: 28, insetInlineStart: 28, width: 20, height: 20, borderRadius: '50%', background: 'rgba(255,255,255,0.85)' }} />
                 <div style={{
-                  position: 'absolute', bottom: 0, left: 0, right: 0, height: 100,
+                  position: 'absolute', bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, height: 100,
                   background: 'rgba(255,255,255,0.35)',
                   clipPath: 'polygon(0 100%, 22% 40%, 45% 70%, 70% 25%, 100% 65%, 100% 100%)',
                 }} />
@@ -166,7 +166,7 @@ function ScreenDocDetail({ doc, category, go, back, openSheet }) {
           ].map((s, i) => (
             <div key={i} style={{
               padding: i === 1 ? '0 14px' : '0',
-              borderLeft: i ? '0.5px solid var(--hairline)' : 'none',
+              borderInlineStart: i ? '0.5px solid var(--hairline)' : 'none',
               textAlign: i === 0 ? 'left' : i === 1 ? 'center' : 'right',
             }}>
               <div style={{ fontSize: 10, fontFamily: 'var(--mono)', letterSpacing: '0.12em', color: 'var(--ink-mute)' }}>
@@ -283,7 +283,7 @@ function ScreenDocDetail({ doc, category, go, back, openSheet }) {
                     background: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.08) 0 6px, transparent 6px 12px)',
                   }} />
                   <div style={{
-                    position: 'absolute', bottom: 8, left: 8,
+                    position: 'absolute', bottom: 8, insetInlineStart: 8,
                     padding: '3px 7px', borderRadius: 6,
                     background: 'rgba(0,0,0,0.4)', color: '#fff',
                     fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.08em',
@@ -348,7 +348,7 @@ function ScreenDocDetail({ doc, category, go, back, openSheet }) {
       <div style={{
         position: 'fixed',
         bottom: 'calc(env(safe-area-inset-bottom) + 78px)',
-        left: 14, right: 14, zIndex: 49,
+        insetInlineStart: 14, insetInlineEnd: 14, zIndex: 49,
         display: 'flex', gap: 8, flexDirection: 'row',
         padding: 6, borderRadius: 22,
         background: 'rgba(255,251,244,0.92)',

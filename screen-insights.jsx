@@ -19,7 +19,7 @@ function ScreenInsights({ go }) {
           boxShadow: 'var(--shadow-card)', height: 240,
         }}>
           {/* faux globe — concentric arcs */}
-          <svg viewBox="0 0 400 240" style={{ position: 'absolute', right: -60, top: -10, width: 380, height: 280, opacity: 0.18 }}>
+          <svg viewBox="0 0 400 240" style={{ position: 'absolute', insetInlineEnd: -60, top: -10, width: 380, height: 280, opacity: 0.18 }}>
             {[60, 90, 120, 150].map((r) => (
               <ellipse key={r} cx="200" cy="120" rx={r * 1.4} ry={r} fill="none" stroke="#fff" strokeWidth="0.5" />
             ))}
@@ -29,7 +29,7 @@ function ScreenInsights({ go }) {
             ))}
           </svg>
           <div style={{ position: 'relative' }}>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.55 }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.72 }}>
               {t('since2020')}
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4, flexDirection: 'row' }}>
@@ -150,11 +150,11 @@ function ScreenInsights({ go }) {
           boxShadow: 'var(--shadow-card)',
         }}>
           <div style={{
-            position: 'absolute', right: -20, top: -20, width: 120, height: 120,
+            position: 'absolute', insetInlineEnd: -20, top: -20, width: 120, height: 120,
             borderRadius: '50%', background: 'oklch(0.62 0.13 35 / 0.4)', filter: 'blur(30px)',
           }} />
           <div style={{ position: 'relative' }}>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.55 }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.72 }}>
               {t('topCategoryLifetime')}
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6, flexDirection: 'row' }}>

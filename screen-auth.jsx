@@ -346,7 +346,7 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
       }}>
         {mode === 'signup' ? t('alreadyHaveAccount') : t('newToVoyage')}
         <button onClick={() => setMode(mode === 'signup' ? 'signin' : 'signup')} style={{
-          marginLeft: 6, color: 'var(--clay-deep)', fontWeight: 600, letterSpacing: '0.16em',
+          marginInlineStart: 6, color: 'var(--clay-deep)', fontWeight: 600, letterSpacing: '0.16em',
         }}>{mode === 'signup' ? t('signinLink') : t('createOne')}</button>
       </div>
       )}

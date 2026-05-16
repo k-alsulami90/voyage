@@ -62,7 +62,7 @@ function ScreenTrips({ goTrip, go }) {
               display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
               flexDirection: 'row',
             }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.55 }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.72 }}>
                 {t('lifetimeAllTrips')}
               </div>
               <div style={{ fontSize: 11, opacity: 0.7, display: 'flex', alignItems: 'center', gap: 4, flexDirection: 'row' }}>
@@ -71,7 +71,7 @@ function ScreenTrips({ goTrip, go }) {
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 8, flexDirection: 'row' }}>
               <span className="serif" style={{ fontSize: 56, lineHeight: 0.9 }}>{window.GLOBAL.countries}</span>
-              <span style={{ fontSize: 14, opacity: 0.65, marginLeft: 6 }}>{t('countries')}</span>
+              <span style={{ fontSize: 14, opacity: 0.65, marginInlineStart: 6 }}>{t('countries')}</span>
             </div>
             <div style={{ fontSize: 12, opacity: 0.62, marginTop: 4 }}>
               {window.GLOBAL.continents} {t('continents')} · {window.GLOBAL.days} {t('travelDays')}
@@ -89,9 +89,9 @@ function ScreenTrips({ goTrip, go }) {
                   background: 'rgba(255,255,255,0.06)',
                   border: '0.5px solid rgba(255,255,255,0.08)',
                 }}>
-                  <div style={{ fontSize: 9.5, opacity: 0.55, fontFamily: 'var(--mono)', letterSpacing: '0.1em' }}>{s.l.toUpperCase()}</div>
+                  <div style={{ fontSize: 9.5, opacity: 0.72, fontFamily: 'var(--mono)', letterSpacing: '0.1em' }}>{s.l.toUpperCase()}</div>
                   <div className="serif" style={{ fontSize: 22, lineHeight: 1, marginTop: 2 }}>{s.v}</div>
-                  <div style={{ fontSize: 10, opacity: 0.55, marginTop: 1 }}>{s.s}</div>
+                  <div style={{ fontSize: 10, opacity: 0.72, marginTop: 1 }}>{s.s}</div>
                 </div>
               ))}
             </div>
@@ -156,13 +156,13 @@ function ScreenTrips({ goTrip, go }) {
                   <CoverArt kind={t.cover} imageUrl={t.coverImageUrl} />
                   <div className="glass" style={{
                     position: 'absolute', top: 10,
-                    ...(window.isRTL ? { right: 10 } : { left: 10 }),
+                    ...(window.isRTL ? { insetInlineEnd: 10 } : { insetInlineStart: 10 }),
                     padding: '4px 9px', borderRadius: 999, fontSize: 10,
                     color: '#fff', background: 'rgba(0,0,0,0.32)',
                     fontFamily: 'var(--mono)', letterSpacing: '0.1em',
                   }}>{t.country}</div>
                   {t.shared && (
-                    <div style={{ position: 'absolute', bottom: -10, right: 14 }}>
+                    <div style={{ position: 'absolute', bottom: -10, insetInlineEnd: 14 }}>
                       <AvatarStack members={window.MEMBERS.slice(0, t.members)} size={22} />
                     </div>
                   )}
@@ -266,7 +266,7 @@ function ActiveTripCard({ t, onOpen }) {
         {/* live pill */}
         <div className="glass" style={{
           position: 'absolute', top: 14,
-          ...(window.isRTL ? { right: 14 } : { left: 14 }),
+          ...(window.isRTL ? { insetInlineEnd: 14 } : { insetInlineStart: 14 }),
           display: 'flex', alignItems: 'center', gap: 6,
           flexDirection: 'row',
           padding: '5px 11px 5px 9px', borderRadius: 999,
@@ -278,13 +278,13 @@ function ActiveTripCard({ t, onOpen }) {
         </div>
         <div style={{
           position: 'absolute', top: 14,
-          ...(window.isRTL ? { left: 14 } : { right: 14 }),
+          ...(window.isRTL ? { insetInlineStart: 14 } : { insetInlineEnd: 14 }),
           fontFamily: 'var(--mono)', fontSize: 10.5, color: '#fff',
           opacity: 0.85, letterSpacing: '0.1em',
         }}>{t.dates.toUpperCase()}</div>
         <div style={{
           position: 'absolute', bottom: 14,
-          ...(window.isRTL ? { right: 18 } : { left: 18 }),
+          ...(window.isRTL ? { insetInlineEnd: 18 } : { insetInlineStart: 18 }),
           color: '#fff', textShadow: '0 4px 14px rgba(0,0,0,0.4)',
         }}>
           <div className="serif-italic" style={{ fontSize: 38, lineHeight: 1 }}>{t.title}</div>

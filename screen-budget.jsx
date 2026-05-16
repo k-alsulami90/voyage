@@ -106,7 +106,7 @@ function ScreenBudget({ go, openSheet, loading }) {
             position: 'relative',
           }}>
             <div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.55 }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.72 }}>
                 {t('totalSpent')}
               </div>
               <div style={{ fontFamily: 'var(--serif)', fontSize: 44, lineHeight: 1, marginTop: 4 }}>
@@ -352,8 +352,8 @@ function ScreenBudget({ go, openSheet, loading }) {
                 }}>
                   <div style={{
                     width: 6, alignSelf: 'stretch', borderRadius: 3,
-                    background: c.color, marginRight: window.isRTL ? 0 : -2,
-                    marginLeft: window.isRTL ? -2 : 0,
+                    background: c.color, marginInlineEnd: window.isRTL ? 0 : -2,
+                    marginInlineStart: window.isRTL ? -2 : 0,
                   }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink)' }}>{e.title}</div>

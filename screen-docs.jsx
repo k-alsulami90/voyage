@@ -126,7 +126,7 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
           </div>
           <div style={{
             position: 'absolute', bottom: 14,
-            ...(window.isRTL ? { right: 22 } : { left: 22 }),
+            ...(window.isRTL ? { insetInlineEnd: 22 } : { insetInlineStart: 22 }),
             color: '#fff',
             textShadow: '0 4px 14px rgba(0,0,0,0.3)',
           }}>
@@ -259,7 +259,7 @@ function CategoryTile({ c, tilt, onOpen }) {
 
 // Decorative oversized glyph that bleeds off the tile
 function CategoryGlyph({ kind }) {
-  const common = { position: 'absolute', right: -28, top: -22, opacity: 0.22, color: '#fff' };
+  const common = { position: 'absolute', insetInlineEnd: -28, top: -22, opacity: 0.22, color: '#fff' };
   if (kind === 'plane') return (
     <svg width="180" height="180" viewBox="0 0 24 24" style={common} fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M2 16l20-7-7 14-2-6z" />
@@ -315,9 +315,9 @@ function DocCard({ d, tilt = 0 }) {
           {d.kind === 'img' && (
             <>
               <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.06) 0 6px, transparent 6px 12px)' }} />
-              <div style={{ position: 'absolute', bottom: 24, left: 24, width: 18, height: 18, borderRadius: '50%', background: 'rgba(255,255,255,0.7)' }} />
+              <div style={{ position: 'absolute', bottom: 24, insetInlineStart: 24, width: 18, height: 18, borderRadius: '50%', background: 'rgba(255,255,255,0.7)' }} />
               <div style={{
-                position: 'absolute', bottom: 14, left: 18, right: 30, height: 30,
+                position: 'absolute', bottom: 14, insetInlineStart: 18, insetInlineEnd: 30, height: 30,
                 background: 'rgba(255,255,255,0.32)',
                 clipPath: 'polygon(0 100%, 30% 30%, 55% 70%, 80% 20%, 100% 60%, 100% 100%)',
               }} />
@@ -341,7 +341,7 @@ function DocCard({ d, tilt = 0 }) {
 }
 
 const kindBadge = {
-  position: 'absolute', top: 10, right: 10,
+  position: 'absolute', top: 10, insetInlineEnd: 10,
   padding: '3px 7px', borderRadius: 6,
   background: 'rgba(0,0,0,0.4)', color: '#fff',
   fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.08em',

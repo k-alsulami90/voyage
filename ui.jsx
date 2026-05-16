@@ -8,8 +8,8 @@ const Avatar = ({ m, size = 28, ring = false, off = 0, marginRight = 0 }) => (
     color: '#fff', fontFamily: 'var(--sans)', fontWeight: 600,
     fontSize: size * 0.38, letterSpacing: '-0.02em',
     boxShadow: ring ? '0 0 0 2.5px var(--cream), 0 4px 10px rgba(0,0,0,0.18)' : '0 2px 4px rgba(0,0,0,0.15)',
-    marginLeft: off,
-    marginRight: marginRight,
+    marginInlineStart: off,
+    marginInlineEnd: marginRight,
     flexShrink: 0,
   }}>{m.initials}</div>
 );

@@ -86,7 +86,7 @@ function ScreenHub({ go, openSheet, loading }) {
           {/* Inner labels — top-left tag */}
           <div style={{
             position: 'absolute', top: 18,
-            ...(window.isRTL ? { right: 18 } : { left: 18 }),
+            insetInlineStart: 18,
             display: 'flex', alignItems: 'center', gap: 6,
             flexDirection: 'row',
             padding: '5px 11px 5px 9px', borderRadius: 999,
@@ -100,7 +100,7 @@ function ScreenHub({ go, openSheet, loading }) {
           {/* Date + temperature */}
           <div style={{
             position: 'absolute', top: 18,
-            ...(window.isRTL ? { left: 18 } : { right: 18 }),
+            insetInlineEnd: 18,
             color: '#fff', textAlign: 'end',
           }}>
             <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, opacity: 0.85, letterSpacing: '0.1em' }}>
@@ -118,7 +118,7 @@ function ScreenHub({ go, openSheet, loading }) {
           {/* Subtitle */}
           <div style={{
             position: 'absolute',
-            ...(window.isRTL ? { right: 22 } : { left: 22 }),
+            insetInlineStart: 22,
             bottom: 64, color: '#fff',
             fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '0.16em',
             textTransform: 'uppercase', opacity: 0.9,
@@ -127,7 +127,7 @@ function ScreenHub({ go, openSheet, loading }) {
 
         {/* TITLE — bleeds out of the hero card */}
         <div style={{
-          position: 'relative', marginTop: -50, marginLeft: 8,
+          position: 'relative', marginTop: -50, marginInlineStart: 8,
           fontFamily: 'var(--serif)', fontStyle: 'italic',
           fontSize: 64, lineHeight: 0.95,
           color: '#fff', letterSpacing: '-0.03em',
@@ -142,7 +142,7 @@ function ScreenHub({ go, openSheet, loading }) {
         {/* OVERLAPPING STAT TRIO — tilted off the hero */}
         <div style={{
           position: 'absolute',
-          ...(window.isRTL ? { left: 22 } : { right: 22 }),
+          insetInlineEnd: 22,
           top: 318, zIndex: 4,
           display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end',
         }}>
@@ -155,7 +155,7 @@ function ScreenHub({ go, openSheet, loading }) {
               {t('daysLeft')}
             </div>
             <div style={{ fontFamily: 'var(--serif)', fontSize: 36, lineHeight: 1, marginTop: 2, color: 'var(--ink)' }}>
-              {trip.daysTotal - trip.daysIn}<span style={{ fontSize: 14, color: 'var(--ink-mute)', marginLeft: 3 }}>/{trip.daysTotal}</span>
+              {trip.daysTotal - trip.daysIn}<span style={{ fontSize: 14, color: 'var(--ink-mute)', marginInlineStart: 3 }}>/{trip.daysTotal}</span>
             </div>
           </div>
         </div>
@@ -258,7 +258,7 @@ function ScreenHub({ go, openSheet, loading }) {
           {/* Members chip overlapping bottom-left */}
           <div style={{
             position: 'absolute', bottom: -14,
-            ...(window.isRTL ? { right: 22 } : { left: 22 }),
+            insetInlineStart: 22,
             display: 'flex', alignItems: 'center', gap: 8,
             flexDirection: 'row',
             padding: '7px 12px 7px 8px', borderRadius: 999,
@@ -281,12 +281,12 @@ function ScreenHub({ go, openSheet, loading }) {
           color: '#fff', borderRadius: 26,
           padding: window.isRTL ? '18px 60px 18px 18px' : '18px 18px 18px 60px',
           position: 'relative', boxShadow: 'var(--shadow-card)',
-          overflow: 'hidden', marginLeft: 22, marginRight: 14,
+          overflow: 'hidden', marginInlineStart: 22, marginInlineEnd: 14,
         }}>
           {/* Overlapping clock badge — bleeds off the left/right */}
           <div style={{
             position: 'absolute', top: '50%',
-            ...(window.isRTL ? { right: -22 } : { left: -22 }),
+            insetInlineStart: -22,
             transform: 'translateY(-50%)',
             width: 64, height: 64, borderRadius: 20,
             background: 'var(--clay)', display: 'flex', alignItems: 'center', justifyContent: 'center',
