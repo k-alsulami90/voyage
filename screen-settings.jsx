@@ -483,29 +483,9 @@ function EditableTripParams({ trip: tripProp }) {
     textAlign: 'start',
   };
 
-  // Compact row with chevron — tap to expand to edit form
-  const Row = ({ icon, label, value, fieldKey, children, last }) => {
-    const isOpen = editing === fieldKey;
-    return (
-      <div style={{ borderTop: fieldKey !== 'title' ? '0.5px solid var(--hairline)' : 'none' }}>
-        <button onClick={() => setEditing(isOpen ? null : fieldKey)} style={rowStyle}>
-          <div style={iconBox}>{icon}</div>
-          <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)' }}>{label}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row' }}>
-            <span style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>{value}</span>
-            <span style={{ transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 200ms', display: 'inline-block' }}>
-              <IconChevron size={13} stroke="var(--ink-mute)" />
-            </span>
-          </div>
-        </button>
-        {isOpen && (
-          <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {children}
-          </div>
-        )}
-      </div>
-    );
-  };
+  // Row is a stable component defined OUTSIDE this scope (see bottom of file).
+  // We pass it open-state + setter via props so React keeps inputs mounted
+  // across keystrokes (defining components inside parents causes remount).
 
   return (
     <div style={{
@@ -513,15 +493,15 @@ function EditableTripParams({ trip: tripProp }) {
       border: '0.5px solid var(--hairline)', overflow: 'hidden',
     }}>
       {/* Destination (title + subtitle) */}
-      <Row icon={<IconCompass size={16} stroke="var(--ink)" />} label={t('destination')}
+      <EditRow editing={editing} setEditing={setEditing} icon={<IconCompass size={16} stroke="var(--ink)" />} label={t('destination')}
            value={trip.subtitle || trip.title || '—'} fieldKey="title">
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={window.isRTL ? 'اسم الرحلة' : 'Trip title'} style={inputStyle} />
         <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder={window.isRTL ? 'وصف' : 'Subtitle'} style={inputStyle} />
         <SaveCancelBar saving={saving} onSave={() => save({ title: title.trim(), subtitle: subtitle.trim() || null })} onCancel={() => setEditing(null)} />
-      </Row>
+      </EditRow>
 
       {/* Countries (comma-separated list — supports multi-country trips) */}
-      <Row icon={<IconPin size={16} stroke="var(--ink)" />}
+      <EditRow editing={editing} setEditing={setEditing} icon={<IconPin size={16} stroke="var(--ink)" />}
            label={window.isRTL ? 'الدول' : 'Countries'}
            value={(trip.countries || []).length > 0 ? trip.countries.join(' · ') : (window.isRTL ? 'لم تُحدد' : 'Not set')}
            fieldKey="countries">
@@ -546,20 +526,20 @@ function EditableTripParams({ trip: tripProp }) {
           const list = countries.split(',').map((s) => s.trim()).filter(Boolean);
           return save({ countries: list, country_code: list[0]?.slice(0, 2)?.toUpperCase() || null });
         }} onCancel={() => setEditing(null)} />
-      </Row>
+      </EditRow>
 
       {/* Dates */}
-      <Row icon={<IconClock size={16} stroke="var(--ink)" />} label={t('dates')}
+      <EditRow editing={editing} setEditing={setEditing} icon={<IconClock size={16} stroke="var(--ink)" />} label={t('dates')}
            value={trip.dates || '—'} fieldKey="dates">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <input type="date" value={start} onChange={(e) => setStart(e.target.value)} style={inputStyle} />
           <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} style={inputStyle} />
         </div>
         <SaveCancelBar saving={saving} onSave={() => save({ start_date: start, end_date: end })} onCancel={() => setEditing(null)} />
-      </Row>
+      </EditRow>
 
       {/* Budget — pick currency AND amount; we convert to USD on save */}
-      <Row icon={<IconWallet size={16} stroke="var(--ink)" />} label={t('budgetCap')}
+      <EditRow editing={editing} setEditing={setEditing} icon={<IconWallet size={16} stroke="var(--ink)" />} label={t('budgetCap')}
            value={trip.budget?.plannedUSD ? window.fmtMoney(trip.budget.plannedUSD, { in: 'home' }) : '—'}
            fieldKey="budget">
         <div style={{ fontSize: 11, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
@@ -600,10 +580,10 @@ function EditableTripParams({ trip: tripProp }) {
         <SaveCancelBar saving={saving} onSave={() => save({
           budget_planned_usd: budgetAmt ? window.toUSD(budgetAmt, budgetCur) : null,
         })} onCancel={() => setEditing(null)} />
-      </Row>
+      </EditRow>
 
       {/* Currencies (home + local + fx) */}
-      <Row icon={<IconSwap size={16} stroke="var(--ink)" />} label={t('currencies')}
+      <EditRow editing={editing} setEditing={setEditing} icon={<IconSwap size={16} stroke="var(--ink)" />} label={t('currencies')}
            value={`${trip.homeCurrency || 'USD'}${trip.localCurrency && trip.localCurrency !== trip.homeCurrency ? ' ↔ ' + trip.localCurrency : ''}`}
            fieldKey="currency">
         <div style={{ fontSize: 11, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
@@ -647,10 +627,10 @@ function EditableTripParams({ trip: tripProp }) {
           ⓘ {window.isRTL ? `أسعار مرجعية حدّثت في ${window.FX_RATES_UPDATED}. عدّل الحقل أعلاه إذا كان السعر غير صحيح.` : `Reference rates updated ${window.FX_RATES_UPDATED}. Override above if your rate differs.`}
         </div>
         <SaveCancelBar saving={saving} onSave={() => save({ home_currency: homeCur, local_currency: localCur, fx_rate: parseFloat(fx) || window.FX_RATES[homeCur] || 1 })} onCancel={() => setEditing(null)} />
-      </Row>
+      </EditRow>
 
       {/* Cover style */}
-      <Row icon={<IconSun size={16} stroke="var(--ink)" />} label={t('coverStyle')}
+      <EditRow editing={editing} setEditing={setEditing} icon={<IconSun size={16} stroke="var(--ink)" />} label={t('coverStyle')}
            value={trip.cover || 'kyoto'} fieldKey="cover" last>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {COVERS.map((c) => (
@@ -663,7 +643,7 @@ function EditableTripParams({ trip: tripProp }) {
           ))}
         </div>
         <SaveCancelBar saving={saving} onSave={() => save({ cover_style: cover })} onCancel={() => setEditing(null)} />
-      </Row>
+      </EditRow>
 
       {err && (
         <div style={{ padding: '10px 14px', background: 'oklch(0.62 0.13 35 / 0.10)', fontSize: 12, color: 'var(--clay-deep)' }}>
@@ -689,4 +669,37 @@ function SaveCancelBar({ saving, onSave, onCancel }) {
   );
 }
 
-Object.assign(window, { ScreenSettings, ParamGroup, ActionRow, Toggle, RoleSelect, EditableTripParams });
+// Stable module-scope component — must NOT be defined inside EditableTripParams,
+// otherwise inputs unmount on every keystroke.
+function EditRow({ editing, setEditing, icon, label, value, fieldKey, children, last }) {
+  const isOpen = editing === fieldKey;
+  const rowStyle = {
+    display: 'flex', alignItems: 'center', gap: 12, flexDirection: 'row',
+    padding: '13px 16px', width: '100%', textAlign: 'start',
+  };
+  const iconBox = {
+    width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
+    background: 'var(--cream)', border: '0.5px solid var(--hairline)',
+  };
+  return (
+    <div style={{ borderTop: fieldKey !== 'title' ? '0.5px solid var(--hairline)' : 'none' }}>
+      <button onClick={() => setEditing(isOpen ? null : fieldKey)} style={rowStyle}>
+        <div style={iconBox}>{icon}</div>
+        <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)' }}>{label}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row' }}>
+          <span style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>{value}</span>
+          <span style={{ transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 200ms', display: 'inline-block' }}>
+            <IconChevron size={13} stroke="var(--ink-mute)" />
+          </span>
+        </div>
+      </button>
+      {isOpen && (
+        <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+Object.assign(window, { ScreenSettings, ParamGroup, ActionRow, Toggle, RoleSelect, EditableTripParams, EditRow });

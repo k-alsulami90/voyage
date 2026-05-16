@@ -20,23 +20,28 @@ function AppToggle({ on, onChange }) {
 
 function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkToggle, onLangChange }) {
   const [profile, setProfile] = React.useState(window.MEMBERS?.[0] || null);
+  const [email,   setEmail]   = React.useState('');
+  const [stats,   setStats]   = React.useState(window.LIFETIME_STATS || null);
 
   React.useEffect(() => {
-    // Load the current user's own profile directly
     const uid = window.currentUserId;
     if (!uid || !window.sb) return;
+    // Profile name + initials
     window.sb.from('profiles').select('*').eq('id', uid).single()
       .then(({ data }) => { if (data) setProfile({ id: data.id, name: data.name, initials: data.initials, hue: data.avatar_hue || 35 }); })
       .catch(() => {});
+    // Real email from auth session
+    window.sb.auth.getUser()
+      .then(({ data }) => { if (data?.user?.email) setEmail(data.user.email); })
+      .catch(() => {});
+    // Lifetime stats — fetch if not already cached
+    if (!window.LIFETIME_STATS) {
+      window.loadLifetimeStats?.().then((s) => setStats(s || null)).catch(() => {});
+    }
   }, []);
 
-  const me = profile || { id: window.currentUserId || 'me', name: 'You', initials: 'ME', hue: 35 };
-  const g  = window.GLOBAL || {
-    countries: 0, continents: 0, days: 0, lifetimeUSD: 0,
-    longestTrip: { name: '--', days: 0 },
-    topCategory: { name: '--', usd: 0, pct: 0 },
-    byContinent: [], yearly: [],
-  };
+  const me    = profile || { id: window.currentUserId || 'me', name: 'You', initials: 'ME', hue: 35 };
+  const stat  = stats || { totalTrips: 0, totalDays: 0, countries: 0 };
 
   return (
     <div data-screen-label="App Settings" style={{
@@ -81,23 +86,11 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
               {t('proTraveler')}
             </div>
             <div className="serif" style={{ fontSize: 22, lineHeight: 1.05, marginTop: 2 }}>{me.name}</div>
-            <div style={{ fontSize: 11, opacity: 0.7, marginTop: 1 }}>mira@voyage.app</div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 10, flexDirection: 'row' }}>
-              <span style={{
-                padding: '3px 9px', borderRadius: 999,
-                background: 'rgba(255,255,255,0.08)', fontSize: 10.5, fontWeight: 500,
-                fontFamily: 'var(--mono)', letterSpacing: '0.1em',
-              }}>{g.countries} CTRY</span>
-              <span style={{
-                padding: '3px 9px', borderRadius: 999,
-                background: 'rgba(255,255,255,0.08)', fontSize: 10.5, fontWeight: 500,
-                fontFamily: 'var(--mono)', letterSpacing: '0.1em',
-              }}>{g.days}D</span>
-              <span style={{
-                padding: '3px 9px', borderRadius: 999,
-                background: 'rgba(255,255,255,0.08)', fontSize: 10.5, fontWeight: 500,
-                fontFamily: 'var(--mono)', letterSpacing: '0.1em',
-              }}>{window.TRIPS.length} TRIPS</span>
+            <div style={{ fontSize: 11, opacity: 0.78, marginTop: 1 }}>{email || (window.isRTL ? 'جاري التحميل…' : 'Loading…')}</div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10, flexDirection: 'row', flexWrap: 'wrap' }}>
+              <span style={statPill}>{stat.totalTrips} {window.isRTL ? 'رحلة' : 'TRIPS'}</span>
+              <span style={statPill}>{stat.totalDays} {window.isRTL ? 'يوم' : 'DAYS'}</span>
+              <span style={statPill}>{stat.countries} {window.isRTL ? 'دولة' : 'CTRY'}</span>
             </div>
           </div>
         </div>
@@ -335,5 +328,11 @@ function InstallCard() {
     </div>
   );
 }
+
+const statPill = {
+  padding: '3px 9px', borderRadius: 999,
+  background: 'rgba(255,255,255,0.10)', fontSize: 10.5, fontWeight: 500,
+  fontFamily: 'var(--mono)', letterSpacing: '0.08em',
+};
 
 Object.assign(window, { ScreenAppSettings, InstallCard });
