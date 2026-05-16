@@ -72,6 +72,7 @@ window.clearAllMockData = () => {
   window.EXPENSES      = [];
   window.DOCS          = [];
   window.AUDIT         = [];
+  window.LIFETIME_STATS = null;
   window.DOCS_BY_CAT   = { flights: [], lodging: [], visas: [], transport: [] };
   window.DOC_CATEGORIES = window.DOC_CATEGORIES?.map((c) => ({ ...c, count: 0 })) || [];
   window.CATEGORIES    = window.CATEGORIES?.map((c) => ({ ...c, amt: 0, pct: 0 })) || [];
@@ -267,6 +268,127 @@ window.uploadDocumentFile = async (docId, tripId, file) => {
   return publicUrl;
 };
 
+// Aggregate every expense the user can see (RLS scopes to their trips automatically)
+// and compute the full lifetime-stats payload used by the Insights screen.
+window.loadLifetimeStats = async () => {
+  const { data, error } = await window.sb
+    .from('expenses')
+    .select('amount_usd, category, trip_id, created_at, created_by, local_currency')
+    .order('created_at', { ascending: false });
+  if (error) { console.error('loadLifetimeStats', error); return; }
+
+  const trips = window.TRIPS || [];
+  const expenses = data || [];
+
+  // ── Totals
+  const totalSpentUSD = expenses.reduce((s, e) => s + (parseFloat(e.amount_usd) || 0), 0);
+  const totalTrips    = trips.length;
+
+  // ── Travel days (sum of unique trip durations)
+  let totalDays = 0;
+  trips.forEach((t) => {
+    if (!t.startDate || !t.endDate) return;
+    const ms = new Date(t.endDate) - new Date(t.startDate);
+    totalDays += Math.max(1, Math.round(ms / 86400000) + 1);
+  });
+
+  // ── Distinct countries
+  const countries = [...new Set(trips.map((t) => t.country).filter(Boolean))];
+
+  // ── By year
+  const byYearMap = {};
+  expenses.forEach((e) => {
+    const y = new Date(e.created_at).getFullYear();
+    byYearMap[y] = byYearMap[y] || { year: y, spent: 0, count: 0 };
+    byYearMap[y].spent += parseFloat(e.amount_usd) || 0;
+    byYearMap[y].count += 1;
+  });
+  trips.forEach((t) => {
+    if (!t.startDate) return;
+    const y = new Date(t.startDate).getFullYear();
+    byYearMap[y] = byYearMap[y] || { year: y, spent: 0, count: 0, trips: 0, days: 0 };
+    byYearMap[y].trips = (byYearMap[y].trips || 0) + 1;
+    const dur = t.endDate ? Math.round((new Date(t.endDate) - new Date(t.startDate)) / 86400000) + 1 : 1;
+    byYearMap[y].days = (byYearMap[y].days || 0) + Math.max(1, dur);
+  });
+  const byYear = Object.values(byYearMap).sort((a, b) => a.year - b.year);
+
+  // ── By category (lifetime)
+  const byCatMap = {};
+  expenses.forEach((e) => {
+    const c = e.category || 'misc';
+    byCatMap[c] = (byCatMap[c] || 0) + (parseFloat(e.amount_usd) || 0);
+  });
+  const byCategory = Object.entries(byCatMap)
+    .map(([key, value]) => ({ key, value, pct: totalSpentUSD > 0 ? (value / totalSpentUSD) * 100 : 0 }))
+    .sort((a, b) => b.value - a.value);
+
+  // ── Per-trip spending
+  const tripSpendMap = {};
+  expenses.forEach((e) => {
+    tripSpendMap[e.trip_id] = (tripSpendMap[e.trip_id] || 0) + (parseFloat(e.amount_usd) || 0);
+  });
+  const tripSpend = trips.map((t) => {
+    const dur = (t.startDate && t.endDate)
+      ? Math.max(1, Math.round((new Date(t.endDate) - new Date(t.startDate)) / 86400000) + 1)
+      : 1;
+    const spent = tripSpendMap[t.id] || 0;
+    return {
+      id: t.id, title: t.title, country: t.country, cover: t.cover, coverImageUrl: t.coverImageUrl,
+      spent, dur, dailyAvg: spent / dur,
+      budgetPlanned: t.budgetPlannedUSD || 0,
+      startDate: t.startDate, endDate: t.endDate,
+    };
+  }).sort((a, b) => b.spent - a.spent);
+
+  // ── Top transaction across history
+  const topTx = expenses.reduce((m, e) => {
+    const v = parseFloat(e.amount_usd) || 0;
+    return v > (m?.value || 0) ? { value: v, when: e.created_at, trip_id: e.trip_id, category: e.category } : m;
+  }, null);
+
+  // ── Per-member contribution (across shared trips)
+  const byMemberMap = {};
+  expenses.forEach((e) => {
+    if (!e.created_by) return;
+    byMemberMap[e.created_by] = (byMemberMap[e.created_by] || 0) + (parseFloat(e.amount_usd) || 0);
+  });
+  const byMember = Object.entries(byMemberMap)
+    .map(([userId, value]) => ({ userId, value, pct: totalSpentUSD > 0 ? (value / totalSpentUSD) * 100 : 0 }))
+    .sort((a, b) => b.value - a.value);
+
+  // ── Status counts
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const statusCounts = { current: 0, upcoming: 0, past: 0 };
+  trips.forEach((t) => {
+    if (!t.startDate || !t.endDate) { statusCounts.past++; return; }
+    const s = new Date(t.startDate); s.setHours(0, 0, 0, 0);
+    const e = new Date(t.endDate); e.setHours(0, 0, 0, 0);
+    if (now < s) statusCounts.upcoming++;
+    else if (now > e) statusCounts.past++;
+    else statusCounts.current++;
+  });
+
+  // ── Derived KPIs
+  const longestTrip   = tripSpend.reduce((m, t) => t.dur > (m?.dur || 0) ? t : m, null);
+  const mostExpensive = tripSpend[0] || null;  // already sorted by spent desc
+  const avgTripCost   = tripSpend.length > 0 ? totalSpentUSD / tripSpend.length : 0;
+  const avgDailyAcrossLifetime = totalDays > 0 ? totalSpentUSD / totalDays : 0;
+
+  // ── Currency mix (which local currencies you've used)
+  const currencyMix = [...new Set(expenses.map((e) => e.local_currency).filter(Boolean))];
+
+  window.LIFETIME_STATS = {
+    totalSpentUSD, totalTrips, totalDays, countries: countries.length, countriesList: countries,
+    byYear, byCategory, tripSpend, byMember, statusCounts,
+    longestTrip, mostExpensive, avgTripCost, avgDailyAcrossLifetime,
+    topTx, currencyMix,
+    expenseCount: expenses.length,
+    loadedAt: Date.now(),
+  };
+  return window.LIFETIME_STATS;
+};
+
 window.loadAuditLog = async (tripId) => {
   const { data, error } = await window.sb
     .from('audit_log')
@@ -301,6 +423,7 @@ window.addExpense = async (tripId, userId, fields) => {
   }).select().single();
   if (error) throw error;
 
+  window.LIFETIME_STATS = null;  // invalidate so Insights re-aggregates next visit
   await window.sb.from('audit_log').insert({
     trip_id: tripId,
     user_id: userId,
@@ -447,6 +570,7 @@ window.updateExpense = async (expenseId, tripId, fields) => {
     note:           fields.note || null,
   }).eq('id', expenseId);
   if (error) throw error;
+  window.LIFETIME_STATS = null;
   await window.sb.from('audit_log').insert({
     trip_id: tripId,
     user_id: window.currentUserId,
@@ -458,6 +582,7 @@ window.updateExpense = async (expenseId, tripId, fields) => {
 window.deleteExpense = async (expenseId, tripId) => {
   const { error } = await window.sb.from('expenses').delete().eq('id', expenseId);
   if (error) throw error;
+  window.LIFETIME_STATS = null;
   await window.sb.from('audit_log').insert({
     trip_id: tripId,
     user_id: window.currentUserId,
