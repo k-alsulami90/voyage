@@ -2,25 +2,27 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1" />
 <title>Voyage — Travel Tracker</title>
 
 <!-- PWA manifest + theme -->
 <link rel="manifest" href="manifest.json" />
-<meta name="theme-color" content="#221c16" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#0F172A" media="(prefers-color-scheme: dark)" />
 <meta name="theme-color" content="#f3eed8" media="(prefers-color-scheme: light)" />
 <meta name="description" content="Plan trips, track expenses, share with your crew — designed for Gulf travelers." />
 
-<!-- iOS / Apple -->
+<!-- iOS / Apple — standalone PWA -->
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Voyage" />
+<meta name="format-detection" content="telephone=no" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Cairo:wght@300;400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Amiri:ital@0;1&family=Markazi+Text:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Tajawal:wght@300;400;500;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Markazi+Text:wght@400;500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="tokens.css" />
 <style>
   body {
@@ -45,9 +47,22 @@
       background: var(--cream);
       padding: 0;
       min-height: 100dvh;
+      height: 100dvh;
+      overflow: hidden;
+      /* Lock body scrolling — inner #root scroll containers do the work */
+      position: fixed;
+      inset: 0;
+    }
+    #root {
+      height: 100dvh;
+      width: 100vw;
       overflow: hidden;
     }
-    #root { height: 100dvh; }
+  }
+
+  /* iOS: respect notch and home indicator */
+  @supports (padding: env(safe-area-inset-top)) {
+    body { padding-top: 0; padding-bottom: 0; }
   }
 </style>
 </head>

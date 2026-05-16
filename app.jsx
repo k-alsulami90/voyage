@@ -298,7 +298,11 @@ function App() {
     <div style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>
       {/* Key only changes when entering/exiting a trip (or switching trips) — */}
       {/* not on every tab switch. Prevents losing local screen state. */}
-      <div style={{ position: 'absolute', inset: 0, overflow: 'auto' }}
+      <div style={{
+        position: 'absolute', inset: 0, overflow: 'auto',
+        WebkitOverflowScrolling: 'touch',           // iOS momentum scroll
+        overscrollBehavior: 'contain',              // don't bounce parent
+      }}
            className="no-scrollbar"
            key={route.scope + ':' + (route.tripId || route.name)}>
         {screenNode}
@@ -365,9 +369,10 @@ function App() {
       <div style={{
         position: 'fixed', inset: 0, overflow: 'hidden',
         background: 'var(--cream)',
-        fontFamily: '-apple-system, system-ui, sans-serif',
+        fontFamily: 'var(--sans)',
         WebkitFontSmoothing: 'antialiased',
-      }}>
+        // Inherit theme + dir so all children flip together
+      }} data-theme={tw.dark ? 'dark' : 'light'} dir={tw.lang === 'ar' ? 'rtl' : 'ltr'} lang={tw.lang}>
         {appShell}
         <ToastHost />
       </div>

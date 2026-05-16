@@ -45,13 +45,21 @@
   --r-xl: 28px;
   --r-2xl: 36px;
 
-  /* Type — Arabic faces appended; browser only activates them for Arabic codepoints */
-  --serif: 'Instrument Serif', 'Amiri', 'Markazi Text', 'Cormorant Garamond', Georgia, serif;
-  --sans:  'Geist', 'IBM Plex Sans Arabic', 'Cairo', 'Tajawal', 'Inter Tight', -apple-system, system-ui, sans-serif;
+  /* Type — Arabic faces appended; browser only activates them for Arabic codepoints.
+     Tajawal is the modern premium choice for Gulf UI (sharp, geometric, 7 weights). */
+  --serif: 'Instrument Serif', 'Markazi Text', 'Amiri', 'Cormorant Garamond', Georgia, serif;
+  --sans:  'Geist', 'Tajawal', 'IBM Plex Sans Arabic', 'Inter Tight', -apple-system, system-ui, sans-serif;
   --mono:  'JetBrains Mono', 'IBM Plex Mono', 'Geist Mono', ui-monospace, monospace;
+  --arabic-line-height: 1.6;
 }
 
-* { box-sizing: border-box; }
+/* Arabic-specific line-height — Arabic glyphs are taller, need more breathing room */
+[lang="ar"] {
+  line-height: var(--arabic-line-height);
+}
+[lang="ar"] .serif { line-height: 1.3; }
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 html, body {
   margin: 0; padding: 0;
@@ -59,11 +67,43 @@ html, body {
   color: var(--ink);
   background: #1a1612;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  /* iOS: prevent rubber-band overscroll on the body */
+  overscroll-behavior: none;
+  /* iOS: never allow horizontal scroll */
+  overflow-x: hidden;
+  /* Use dvh so iOS Safari URL bar doesn't cause layout jumps */
+  min-height: 100dvh;
+}
+
+/* Native-feel selection */
+::selection { background: var(--clay); color: #fff; }
+
+/* Inputs: prevent iOS auto-zoom on focus (font-size must be ≥ 16px) */
+input, textarea, select {
+  font-size: 16px;
+  font-family: inherit;
+  color: inherit;
 }
 
 button {
   font-family: inherit; color: inherit;
   border: 0; background: none; cursor: pointer; padding: 0;
+  /* Larger touch targets via padding where set; ensure no accidental text-select */
+  -webkit-user-select: none;
+  user-select: none;
+  /* Active-state press feedback baseline */
+  transition: transform 120ms cubic-bezier(.2,.8,.2,1), opacity 120ms;
+}
+button:active { transform: scale(0.97); opacity: 0.92; }
+button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* iOS standalone (installed PWA) — hide the address bar's bottom safe inset
+   from non-fixed content; let fixed nav handle env(safe-area-inset-bottom) */
+@supports (-webkit-touch-callout: none) {
+  body { -webkit-touch-callout: none; }
 }
 
 /* ── Reusable atoms ─────────────────────────────────────── */
@@ -136,42 +176,44 @@ button {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Dark mode — warm midnight parchment (from design system).
+   Dark mode — premium slate palette.
+   Bg: Slate-900 (#0F172A-ish in oklch).  Cards: Slate-800.
+   Hairlines: white@8%.  Text: AA contrast.  Accents brighter for legibility.
    ───────────────────────────────────────────────────────────── */
 [data-theme="dark"] {
-  /* Neutrals — warm midnight (hue ~60, not cool blue) */
-  --cream:      oklch(0.19 0.012 60);
-  --cream-2:    oklch(0.23 0.014 58);
-  --sand:       oklch(0.28 0.016 55);
-  --sand-deep:  oklch(0.36 0.018 52);
-  --ink:        oklch(0.94 0.012 80);
-  --ink-soft:   oklch(0.78 0.014 78);
-  --ink-mute:   oklch(0.58 0.012 76);
+  /* Neutrals — slate (cool, deep, premium) */
+  --cream:      oklch(0.18 0.020 250);   /* page bg ≈ slate-900 */
+  --cream-2:    oklch(0.23 0.022 250);   /* card bg ≈ slate-800 */
+  --sand:       oklch(0.28 0.024 250);   /* recessed surface ≈ slate-700 */
+  --sand-deep:  oklch(0.34 0.026 250);   /* divider/track ≈ slate-600 */
+  --ink:        oklch(0.97 0.010 250);   /* primary text — AA against bg */
+  --ink-soft:   oklch(0.80 0.014 250);   /* secondary text */
+  --ink-mute:   oklch(0.60 0.014 250);   /* tertiary / placeholders */
 
   /* Accents — brighter on dark for legibility; clay-deep inverts to LIGHTER */
-  --clay:       oklch(0.68 0.14 35);
-  --clay-deep:  oklch(0.78 0.12 35);
-  --moss:       oklch(0.62 0.10 155);
-  --indigo:     oklch(0.62 0.12 260);
-  --honey:      oklch(0.82 0.13 80);
+  --clay:       oklch(0.72 0.14 30);     /* warm coral, pops on slate */
+  --clay-deep:  oklch(0.82 0.12 32);
+  --moss:       oklch(0.66 0.13 155);
+  --indigo:     oklch(0.68 0.14 255);
+  --honey:      oklch(0.85 0.13 80);
 
-  /* Glass — inverted */
-  --glass:      rgba(28, 22, 18, 0.55);
-  --glass-deep: rgba(255, 252, 245, 0.10);
-  --hairline:   rgba(255, 252, 245, 0.08);
-  --hairline-2: rgba(255, 252, 245, 0.14);
+  /* Glass — translucent slate */
+  --glass:      rgba(15, 23, 42, 0.65);
+  --glass-deep: rgba(255, 255, 255, 0.06);
+  --hairline:   rgba(255, 255, 255, 0.08);
+  --hairline-2: rgba(255, 255, 255, 0.14);
 
-  /* Shadows — deeper, no warm tint */
-  --shadow-xs:  0 1px 2px rgba(0,0,0,0.30);
-  --shadow-sm:  0 2px 6px rgba(0,0,0,0.32), 0 1px 2px rgba(0,0,0,0.24);
-  --shadow-md:  0 8px 24px -8px rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.32);
-  --shadow-lg:  0 24px 48px -16px rgba(0,0,0,0.65), 0 6px 14px rgba(0,0,0,0.35);
-  --shadow-card:0 18px 36px -18px rgba(0,0,0,0.7),  0 2px 4px rgba(0,0,0,0.35);
+  /* Shadows — deeper, neutral (no warm tint) */
+  --shadow-xs:  0 1px 2px rgba(0,0,0,0.40);
+  --shadow-sm:  0 2px 6px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.30);
+  --shadow-md:  0 8px 24px -8px rgba(0,0,0,0.60), 0 2px 6px rgba(0,0,0,0.35);
+  --shadow-lg:  0 24px 48px -16px rgba(0,0,0,0.70), 0 6px 14px rgba(0,0,0,0.40);
+  --shadow-card:0 18px 36px -18px rgba(0,0,0,0.75), 0 2px 4px rgba(0,0,0,0.40);
 
-  /* Statement cards — slightly darker than page bg so hierarchy reads */
-  --statement:    oklch(0.12 0.012 60);
-  --statement-fg: oklch(0.96 0.010 80);
-  --statement-sub: oklch(0.74 0.012 78);
+  /* Statement cards — darker than page bg for "elevated dark" feel */
+  --statement:    oklch(0.10 0.018 250);
+  --statement-fg: oklch(0.97 0.010 250);
+  --statement-sub: oklch(0.75 0.014 250);
 }
 
 /* Glass atom — re-tinted under dark so inset highlight isn't blown out */
@@ -194,9 +236,9 @@ button {
 
 [data-theme="dark"] body {
   background:
-    radial-gradient(ellipse 60% 50% at 30% 20%, oklch(0.22 0.04 35) 0%, transparent 60%),
-    radial-gradient(ellipse 80% 60% at 80% 100%, oklch(0.16 0.03 50) 0%, transparent 55%),
-    oklch(0.10 0.010 55);
+    radial-gradient(ellipse 60% 50% at 30% 20%, oklch(0.22 0.04 260) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 60% at 80% 100%, oklch(0.16 0.03 270) 0%, transparent 55%),
+    oklch(0.08 0.015 250);
 }
 
 @media (max-width: 500px) {
