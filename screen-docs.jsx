@@ -1,351 +1,479 @@
-// Documents Vault — categorized: Flights / Accommodation / Visas / Local Transport.
+// Documents Vault — flat file-manager UI.
+// One screen, real metadata, upload-status indicators, no decorative tilt.
 
 function ScreenDocs({ go, openSheet, openDoc, loading }) {
+  // All hooks declared at the top — never conditional, never after early returns
+  const [view, setView]           = React.useState('grid');    // 'grid' | 'list'
+  const [filter, setFilter]       = React.useState('all');     // 'all' | category key
+  const [sortBy, setSortBy]       = React.useState('newest');  // 'newest' | 'name' | 'category'
+  const [showSearch, setShowSearch] = React.useState(false);
+  const [search, setSearch]       = React.useState('');
+
   if (loading) {
     return <div style={{ background: 'var(--cream)', minHeight: '100%' }}><TripSkeleton /></div>;
   }
-  const [cat, setCat] = React.useState(null); // null = category list view, else category key
-  const [view, setView] = React.useState('grid');
-  const [drag, setDrag] = React.useState(false);
 
-  // Category list view
-  if (!cat) {
-    return (
-      <div data-screen-label="03 Vault — Categories" style={{
-        background: 'var(--cream)', minHeight: '100%', paddingBottom: 100,
-      }}>
-        <Header title={t('vault')} onBack={() => go('hub')} action={
-          <button
-            onDragEnter={(e) => { e.preventDefault(); setDrag(true); }}
-            onDragOver={(e) => e.preventDefault()}
-            onDragLeave={() => setDrag(false)}
-            onDrop={(e) => { e.preventDefault(); setDrag(false); }}
-            onClick={() => openSheet?.('addDoc')}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              flexDirection: 'row',
-              padding: '7px 12px', borderRadius: 999,
-              background: drag ? 'var(--clay)' : 'var(--ink)',
-              color: 'var(--cream)', fontSize: 12, fontWeight: 500,
-              transition: 'background 180ms',
-            }}>
-            <IconUpload size={13} stroke="currentColor" /> {t('add')}
-          </button>
-        } />
+  const cats = window.DOC_CATEGORIES || [];
+  const docsByCat = window.DOCS_BY_CAT || {};
 
-        {/* CATEGORIES — 2-col grid of large tiles with overflowing icons */}
-        <div style={{ padding: '4px 22px 0' }}>
-          <SectionLabel>{t('piles')}</SectionLabel>
-        </div>
+  // Flatten + tag with category for filtering/sorting
+  const allDocs = cats.flatMap((c) =>
+    (docsByCat[c.key] || []).map((d) => ({ ...d, category: c.key, categoryLabel: c.label, tint: d.tint || c.tint }))
+  );
 
-        {/* Empty state when no docs in any category */}
-        {window.DOC_CATEGORIES.every((c) => (window.DOCS_BY_CAT[c.key] || []).length === 0) && (
-          <div style={{
-            padding: '32px 24px', display: 'flex', flexDirection: 'column',
-            alignItems: 'center', textAlign: 'center', gap: 10,
-          }}>
-            <div style={{
-              width: 52, height: 52, borderRadius: 14, background: 'var(--cream-2)',
-              display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
-            }}><IconDoc size={22} stroke="var(--ink-mute)" /></div>
-            <div className="serif" style={{ fontSize: 18, color: 'var(--ink)' }}>
-              {window.isRTL ? 'لا توجد مستندات بعد' : 'No documents yet'}
-            </div>
-            <div style={{ fontSize: 12.5, color: 'var(--ink-mute)', maxWidth: 210, lineHeight: 1.5 }}>
-              {window.isRTL ? 'اضغط على إضافة لرفع أول مستند' : 'Tap Add to upload your first document'}
-            </div>
-          </div>
-        )}
-        <div style={{
-          padding: '0 14px',
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14,
-        }}>
-          {window.DOC_CATEGORIES.map((c, i) => (
-            <CategoryTile key={c.key} c={c} tilt={[1, -1.5, -1, 2][i] || 0} onOpen={() => setCat(c.key)} />
-          ))}
-        </div>
+  // Filter → search → sort (pure, no mutation)
+  const visible = allDocs
+    .filter((d) => filter === 'all' || d.category === filter)
+    .filter((d) => !search || (d.title || '').toLowerCase().includes(search.toLowerCase()) || (d.sub || '').toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      if (sortBy === 'name') return (a.title || '').localeCompare(b.title || '');
+      if (sortBy === 'category') return (a.categoryLabel || '').localeCompare(b.categoryLabel || '');
+      return 0; // 'newest' — already created_at desc from loadDocuments
+    });
 
-        {/* Recent uploads strip */}
-        <div style={{ padding: '24px 14px 0' }}>
-          <SectionLabel>{t('recentlyShared')}</SectionLabel>
-          <div style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {window.AUDIT.filter((a) => a.action === 'uploaded').map((a) => {
-              const m = window.MEMBERS.find((x) => x.id === a.who);
-              return (
-                <div key={a.id} style={{
-                  background: 'var(--cream-2)', borderRadius: 18,
-                  padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12,
-                  flexDirection: 'row',
-                  border: '0.5px solid var(--hairline)',
-                }}>
-                  <div style={{
-                    width: 38, height: 38, borderRadius: 11,
-                    background: 'var(--honey)', color: '#fff',
-                    display: 'grid', placeItems: 'center',
-                  }}><IconPdf size={18} stroke="#fff" /></div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 500 }}>{a.target}</div>
-                    <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 1,
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      flexDirection: 'row',
-                    }}>
-                      <Avatar m={m} size={14} /> {t('uploadedBy')} {m.name.split(' ')[0]} · {a.when}
-                    </div>
-                  </div>
-                  <IconShare size={16} stroke="var(--ink-mute)" />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const totalCount = allDocs.length;
+  const filteredCount = visible.length;
 
-  // ────── Category detail view ──────
-  const category = window.DOC_CATEGORIES.find((c) => c.key === cat);
-  const docs = window.DOCS_BY_CAT[cat] || [];
   return (
-    <div data-screen-label={`03 Vault · ${category.label}`} style={{
+    <div data-screen-label="Vault" style={{
       background: 'var(--cream)', minHeight: '100%', paddingBottom: 100,
     }}>
-      {/* Category-tinted hero header — interlocks with title */}
-      <div style={{ position: 'relative' }}>
-        <div style={{
-          height: 170, position: 'relative', overflow: 'hidden',
-        }}>
-          <TintCard tint={category.tint} />
-          <div style={{ position: 'absolute', inset: 0, padding: '54px 18px 14px', color: '#fff' }}>
-            <button onClick={() => setCat(null)} className="glass" style={{
-              width: 36, height: 36, borderRadius: 999, color: '#fff',
-              display: 'grid', placeItems: 'center',
-              background: 'rgba(255,255,255,0.18)',
-            }}>
-              <span className="icon-flip"><IconBack size={17} stroke="#fff" /></span>
-            </button>
-          </div>
-          <div style={{
-            position: 'absolute', bottom: 14,
-            ...(window.isRTL ? { insetInlineEnd: 22 } : { insetInlineStart: 22 }),
-            color: '#fff',
-            textShadow: '0 4px 14px rgba(0,0,0,0.3)',
-          }}>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.14em', opacity: 0.9 }}>
-              {docs.length} DOCUMENTS
-            </div>
-            <div className="serif-italic" style={{ fontSize: 38, lineHeight: 1, marginTop: 2 }}>
-              {category.label}
-            </div>
-          </div>
-          <CategoryGlyph kind={category.icon} />
-        </div>
-      </div>
+      {/* HEADER */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 10,
+        padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 18px 12px',
+        background: 'linear-gradient(180deg, var(--cream) 90%, transparent)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+      }}>
+        <button onClick={() => go('hub')} style={{
+          width: 36, height: 36, borderRadius: 999,
+          background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+          display: 'grid', placeItems: 'center',
+        }}><span className="icon-flip"><IconBack size={17} stroke="var(--ink)" /></span></button>
 
-      {/* View toggle */}
-      <div style={{ padding: '16px 14px 12px', display: 'flex', gap: 6, justifyContent: 'space-between', alignItems: 'center', flexDirection: 'row' }}>
-        <Chip active>All · {docs.length}</Chip>
-        <div style={{
-          display: 'inline-flex', padding: 2, background: 'var(--cream-2)', borderRadius: 999,
+        <div className="serif" style={{ fontSize: 22, color: 'var(--ink)', flex: 1, textAlign: 'center' }}>
+          {t('vault')}
+        </div>
+
+        <button onClick={() => setShowSearch(!showSearch)} style={{
+          width: 36, height: 36, borderRadius: 999,
+          background: showSearch ? 'var(--ink)' : 'var(--cream-2)',
           border: '0.5px solid var(--hairline)',
-          flexDirection: 'row',
+          display: 'grid', placeItems: 'center',
+        }}><IconSearch size={15} stroke={showSearch ? 'var(--cream)' : 'var(--ink-soft)'} /></button>
+      </div>
+
+      {/* SEARCH BAR */}
+      {showSearch && (
+        <div style={{ padding: '0 18px 10px' }}>
+          <input
+            autoFocus
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={window.isRTL ? 'ابحث في المستندات...' : 'Search documents...'}
+            style={{
+              width: '100%', padding: '11px 14px', borderRadius: 12,
+              border: '1px solid var(--hairline-2)', background: 'var(--cream-2)',
+              color: 'var(--ink)', fontSize: 14, outline: 'none',
+              textAlign: 'start',
+            }}
+          />
+        </div>
+      )}
+
+      {/* CATEGORY FILTER + VIEW TOGGLE row */}
+      <div style={{
+        padding: '0 14px 12px',
+        display: 'flex', flexDirection: 'column', gap: 10,
+      }}>
+        {/* Filter chips */}
+        <div className="no-scrollbar" style={{
+          display: 'flex', gap: 6, overflowX: 'auto',
+          paddingInlineStart: 4, paddingInlineEnd: 4,
         }}>
-          {['grid', 'list'].map((v) => (
-            <button key={v} onClick={() => setView(v)} style={{
-              padding: '5px 10px', borderRadius: 999, fontSize: 11, fontWeight: 500,
-              background: view === v ? 'var(--ink)' : 'transparent',
-              color: view === v ? 'var(--cream)' : 'var(--ink-soft)',
-            }}>{v}</button>
-          ))}
+          <Chip active={filter === 'all'} onClick={() => setFilter('all')}>
+            {t('all')} · {totalCount}
+          </Chip>
+          {cats.map((c) => {
+            const count = (docsByCat[c.key] || []).length;
+            return (
+              <Chip key={c.key} active={filter === c.key} onClick={() => setFilter(c.key)}>
+                {c.label} · {count}
+              </Chip>
+            );
+          })}
+        </div>
+
+        {/* View toggle + sort */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          paddingInlineStart: 4, paddingInlineEnd: 4,
+        }}>
+          <SortMenu sortBy={sortBy} onChange={setSortBy} />
+          <ViewToggle view={view} onChange={setView} />
         </div>
       </div>
 
-      {view === 'grid' ? (
-        <div style={{ padding: '0 14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-          {docs.map((d, i) => (
-            <button key={d.id} onClick={() => openDoc?.(d, category)} style={{ all: 'unset', cursor: 'pointer', display: 'block' }}>
-              <DocCard d={d} tilt={i % 3 === 1 ? 2 : (i % 3 === 2 ? -1.5 : 0)} />
-            </button>
+      {/* EMPTY STATE — no docs at all */}
+      {totalCount === 0 && <EmptyVault onAdd={() => openSheet?.('addDoc')} />}
+
+      {/* EMPTY STATE — filter/search returned nothing */}
+      {totalCount > 0 && filteredCount === 0 && (
+        <div style={{
+          padding: '32px 24px', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', textAlign: 'center', gap: 10,
+        }}>
+          <div style={{
+            width: 48, height: 48, borderRadius: 14, background: 'var(--cream-2)',
+            display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
+          }}><IconSearch size={20} stroke="var(--ink-mute)" /></div>
+          <div className="serif" style={{ fontSize: 16, color: 'var(--ink)' }}>
+            {window.isRTL ? 'لا توجد نتائج' : 'No matching documents'}
+          </div>
+          <button onClick={() => { setFilter('all'); setSearch(''); }} style={{
+            padding: '6px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 500,
+            background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', color: 'var(--ink-soft)',
+          }}>{window.isRTL ? 'مسح الفلتر' : 'Clear filter'}</button>
+        </div>
+      )}
+
+      {/* DOCUMENT LIST */}
+      {filteredCount > 0 && (view === 'grid' ? (
+        <div style={{
+          padding: '0 14px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, 1fr)',
+          gap: 12,
+        }}>
+          {visible.map((d) => (
+            <DocTileGrid key={d.id} doc={d} onOpen={() => openDoc?.(d, cats.find((c) => c.key === d.category))} />
           ))}
-          {/* Add new — dashed tile */}
+          {/* Add tile — fixed dashed slot */}
           <button onClick={() => openSheet?.('addDoc')} style={{
-            aspectRatio: '0.82', borderRadius: 20,
-            border: '1.5px dashed var(--sand-deep)', background: 'transparent',
+            aspectRatio: '0.78', borderRadius: 16,
+            border: '1.5px dashed var(--hairline-2)', background: 'transparent',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
             color: 'var(--ink-mute)',
           }}>
             <div style={{
-              width: 38, height: 38, borderRadius: 11, background: 'var(--cream-2)',
-              display: 'grid', placeItems: 'center',
+              width: 36, height: 36, borderRadius: 10, background: 'var(--cream-2)',
+              display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
             }}><IconPlus size={18} stroke="var(--ink-soft)" /></div>
-            <div style={{ fontSize: 11.5, fontWeight: 500 }}>{t('add')} {category.label}</div>
-          </button>
-        </div>
-      ) : (
-        <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {docs.map((d) => (
-            <button key={d.id} onClick={() => openDoc?.(d, category)} style={{
-              all: 'unset', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
-              flexDirection: 'row',
-              background: 'var(--cream-2)', borderRadius: 18,
-              border: '0.5px solid var(--hairline)',
-            }}>
-              <div style={{
-                width: 38, height: 38, borderRadius: 11,
-                background: `var(--${category.tint === 'indigo' ? 'indigo' : category.tint === 'moss' ? 'moss' : category.tint === 'honey' ? 'honey' : 'clay'})`,
-                color: '#fff', display: 'grid', placeItems: 'center',
-              }}>{d.kind === 'pdf' ? <IconPdf size={17} stroke="#fff" /> : <IconImg size={17} stroke="#fff" />}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 500 }}>{d.title}</div>
-                <div style={{ fontSize: 11, color: 'var(--ink-mute)' }}>{d.sub} · {d.size}</div>
-              </div>
-              <IconChevron size={14} stroke="var(--ink-mute)" />
-            </button>
-          ))}
-          {/* Add row */}
-          <button onClick={() => openSheet?.('addDoc')} style={{
-            display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
-            flexDirection: 'row',
-            borderRadius: 18, border: '1.5px dashed var(--sand-deep)',
-            background: 'transparent', color: 'var(--ink-mute)',
-          }}>
-            <div style={{
-              width: 38, height: 38, borderRadius: 11, background: 'var(--cream-2)',
-              display: 'grid', placeItems: 'center',
-            }}><IconPlus size={18} stroke="var(--ink-soft)" /></div>
-            <div style={{ flex: 1, textAlign: 'start' }}>
-              <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink-soft)' }}>{t('addDocument')}</div>
-              <div style={{ fontSize: 11 }}>Drop or browse · auto-sorted</div>
+            <div style={{ fontSize: 11.5, fontWeight: 500 }}>
+              {window.isRTL ? 'إضافة' : 'Add'}
             </div>
           </button>
         </div>
+      ) : (
+        <div style={{
+          padding: '0 14px',
+          display: 'flex', flexDirection: 'column', gap: 0,
+          background: 'var(--cream-2)', borderRadius: 18,
+          margin: '0 14px',
+          border: '0.5px solid var(--hairline)', overflow: 'hidden',
+        }}>
+          {visible.map((d, i) => (
+            <DocRowList
+              key={d.id}
+              doc={d}
+              last={i === visible.length - 1}
+              onOpen={() => openDoc?.(d, cats.find((c) => c.key === d.category))}
+            />
+          ))}
+        </div>
+      ))}
+
+      {/* Floating "Add" FAB when grid has results */}
+      {filteredCount > 0 && (
+        <button onClick={() => openSheet?.('addDoc')} style={{
+          position: 'fixed',
+          bottom: 'calc(env(safe-area-inset-bottom) + 86px)',
+          insetInlineEnd: 22,
+          width: 54, height: 54, borderRadius: 999,
+          background: 'var(--clay)', color: '#fff',
+          display: 'grid', placeItems: 'center',
+          boxShadow: '0 12px 24px oklch(0.62 0.13 35 / 0.4)',
+          zIndex: 30,
+        }}>
+          <IconPlus size={24} stroke="#fff" />
+        </button>
       )}
     </div>
   );
 }
 
-function CategoryTile({ c, tilt, onOpen }) {
+// ──────────────────────────────────────────────────────────────
+// Sub-components
+// ──────────────────────────────────────────────────────────────
+
+function ViewToggle({ view, onChange }) {
   return (
-    <button onClick={onOpen} className="lift" style={{
-      position: 'relative', height: 160, borderRadius: 22, overflow: 'hidden',
-      transform: `rotate(${tilt}deg)`, textAlign: 'start',
-      boxShadow: 'var(--shadow-card)',
+    <div style={{
+      display: 'inline-flex', padding: 3, gap: 2,
+      background: 'var(--cream-2)', borderRadius: 12,
+      border: '0.5px solid var(--hairline)',
     }}>
-      <TintCard tint={c.tint} />
-      <CategoryGlyph kind={c.icon} />
+      {[
+        { v: 'grid', icon: <GridIcon /> },
+        { v: 'list', icon: <ListIcon /> },
+      ].map(({ v, icon }) => (
+        <button key={v} onClick={() => onChange(v)} style={{
+          width: 32, height: 28, borderRadius: 9,
+          background: view === v ? 'var(--ink)' : 'transparent',
+          color: view === v ? 'var(--cream)' : 'var(--ink-soft)',
+          display: 'grid', placeItems: 'center',
+        }}>{icon}</button>
+      ))}
+    </div>
+  );
+}
+
+function GridIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+function ListIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <circle cx="4" cy="6" r="1.5" /><circle cx="4" cy="12" r="1.5" /><circle cx="4" cy="18" r="1.5" />
+    </svg>
+  );
+}
+
+function SortMenu({ sortBy, onChange }) {
+  const [open, setOpen] = React.useState(false);
+  const opts = [
+    { k: 'newest',   l: window.isRTL ? 'الأحدث' : 'Newest' },
+    { k: 'name',     l: window.isRTL ? 'الاسم' : 'Name' },
+    { k: 'category', l: window.isRTL ? 'الفئة' : 'Category' },
+  ];
+  const current = opts.find((o) => o.k === sortBy);
+  return (
+    <div style={{ position: 'relative' }}>
+      <button onClick={() => setOpen(!open)} style={{
+        padding: '6px 12px', borderRadius: 12, fontSize: 12, fontWeight: 500,
+        background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+        color: 'var(--ink-soft)',
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+      }}>
+        <IconSwap size={11} stroke="currentColor" />
+        {current?.l}
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 6px)', insetInlineStart: 0, zIndex: 41,
+            background: 'var(--cream)', borderRadius: 12, padding: 4, minWidth: 140,
+            boxShadow: 'var(--shadow-lg)', border: '0.5px solid var(--hairline)',
+          }}>
+            {opts.map((o) => (
+              <button key={o.k} onClick={() => { onChange(o.k); setOpen(false); }} style={{
+                width: '100%', padding: '8px 10px', borderRadius: 8, textAlign: 'start',
+                background: o.k === sortBy ? 'var(--sand)' : 'transparent',
+                fontSize: 12.5, color: 'var(--ink)',
+                display: 'flex', alignItems: 'center', gap: 8,
+              }}>
+                {o.k === sortBy && <IconCheck size={11} stroke="var(--ink)" />}
+                <span style={{ flex: 1 }}>{o.l}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Status: 'synced' (uploaded to storage), 'link-only' (external URL, no file), 'pending' (no file yet)
+function docStatus(doc) {
+  if (doc.filePath) return 'synced';
+  if (doc.link)     return 'link';
+  return 'pending';
+}
+function StatusDot({ status }) {
+  const map = {
+    synced:  { color: 'var(--moss)',     label: window.isRTL ? 'محفوظ' : 'Synced' },
+    link:    { color: 'var(--indigo)',   label: window.isRTL ? 'رابط' : 'Link' },
+    pending: { color: 'var(--ink-mute)', label: window.isRTL ? 'بانتظار الرفع' : 'No file' },
+  };
+  const s = map[status];
+  return (
+    <div title={s.label} style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+    }}>
+      <span style={{ width: 7, height: 7, borderRadius: 999, background: s.color, flexShrink: 0 }} />
+      <span style={{ fontSize: 10, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{s.label}</span>
+    </div>
+  );
+}
+
+// Tint → solid color helper (used for the file-kind icon background)
+function tintColor(tint) {
+  return ({
+    indigo: 'var(--indigo)',
+    moss:   'var(--moss)',
+    clay:   'var(--clay)',
+    honey:  'var(--honey)',
+  })[tint] || 'var(--clay)';
+}
+
+// Grid tile — fixed aspect ratio, no rotation, predictable layout
+function DocTileGrid({ doc, onOpen }) {
+  const status = docStatus(doc);
+  const Icon = doc.kind === 'pdf' ? IconPdf : IconImg;
+  const tint = tintColor(doc.tint);
+  return (
+    <button onClick={onOpen} style={{
+      all: 'unset', cursor: 'pointer', display: 'block',
+      borderRadius: 16, overflow: 'hidden',
+      background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+      boxShadow: 'var(--shadow-sm)',
+    }}>
+      {/* Top: tinted preview area */}
       <div style={{
-        position: 'absolute', inset: 0, padding: 14,
-        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-        color: '#fff',
+        aspectRatio: '1.3',
+        background: `linear-gradient(155deg, color-mix(in oklch, ${tint} 18%, var(--cream-2)) 0%, color-mix(in oklch, ${tint} 8%, var(--cream-2)) 100%)`,
+        position: 'relative', display: 'grid', placeItems: 'center',
+        borderBottom: '0.5px solid var(--hairline)',
       }}>
         <div style={{
-          alignSelf: window.isRTL ? 'flex-end' : 'flex-start', padding: '3px 8px', borderRadius: 999,
-          background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)',
-          fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.14em',
-        }}>{c.count} ITEMS</div>
-        <div>
-          <div className="serif" style={{ fontSize: 24, lineHeight: 1 }}>{c.label}</div>
-          <div style={{ fontSize: 10.5, opacity: 0.85, marginTop: 2 }}>
-            {c.key === 'flights' && 'Boarding · seats · loyalty'}
-            {c.key === 'lodging' && 'Hotels · ryokan · Airbnb'}
-            {c.key === 'visas' && 'Stamps · insurance · vax'}
-            {c.key === 'transport' && 'JR Pass · IC card · bullet'}
-          </div>
+          width: 48, height: 48, borderRadius: 12,
+          background: tint, display: 'grid', placeItems: 'center',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+        }}>
+          <Icon size={22} stroke="#fff" />
+        </div>
+        {/* File kind badge top-end */}
+        <div style={{
+          position: 'absolute', top: 8, insetInlineEnd: 8,
+          padding: '2px 6px', borderRadius: 6,
+          background: 'rgba(0,0,0,0.55)', color: '#fff',
+          fontSize: 9, fontFamily: 'var(--mono)', letterSpacing: '0.06em',
+          fontWeight: 600,
+        }}>{(doc.kind || 'doc').toUpperCase()}</div>
+      </div>
+
+      {/* Bottom: metadata block — fixed height for layout stability */}
+      <div style={{ padding: '10px 12px 12px', minHeight: 72 }}>
+        <div style={{
+          fontSize: 12.5, fontWeight: 500, color: 'var(--ink)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>{doc.title || '—'}</div>
+        <div style={{
+          fontSize: 10.5, color: 'var(--ink-mute)', marginTop: 3,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>{doc.sub || doc.categoryLabel}</div>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          marginTop: 6, gap: 6,
+        }}>
+          <StatusDot status={status} />
+          <span className="mono" style={{ fontSize: 10, color: 'var(--ink-mute)' }}>{doc.size && doc.size !== '--' ? doc.size : ''}</span>
         </div>
       </div>
     </button>
   );
 }
 
-// Decorative oversized glyph that bleeds off the tile
-function CategoryGlyph({ kind }) {
-  const common = { position: 'absolute', insetInlineEnd: -28, top: -22, opacity: 0.22, color: '#fff' };
-  if (kind === 'plane') return (
-    <svg width="180" height="180" viewBox="0 0 24 24" style={common} fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 16l20-7-7 14-2-6z" />
-    </svg>
-  );
-  if (kind === 'bed') return (
-    <svg width="180" height="180" viewBox="0 0 24 24" style={common} fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 18V8m18 10v-5a3 3 0 00-3-3H3" /><circle cx="8" cy="12" r="2" />
-    </svg>
-  );
-  if (kind === 'stamp') return (
-    <svg width="180" height="180" viewBox="0 0 24 24" style={common} fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 21h14v-3H5zM7 18V12a3 3 0 013-3v-2a2 2 0 014 0v2a3 3 0 013 3v6" />
-    </svg>
-  );
-  if (kind === 'rail') return (
-    <svg width="180" height="180" viewBox="0 0 24 24" style={common} fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="6" y="3" width="12" height="14" rx="3" /><path d="M6 11h12M8 21l2-3M16 21l-2-3" />
-      <circle cx="9" cy="14" r="0.8" fill="currentColor" /><circle cx="15" cy="14" r="0.8" fill="currentColor" />
-    </svg>
-  );
-  return null;
-}
-
-function DocCard({ d, tilt = 0 }) {
+// List row — iOS list-cell style; full-width touch target
+function DocRowList({ doc, last, onOpen }) {
+  const status = docStatus(doc);
+  const Icon = doc.kind === 'pdf' ? IconPdf : IconImg;
+  const tint = tintColor(doc.tint);
   return (
-    <div className="lift" style={{
-      borderRadius: 20, overflow: 'hidden',
-      background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
-      boxShadow: 'var(--shadow-card)',
-      transform: `rotate(${tilt}deg)`, position: 'relative',
+    <button onClick={onOpen} style={{
+      all: 'unset', cursor: 'pointer',
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '12px 14px',
+      borderBottom: last ? 'none' : '0.5px solid var(--hairline)',
     }}>
-      <div style={{ position: 'relative', aspectRatio: '0.82' }}>
-        <TintCard tint={d.tint}>
-          {d.kind === 'pdf' && (
-            <>
-              <div style={{
-                position: 'absolute', inset: '18% 14% 14%',
-                background: 'rgba(255,255,255,0.92)', borderRadius: 6,
-                boxShadow: '0 4px 14px rgba(0,0,0,0.18)', padding: '14px 10px',
-              }}>
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} style={{
-                    height: 3, marginBottom: 5, borderRadius: 2,
-                    background: 'rgba(0,0,0,0.12)', width: `${100 - i * 7}%`,
-                  }} />
-                ))}
-                <div style={{ height: 18, marginTop: 8, borderRadius: 3, background: 'rgba(0,0,0,0.06)' }} />
-              </div>
-              <div style={kindBadge}>PDF</div>
-            </>
-          )}
-          {d.kind === 'img' && (
-            <>
-              <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.06) 0 6px, transparent 6px 12px)' }} />
-              <div style={{ position: 'absolute', bottom: 24, insetInlineStart: 24, width: 18, height: 18, borderRadius: '50%', background: 'rgba(255,255,255,0.7)' }} />
-              <div style={{
-                position: 'absolute', bottom: 14, insetInlineStart: 18, insetInlineEnd: 30, height: 30,
-                background: 'rgba(255,255,255,0.32)',
-                clipPath: 'polygon(0 100%, 30% 30%, 55% 70%, 80% 20%, 100% 60%, 100% 100%)',
-              }} />
-              <div style={kindBadge}>JPG</div>
-            </>
-          )}
-        </TintCard>
+      <div style={{
+        width: 40, height: 40, borderRadius: 11, flexShrink: 0,
+        background: tint, color: '#fff',
+        display: 'grid', placeItems: 'center',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
+      }}>
+        <Icon size={18} stroke="#fff" />
       </div>
-      <div style={{ padding: '10px 12px 12px' }}>
+
+      <div style={{ flex: 1, minWidth: 0, textAlign: 'start' }}>
         <div style={{
-          fontSize: 12.5, fontWeight: 500, color: 'var(--ink)',
+          fontSize: 13.5, fontWeight: 500, color: 'var(--ink)',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>{d.title}</div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', flexDirection: 'row', marginTop: 3 }}>
-          <span style={{ fontSize: 10.5, color: 'var(--ink-mute)' }}>{d.sub}</span>
-          <span className="mono" style={{ fontSize: 10, color: 'var(--ink-mute)' }}>{d.size}</span>
+        }}>{doc.title || '—'}</div>
+        <div style={{
+          fontSize: 11, color: 'var(--ink-mute)', marginTop: 2,
+          display: 'flex', alignItems: 'center', gap: 6,
+          overflow: 'hidden',
+        }}>
+          <span style={{
+            padding: '1px 6px', borderRadius: 4,
+            background: 'var(--sand)', color: 'var(--ink-soft)',
+            fontSize: 9.5, fontFamily: 'var(--mono)', letterSpacing: '0.06em',
+            textTransform: 'uppercase', flexShrink: 0,
+          }}>{doc.categoryLabel}</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {doc.sub || doc.size}
+          </span>
         </div>
       </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
+        <StatusDot status={status} />
+        {doc.size && doc.size !== '--' && (
+          <span className="mono" style={{ fontSize: 10, color: 'var(--ink-mute)' }}>{doc.size}</span>
+        )}
+      </div>
+
+      <IconChevron size={14} stroke="var(--ink-mute)" />
+    </button>
+  );
+}
+
+// Empty state — no docs uploaded yet
+function EmptyVault({ onAdd }) {
+  return (
+    <div style={{
+      padding: '60px 24px', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', textAlign: 'center', gap: 14,
+    }}>
+      <div style={{
+        width: 72, height: 72, borderRadius: 20,
+        background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+        display: 'grid', placeItems: 'center', position: 'relative',
+      }}>
+        <IconDoc size={32} stroke="var(--ink-mute)" />
+      </div>
+      <div className="serif" style={{ fontSize: 22, color: 'var(--ink)' }}>
+        {window.isRTL ? 'مستوداع المستندات فارغ' : 'Your vault is empty'}
+      </div>
+      <div style={{ fontSize: 13, color: 'var(--ink-mute)', maxWidth: 250, lineHeight: 1.5 }}>
+        {window.isRTL
+          ? 'احفظ تذاكر السفر، التأشيرات، حجوزات الفندق وكل ما يخص رحلتك في مكان واحد آمن'
+          : 'Keep tickets, visas, hotel bookings — everything for your trip in one safe place.'}
+      </div>
+      <button onClick={onAdd} style={{
+        marginTop: 6, padding: '12px 22px', borderRadius: 14,
+        background: 'var(--ink)', color: 'var(--cream)',
+        fontSize: 13.5, fontWeight: 600,
+        display: 'inline-flex', alignItems: 'center', gap: 8,
+        boxShadow: 'var(--shadow-md)',
+      }}>
+        <IconUpload size={14} stroke="currentColor" />
+        {window.isRTL ? 'إضافة أول مستند' : 'Add your first document'}
+      </button>
     </div>
   );
 }
-
-const kindBadge = {
-  position: 'absolute', top: 10, insetInlineEnd: 10,
-  padding: '3px 7px', borderRadius: 6,
-  background: 'rgba(0,0,0,0.4)', color: '#fff',
-  fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.08em',
-  backdropFilter: 'blur(4px)',
-};
 
 window.ScreenDocs = ScreenDocs;
