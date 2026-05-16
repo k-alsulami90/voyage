@@ -39,7 +39,7 @@ function ScreenHub({ go, openSheet, loading }) {
       <div style={{
         position: 'absolute', top: 'max(60px, calc(env(safe-area-inset-top) + 14px))', left: 0, right: 0, zIndex: 30,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        flexDirection: window.isRTL ? 'row-reverse' : 'row',
+        flexDirection: 'row',
         padding: '0 18px',
       }}>
         <button onClick={() => go('trips')} className="glass" style={{
@@ -50,7 +50,7 @@ function ScreenHub({ go, openSheet, loading }) {
         </button>
         <div className="glass" style={{
           display: 'flex', alignItems: 'center', gap: 6,
-          flexDirection: window.isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row',
           padding: '7px 14px', borderRadius: 999, color: 'var(--ink)',
         }}>
           <span style={{
@@ -59,7 +59,7 @@ function ScreenHub({ go, openSheet, loading }) {
           }} />
           <span style={{ fontSize: 12, fontWeight: 500 }}>{t('dayLbl')} {trip.daysIn} {t('ofLbl')} {trip.daysTotal}</span>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+        <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
           <button className="glass" style={btnGlass} onClick={() => go('settings')}><IconBell size={18} /></button>
           <button className="glass" style={btnGlass} onClick={() => openSheet('share')}><IconShare size={18} /></button>
         </div>
@@ -88,7 +88,7 @@ function ScreenHub({ go, openSheet, loading }) {
             position: 'absolute', top: 18,
             ...(window.isRTL ? { right: 18 } : { left: 18 }),
             display: 'flex', alignItems: 'center', gap: 6,
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
             padding: '5px 11px 5px 9px', borderRadius: 999,
             background: 'rgba(255,255,255,0.18)',
             backdropFilter: 'blur(10px)', color: '#fff',
@@ -101,14 +101,14 @@ function ScreenHub({ go, openSheet, loading }) {
           <div style={{
             position: 'absolute', top: 18,
             ...(window.isRTL ? { left: 18 } : { right: 18 }),
-            color: '#fff', textAlign: window.isRTL ? 'left' : 'right',
+            color: '#fff', textAlign: 'end',
           }}>
             <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, opacity: 0.85, letterSpacing: '0.1em' }}>
               {trip.dates.toUpperCase()}
             </div>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 5,
-              flexDirection: window.isRTL ? 'row-reverse' : 'row',
+              flexDirection: 'row',
               fontSize: 12.5, fontWeight: 500,
             }}>
               <IconCloud size={14} stroke="#fff" /> {trip.weather.cond} · {trip.weather.temp}°
@@ -169,7 +169,7 @@ function ScreenHub({ go, openSheet, loading }) {
             background: 'linear-gradient(135deg, var(--clay) 0%, var(--clay-deep) 100%)',
             color: '#fff', boxShadow: 'var(--shadow-md)',
             display: 'flex', alignItems: 'center', gap: 12,
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
           }}>
             <div style={{
               width: 36, height: 36, borderRadius: 10, flexShrink: 0,
@@ -190,7 +190,7 @@ function ScreenHub({ go, openSheet, loading }) {
       {/* BUDGET WORKSPACE CARD — overlaps with title above */}
       <div style={{ padding: '24px 14px 0', position: 'relative', zIndex: 3 }}>
         <button onClick={() => go('budget')} style={{
-          display: 'block', width: '100%', textAlign: window.isRTL ? 'right' : 'left',
+          display: 'block', width: '100%', textAlign: 'start',
           background: 'var(--cream-2)', borderRadius: 28,
           padding: '20px 20px 18px',
           boxShadow: 'var(--shadow-card)', position: 'relative',
@@ -199,14 +199,14 @@ function ScreenHub({ go, openSheet, loading }) {
         }}>
           <div style={{
             display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
             marginBottom: 14,
           }}>
             <div>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.14em', color: 'var(--ink-mute)' }}>
                 {t('sharedBudget')}
               </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6, flexDirection: 'row' }}>
                 <span className="serif" style={{ fontSize: 38, lineHeight: 1, color: 'var(--ink)' }}>
                   {fmtC(spent)}
                 </span>
@@ -215,7 +215,7 @@ function ScreenHub({ go, openSheet, loading }) {
               <div style={{
                 marginTop: 4, fontSize: 12, color: 'var(--moss)', fontWeight: 500,
                 display: 'flex', alignItems: 'center', gap: 4,
-                flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                flexDirection: 'row',
               }}>
                 <span style={{
                   width: 6, height: 6, borderRadius: 999, background: 'var(--moss)',
@@ -231,7 +231,7 @@ function ScreenHub({ go, openSheet, loading }) {
             display: 'flex', borderRadius: 12, overflow: 'hidden',
             height: 16, marginBottom: 14,
             boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,0.05)',
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
           }}>
             {window.CATEGORIES.map((c, i) => (
               <div key={c.key} style={{
@@ -245,7 +245,7 @@ function ScreenHub({ go, openSheet, loading }) {
           {/* Category legend — two cols */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 14px' }}>
             {window.CATEGORIES.slice(0, 4).map((c) => (
-              <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+              <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: 'row' }}>
                 <span style={{ width: 8, height: 8, borderRadius: 2, background: c.color }} />
                 <span style={{ fontSize: 12.5, color: 'var(--ink-soft)', flex: 1 }}>{c.label}</span>
                 <span className="mono" style={{ fontSize: 11.5, color: 'var(--ink)', fontWeight: 500 }}>
@@ -260,7 +260,7 @@ function ScreenHub({ go, openSheet, loading }) {
             position: 'absolute', bottom: -14,
             ...(window.isRTL ? { right: 22 } : { left: 22 }),
             display: 'flex', alignItems: 'center', gap: 8,
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
             padding: '7px 12px 7px 8px', borderRadius: 999,
             background: 'var(--ink)', color: 'var(--cream)',
             boxShadow: '0 6px 16px rgba(34,28,22,0.3)',
@@ -354,7 +354,7 @@ function ScreenHub({ go, openSheet, loading }) {
                 border: '0.5px solid var(--hairline)',
                 boxShadow: 'var(--shadow-xs)',
                 display: 'flex', alignItems: 'center', gap: 12,
-                flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                flexDirection: 'row',
               }}>
                 <div style={{
                   width: 38, height: 38, borderRadius: 11,
@@ -370,7 +370,7 @@ function ScreenHub({ go, openSheet, loading }) {
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 1,
                     display: 'flex', alignItems: 'center', gap: 5,
-                    flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                    flexDirection: 'row',
                   }}>
                     <Avatar m={m} size={14} /> {m.name.split(' ')[0]} · {e.when}
                   </div>

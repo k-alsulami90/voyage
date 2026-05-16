@@ -46,7 +46,7 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
       <div style={{
         padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 22px 14px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexDirection: window.isRTL ? 'row-reverse' : 'row',
+        flexDirection: 'row',
       }}>
         <div className="serif-italic" style={{ fontSize: 32 }}>{t('account')}</div>
         <button style={{
@@ -82,7 +82,7 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
             </div>
             <div className="serif" style={{ fontSize: 22, lineHeight: 1.05, marginTop: 2 }}>{me.name}</div>
             <div style={{ fontSize: 11, opacity: 0.7, marginTop: 1 }}>mira@voyage.app</div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 10, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+            <div style={{ display: 'flex', gap: 10, marginTop: 10, flexDirection: 'row' }}>
               <span style={{
                 padding: '3px 9px', borderRadius: 999,
                 background: 'rgba(255,255,255,0.08)', fontSize: 10.5, fontWeight: 500,
@@ -117,14 +117,14 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
           {/* Dark mode row */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 12,
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
             padding: '13px 16px',
           }}>
             <div style={{
               width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
               background: 'var(--cream)', border: '0.5px solid var(--hairline)',
             }}><IconSun size={16} stroke="var(--ink)" /></div>
-            <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)', textAlign: window.isRTL ? 'right' : 'left' }}>
+            <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)', textAlign: 'start' }}>
               {t('appearance')}
             </div>
             <AppToggle on={dark} onChange={onDarkToggle} />
@@ -133,7 +133,7 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
           {/* Language row */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 12,
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
             padding: '13px 16px',
             borderTop: '0.5px solid var(--hairline)',
           }}>
@@ -142,12 +142,12 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
               background: 'var(--cream)', border: '0.5px solid var(--hairline)',
               fontSize: 13, fontWeight: 600, color: 'var(--ink)',
             }}>Aع</div>
-            <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)', textAlign: window.isRTL ? 'right' : 'left' }}>
+            <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)', textAlign: 'start' }}>
               {window.isRTL ? 'اللغة' : 'Language'}
             </div>
             <div style={{
               display: 'inline-flex', padding: 3, background: 'var(--sand)', borderRadius: 999,
-              flexDirection: window.isRTL ? 'row-reverse' : 'row',
+              flexDirection: 'row',
             }}>
               {['en', 'ar'].map((l) => (
                 <button key={l} onClick={() => onLangChange?.(l)} style={{
@@ -163,34 +163,34 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
           {/* Static rows */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 12,
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
             padding: '13px 16px', borderTop: '0.5px solid var(--hairline)',
           }}>
             <div style={{
               width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
               background: 'var(--cream)', border: '0.5px solid var(--hairline)',
             }}><IconWallet size={16} stroke="var(--ink)" /></div>
-            <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)', textAlign: window.isRTL ? 'right' : 'left' }}>
+            <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)', textAlign: 'start' }}>
               {t('defaultCurrency')}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row' }}>
               <span style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>USD</span>
               <IconChevron size={13} stroke="var(--ink-mute)" />
             </div>
           </div>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 12,
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
             padding: '13px 16px', borderTop: '0.5px solid var(--hairline)',
           }}>
             <div style={{
               width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
               background: 'var(--cream)', border: '0.5px solid var(--hairline)',
             }}><IconCompass size={16} stroke="var(--ink)" /></div>
-            <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)', textAlign: window.isRTL ? 'right' : 'left' }}>
+            <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)', textAlign: 'start' }}>
               {t('homeBase')}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row' }}>
               <span style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>Amsterdam</span>
               <IconChevron size={13} stroke="var(--ink-mute)" />
             </div>
@@ -216,16 +216,16 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
           margin: '0 8px', padding: '14px 16px',
           border: '0.5px dashed oklch(0.50 0.08 155 / 0.35)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexDirection: 'row' }}>
             <div style={{
               width: 32, height: 32, borderRadius: 10, background: 'var(--moss)',
               display: 'grid', placeItems: 'center', flexShrink: 0,
             }}><IconUsers size={16} stroke="#fff" /></div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'oklch(0.30 0.07 155)' }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--moss)' }}>
                 {t('tripScopedCollab')}
               </div>
-              <div style={{ fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 3, lineHeight: 1.45, textAlign: window.isRTL ? 'right' : 'left' }}>
+              <div style={{ fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 3, lineHeight: 1.45, textAlign: 'start' }}>
                 {t('tripScopedSub')}
               </div>
             </div>
@@ -314,7 +314,7 @@ function InstallCard() {
         background: 'linear-gradient(135deg, var(--clay) 0%, var(--clay-deep) 100%)',
         color: '#fff', boxShadow: 'var(--shadow-md)',
         display: 'flex', alignItems: 'center', gap: 12,
-        flexDirection: window.isRTL ? 'row-reverse' : 'row',
+        flexDirection: 'row',
       }}>
         <div style={{
           width: 40, height: 40, borderRadius: 12, flexShrink: 0,

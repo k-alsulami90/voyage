@@ -40,7 +40,7 @@ function ScreenDocDetail({ doc, category, go, back, openSheet }) {
         position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
         padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 18px 12px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        flexDirection: window.isRTL ? 'row-reverse' : 'row',
+        flexDirection: 'row',
       }}>
         <button onClick={back} className="glass" style={{
           width: 36, height: 36, borderRadius: 999, display: 'grid', placeItems: 'center',
@@ -203,7 +203,7 @@ function ScreenDocDetail({ doc, category, go, back, openSheet }) {
           {(hasLink && !linkEditing) ? (
             <div style={{
               display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
-              flexDirection: window.isRTL ? 'row-reverse' : 'row',
+              flexDirection: 'row',
             }}>
               <div style={{
                 width: 36, height: 36, borderRadius: 10, background: tintFill,
@@ -218,7 +218,7 @@ function ScreenDocDetail({ doc, category, go, back, openSheet }) {
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>{localLink}</div>
               </div>
-              <div style={{ display: 'flex', gap: 6, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+              <div style={{ display: 'flex', gap: 6, flexDirection: 'row' }}>
                 <button onClick={() => setLinkEditing(true)} style={{
                   padding: '6px 10px', borderRadius: 10, background: 'var(--cream)',
                   border: '0.5px solid var(--hairline)', fontSize: 11.5, color: 'var(--ink-soft)',
@@ -231,7 +231,7 @@ function ScreenDocDetail({ doc, category, go, back, openSheet }) {
               </div>
             </div>
           ) : linkEditing ? (
-            <div style={{ padding: '14px 16px', display: 'flex', gap: 8, alignItems: 'center', flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+            <div style={{ padding: '14px 16px', display: 'flex', gap: 8, alignItems: 'center', flexDirection: 'row' }}>
               <input
                 value={localLink}
                 onChange={(e) => setLocalLink(e.target.value)}
@@ -251,14 +251,14 @@ function ScreenDocDetail({ doc, category, go, back, openSheet }) {
           ) : (
             <button onClick={() => setLinkEditing(true)} style={{
               width: '100%', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12,
-              color: 'var(--ink-mute)', flexDirection: window.isRTL ? 'row-reverse' : 'row',
+              color: 'var(--ink-mute)', flexDirection: 'row',
             }}>
               <div style={{
                 width: 36, height: 36, borderRadius: 10, background: 'var(--cream)',
                 display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
                 flexShrink: 0,
               }}><IconLink size={16} stroke="var(--ink-soft)" /></div>
-              <div style={{ textAlign: window.isRTL ? 'right' : 'left' }}>
+              <div style={{ textAlign: 'start' }}>
                 <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink-soft)' }}>{t('addLink')}</div>
                 <div style={{ fontSize: 11, marginTop: 1 }}>{t('linkHint')}</div>
               </div>
@@ -271,7 +271,7 @@ function ScreenDocDetail({ doc, category, go, back, openSheet }) {
       <div style={{ padding: '20px 14px 0' }}>
         <SectionLabel>{t('photos')}</SectionLabel>
         <div style={{ padding: '0 8px' }}>
-          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', flexDirection: window.isRTL ? 'row-reverse' : 'row' }} className="no-scrollbar">
+          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', flexDirection: 'row' }} className="no-scrollbar">
             {hasPhotos && (
               <div style={{
                 flexShrink: 0, width: 120, height: 120, borderRadius: 16, overflow: 'hidden',
@@ -325,7 +325,7 @@ function ScreenDocDetail({ doc, category, go, back, openSheet }) {
             return (
               <div key={a.id} style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
-                flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                flexDirection: 'row',
                 borderTop: i ? '0.5px solid var(--hairline)' : 'none',
               }}>
                 <Avatar m={m} size={22} />
@@ -349,7 +349,7 @@ function ScreenDocDetail({ doc, category, go, back, openSheet }) {
         position: 'fixed',
         bottom: 'calc(env(safe-area-inset-bottom) + 78px)',
         left: 14, right: 14, zIndex: 49,
-        display: 'flex', gap: 8, flexDirection: window.isRTL ? 'row-reverse' : 'row',
+        display: 'flex', gap: 8, flexDirection: 'row',
         padding: 6, borderRadius: 22,
         background: 'rgba(255,251,244,0.92)',
         backdropFilter: 'blur(20px) saturate(180%)',
@@ -363,7 +363,7 @@ function ScreenDocDetail({ doc, category, go, back, openSheet }) {
           background: 'var(--cream)', border: '0.5px solid var(--hairline)',
           fontSize: 12.5, fontWeight: 500, color: 'var(--ink)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          flexDirection: window.isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row',
         }}>
           <IconEdit size={14} stroke="currentColor" /> {t('edit')}
         </button>
@@ -372,7 +372,7 @@ function ScreenDocDetail({ doc, category, go, back, openSheet }) {
           background: 'var(--cream)', border: '0.5px solid var(--hairline)',
           fontSize: 12.5, fontWeight: 500, color: 'var(--ink)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          flexDirection: window.isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row',
         }}>
           <IconShare size={14} stroke="currentColor" /> {t('share')}
         </button>
@@ -381,7 +381,7 @@ function ScreenDocDetail({ doc, category, go, back, openSheet }) {
           background: uploading ? 'var(--ink-soft)' : 'var(--ink)', color: 'var(--cream)',
           fontSize: 12.5, fontWeight: 600, cursor: uploading ? 'not-allowed' : 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          flexDirection: window.isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row',
           boxShadow: '0 6px 14px rgba(34,28,22,0.3)',
         }}>
           <input ref={fileInputRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
@@ -419,13 +419,13 @@ function DetailRow({ label, value, mono, accent, editing, last }) {
     <div style={{
       display: 'flex', alignItems: 'center', gap: 12,
       padding: '12px 16px',
-      flexDirection: window.isRTL ? 'row-reverse' : 'row',
+      flexDirection: 'row',
       borderBottom: !last ? '0.5px solid var(--hairline)' : 'none',
     }}>
       <div style={{
         fontSize: 11, fontFamily: 'var(--mono)', letterSpacing: '0.06em',
         color: 'var(--ink-mute)', textTransform: 'uppercase', flex: '0 0 90px',
-        textAlign: window.isRTL ? 'right' : 'left',
+        textAlign: 'start',
       }}>{label}</div>
       {editing ? (
         <input defaultValue={value} style={{
@@ -437,7 +437,7 @@ function DetailRow({ label, value, mono, accent, editing, last }) {
         }} />
       ) : (
         <div style={{
-          flex: 1, textAlign: window.isRTL ? 'left' : 'right',
+          flex: 1, textAlign: 'end',
           fontSize: 13, fontFamily: mono ? 'var(--mono)' : 'var(--sans)',
           color: accent || 'var(--ink)', fontWeight: 500,
         }}>{value}</div>

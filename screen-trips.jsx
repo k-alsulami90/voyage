@@ -21,7 +21,7 @@ function ScreenTrips({ goTrip, go }) {
       <div style={{
         padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 22px 14px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexDirection: window.isRTL ? 'row-reverse' : 'row',
+        flexDirection: 'row',
       }}>
         <div>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.16em', color: 'var(--ink-mute)' }}>
@@ -43,7 +43,7 @@ function ScreenTrips({ goTrip, go }) {
       {/* GLOBAL INSIGHTS PREVIEW CARD — overlapping stat tiles */}
       <div style={{ padding: '0 14px' }}>
         <button onClick={() => go('insights')} style={{
-          width: '100%', textAlign: window.isRTL ? 'right' : 'left',
+          width: '100%', textAlign: 'start',
           background: 'var(--statement)', color: 'var(--statement-fg)',
           borderRadius: 28, padding: '20px 20px 26px',
           position: 'relative', overflow: 'hidden',
@@ -60,16 +60,16 @@ function ScreenTrips({ goTrip, go }) {
           <div style={{ position: 'relative' }}>
             <div style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-              flexDirection: window.isRTL ? 'row-reverse' : 'row',
+              flexDirection: 'row',
             }}>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.55 }}>
                 {t('lifetimeAllTrips')}
               </div>
-              <div style={{ fontSize: 11, opacity: 0.7, display: 'flex', alignItems: 'center', gap: 4, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+              <div style={{ fontSize: 11, opacity: 0.7, display: 'flex', alignItems: 'center', gap: 4, flexDirection: 'row' }}>
                 {t('seeAll')} <IconChevron size={11} stroke="currentColor" />
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 8, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 8, flexDirection: 'row' }}>
               <span className="serif" style={{ fontSize: 56, lineHeight: 0.9 }}>{window.GLOBAL.countries}</span>
               <span style={{ fontSize: 14, opacity: 0.65, marginLeft: 6 }}>{t('countries')}</span>
             </div>
@@ -101,7 +101,7 @@ function ScreenTrips({ goTrip, go }) {
 
       {/* SCOPE FILTER — chips for private vs shared */}
       <div style={{ padding: '20px 22px 10px' }}>
-        <div style={{ display: 'flex', gap: 6, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+        <div style={{ display: 'flex', gap: 6, flexDirection: 'row' }}>
           {[
             { k: 'all',     l: t('all'),     n: window.TRIPS.length },
             { k: 'private', l: t('private'), n: window.TRIPS.filter((x) => !x.shared).length },
@@ -126,7 +126,7 @@ function ScreenTrips({ goTrip, go }) {
                 width: '100%', padding: '10px 14px', borderRadius: 12,
                 border: '1px solid var(--hairline-2)', background: 'var(--cream-2)',
                 color: 'var(--ink)', fontSize: 13.5, outline: 'none',
-                textAlign: window.isRTL ? 'right' : 'left',
+                textAlign: 'start',
               }} />
           </div>
         )}
@@ -144,10 +144,10 @@ function ScreenTrips({ goTrip, go }) {
       {upcoming.length > 0 && (scope === 'all') && (
         <div style={{ padding: '24px 0 0' }}>
           <SectionLabel action={t('seeAll')}>{t('upcoming')}</SectionLabel>
-          <div style={{ display: 'flex', gap: 12, padding: '0 22px 4px', overflowX: 'auto', flexDirection: window.isRTL ? 'row-reverse' : 'row' }} className="no-scrollbar">
+          <div style={{ display: 'flex', gap: 12, padding: '0 22px 4px', overflowX: 'auto', flexDirection: 'row' }} className="no-scrollbar">
             {upcoming.map((t) => (
               <button key={t.id} onClick={() => goTrip(t.id)} style={{
-                flexShrink: 0, width: 200, textAlign: window.isRTL ? 'right' : 'left',
+                flexShrink: 0, width: 200, textAlign: 'start',
                 borderRadius: 22, overflow: 'hidden',
                 background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
                 boxShadow: 'var(--shadow-card)',
@@ -185,8 +185,8 @@ function ScreenTrips({ goTrip, go }) {
             {trips.filter((t) => t.status === 'past').map((t) => (
               <button key={t.id} onClick={() => goTrip(t.id)} style={{
                 display: 'flex', alignItems: 'center', gap: 12,
-                flexDirection: window.isRTL ? 'row-reverse' : 'row',
-                padding: '10px 12px', borderRadius: 18, textAlign: window.isRTL ? 'right' : 'left',
+                flexDirection: 'row',
+                padding: '10px 12px', borderRadius: 18, textAlign: 'start',
                 background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
               }}>
                 <div style={{ width: 50, height: 50, borderRadius: 12, overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
@@ -195,7 +195,7 @@ function ScreenTrips({ goTrip, go }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 6,
-                    flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                    flexDirection: 'row',
                   }}>
                     <span className="serif" style={{ fontSize: 18, lineHeight: 1 }}>{t.title}</span>
                     {t.shared && <RoleBadgeMini icon={<IconUsers size={10} stroke="var(--ink-soft)" />} label={`${t.members}`} />}
@@ -237,13 +237,13 @@ function ScreenTrips({ goTrip, go }) {
         background: 'oklch(0.50 0.08 155 / 0.08)',
         border: '0.5px dashed oklch(0.50 0.08 155 / 0.35)',
         display: 'flex', alignItems: 'center', gap: 10,
-        flexDirection: window.isRTL ? 'row-reverse' : 'row',
+        flexDirection: 'row',
       }}>
         <span style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--moss)', color: '#fff', display: 'grid', placeItems: 'center' }}>
           <IconUsers size={14} stroke="#fff" />
         </span>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, color: 'oklch(0.30 0.07 155)', fontWeight: 500 }}>{t('crewPrivacy')}</div>
+          <div style={{ fontSize: 12, color: 'var(--moss)', fontWeight: 500 }}>{t('crewPrivacy')}</div>
           <div style={{ fontSize: 10.5, color: 'var(--ink-mute)', marginTop: 1 }}>
             {t('crewPrivacySub')}
           </div>
@@ -256,7 +256,7 @@ function ScreenTrips({ goTrip, go }) {
 function ActiveTripCard({ t, onOpen }) {
   return (
     <button onClick={onOpen} style={{
-      width: '100%', textAlign: window.isRTL ? 'right' : 'left', borderRadius: 28,
+      width: '100%', textAlign: 'start', borderRadius: 28,
       overflow: 'hidden', position: 'relative',
       background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
       boxShadow: 'var(--shadow-card)',
@@ -268,7 +268,7 @@ function ActiveTripCard({ t, onOpen }) {
           position: 'absolute', top: 14,
           ...(window.isRTL ? { right: 14 } : { left: 14 }),
           display: 'flex', alignItems: 'center', gap: 6,
-          flexDirection: window.isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row',
           padding: '5px 11px 5px 9px', borderRadius: 999,
           background: 'rgba(0,0,0,0.32)', color: '#fff',
           fontSize: 11, fontWeight: 500, letterSpacing: 0.04,
@@ -299,7 +299,7 @@ function ActiveTripCard({ t, onOpen }) {
         boxShadow: 'var(--shadow-md)',
         border: '0.5px solid var(--hairline)',
         display: 'flex', alignItems: 'center', gap: 10,
-        flexDirection: window.isRTL ? 'row-reverse' : 'row',
+        flexDirection: 'row',
       }}>
         <AvatarStack members={window.MEMBERS.slice(0, t.members)} size={26} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -320,7 +320,7 @@ function RoleBadgeMini({ icon, label }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 3,
-      flexDirection: window.isRTL ? 'row-reverse' : 'row',
+      flexDirection: 'row',
       padding: '2px 6px', borderRadius: 999,
       background: 'var(--sand)', color: 'var(--ink-soft)',
       fontSize: 10, fontWeight: 500,

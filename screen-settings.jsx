@@ -92,7 +92,7 @@ function ScreenSettings({ go, openSheet }) {
             <div style={{
               position: 'relative',
               display: 'flex', alignItems: 'center', gap: 14,
-              flexDirection: window.isRTL ? 'row-reverse' : 'row',
+              flexDirection: 'row',
             }}>
               <AvatarStack members={members} size={36} />
               <button onClick={() => openSheet('share')} style={{
@@ -111,7 +111,7 @@ function ScreenSettings({ go, openSheet }) {
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 6, marginTop: 14, position: 'relative', flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+            <div style={{ display: 'flex', gap: 6, marginTop: 14, position: 'relative', flexDirection: 'row' }}>
               {['Admin', 'Editor', 'Viewer'].map((r) => (
                 <div key={r} style={{
                   flex: 1, padding: '8px 10px', borderRadius: 12,
@@ -148,7 +148,7 @@ function ScreenSettings({ go, openSheet }) {
               <div style={{
                 background: 'var(--cream-2)', borderRadius: 16,
                 padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 11,
-                flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                flexDirection: 'row',
                 border: '0.5px solid var(--hairline)',
               }}>
                 <Avatar m={m} size={36} />
@@ -174,7 +174,7 @@ function ScreenSettings({ go, openSheet }) {
             padding: '12px 14px', borderRadius: 14,
             background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
             display: 'flex', alignItems: 'center', gap: 8,
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
             fontSize: 12.5, color: 'var(--ink-soft)', fontWeight: 500,
           }}>
             <IconChevron size={13} stroke="var(--ink-mute)" />
@@ -267,7 +267,7 @@ function ParamGroup({ items }) {
       {items.map((it, i) => (
         <div key={i} style={{
           display: 'flex', alignItems: 'center', gap: 12,
-          flexDirection: window.isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row',
           padding: '13px 16px',
           borderTop: i ? '0.5px solid var(--hairline)' : 'none',
         }}>
@@ -275,9 +275,9 @@ function ParamGroup({ items }) {
             width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
             background: 'var(--cream)', border: '0.5px solid var(--hairline)',
           }}>{it.icon}</div>
-          <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)', textAlign: window.isRTL ? 'right' : 'left' }}>{it.label}</div>
+          <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)', textAlign: 'start' }}>{it.label}</div>
           {it.toggle ? <Toggle on={it.on} /> :
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row' }}>
               <span style={{ fontSize: 12.5, color: it.accent ? 'var(--clay-deep)' : 'var(--ink-mute)', fontWeight: it.accent ? 500 : 400 }}>{it.value}</span>
               <IconChevron size={13} stroke="var(--ink-mute)" />
             </div>
@@ -309,9 +309,9 @@ function Toggle({ on: initOn }) {
 function ActionRow({ icon, label, sub, labelColor, last, onClick }) {
   return (
     <button onClick={onClick} style={{
-      width: '100%', textAlign: window.isRTL ? 'right' : 'left',
+      width: '100%', textAlign: 'start',
       display: 'flex', alignItems: 'center', gap: 12,
-      flexDirection: window.isRTL ? 'row-reverse' : 'row',
+      flexDirection: 'row',
       padding: '14px 16px',
       borderTop: !last ? '0.5px solid var(--hairline)' : 'none',
     }}>
@@ -346,10 +346,10 @@ function RoleSelect({ role, onChange }) {
           }}>
             {['Admin', 'Editor', 'Viewer'].map((r) => (
               <button key={r} onClick={() => { onChange(r); setOpen(false); }} style={{
-                padding: '6px 8px', borderRadius: 8, textAlign: window.isRTL ? 'right' : 'left',
+                padding: '6px 8px', borderRadius: 8, textAlign: 'start',
                 background: r === role ? 'var(--sand)' : 'transparent',
                 display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5,
-                flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                flexDirection: 'row',
               }}>
                 <RoleBadge role={r} />
               </button>
@@ -389,7 +389,7 @@ function LifecycleActions() {
         {confirmDelete ? (
           <div style={{
             padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10,
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
             borderTop: '0.5px solid var(--hairline)',
           }}>
             <div style={{ flex: 1, fontSize: 12.5, color: 'var(--clay-deep)', fontWeight: 500 }}>
@@ -483,8 +483,8 @@ function EditableTripParams({ trip: tripProp }) {
 
   const rowStyle = {
     display: 'flex', alignItems: 'center', gap: 12,
-    flexDirection: window.isRTL ? 'row-reverse' : 'row',
-    padding: '13px 16px', width: '100%', textAlign: window.isRTL ? 'right' : 'left',
+    flexDirection: 'row',
+    padding: '13px 16px', width: '100%', textAlign: 'start',
   };
   const iconBox = {
     width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
@@ -494,7 +494,7 @@ function EditableTripParams({ trip: tripProp }) {
     width: '100%', padding: '10px 12px', borderRadius: 10,
     border: '0.5px solid var(--hairline-2)', background: 'var(--cream)',
     color: 'var(--ink)', fontSize: 13, outline: 'none',
-    textAlign: window.isRTL ? 'right' : 'left',
+    textAlign: 'start',
   };
 
   // Compact row with chevron — tap to expand to edit form
@@ -505,7 +505,7 @@ function EditableTripParams({ trip: tripProp }) {
         <button onClick={() => setEditing(isOpen ? null : fieldKey)} style={rowStyle}>
           <div style={iconBox}>{icon}</div>
           <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)' }}>{label}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row' }}>
             <span style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>{value}</span>
             <span style={{ transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 200ms', display: 'inline-block' }}>
               <IconChevron size={13} stroke="var(--ink-mute)" />
@@ -662,7 +662,7 @@ function EditableTripParams({ trip: tripProp }) {
 
 function SaveCancelBar({ saving, onSave, onCancel }) {
   return (
-    <div style={{ display: 'flex', gap: 8, marginTop: 4, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+    <div style={{ display: 'flex', gap: 8, marginTop: 4, flexDirection: 'row' }}>
       <button disabled={saving} onClick={onSave} style={{
         flex: 1, padding: '10px', borderRadius: 10, fontSize: 12.5, fontWeight: 600,
         background: saving ? 'var(--ink-mute)' : 'var(--ink)', color: 'var(--cream)',

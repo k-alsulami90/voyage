@@ -32,7 +32,7 @@ function ScreenInsights({ go }) {
             <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.55 }}>
               {t('since2020')}
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4, flexDirection: 'row' }}>
               <span className="serif" style={{ fontSize: 100, lineHeight: 0.85 }}>{g.countries}</span>
               <span className="serif-italic" style={{ fontSize: 28, opacity: 0.7 }}>{t('countries')}</span>
             </div>
@@ -78,7 +78,7 @@ function ScreenInsights({ go }) {
         }}>
           <div style={{
             display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
             gap: 8, height: 110, padding: '0 4px',
           }}>
             {g.yearly.map((y) => (
@@ -117,7 +117,7 @@ function ScreenInsights({ go }) {
         }}>
           <div style={{
             display: 'flex', height: 14, borderRadius: 8, overflow: 'hidden', marginBottom: 14,
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
             boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,0.05)',
           }}>
             {g.byContinent.map((c, i) => (
@@ -129,7 +129,7 @@ function ScreenInsights({ go }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 14px' }}>
             {g.byContinent.map((c) => (
-              <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+              <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: 'row' }}>
                 <span style={{ width: 8, height: 8, borderRadius: 2, background: c.color }} />
                 <span style={{ fontSize: 12.5, color: 'var(--ink-soft)', flex: 1 }}>{c.name}</span>
                 <span className="mono" style={{ fontSize: 11.5, color: 'var(--ink)' }}>{c.days}d</span>
@@ -157,7 +157,7 @@ function ScreenInsights({ go }) {
             <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.55 }}>
               {t('topCategoryLifetime')}
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6, flexDirection: 'row' }}>
               <span className="serif-italic" style={{ fontSize: 36 }}>{g.topCategory.name}</span>
               <span style={{ fontSize: 13, opacity: 0.65 }}>· {g.topCategory.pct}%</span>
             </div>

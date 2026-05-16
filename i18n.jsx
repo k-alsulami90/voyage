@@ -248,7 +248,7 @@ window.toUSD = function(amount, fromCode) {
 // RTL-aware flex row style helper — spread this into any horizontal flex container
 window.fRow = function(extra) {
   return Object.assign(
-    { display: 'flex', flexDirection: window.isRTL ? 'row-reverse' : 'row', alignItems: 'center' },
+    { display: 'flex', flexDirection: 'row', alignItems: 'center' },
     extra || {}
   );
 };

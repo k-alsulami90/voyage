@@ -109,7 +109,7 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
 
       {/* WORDMARK — bleeds over the hero */}
       <div style={{ position: 'relative', padding: 'max(70px, calc(env(safe-area-inset-top) + 20px)) 32px 0', color: '#fff' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: 'row' }}>
           <div style={{
             width: 32, height: 32, borderRadius: 10,
             background: 'var(--cream)', display: 'grid', placeItems: 'center',
@@ -145,7 +145,7 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
         {(mode === 'signin' || mode === 'signup') && (
           <div style={{
             display: 'inline-flex', padding: 3, background: 'var(--sand)', borderRadius: 999,
-            marginBottom: 16, flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            marginBottom: 16, flexDirection: 'row',
           }}>
             {['signin', 'signup'].map((m) => (
               <button key={m} onClick={() => setMode(m)} style={{
@@ -210,11 +210,11 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
               padding: '12px 14px', borderRadius: 12,
               background: 'oklch(0.50 0.08 155 / 0.10)',
               border: '0.5px solid oklch(0.50 0.08 155 / 0.35)',
-              fontSize: 12.5, color: 'oklch(0.30 0.07 155)', lineHeight: 1.5,
+              fontSize: 12.5, color: 'var(--moss)', lineHeight: 1.5,
             }}>
               ✉️ {window.isRTL ? 'تحقق من بريدك الإلكتروني واضغط على رابط التأكيد، ثم عُد وسجّل الدخول' : 'Check your email and click the confirmation link, then come back and sign in.'}
               <button onClick={handleResendConfirmation} style={{
-                display: 'block', marginTop: 8, color: 'oklch(0.30 0.07 155)', fontWeight: 600, fontSize: 12,
+                display: 'block', marginTop: 8, color: 'var(--moss)', fontWeight: 600, fontSize: 12,
                 textDecoration: 'underline',
               }}>{window.isRTL ? 'إعادة الإرسال' : 'Resend confirmation'}</button>
             </div>
@@ -226,7 +226,7 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
               padding: '12px 14px', borderRadius: 12,
               background: 'oklch(0.50 0.08 155 / 0.10)',
               border: '0.5px solid oklch(0.50 0.08 155 / 0.35)',
-              fontSize: 12.5, color: 'oklch(0.30 0.07 155)', lineHeight: 1.5,
+              fontSize: 12.5, color: 'var(--moss)', lineHeight: 1.5,
             }}>
               ✉️ {window.isRTL ? 'تحقق من بريدك واضغط على رابط التعيين' : 'Check your inbox and click the reset link.'}
             </div>
@@ -244,7 +244,7 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
           {mode === 'signup' && (
             <div style={{
               display: 'flex', alignItems: 'flex-start', gap: 10,
-              flexDirection: window.isRTL ? 'row-reverse' : 'row',
+              flexDirection: 'row',
               padding: '10px 12px', borderRadius: 14, background: 'var(--sand)',
               marginTop: 2,
             }}>
@@ -254,7 +254,7 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
               }}>
                 <IconCheck size={11} stroke="#fff" />
               </div>
-              <div style={{ fontSize: 11, color: 'var(--ink-soft)', lineHeight: 1.4, textAlign: window.isRTL ? 'right' : 'left' }}>
+              <div style={{ fontSize: 11, color: 'var(--ink-soft)', lineHeight: 1.4, textAlign: 'start' }}>
                 {t('agreeTerms')}
               </div>
             </div>
@@ -268,7 +268,7 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
           color: 'var(--cream)', fontSize: 14, fontWeight: 600,
           letterSpacing: '-0.005em', cursor: loading ? 'not-allowed' : 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          flexDirection: window.isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row',
           boxShadow: '0 10px 22px rgba(34,28,22,0.3)',
         }}>
           {loading ? (
@@ -305,7 +305,7 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
         {(mode === 'signin' || mode === 'signup') && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10, margin: '14px 4px 12px',
-          flexDirection: window.isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row',
         }}>
           <div style={{ flex: 1, height: 0.5, background: 'var(--hairline-2)' }} />
           <span style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.16em', color: 'var(--ink-mute)' }}>
@@ -359,7 +359,7 @@ function Field({ label, placeholder, type = 'text', icon, action, onAction, valu
     <div>
       <div style={{
         display: 'flex', justifyContent: 'space-between',
-        flexDirection: window.isRTL ? 'row-reverse' : 'row',
+        flexDirection: 'row',
         fontSize: 10.5, fontFamily: 'var(--mono)', letterSpacing: '0.14em',
         color: 'var(--ink-mute)', textTransform: 'uppercase', marginBottom: 5, padding: '0 4px',
       }}>
@@ -368,7 +368,7 @@ function Field({ label, placeholder, type = 'text', icon, action, onAction, valu
       </div>
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
-        flexDirection: window.isRTL ? 'row-reverse' : 'row',
+        flexDirection: 'row',
         padding: '12px 14px', borderRadius: 14,
         background: 'rgba(255,255,255,0.7)',
         border: '0.5px solid var(--hairline)',
@@ -380,7 +380,7 @@ function Field({ label, placeholder, type = 'text', icon, action, onAction, valu
           style={{
           flex: 1, border: 0, outline: 0, background: 'transparent',
           fontSize: 14, fontFamily: 'var(--sans)', color: 'var(--ink)',
-          textAlign: window.isRTL ? 'right' : 'left',
+          textAlign: 'start',
         }} />
       </div>
     </div>

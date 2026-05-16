@@ -23,7 +23,7 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
             onClick={() => openSheet?.('addDoc')}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              flexDirection: window.isRTL ? 'row-reverse' : 'row',
+              flexDirection: 'row',
               padding: '7px 12px', borderRadius: 999,
               background: drag ? 'var(--clay)' : 'var(--ink)',
               color: 'var(--cream)', fontSize: 12, fontWeight: 500,
@@ -75,7 +75,7 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
                 <div key={a.id} style={{
                   background: 'var(--cream-2)', borderRadius: 18,
                   padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12,
-                  flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                  flexDirection: 'row',
                   border: '0.5px solid var(--hairline)',
                 }}>
                   <div style={{
@@ -87,7 +87,7 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
                     <div style={{ fontSize: 13.5, fontWeight: 500 }}>{a.target}</div>
                     <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 1,
                       display: 'flex', alignItems: 'center', gap: 5,
-                      flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                      flexDirection: 'row',
                     }}>
                       <Avatar m={m} size={14} /> {t('uploadedBy')} {m.name.split(' ')[0]} · {a.when}
                     </div>
@@ -142,12 +142,12 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
       </div>
 
       {/* View toggle */}
-      <div style={{ padding: '16px 14px 12px', display: 'flex', gap: 6, justifyContent: 'space-between', alignItems: 'center', flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+      <div style={{ padding: '16px 14px 12px', display: 'flex', gap: 6, justifyContent: 'space-between', alignItems: 'center', flexDirection: 'row' }}>
         <Chip active>All · {docs.length}</Chip>
         <div style={{
           display: 'inline-flex', padding: 2, background: 'var(--cream-2)', borderRadius: 999,
           border: '0.5px solid var(--hairline)',
-          flexDirection: window.isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row',
         }}>
           {['grid', 'list'].map((v) => (
             <button key={v} onClick={() => setView(v)} style={{
@@ -186,7 +186,7 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
             <button key={d.id} onClick={() => openDoc?.(d, category)} style={{
               all: 'unset', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
-              flexDirection: window.isRTL ? 'row-reverse' : 'row',
+              flexDirection: 'row',
               background: 'var(--cream-2)', borderRadius: 18,
               border: '0.5px solid var(--hairline)',
             }}>
@@ -205,7 +205,7 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
           {/* Add row */}
           <button onClick={() => openSheet?.('addDoc')} style={{
             display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
             borderRadius: 18, border: '1.5px dashed var(--sand-deep)',
             background: 'transparent', color: 'var(--ink-mute)',
           }}>
@@ -213,7 +213,7 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
               width: 38, height: 38, borderRadius: 11, background: 'var(--cream-2)',
               display: 'grid', placeItems: 'center',
             }}><IconPlus size={18} stroke="var(--ink-soft)" /></div>
-            <div style={{ flex: 1, textAlign: window.isRTL ? 'right' : 'left' }}>
+            <div style={{ flex: 1, textAlign: 'start' }}>
               <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink-soft)' }}>{t('addDocument')}</div>
               <div style={{ fontSize: 11 }}>Drop or browse · auto-sorted</div>
             </div>
@@ -228,7 +228,7 @@ function CategoryTile({ c, tilt, onOpen }) {
   return (
     <button onClick={onOpen} className="lift" style={{
       position: 'relative', height: 160, borderRadius: 22, overflow: 'hidden',
-      transform: `rotate(${tilt}deg)`, textAlign: window.isRTL ? 'right' : 'left',
+      transform: `rotate(${tilt}deg)`, textAlign: 'start',
       boxShadow: 'var(--shadow-card)',
     }}>
       <TintCard tint={c.tint} />
@@ -331,7 +331,7 @@ function DocCard({ d, tilt = 0 }) {
           fontSize: 12.5, fontWeight: 500, color: 'var(--ink)',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>{d.title}</div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', flexDirection: window.isRTL ? 'row-reverse' : 'row', marginTop: 3 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', flexDirection: 'row', marginTop: 3 }}>
           <span style={{ fontSize: 10.5, color: 'var(--ink-mute)' }}>{d.sub}</span>
           <span className="mono" style={{ fontSize: 10, color: 'var(--ink-mute)' }}>{d.size}</span>
         </div>

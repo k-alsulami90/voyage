@@ -488,11 +488,11 @@ function TripNav({ active, onChange, onExit, onAdd }) {
         position: 'absolute', bottom: 'calc(78px + env(safe-area-inset-bottom))',
         left: '50%', transform: 'translateX(-50%)',
         zIndex: 51, padding: '6px 12px 6px 9px', borderRadius: 999,
-        background: 'rgba(28,22,18,0.7)', color: 'var(--cream)',
+        background: 'rgba(15, 23, 42, 0.78)', color: '#fff',
         display: 'flex', alignItems: 'center', gap: 6,
         fontSize: 11, fontWeight: 500, letterSpacing: 0.04,
         border: '0.5px solid rgba(255,255,255,0.1)',
-        flexDirection: window.isRTL ? 'row-reverse' : 'row',
+        flexDirection: 'row',
       }}>
         <span className="icon-flip"><IconBack size={12} stroke="currentColor" /></span> {t('exitTrip')}
       </button>
@@ -517,19 +517,21 @@ function TripNav({ active, onChange, onExit, onAdd }) {
 const navShell = {
   position: 'absolute', bottom: 'calc(14px + env(safe-area-inset-bottom))', left: 14, right: 14, zIndex: 50,
   padding: '7px 8px', borderRadius: 28,
-  background: 'rgba(28,22,18,0.86)',
-  backdropFilter: 'blur(24px) saturate(180%)',
-  WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-  border: '0.5px solid rgba(255,255,255,0.08)',
-  boxShadow: '0 16px 32px rgba(0,0,0,0.28)',
+  // Slate-900 with high opacity — works in both light + dark themes (always a dark floating pill)
+  background: 'rgba(15, 23, 42, 0.88)',
+  backdropFilter: 'blur(28px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+  border: '0.5px solid rgba(255,255,255,0.10)',
+  boxShadow: '0 16px 32px rgba(0,0,0,0.32)',
   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
   overflow: 'hidden',
 };
 const navItem = (active) => ({
   display: 'flex', alignItems: 'center', gap: 6,
   padding: active ? '8px 10px' : '8px', borderRadius: 18,
-  background: active ? 'var(--cream)' : 'transparent',
-  color: active ? 'var(--ink)' : 'rgba(255,255,255,0.62)',
+  // Active state: always-white pill (visible on any theme's slate pill)
+  background: active ? '#fff' : 'transparent',
+  color: active ? '#0F172A' : 'rgba(255,255,255,0.70)',
   transition: 'all 240ms cubic-bezier(.2,.8,.2,1)',
   flexShrink: 1, minWidth: 0, overflow: 'hidden',
 });
@@ -598,7 +600,7 @@ function ShareSheet() {
         background: 'var(--cream-2)', borderRadius: 16,
         border: '0.5px solid var(--hairline)',
         display: 'flex', alignItems: 'center', gap: 10,
-        flexDirection: window.isRTL ? 'row-reverse' : 'row',
+        flexDirection: 'row',
       }}>
         <IconLink size={16} stroke="var(--ink-mute)" />
         <div className="mono" style={{ flex: 1, fontSize: 12.5, color: 'var(--ink-soft)',
@@ -616,7 +618,7 @@ function ShareSheet() {
           fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em',
           color: 'var(--ink-mute)', textTransform: 'uppercase', marginBottom: 8, padding: '0 4px',
         }}>{t('inviteWithRole')}</div>
-        <div style={{ display: 'flex', gap: 8, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+        <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
           {['Admin', 'Editor', 'Viewer'].map((r) => (
             <button key={r} onClick={() => setInviteRole(r)} style={{
               flex: 1, padding: '12px', borderRadius: 16,
@@ -626,7 +628,7 @@ function ShareSheet() {
               transition: 'all 180ms',
             }}>
               <RoleBadge role={r} />
-              <div style={{ fontSize: 10.5, color: inviteRole === r ? 'var(--cream)' : 'var(--ink-mute)', textAlign: window.isRTL ? 'right' : 'left' }}>
+              <div style={{ fontSize: 10.5, color: inviteRole === r ? 'var(--cream)' : 'var(--ink-mute)', textAlign: 'start' }}>
                 {r === 'Admin' ? t('fullControl') : r === 'Editor' ? t('addExpenses') : t('readOnly')}
               </div>
             </button>
@@ -715,7 +717,7 @@ function AddExpenseSheet({ onDone, onAdded, existing }) {
     border: '0.5px solid var(--hairline)',
     background: 'var(--cream)', color: 'var(--ink)',
     fontSize: 14, fontFamily: 'var(--sans)', outline: 'none',
-    textAlign: window.isRTL ? 'right' : 'left',
+    textAlign: 'start',
   };
 
   return (
@@ -736,7 +738,7 @@ function AddExpenseSheet({ onDone, onAdded, existing }) {
         <div style={{
           position: 'relative', display: 'flex', justifyContent: 'space-between',
           alignItems: 'center', marginBottom: 10,
-          flexDirection: window.isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row',
         }}>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.55 }}>
             {inputCur} {window.isRTL ? 'المبلغ' : 'AMOUNT'}
@@ -761,7 +763,7 @@ function AddExpenseSheet({ onDone, onAdded, existing }) {
             background: 'transparent', border: 'none', outline: 'none',
             fontFamily: 'var(--serif)', fontSize: 52, lineHeight: 1,
             color: 'var(--statement-fg)', width: '100%',
-            textAlign: window.isRTL ? 'right' : 'left',
+            textAlign: 'start',
           }}
         />
         <div style={{ fontSize: 12, opacity: 0.55, marginTop: 4 }}>
@@ -788,7 +790,7 @@ function AddExpenseSheet({ onDone, onAdded, existing }) {
         <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase' }}>
           {window.isRTL ? 'الفئة' : 'Category'}
         </div>
-        <div style={{ display: 'flex', gap: 7, overflowX: 'auto', flexDirection: window.isRTL ? 'row-reverse' : 'row' }} className="no-scrollbar">
+        <div style={{ display: 'flex', gap: 7, overflowX: 'auto', flexDirection: 'row' }} className="no-scrollbar">
           {cats.map((c) => {
             const meta = CAT_META[c.key] || {};
             const active = cat === c.key;
@@ -800,7 +802,7 @@ function AddExpenseSheet({ onDone, onAdded, existing }) {
                 border: active ? 'none' : '0.5px solid var(--hairline)',
                 fontSize: 13, fontWeight: 500,
                 display: 'flex', alignItems: 'center', gap: 6,
-                flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                flexDirection: 'row',
                 transition: 'all 160ms',
               }}>
                 <span style={{ fontSize: 16 }}>{meta.emoji}</span>
@@ -817,7 +819,7 @@ function AddExpenseSheet({ onDone, onAdded, existing }) {
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase' }}>
             {window.isRTL ? 'دفع بواسطة' : 'Paid by'}
           </div>
-          <div className="no-scrollbar" style={{ display: 'flex', gap: 7, overflowX: 'auto', flexDirection: window.isRTL ? 'row-reverse' : 'row', paddingBottom: 2 }}>
+          <div className="no-scrollbar" style={{ display: 'flex', gap: 7, overflowX: 'auto', flexDirection: 'row', paddingBottom: 2 }}>
             {members.map((m) => {
               const active = paidBy === m.id;
               return (
@@ -860,7 +862,7 @@ function AddExpenseSheet({ onDone, onAdded, existing }) {
         }}>{error}</div>
       )}
 
-      <div style={{ display: 'flex', gap: 10, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+      <div style={{ display: 'flex', gap: 10, flexDirection: 'row' }}>
         {isEdit && (
           <button onClick={async () => {
             if (!confirm(window.isRTL ? 'حذف هذا المصروف؟' : 'Delete this expense?')) return;
@@ -887,7 +889,7 @@ function AddExpenseSheet({ onDone, onAdded, existing }) {
           fontSize: 14, fontWeight: 600, letterSpacing: '-0.005em',
           boxShadow: loading ? 'none' : '0 8px 20px oklch(0.62 0.13 35 / 0.4)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          flexDirection: window.isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row',
         }}>
           {loading ? (
             <span style={{
@@ -946,7 +948,7 @@ function AddDocSheet({ onDone }) {
         </div>
         <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
           placeholder={window.isRTL ? 'اسم المستند...' : 'Document name...'}
-          style={{ width: '100%', padding: '12px 14px', borderRadius: 14, border: '0.5px solid var(--hairline)', background: 'var(--cream)', color: 'var(--ink)', fontSize: 14, outline: 'none', textAlign: window.isRTL ? 'right' : 'left' }} />
+          style={{ width: '100%', padding: '12px 14px', borderRadius: 14, border: '0.5px solid var(--hairline)', background: 'var(--cream)', color: 'var(--ink)', fontSize: 14, outline: 'none', textAlign: 'start' }} />
       </div>
 
       {/* Drop zone / file trigger */}
@@ -968,7 +970,7 @@ function AddDocSheet({ onDone }) {
           <div style={{ width: 42, height: 42, borderRadius: 12, background: 'var(--ink)', color: 'var(--cream)', display: 'grid', placeItems: 'center' }}>
             <IconUpload size={18} />
           </div>
-          <div style={{ textAlign: window.isRTL ? 'right' : 'left' }}>
+          <div style={{ textAlign: 'start' }}>
             <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>
               {drag ? t('dropHere') : t('uploadHint')}
             </div>
@@ -984,11 +986,11 @@ function AddDocSheet({ onDone }) {
         </div>
         <input type="url" value={link} onChange={(e) => setLink(e.target.value)}
           placeholder="https://maps.google.com/..."
-          style={{ width: '100%', padding: '12px 14px', borderRadius: 14, border: '0.5px solid var(--hairline)', background: 'var(--cream)', color: 'var(--ink)', fontSize: 13, fontFamily: 'var(--mono)', outline: 'none', textAlign: window.isRTL ? 'right' : 'left' }} />
+          style={{ width: '100%', padding: '12px 14px', borderRadius: 14, border: '0.5px solid var(--hairline)', background: 'var(--cream)', color: 'var(--ink)', fontSize: 13, fontFamily: 'var(--mono)', outline: 'none', textAlign: 'start' }} />
       </div>
 
       {/* Category */}
-      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 14, flexDirection: window.isRTL ? 'row-reverse' : 'row' }} className="no-scrollbar">
+      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 14, flexDirection: 'row' }} className="no-scrollbar">
         {(window.DOC_CATEGORIES || []).map((c) => (
           <button key={c.key} onClick={() => setCat(c.key)} style={{
             padding: '9px 13px', borderRadius: 14, flexShrink: 0,
@@ -1034,7 +1036,7 @@ function AddTripSheet({ onDone, onCreated }) {
     border: '0.5px solid var(--hairline)',
     background: 'var(--cream)', color: 'var(--ink)',
     fontSize: 14, outline: 'none',
-    textAlign: window.isRTL ? 'right' : 'left',
+    textAlign: 'start',
   };
   const labelStyle = {
     fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em',
@@ -1103,7 +1105,7 @@ function AddTripSheet({ onDone, onCreated }) {
       {/* Local currency */}
       <div>
         <label style={labelStyle}>{window.isRTL ? 'العملة المحلية' : 'Local currency'}</label>
-        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', flexDirection: 'row' }}>
           {CURRENCIES.map((c) => (
             <button key={c} onClick={() => setCurrency(c)} style={{
               padding: '8px 12px', borderRadius: 10, fontSize: 12.5, fontWeight: 500,
@@ -1120,7 +1122,7 @@ function AddTripSheet({ onDone, onCreated }) {
         padding: '10px 14px', borderRadius: 12,
         background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
         fontSize: 12.5, color: 'var(--ink-mute)', display: 'flex', alignItems: 'center', gap: 8,
-        flexDirection: window.isRTL ? 'row-reverse' : 'row',
+        flexDirection: 'row',
       }}>
         <span style={{ width: 8, height: 8, borderRadius: 999, flexShrink: 0,
           background: STATUS === 'active' ? 'var(--moss)' : STATUS === 'upcoming' ? 'var(--honey)' : 'var(--ink-mute)'

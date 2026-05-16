@@ -15,7 +15,7 @@ const Avatar = ({ m, size = 28, ring = false, off = 0, marginRight = 0 }) => (
 );
 
 const AvatarStack = ({ members, size = 26 }) => (
-  <div style={{ display: 'inline-flex', flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+  <div style={{ display: 'inline-flex', flexDirection: 'row' }}>
     {members.map((m, i) => (
       <Avatar
         key={m.id}
@@ -39,7 +39,7 @@ const RoleBadge = ({ role }) => {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,
-      flexDirection: window.isRTL ? 'row-reverse' : 'row',
+      flexDirection: 'row',
       padding: '4px 9px 4px 7px', borderRadius: 999,
       background: s.bg, color: s.fg,
       fontSize: 11, fontWeight: 600, letterSpacing: '-0.005em',
@@ -71,7 +71,7 @@ const Chip = ({ children, active = false, onClick, tone = 'default' }) => {
 const SectionLabel = ({ children, action, onAction }) => (
   <div style={{
     display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-    flexDirection: window.isRTL ? 'row-reverse' : 'row',
+    flexDirection: 'row',
     padding: '0 22px', marginBottom: 10,
   }}>
     <div style={{
@@ -175,22 +175,27 @@ const Sheet = ({ open, onClose, children, title, height = 0.7 }) => {
       }} />
       <div style={{
         position: 'relative', height: `${height * 100}%`,
-        background: 'var(--cream)', borderRadius: '28px 28px 0 0',
-        boxShadow: '0 -20px 40px rgba(0,0,0,0.2)',
-        animation: 'slideUp 260ms cubic-bezier(.2,.8,.2,1)',
+        background: 'var(--cream)', borderRadius: '24px 24px 0 0',
+        boxShadow: '0 -20px 60px rgba(0,0,0,0.35)',
+        animation: 'slideUp 320ms cubic-bezier(.32,.72,0,1)',  // iOS spring curve
         overflow: 'hidden', display: 'flex', flexDirection: 'column',
+        paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
-        <div style={{
-          width: 38, height: 4, borderRadius: 2, background: 'var(--hairline-2)',
-          margin: '10px auto 0',
-        }} />
+        {/* iOS-style drag handle */}
+        <div style={{ padding: '8px 0 4px', display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+          <div style={{
+            width: 36, height: 5, borderRadius: 999,
+            background: 'var(--ink-mute)', opacity: 0.4,
+          }} />
+        </div>
         {title && (
           <div style={{
-            padding: '14px 22px 6px',
-            fontFamily: 'var(--serif)', fontSize: 24, letterSpacing: '-0.01em',
+            padding: '8px 22px 4px',
+            fontFamily: 'var(--serif)', fontSize: 22, letterSpacing: '-0.01em',
+            color: 'var(--ink)', textAlign: 'center', flexShrink: 0,
           }}>{title}</div>
         )}
-        <div style={{ flex: 1, overflow: 'auto' }} className="no-scrollbar">{children}</div>
+        <div style={{ flex: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch' }} className="no-scrollbar">{children}</div>
       </div>
       <style>{`
         @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
@@ -324,7 +329,7 @@ function ToastHost() {
             padding: '11px 14px', borderRadius: 14,
             background: colors.bg, color: colors.fg,
             display: 'flex', alignItems: 'center', gap: 10,
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
             boxShadow: '0 12px 28px rgba(0,0,0,0.22)',
             pointerEvents: 'auto', fontSize: 13, fontWeight: 500,
             animation: 'toast-in 220ms cubic-bezier(.2,.8,.2,1)',
@@ -334,7 +339,7 @@ function ToastHost() {
               background: 'rgba(255,255,255,0.18)',
               display: 'grid', placeItems: 'center', fontSize: 13, fontWeight: 700,
             }}>{colors.icon}</div>
-            <div style={{ flex: 1, minWidth: 0, textAlign: window.isRTL ? 'right' : 'left' }}>{t.msg}</div>
+            <div style={{ flex: 1, minWidth: 0, textAlign: 'start' }}>{t.msg}</div>
           </div>
         );
       })}

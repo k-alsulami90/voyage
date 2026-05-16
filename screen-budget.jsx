@@ -67,7 +67,7 @@ function ScreenBudget({ go, openSheet, loading }) {
             background: 'linear-gradient(135deg, var(--clay) 0%, var(--clay-deep) 100%)',
             color: '#fff', boxShadow: 'var(--shadow-md)',
             display: 'flex', alignItems: 'center', gap: 12,
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
           }}>
             <div style={{
               width: 36, height: 36, borderRadius: 10, flexShrink: 0,
@@ -102,7 +102,7 @@ function ScreenBudget({ go, openSheet, loading }) {
           }} />
           <div style={{
             display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
             position: 'relative',
           }}>
             <div>
@@ -121,7 +121,7 @@ function ScreenBudget({ go, openSheet, loading }) {
                   marginTop: 14, display: 'inline-flex', padding: 3,
                   background: 'rgba(255,255,255,0.08)', borderRadius: 999,
                   border: '0.5px solid rgba(255,255,255,0.1)',
-                  flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                  flexDirection: 'row',
                 }}>
                   {[['home', home], ['local', local]].map(([m, code]) => (
                     <button key={m} onClick={() => setDisplayMode(m)} style={{
@@ -129,7 +129,7 @@ function ScreenBudget({ go, openSheet, loading }) {
                       background: displayMode === m ? 'var(--cream)' : 'transparent',
                       color: displayMode === m ? 'var(--ink)' : 'var(--cream)',
                       display: 'flex', alignItems: 'center', gap: 5,
-                      flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                      flexDirection: 'row',
                     }}>
                       {displayMode !== m && <IconSwap size={11} stroke="currentColor" />}
                       {code}
@@ -171,7 +171,7 @@ function ScreenBudget({ go, openSheet, loading }) {
         {/* Category cards row */}
         <div style={{
           marginTop: 12, display: 'flex', gap: 9, overflowX: 'auto', padding: '0 4px 8px',
-          flexDirection: window.isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row',
         }} className="no-scrollbar">
           {cats.map((c) => (
             <div key={c.key} style={{
@@ -179,7 +179,7 @@ function ScreenBudget({ go, openSheet, loading }) {
               background: 'var(--cream-2)', borderRadius: 18, padding: '12px 14px',
               boxShadow: 'var(--shadow-sm)', border: '0.5px solid var(--hairline)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row' }}>
                 <span style={{ width: 7, height: 7, borderRadius: 2, background: c.color }} />
                 <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--ink-soft)' }}>{c.label}</span>
               </div>
@@ -198,11 +198,11 @@ function ScreenBudget({ go, openSheet, loading }) {
       <div style={{ padding: '18px 14px 0' }}>
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          flexDirection: window.isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row',
           padding: '0 8px 10px',
         }}>
           <div className="serif" style={{ fontSize: 22 }}>{t('expenses')}</div>
-          <div style={{ display: 'flex', gap: 5, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+          <div style={{ display: 'flex', gap: 5, flexDirection: 'row' }}>
             <button onClick={() => { setShowSearch(!showSearch); setSearch(''); }} style={{
               width: 30, height: 30, borderRadius: 10,
               background: showSearch ? 'var(--ink)' : 'var(--cream-2)',
@@ -221,14 +221,14 @@ function ScreenBudget({ go, openSheet, loading }) {
                 width: '100%', padding: '10px 14px', borderRadius: 12,
                 border: '1px solid var(--clay)', background: 'var(--cream)',
                 color: 'var(--ink)', fontSize: 13.5, outline: 'none',
-                textAlign: window.isRTL ? 'right' : 'left',
+                textAlign: 'start',
               }}
             />
           </div>
         )}
 
         {/* Category chips + filter toggle */}
-        <div style={{ display: 'flex', gap: 6, padding: '0 4px 10px', overflowX: 'auto', flexDirection: window.isRTL ? 'row-reverse' : 'row', alignItems: 'center' }} className="no-scrollbar">
+        <div style={{ display: 'flex', gap: 6, padding: '0 4px 10px', overflowX: 'auto', flexDirection: 'row', alignItems: 'center' }} className="no-scrollbar">
           <Chip active={filter === 'all'} onClick={() => setFilter('all')}>
             {t('all')} · {window.EXPENSES.length}
           </Chip>
@@ -262,7 +262,7 @@ function ScreenBudget({ go, openSheet, loading }) {
               <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.12em', color: 'var(--ink-mute)', textTransform: 'uppercase', marginBottom: 6 }}>
                 {window.isRTL ? 'دفع بواسطة' : 'Paid by'}
               </div>
-              <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+              <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', flexDirection: 'row' }}>
                 <Chip active={paidBy === 'all'} onClick={() => setPaidBy('all')}>{t('all')}</Chip>
                 {(window.MEMBERS || []).map((m) => (
                   <Chip key={m.id} active={paidBy === m.id} onClick={() => setPaidBy(m.id)}>
@@ -278,7 +278,7 @@ function ScreenBudget({ go, openSheet, loading }) {
                 <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.12em', color: 'var(--ink-mute)', textTransform: 'uppercase', marginBottom: 6 }}>
                   {window.isRTL ? 'اليوم' : 'Day'}
                 </div>
-                <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+                <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', flexDirection: 'row' }}>
                   <Chip active={dayFilter === 'all'} onClick={() => setDayFilter('all')}>{t('all')}</Chip>
                   {daysAvailable.map((d) => (
                     <Chip key={d} active={dayFilter === d} onClick={() => setDayFilter(d)}>
@@ -347,7 +347,7 @@ function ScreenBudget({ go, openSheet, loading }) {
                 <div onClick={() => openSheet?.('editExpense', e)} style={{
                   background: 'var(--cream-2)', borderRadius: 18, cursor: 'pointer',
                   padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12,
-                  flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                  flexDirection: 'row',
                   border: '0.5px solid var(--hairline)',
                 }}>
                   <div style={{
@@ -360,14 +360,14 @@ function ScreenBudget({ go, openSheet, loading }) {
                     <div style={{
                       fontSize: 11, color: 'var(--ink-mute)', marginTop: 3,
                       display: 'flex', alignItems: 'center', gap: 6,
-                      flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                      flexDirection: 'row',
                     }}>
                       <Avatar m={m} size={15} />
                       <span>{m.name.split(' ')[0]} · {e.when}</span>
                       {e.note && <span style={{ opacity: 0.7 }}>· {e.note}</span>}
                     </div>
                   </div>
-                  <div style={{ textAlign: window.isRTL ? 'left' : 'right' }}>
+                  <div style={{ textAlign: 'end' }}>
                     <div className="mono" style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>
                       {conv(e.usd)}
                     </div>
@@ -396,12 +396,12 @@ function ScreenBudget({ go, openSheet, loading }) {
             return (
               <div key={a.id} style={{
                 display: 'flex', alignItems: 'center', gap: 10,
-                flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                flexDirection: 'row',
                 padding: '7px 0',
                 borderTop: i ? '0.5px solid var(--hairline)' : 'none',
               }}>
                 <Avatar m={m} size={22} />
-                <div style={{ flex: 1, fontSize: 12.5, color: 'var(--ink-soft)', textAlign: window.isRTL ? 'right' : 'left' }}>
+                <div style={{ flex: 1, fontSize: 12.5, color: 'var(--ink-soft)', textAlign: 'start' }}>
                   <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{m.name.split(' ')[0]}</span>
                   <span style={{ color: 'var(--ink-mute)' }}> {a.action} </span>
                   <span style={{ fontWeight: 500 }}>{a.target}</span>
@@ -424,7 +424,7 @@ function Header({ title, onBack, action }) {
       padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 18px 14px',
       background: 'linear-gradient(180deg, var(--cream) 85%, transparent)',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      flexDirection: window.isRTL ? 'row-reverse' : 'row',
+      flexDirection: 'row',
     }}>
       <button onClick={onBack} style={{
         width: 36, height: 36, borderRadius: 999,

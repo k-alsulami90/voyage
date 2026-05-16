@@ -58,7 +58,7 @@ function ScreenAddDoc({ back, onCreated }) {
     border: '0.5px solid var(--hairline)',
     background: 'var(--cream)', color: 'var(--ink)',
     fontSize: 14, outline: 'none', fontFamily: 'var(--sans)',
-    textAlign: window.isRTL ? 'right' : 'left',
+    textAlign: 'start',
   };
   const labelStyle = {
     fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em',
@@ -75,7 +75,7 @@ function ScreenAddDoc({ back, onCreated }) {
         padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 18px 14px',
         background: 'linear-gradient(180deg, var(--cream) 85%, transparent)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexDirection: window.isRTL ? 'row-reverse' : 'row',
+        flexDirection: 'row',
       }}>
         <button onClick={back} style={{
           width: 36, height: 36, borderRadius: 999,
@@ -99,7 +99,7 @@ function ScreenAddDoc({ back, onCreated }) {
               const color = TINT_FILL[c.tint] || 'var(--clay)';
               return (
                 <button key={c.key} onClick={() => setCat(c.key)} style={{
-                  padding: '14px 14px', borderRadius: 16, textAlign: window.isRTL ? 'right' : 'left',
+                  padding: '14px 14px', borderRadius: 16, textAlign: 'start',
                   background: active ? color : 'var(--cream-2)',
                   color: active ? '#fff' : 'var(--ink)',
                   border: active ? 'none' : '0.5px solid var(--hairline)',
@@ -169,13 +169,13 @@ function ScreenAddDoc({ back, onCreated }) {
             {file ? (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'center',
-                flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                flexDirection: 'row',
               }}>
                 <div style={{
                   width: 44, height: 44, borderRadius: 12, background: TINT_FILL[tint],
                   color: '#fff', display: 'grid', placeItems: 'center',
                 }}><IconPdf size={20} stroke="#fff" /></div>
-                <div style={{ textAlign: window.isRTL ? 'right' : 'left', minWidth: 0, flex: 1 }}>
+                <div style={{ textAlign: 'start', minWidth: 0, flex: 1 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink)',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
                   <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 2 }}>
@@ -189,12 +189,12 @@ function ScreenAddDoc({ back, onCreated }) {
             ) : (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'center',
-                flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                flexDirection: 'row',
               }}>
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--ink)', color: 'var(--cream)', display: 'grid', placeItems: 'center' }}>
                   <IconUpload size={20} />
                 </div>
-                <div style={{ textAlign: window.isRTL ? 'right' : 'left' }}>
+                <div style={{ textAlign: 'start' }}>
                   <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>
                     {drag ? t('dropHere') : (window.isRTL ? 'اختر ملفاً' : 'Pick a file')}
                   </div>
@@ -221,7 +221,7 @@ function ScreenAddDoc({ back, onCreated }) {
         {/* Tint color (visual identity) */}
         <div>
           <label style={labelStyle}>{window.isRTL ? 'اللون' : 'Tint'}</label>
-          <div style={{ display: 'flex', gap: 8, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+          <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
             {TINTS.map((tt) => (
               <button key={tt} onClick={() => setTint(tt)} style={{
                 width: 44, height: 44, borderRadius: 12,
@@ -244,7 +244,7 @@ function ScreenAddDoc({ back, onCreated }) {
         )}
 
         {/* Save bar */}
-        <div style={{ display: 'flex', gap: 10, marginTop: 4, flexDirection: window.isRTL ? 'row-reverse' : 'row' }}>
+        <div style={{ display: 'flex', gap: 10, marginTop: 4, flexDirection: 'row' }}>
           <button onClick={back} disabled={saving} style={{
             padding: '15px 22px', borderRadius: 16,
             background: 'var(--cream-2)', border: '0.5px solid var(--hairline-2)', color: 'var(--ink-soft)',
@@ -255,7 +255,7 @@ function ScreenAddDoc({ back, onCreated }) {
             background: saving ? 'var(--ink-soft)' : 'var(--ink)', color: 'var(--cream)',
             fontSize: 13.5, fontWeight: 600,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
           }}>
             {saving ? (
               <span style={{ width: 14, height: 14, borderRadius: '50%',

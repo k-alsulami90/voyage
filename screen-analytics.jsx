@@ -132,7 +132,7 @@ function ScreenAnalytics({ go, loading }) {
           <div style={{
             position: 'relative', display: 'flex',
             justifyContent: 'space-between', alignItems: 'flex-start',
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
           }}>
             <div>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.55 }}>
@@ -166,7 +166,7 @@ function ScreenAnalytics({ go, loading }) {
               position: 'relative', marginTop: 18,
               display: 'flex', alignItems: 'flex-end',
               justifyContent: 'space-between', gap: 4, height: 60,
-              flexDirection: window.isRTL ? 'row-reverse' : 'row',
+              flexDirection: 'row',
             }}>
               {sparkBuckets.map(([date, val], i) => (
                 <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
@@ -228,7 +228,7 @@ function ScreenAnalytics({ go, loading }) {
             padding: '14px 16px', borderRadius: 18, background: 'var(--cream-2)',
             border: '0.5px solid var(--hairline)',
             display: 'flex', alignItems: 'center', gap: 12,
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
           }}>
             <div style={{
               width: 40, height: 40, borderRadius: 12, flexShrink: 0,
@@ -260,17 +260,17 @@ function ScreenAnalytics({ go, loading }) {
             background: 'var(--cream-2)', borderRadius: 22, padding: '18px',
             margin: '0 8px', border: '0.5px solid var(--hairline)',
             display: 'flex', alignItems: 'center', gap: 16,
-            flexDirection: window.isRTL ? 'row-reverse' : 'row',
+            flexDirection: 'row',
           }}>
             <PieChart data={catTotals} size={148} />
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 9 }}>
               {catTotals.map((c) => (
                 <div key={c.key} style={{
                   display: 'flex', alignItems: 'center', gap: 8,
-                  flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                  flexDirection: 'row',
                 }}>
                   <span style={{ width: 10, height: 10, borderRadius: 3, background: c.color, flexShrink: 0 }} />
-                  <span style={{ flex: 1, fontSize: 12.5, color: 'var(--ink-soft)', textAlign: window.isRTL ? 'right' : 'left' }}>{c.label}</span>
+                  <span style={{ flex: 1, fontSize: 12.5, color: 'var(--ink-soft)', textAlign: 'start' }}>{c.label}</span>
                   <span className="mono" style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>
                     {totalUSD > 0 ? Math.round((c.value / totalUSD) * 100) : 0}%
                   </span>
@@ -279,7 +279,7 @@ function ScreenAnalytics({ go, loading }) {
               <div style={{
                 paddingTop: 8, borderTop: '0.5px solid var(--hairline)',
                 display: 'flex', justifyContent: 'space-between',
-                flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                flexDirection: 'row',
               }}>
                 <span style={{ fontSize: 11.5, color: 'var(--ink-mute)', fontFamily: 'var(--mono)' }}>
                   {window.isRTL ? 'المجموع' : 'TOTAL'}
@@ -303,13 +303,13 @@ function ScreenAnalytics({ go, loading }) {
               <div key={m.id} style={{
                 display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
                 borderTop: i ? '0.5px solid var(--hairline)' : 'none',
-                flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                flexDirection: 'row',
               }}>
                 <Avatar m={m} size={32} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-                    flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                    flexDirection: 'row',
                   }}>
                     <span style={{ fontSize: 13.5, fontWeight: 500 }}>{m.name}</span>
                     <span className="mono" style={{ fontSize: 13, fontWeight: 500 }}>{fmtC(m.paid)}</span>
@@ -323,7 +323,7 @@ function ScreenAnalytics({ go, loading }) {
                   <div style={{
                     fontSize: 10, color: 'var(--ink-mute)', marginTop: 3,
                     display: 'flex', justifyContent: 'space-between',
-                    flexDirection: window.isRTL ? 'row-reverse' : 'row',
+                    flexDirection: 'row',
                   }}>
                     <span>{m.pct}% {window.isRTL ? 'من الإجمالي' : 'of total'}</span>
                   </div>
