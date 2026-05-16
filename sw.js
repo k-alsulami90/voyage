@@ -7,7 +7,7 @@
 
 // Bump this on every deploy that changes shell behaviour. Vercel deploys
 // rebuild the file from git so the string itself is enough — no build step needed.
-const VERSION = 'v9-hub-countries-stubs';
+const VERSION = 'v10-icons';
 const SHELL_CACHE  = `voyage-shell-${VERSION}`;
 const STATIC_CACHE = `voyage-static-${VERSION}`;
 const FONT_CACHE   = `voyage-fonts-${VERSION}`;
