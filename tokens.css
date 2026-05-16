@@ -251,6 +251,15 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
    so English text in the same paragraph keeps its original face.
    ───────────────────────────────────────────────────────────── */
 
+/* Force RTL inheritance — every descendant of [dir="rtl"] gets direction:rtl
+   so flex/grid/abs-positioned descendants flip without per-element overrides */
+[dir="rtl"] {
+  direction: rtl;
+}
+[dir="rtl"] * {
+  direction: inherit;
+}
+
 /* Arabic tightens letter-spacing slightly (the Latin stack's -0.01em
    reads cramped for Arabic letterforms) */
 [lang="ar"] .serif,
