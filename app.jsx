@@ -37,6 +37,13 @@ function App() {
   const isMobile = useIsMobile();
   const [tw, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
 
+  // Dismiss the cold-boot splash as soon as React has rendered once.
+  // The splash itself enforces a minimum 1.4s show time so the animation
+  // completes — calling this earlier just queues the fade.
+  React.useEffect(() => {
+    window.__hideSplash?.();
+  }, []);
+
   // ── Set synchronously so every child render reads the correct values ──
   window.LANG = tw.lang;
   window.isRTL = tw.lang === 'ar';

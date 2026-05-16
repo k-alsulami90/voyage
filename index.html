@@ -67,9 +67,147 @@
   @supports (padding: env(safe-area-inset-top)) {
     body { padding-top: 0; padding-bottom: 0; }
   }
+
+  /* ─────────────────────────────────────────────────────────────
+     SPLASH — pure CSS, runs BEFORE Babel/React load.
+     Cold open: ~1.6s of brand animation, then fades into the app.
+     Auto-dismisses via JS when React mounts (whichever is later).
+     ───────────────────────────────────────────────────────────── */
+  #splash {
+    position: fixed; inset: 0; z-index: 9999;
+    display: grid; place-items: center;
+    background:
+      radial-gradient(ellipse 55% 50% at 30% 25%, oklch(0.32 0.06 30) 0%, transparent 60%),
+      radial-gradient(ellipse 70% 60% at 75% 100%, oklch(0.16 0.04 260) 0%, transparent 55%),
+      #0F172A;
+    color: #f5ecd9;
+    transition: opacity 600ms cubic-bezier(.32,.72,0,1), visibility 0s linear 600ms;
+    will-change: opacity;
+  }
+  #splash.splash-leave {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .splash-stage {
+    display: flex; flex-direction: column; align-items: center; gap: 18px;
+    text-align: center;
+    transform: translateY(8px);
+    animation: splash-stage-up 1100ms cubic-bezier(.32,.72,0,1) forwards;
+  }
+  @keyframes splash-stage-up {
+    0%   { transform: translateY(8px); }
+    100% { transform: translateY(0); }
+  }
+
+  /* Brand mark — compass-like spinner that draws in */
+  .splash-mark {
+    width: 56px; height: 56px;
+    border-radius: 18px;
+    background: linear-gradient(140deg, oklch(0.85 0.07 40) 0%, oklch(0.62 0.13 35) 100%);
+    display: grid; place-items: center;
+    box-shadow: 0 12px 28px rgba(60,30,15,0.55), inset 0 1px 0 rgba(255,255,255,0.25);
+    opacity: 0;
+    transform: scale(0.86) rotate(-8deg);
+    animation: splash-mark-in 700ms cubic-bezier(.32,.72,0,1) 100ms forwards;
+  }
+  @keyframes splash-mark-in {
+    0%   { opacity: 0; transform: scale(0.86) rotate(-8deg); }
+    60%  { opacity: 1; transform: scale(1.05) rotate(2deg); }
+    100% { opacity: 1; transform: scale(1) rotate(0deg); }
+  }
+  .splash-mark svg { color: #fff; opacity: 0.95; }
+
+  /* Wordmark "voyage" — fades in with subtle slide */
+  .splash-wordmark {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+    font-size: 56px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: #f5ecd9;
+    opacity: 0;
+    animation: splash-fade-up 700ms cubic-bezier(.32,.72,0,1) 350ms forwards;
+  }
+
+  /* Thin tracking line that draws horizontally */
+  .splash-rule {
+    width: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(245,236,217,0.5), transparent);
+    animation: splash-line-grow 600ms cubic-bezier(.32,.72,0,1) 650ms forwards;
+  }
+  @keyframes splash-line-grow {
+    to { width: 140px; }
+  }
+
+  /* Tagline mono caps */
+  .splash-tagline {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: rgba(245,236,217,0.72);
+    opacity: 0;
+    animation: splash-fade-up 700ms cubic-bezier(.32,.72,0,1) 900ms forwards;
+  }
+
+  @keyframes splash-fade-up {
+    0%   { opacity: 0; transform: translateY(6px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Slow drifting aurora behind everything for depth */
+  .splash-aurora {
+    position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+  }
+  .splash-aurora::before,
+  .splash-aurora::after {
+    content: ''; position: absolute;
+    width: 60vw; height: 60vw; max-width: 500px; max-height: 500px;
+    border-radius: 50%; filter: blur(60px); opacity: 0.55;
+  }
+  .splash-aurora::before {
+    background: oklch(0.55 0.14 35); top: -20%; left: -20%;
+    animation: splash-drift-a 8s ease-in-out infinite alternate;
+  }
+  .splash-aurora::after {
+    background: oklch(0.48 0.12 260); bottom: -25%; right: -15%;
+    animation: splash-drift-b 9s ease-in-out infinite alternate;
+  }
+  @keyframes splash-drift-a {
+    to { transform: translate(20px, 16px) scale(1.05); }
+  }
+  @keyframes splash-drift-b {
+    to { transform: translate(-18px, -14px) scale(1.08); }
+  }
+
+  /* Respect users who prefer reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    #splash *, #splash::before, #splash::after { animation: none !important; }
+    .splash-mark, .splash-wordmark, .splash-rule, .splash-tagline { opacity: 1; transform: none; }
+    .splash-rule { width: 140px; }
+  }
 </style>
 </head>
 <body>
+  <!-- Splash — rendered before React/Babel load. JS hides it once React mounts. -->
+  <div id="splash" aria-hidden="true">
+    <div class="splash-aurora"></div>
+    <div class="splash-stage">
+      <div class="splash-mark">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 4 L14 12 L12 20 L10 12 Z" fill="currentColor" stroke="none" />
+        </svg>
+      </div>
+      <div class="splash-wordmark">voyage</div>
+      <div class="splash-rule"></div>
+      <div class="splash-tagline">For people who wander</div>
+    </div>
+  </div>
+
   <div id="root">
     <!-- Hardcoded fallback: shown if React/Babel never mount within 8s.
          No DevTools required — user just taps a button. -->
@@ -91,6 +229,29 @@
     </div>
   </div>
   <script>
+    // ── Splash dismissal ──────────────────────────────────────
+    // Minimum show time so the animation completes gracefully
+    // (otherwise on fast networks the splash flashes for 200ms).
+    // Maximum show time so a stuck app doesn't hide the splash forever.
+    (function () {
+      var SPLASH_MIN_MS = 1400;
+      var SPLASH_MAX_MS = 6000;
+      var mountedAt = Date.now();
+      var splash = document.getElementById('splash');
+      var dismissed = false;
+      function hideSplash() {
+        if (dismissed || !splash) return;
+        dismissed = true;
+        var elapsed = Date.now() - mountedAt;
+        var wait = Math.max(0, SPLASH_MIN_MS - elapsed);
+        setTimeout(function () { splash.classList.add('splash-leave'); }, wait);
+      }
+      // Expose so React can call it the moment its first screen renders
+      window.__hideSplash = hideSplash;
+      // Safety net: dismiss after MAX_MS no matter what
+      setTimeout(hideSplash, SPLASH_MAX_MS);
+    })();
+
     // If React hasn't mounted into #root within 8s, show the fallback.
     window._mountTimer = setTimeout(() => {
       const root = document.getElementById('root');
@@ -100,7 +261,6 @@
         if (fb) fb.style.display = 'grid';
       }
     }, 8000);
-    // React will overwrite #root, killing the timer's relevance — that's fine.
   </script>
 
   <!-- Supabase JS SDK -->
