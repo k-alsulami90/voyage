@@ -1,17 +1,48 @@
 // Global Trips Dashboard — top-level page (app-scoped, NOT trip-scoped).
 // Lists private + shared trips, with cumulative travel insights at the top.
+// Each trip card is state-aware: current trips show live progress, upcoming
+// trips show countdown, past trips show a completed badge + total.
+
+// ── Trip state helpers ──────────────────────────────────────
+// We compute the temporal state from start/end dates, not just the DB status,
+// so the UI is always correct (DB status can drift if cron doesn't run).
+function tripTemporalState(trip) {
+  if (!trip?.startDate || !trip?.endDate) return { kind: trip?.status || 'upcoming' };
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const start = new Date(trip.startDate); start.setHours(0, 0, 0, 0);
+  const end = new Date(trip.endDate); end.setHours(0, 0, 0, 0);
+  const ms = 86400000;
+  if (now < start) {
+    const daysUntil = Math.round((start - now) / ms);
+    return { kind: 'upcoming', daysUntil };
+  }
+  if (now > end) {
+    const totalDays = Math.max(1, Math.round((end - start) / ms) + 1);
+    return { kind: 'past', totalDays };
+  }
+  const dayN = Math.min(Math.max(1, Math.round((now - start) / ms) + 1), Math.round((end - start) / ms) + 1);
+  const totalDays = Math.round((end - start) / ms) + 1;
+  return { kind: 'current', dayN, totalDays, daysRemaining: totalDays - dayN };
+}
 
 function ScreenTrips({ goTrip, go }) {
   const [scope, setScope] = React.useState('all'); // all | private | shared
   const [showSearch, setShowSearch] = React.useState(false);
   const [search, setSearch] = React.useState('');
-  const trips = window.TRIPS.filter((t) =>
-    (scope === 'all' || (scope === 'shared' ? t.shared : !t.shared)) &&
-    (!search || (t.title || '').toLowerCase().includes(search.toLowerCase()))
-  );
-  const active = window.TRIPS.find((t) => t.status === 'active');
-  const upcoming = window.TRIPS.filter((t) => t.status === 'upcoming');
-  const past = window.TRIPS.filter((t) => t.status === 'past');
+
+  // Compute temporal state for every trip once per render
+  const enrichedTrips = (window.TRIPS || []).map((trip) => ({
+    ...trip,
+    state: tripTemporalState(trip),
+  }));
+
+  const matchesScope  = (t) => scope === 'all' || (scope === 'shared' ? t.shared : !t.shared);
+  const matchesSearch = (t) => !search || (t.title || '').toLowerCase().includes(search.toLowerCase());
+
+  const trips    = enrichedTrips.filter((t) => matchesScope(t) && matchesSearch(t));
+  const active   = enrichedTrips.find((t) => t.state.kind === 'current');
+  const upcoming = enrichedTrips.filter((t) => t.state.kind === 'upcoming');
+  const past     = enrichedTrips.filter((t) => t.state.kind === 'past');
 
   return (
     <div data-screen-label="00 Trips Home" style={{
@@ -132,80 +163,33 @@ function ScreenTrips({ goTrip, go }) {
         )}
       </div>
 
-      {/* ACTIVE TRIP — large, overlapping cover + status pin */}
+      {/* CURRENT TRIP — live progress card */}
       {active && (scope === 'all' || scope === (active.shared ? 'shared' : 'private')) && (
         <div style={{ padding: '4px 14px 0' }}>
           <SectionLabel>{t('currentlyTraveling')}</SectionLabel>
-          <ActiveTripCard t={active} onOpen={() => goTrip(active.id)} />
+          <CurrentTripCard trip={active} onOpen={() => goTrip(active.id)} />
         </div>
       )}
 
-      {/* UPCOMING — horizontal scroller */}
+      {/* UPCOMING — countdown cards in horizontal scroller */}
       {upcoming.length > 0 && (scope === 'all') && (
         <div style={{ padding: '24px 0 0' }}>
-          <SectionLabel action={t('seeAll')}>{t('upcoming')}</SectionLabel>
-          <div style={{ display: 'flex', gap: 12, padding: '0 22px 4px', overflowX: 'auto', flexDirection: 'row' }} className="no-scrollbar">
-            {upcoming.map((t) => (
-              <button key={t.id} onClick={() => goTrip(t.id)} style={{
-                flexShrink: 0, width: 200, textAlign: 'start',
-                borderRadius: 22, overflow: 'hidden',
-                background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
-                boxShadow: 'var(--shadow-card)',
-              }}>
-                <div style={{ height: 130, position: 'relative', overflow: 'hidden' }}>
-                  <CoverArt kind={t.cover} imageUrl={t.coverImageUrl} />
-                  <div className="glass" style={{
-                    position: 'absolute', top: 10,
-                    ...(window.isRTL ? { insetInlineEnd: 10 } : { insetInlineStart: 10 }),
-                    padding: '4px 9px', borderRadius: 999, fontSize: 10,
-                    color: '#fff', background: 'rgba(0,0,0,0.32)',
-                    fontFamily: 'var(--mono)', letterSpacing: '0.1em',
-                  }}>{t.country}</div>
-                  {t.shared && (
-                    <div style={{ position: 'absolute', bottom: -10, insetInlineEnd: 14 }}>
-                      <AvatarStack members={window.MEMBERS.slice(0, t.members)} size={22} />
-                    </div>
-                  )}
-                </div>
-                <div style={{ padding: '14px 14px 12px' }}>
-                  <div className="serif" style={{ fontSize: 22, lineHeight: 1 }}>{t.title}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 3 }}>{t.dates}</div>
-                </div>
-              </button>
+          <SectionLabel>{t('upcoming')}</SectionLabel>
+          <div style={{ display: 'flex', gap: 12, padding: '0 22px 4px', overflowX: 'auto' }} className="no-scrollbar">
+            {upcoming.map((trip) => (
+              <UpcomingTripCard key={trip.id} trip={trip} onOpen={() => goTrip(trip.id)} />
             ))}
           </div>
         </div>
       )}
 
-      {/* PAST — compact rows */}
-      {(scope === 'all' || past.some((x) => scope === (x.shared ? 'shared' : 'private'))) && (
+      {/* PAST — completed rows with total spend */}
+      {past.length > 0 && (scope === 'all' || past.some((x) => scope === (x.shared ? 'shared' : 'private'))) && (
         <div style={{ padding: '24px 14px 0' }}>
           <SectionLabel>{t('pastTrips')}</SectionLabel>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 8px' }}>
-            {trips.filter((t) => t.status === 'past').map((t) => (
-              <button key={t.id} onClick={() => goTrip(t.id)} style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                flexDirection: 'row',
-                padding: '10px 12px', borderRadius: 18, textAlign: 'start',
-                background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
-              }}>
-                <div style={{ width: 50, height: 50, borderRadius: 12, overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
-                  <CoverArt kind={t.cover} imageUrl={t.coverImageUrl} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    flexDirection: 'row',
-                  }}>
-                    <span className="serif" style={{ fontSize: 18, lineHeight: 1 }}>{t.title}</span>
-                    {t.shared && <RoleBadgeMini icon={<IconUsers size={10} stroke="var(--ink-soft)" />} label={`${t.members}`} />}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 2 }}>
-                    {t.sub} · {t.dates}
-                  </div>
-                </div>
-                <IconChevron size={14} stroke="var(--ink-mute)" />
-              </button>
+            {trips.filter((tr) => tr.state.kind === 'past').map((trip) => (
+              <PastTripCard key={trip.id} trip={trip} onOpen={() => goTrip(trip.id)} />
             ))}
           </div>
         </div>
@@ -253,7 +237,9 @@ function ScreenTrips({ goTrip, go }) {
   );
 }
 
-function ActiveTripCard({ t, onOpen }) {
+// ── CURRENT trip card — large hero, live "Day N of M", live progress ──
+function CurrentTripCard({ trip, onOpen }) {
+  const { dayN, totalDays, daysRemaining } = trip.state;
   return (
     <button onClick={onOpen} style={{
       width: '100%', textAlign: 'start', borderRadius: 28,
@@ -262,36 +248,44 @@ function ActiveTripCard({ t, onOpen }) {
       boxShadow: 'var(--shadow-card)',
     }}>
       <div style={{ height: 180, position: 'relative', overflow: 'hidden' }}>
-        <CoverArt kind={t.cover} imageUrl={t.coverImageUrl} />
-        {/* live pill */}
+        <CoverArt kind={trip.cover} imageUrl={trip.coverImageUrl} />
+        {/* LIVE pill — pulsing green dot */}
         <div className="glass" style={{
-          position: 'absolute', top: 14,
-          ...(window.isRTL ? { insetInlineEnd: 14 } : { insetInlineStart: 14 }),
-          display: 'flex', alignItems: 'center', gap: 6,
-          flexDirection: 'row',
+          position: 'absolute', top: 14, insetInlineStart: 14,
+          display: 'inline-flex', alignItems: 'center', gap: 6,
           padding: '5px 11px 5px 9px', borderRadius: 999,
-          background: 'rgba(0,0,0,0.32)', color: '#fff',
-          fontSize: 11, fontWeight: 500, letterSpacing: 0.04,
+          background: 'rgba(0,0,0,0.40)', color: '#fff',
+          fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
+          backdropFilter: 'blur(8px)',
         }}>
-          <span style={{ width: 6, height: 6, borderRadius: 999, background: 'oklch(0.78 0.18 145)', boxShadow: '0 0 6px oklch(0.78 0.18 145)' }} />
-          {window.isRTL ? 'مباشر' : 'LIVE'}
+          <span style={{
+            width: 7, height: 7, borderRadius: 999,
+            background: 'oklch(0.78 0.18 145)',
+            boxShadow: '0 0 8px oklch(0.78 0.18 145)',
+            animation: 'pulse 1.6s ease-in-out infinite',
+          }} />
+          <span>{window.isRTL ? 'مباشر' : 'LIVE'}</span>
         </div>
+        {/* Day N of M */}
+        <div className="glass" style={{
+          position: 'absolute', top: 14, insetInlineEnd: 14,
+          padding: '5px 11px', borderRadius: 999,
+          background: 'rgba(0,0,0,0.40)', color: '#fff',
+          fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.06em',
+          fontWeight: 600,
+        }}>{t('dayOfTotal', { n: dayN, total: totalDays })}</div>
+        {/* Title overlay */}
         <div style={{
-          position: 'absolute', top: 14,
-          ...(window.isRTL ? { insetInlineStart: 14 } : { insetInlineEnd: 14 }),
-          fontFamily: 'var(--mono)', fontSize: 10.5, color: '#fff',
-          opacity: 0.85, letterSpacing: '0.1em',
-        }}>{t.dates.toUpperCase()}</div>
-        <div style={{
-          position: 'absolute', bottom: 14,
-          ...(window.isRTL ? { insetInlineEnd: 18 } : { insetInlineStart: 18 }),
+          position: 'absolute', bottom: 14, insetInlineStart: 18, insetInlineEnd: 18,
           color: '#fff', textShadow: '0 4px 14px rgba(0,0,0,0.4)',
         }}>
-          <div className="serif-italic" style={{ fontSize: 38, lineHeight: 1 }}>{t.title}</div>
-          <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>{t.sub}</div>
+          <div className="serif-italic" style={{ fontSize: 36, lineHeight: 1 }}>{trip.title}</div>
+          <div style={{ fontSize: 12, opacity: 0.9, marginTop: 2 }}>
+            {trip.sub || `${daysRemaining} ${window.isRTL ? 'أيام متبقية' : 'days remaining'}`}
+          </div>
         </div>
       </div>
-      {/* Stat row that "interlocks" with image */}
+      {/* Interlocking budget tracker bar */}
       <div style={{
         margin: '-22px 14px 0', position: 'relative',
         background: 'var(--cream)', borderRadius: 18,
@@ -299,19 +293,129 @@ function ActiveTripCard({ t, onOpen }) {
         boxShadow: 'var(--shadow-md)',
         border: '0.5px solid var(--hairline)',
         display: 'flex', alignItems: 'center', gap: 10,
-        flexDirection: 'row',
       }}>
-        <AvatarStack members={window.MEMBERS.slice(0, t.members)} size={26} />
+        {trip.members > 0 && <AvatarStack members={window.MEMBERS.slice(0, trip.members)} size={26} />}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11.5, color: 'var(--ink-mute)' }}>{window.isRTL ? 'الميزانية' : 'Budget used'}</div>
+          <div style={{ fontSize: 11.5, color: 'var(--ink-mute)' }}>
+            {window.isRTL ? 'الميزانية' : 'Budget used'}
+          </div>
           <div style={{ height: 5, marginTop: 4, borderRadius: 3, background: 'var(--sand)', overflow: 'hidden' }}>
-            <div style={{ width: `${t.budgetPct}%`, height: '100%', background: 'var(--clay)' }} />
+            <div style={{
+              width: `${Math.min(trip.budgetPct, 100)}%`, height: '100%',
+              background: trip.budgetPct > 100 ? 'var(--clay-deep)' : 'var(--clay)',
+              transition: 'width 380ms ease-out',
+            }} />
           </div>
         </div>
-        <div className="mono" style={{ fontSize: 14, fontWeight: 500 }}>{t.budgetPct}%</div>
-        <IconChevron size={14} stroke="var(--ink-mute)" />
+        <div className="mono" style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{trip.budgetPct}%</div>
+        <span className="icon-flip"><IconChevron size={14} stroke="var(--ink-mute)" /></span>
       </div>
       <div style={{ height: 12 }} />
+      <style>{`@keyframes pulse { 0%,100% { opacity:1; transform:scale(1) } 50% { opacity:0.5; transform:scale(0.85) } }`}</style>
+    </button>
+  );
+}
+
+// ── UPCOMING trip card — countdown to launch ──
+function UpcomingTripCard({ trip, onOpen }) {
+  const { daysUntil } = trip.state;
+  const countdownLabel =
+    daysUntil === 0 ? t('startingToday') :
+    daysUntil === 1 ? t('dayAway') :
+    t('daysAway', { n: daysUntil });
+  return (
+    <button onClick={onOpen} style={{
+      flexShrink: 0, width: 220, textAlign: 'start',
+      borderRadius: 22, overflow: 'hidden',
+      background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+      boxShadow: 'var(--shadow-card)',
+    }}>
+      <div style={{ height: 140, position: 'relative', overflow: 'hidden' }}>
+        <CoverArt kind={trip.cover} imageUrl={trip.coverImageUrl} />
+        {/* Countdown badge — top center */}
+        <div className="glass" style={{
+          position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+          padding: '5px 12px', borderRadius: 999,
+          background: 'rgba(0,0,0,0.45)', color: '#fff',
+          fontSize: 11, fontWeight: 600, letterSpacing: '0.02em',
+          backdropFilter: 'blur(8px)',
+          display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap',
+        }}>
+          <IconClock size={11} stroke="#fff" />
+          {countdownLabel}
+        </div>
+        {/* Country badge */}
+        {trip.country && (
+          <div className="glass" style={{
+            position: 'absolute', top: 12, insetInlineStart: 10,
+            padding: '4px 9px', borderRadius: 999, fontSize: 10,
+            color: '#fff', background: 'rgba(0,0,0,0.40)',
+            fontFamily: 'var(--mono)', letterSpacing: '0.1em',
+          }}>{trip.country}</div>
+        )}
+        {trip.shared && (
+          <div style={{ position: 'absolute', bottom: -10, insetInlineEnd: 14 }}>
+            <AvatarStack members={window.MEMBERS.slice(0, trip.members)} size={22} />
+          </div>
+        )}
+      </div>
+      <div style={{ padding: '14px 14px 12px' }}>
+        <div className="serif" style={{ fontSize: 22, lineHeight: 1, color: 'var(--ink)' }}>{trip.title}</div>
+        <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 4 }}>{trip.dates}</div>
+      </div>
+    </button>
+  );
+}
+
+// ── PAST trip card — completed badge + total spend ──
+function PastTripCard({ trip, onOpen }) {
+  const { totalDays } = trip.state;
+  const spent = trip.budgetPlannedUSD * (trip.budgetPct / 100); // estimate; real value comes when trip is loaded
+  return (
+    <button onClick={onOpen} style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '12px 14px', borderRadius: 18, textAlign: 'start', width: '100%',
+      background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+    }}>
+      <div style={{
+        width: 54, height: 54, borderRadius: 14, overflow: 'hidden',
+        flexShrink: 0, position: 'relative',
+      }}>
+        <CoverArt kind={trip.cover} imageUrl={trip.coverImageUrl} />
+        {/* Completed check overlay */}
+        <div style={{
+          position: 'absolute', bottom: 4, insetInlineEnd: 4,
+          width: 20, height: 20, borderRadius: 999,
+          background: 'var(--moss)', display: 'grid', placeItems: 'center',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.3)', border: '1.5px solid #fff',
+        }}><IconCheck size={11} stroke="#fff" /></div>
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="serif" style={{ fontSize: 17, lineHeight: 1.1, color: 'var(--ink)' }}>{trip.title}</span>
+          {trip.shared && (
+            <RoleBadgeMini icon={<IconUsers size={10} stroke="var(--ink-soft)" />} label={`${trip.members}`} />
+          )}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{
+            padding: '1px 7px', borderRadius: 999,
+            background: 'oklch(0.50 0.08 155 / 0.15)',
+            color: 'var(--moss)',
+            fontSize: 9.5, fontFamily: 'var(--mono)', letterSpacing: '0.08em',
+            fontWeight: 600, textTransform: 'uppercase', flexShrink: 0,
+          }}>{t('completed')}</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {t('lastedDays', { n: totalDays })} · {trip.dates}
+          </span>
+        </div>
+        {spent > 0 && (
+          <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 3, fontFamily: 'var(--mono)' }}>
+            {window.fmtMoney(spent, { in: 'home' })} · {t('spentTotal').toLowerCase()}
+          </div>
+        )}
+      </div>
+      <span className="icon-flip"><IconChevron size={14} stroke="var(--ink-mute)" /></span>
     </button>
   );
 }

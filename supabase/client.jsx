@@ -105,12 +105,17 @@ window.loadTrips = async (userId) => {
     title:        r.title,
     sub:          r.subtitle || '',
     dates:        window.fmtDateRange(r.start_date, r.end_date),
+    startDate:    r.start_date,
+    endDate:      r.end_date,
     country:      r.country_code || '',
     shared:       (r.trip_members || []).length > 1,
     members:      (r.trip_members || []).length,
     cover:        r.cover_style || 'kyoto',
     coverImageUrl: r.cover_image_url || null,
     budgetPct:    0,
+    budgetPlannedUSD: parseFloat(r.budget_planned_usd) || 0,
+    homeCurrency: r.home_currency || 'USD',
+    fx:           parseFloat(r.fx_rate) || 1,
     status:       r.status,
   }));
 

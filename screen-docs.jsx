@@ -13,7 +13,22 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
     return <div style={{ background: 'var(--cream)', minHeight: '100%' }}><TripSkeleton /></div>;
   }
 
-  const cats = window.DOC_CATEGORIES || [];
+  // Translate category labels at render time so they follow the current language
+  const CAT_KEY_TO_T = {
+    flights:   'docFlights',
+    lodging:   'docLodging',
+    visas:     'docVisas',
+    transport: 'docTransport',
+  };
+  const localizedLabel = (key, fallback) => {
+    const tKey = CAT_KEY_TO_T[key];
+    return tKey ? t(tKey) : (fallback || key);
+  };
+
+  const cats = (window.DOC_CATEGORIES || []).map((c) => ({
+    ...c,
+    label: localizedLabel(c.key, c.label),
+  }));
   const docsByCat = window.DOCS_BY_CAT || {};
 
   // Flatten + tag with category for filtering/sorting

@@ -26,6 +26,15 @@ const TRANSLATIONS = {
     budget:'Budget', totalSpent:'TOTAL SPENT', ofPlanned:'of',
     expenses:'Expenses', auditLog:'Audit log',
     lodging:'Lodging', food:'Food', transit:'Transit', culture:'Culture', misc:'Misc',
+    // Document categories (separate from expense categories above)
+    docFlights:'Flights', docLodging:'Accommodation', docVisas:'Visas & Official', docTransport:'Local Transport',
+    // Dynamic trip card states
+    daysAway:'{n} days away',    dayAway:'Tomorrow',
+    startingToday:'Starting today',
+    inProgress:'In progress',    dayOfTotal:'Day {n} of {total}',
+    completed:'Completed',       lastedDays:'{n} days',
+    spentTotal:'Total spent',    budgetOf:'of {b}',
+    today:'Today',
     added:'added', edited:'edited', uploaded:'uploaded', invited:'invited',
     ofTotal:'% of total', used:'USED',
     vault:'Vault', piles:'Piles', recentlyShared:'Recently shared',
@@ -100,6 +109,15 @@ const TRANSLATIONS = {
     budget:'الميزانية', totalSpent:'الإجمالي المنفق', ofPlanned:'من',
     expenses:'المصروفات', auditLog:'سجل المراجعة',
     lodging:'الإقامة', food:'الطعام', transit:'المواصلات', culture:'الثقافة', misc:'متنوع',
+    // Document categories — premium phrasing for Gulf users
+    docFlights:'الرحلات الجوية', docLodging:'الإقامة والفنادق', docVisas:'التأشيرات والوثائق', docTransport:'وسائل النقل',
+    // Dynamic trip card states
+    daysAway:'بعد {n} أيام',    dayAway:'غداً',
+    startingToday:'تبدأ اليوم',
+    inProgress:'جارية',          dayOfTotal:'اليوم {n} من {total}',
+    completed:'مكتملة',          lastedDays:'{n} أيام',
+    spentTotal:'الإجمالي المنفق', budgetOf:'من {b}',
+    today:'اليوم',
     added:'أضاف', edited:'عدّل', uploaded:'رفع', invited:'دعا',
     ofTotal:'٪ من الإجمالي', used:'مستخدم',
     vault:'المستندات', piles:'المجلدات', recentlyShared:'مشاركة مؤخراً',
@@ -154,9 +172,13 @@ const TRANSLATIONS = {
 
 window.LANG = 'en';
 window.isRTL = false;
-window.t = function(key) {
-  return (TRANSLATIONS[window.LANG] && TRANSLATIONS[window.LANG][key])
+window.t = function(key, vars) {
+  let s = (TRANSLATIONS[window.LANG] && TRANSLATIONS[window.LANG][key])
     || TRANSLATIONS.en[key] || key;
+  if (vars && typeof s === 'string') {
+    for (const k in vars) s = s.split('{' + k + '}').join(String(vars[k]));
+  }
+  return s;
 };
 
 // Format any date-ish input as YY/MM/DD (e.g. "25/11/12")

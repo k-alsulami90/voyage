@@ -97,6 +97,8 @@ function ScreenAddDoc({ back, onCreated }) {
             {(window.DOC_CATEGORIES || []).map((c) => {
               const active = cat === c.key;
               const color = TINT_FILL[c.tint] || 'var(--clay)';
+              const CAT_T = { flights: 'docFlights', lodging: 'docLodging', visas: 'docVisas', transport: 'docTransport' };
+              const localizedLabel = CAT_T[c.key] ? t(CAT_T[c.key]) : c.label;
               return (
                 <button key={c.key} onClick={() => setCat(c.key)} style={{
                   padding: '14px 14px', borderRadius: 16, textAlign: 'start',
@@ -106,7 +108,7 @@ function ScreenAddDoc({ back, onCreated }) {
                   display: 'flex', flexDirection: 'column', gap: 4,
                   transition: 'all 180ms',
                 }}>
-                  <div className="serif" style={{ fontSize: 16, lineHeight: 1.1 }}>{c.label}</div>
+                  <div className="serif" style={{ fontSize: 16, lineHeight: 1.1 }}>{localizedLabel}</div>
                   <div style={{ fontSize: 11, opacity: 0.75 }}>
                     {c.key === 'flights' && (window.isRTL ? 'تذاكر · بطاقات صعود' : 'Tickets · boarding')}
                     {c.key === 'lodging' && (window.isRTL ? 'فنادق · شقق' : 'Hotels · stays')}
