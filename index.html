@@ -207,38 +207,14 @@
     100% { opacity: 0;   transform: scale(3); }
   }
 
-  /* The plane itself — travels along an invisible path via SMIL/CSS */
+  /* Plane + trails use SVG native <animateMotion> (see markup below) —
+     that's universally supported, unlike CSS offset-path on SVG. */
   .scene-plane {
     fill: #f5ecd9;
-    /* offset-path follows the same curve as .scene-path */
-    offset-path: path('M 30,120 Q 140,10 250,80');
-    offset-distance: 0%;
-    offset-rotate: auto;
-    animation: plane-fly 1800ms cubic-bezier(.5,.0,.5,1) 200ms forwards;
     filter: drop-shadow(0 0 6px rgba(255,210,140,0.7));
   }
-  @keyframes plane-fly {
-    0%   { offset-distance: 0%;   opacity: 0; }
-    8%   { opacity: 1; }
-    92%  { opacity: 1; }
-    100% { offset-distance: 100%; opacity: 1; }
-  }
-
-  /* Trail of fading sparkles behind the plane */
   .scene-trail {
     fill: oklch(0.85 0.12 60);
-    offset-path: path('M 30,120 Q 140,10 250,80');
-    offset-rotate: 0deg;
-    opacity: 0;
-  }
-  .scene-trail.t1 { animation: trail-fly 1800ms ease-out  250ms forwards; }
-  .scene-trail.t2 { animation: trail-fly 1800ms ease-out  450ms forwards; }
-  .scene-trail.t3 { animation: trail-fly 1800ms ease-out  650ms forwards; }
-  .scene-trail.t4 { animation: trail-fly 1800ms ease-out  850ms forwards; }
-  @keyframes trail-fly {
-    0%   { offset-distance: 0%;  opacity: 0; }
-    20%  { opacity: 0.9; }
-    100% { offset-distance: 100%; opacity: 0; }
   }
 
   /* Mountain silhouette at the bottom — slight scale-in */
@@ -404,15 +380,43 @@
         <!-- Destination pin (right) -->
         <circle class="scene-pin-pulse dest" cx="250" cy="80" r="4" />
         <circle class="scene-pin dest"       cx="250" cy="80" r="3.5" />
-        <!-- Sparkle trail (4 staggered dots that follow the plane's path) -->
-        <circle class="scene-trail t1" r="1.6" />
-        <circle class="scene-trail t2" r="1.2" />
-        <circle class="scene-trail t3" r="0.9" />
-        <circle class="scene-trail t4" r="0.7" />
-        <!-- Plane silhouette traveling along the arc -->
+        <!-- Hidden path used by animateMotion (mpath) -->
+        <defs>
+          <path id="splash-arc" d="M 30,120 Q 140,10 250,80" />
+        </defs>
+        <!-- Sparkle trail — 4 dots, staggered by begin offset -->
+        <circle class="scene-trail" r="1.8" opacity="0">
+          <animateMotion dur="1.8s" begin="0.4s" fill="freeze">
+            <mpath href="#splash-arc" />
+          </animateMotion>
+          <animate attributeName="opacity" values="0;0.95;0" dur="1.8s" begin="0.4s" fill="freeze" />
+        </circle>
+        <circle class="scene-trail" r="1.4" opacity="0">
+          <animateMotion dur="1.8s" begin="0.55s" fill="freeze">
+            <mpath href="#splash-arc" />
+          </animateMotion>
+          <animate attributeName="opacity" values="0;0.85;0" dur="1.8s" begin="0.55s" fill="freeze" />
+        </circle>
+        <circle class="scene-trail" r="1.0" opacity="0">
+          <animateMotion dur="1.8s" begin="0.7s" fill="freeze">
+            <mpath href="#splash-arc" />
+          </animateMotion>
+          <animate attributeName="opacity" values="0;0.7;0" dur="1.8s" begin="0.7s" fill="freeze" />
+        </circle>
+        <circle class="scene-trail" r="0.7" opacity="0">
+          <animateMotion dur="1.8s" begin="0.85s" fill="freeze">
+            <mpath href="#splash-arc" />
+          </animateMotion>
+          <animate attributeName="opacity" values="0;0.6;0" dur="1.8s" begin="0.85s" fill="freeze" />
+        </circle>
+        <!-- Plane silhouette — flies along the arc, auto-rotating to face direction -->
         <g class="scene-plane">
-          <path d="M -8,-2 L 8,0 L -8,2 L -5,0 Z" />
-          <circle cx="0" cy="0" r="1.2" fill="rgba(255,255,255,0.9)" />
+          <!-- Drawn pointing right; rotate=auto on animateMotion handles direction -->
+          <path d="M -9,-3 L 9,0 L -9,3 L -5,0 Z" />
+          <circle cx="0" cy="0" r="1.4" fill="rgba(255,255,255,0.95)" />
+          <animateMotion dur="1.8s" begin="0.2s" fill="freeze" rotate="auto">
+            <mpath href="#splash-arc" />
+          </animateMotion>
         </g>
       </svg>
       <div class="splash-wordmark">voyage</div>
