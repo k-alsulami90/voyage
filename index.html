@@ -150,14 +150,21 @@
   }
 
   /* ── SVG scene — the actual "video" ── */
+  /* IMPORTANT: opacity defaults to 1 so the scene is always visible
+     even if entrance animation doesn't run (iOS Reduce Motion etc.) */
   .splash-scene {
     width: 280px; height: 170px;
-    opacity: 0;
-    animation: scene-in 700ms cubic-bezier(.32,.72,0,1) 80ms forwards;
+    opacity: 1;
   }
-  @keyframes scene-in {
-    0%   { opacity: 0; transform: translateY(8px) scale(0.96); }
-    100% { opacity: 1; transform: translateY(0) scale(1); }
+  /* Only fade up if motion is allowed */
+  @media (prefers-reduced-motion: no-preference) {
+    .splash-scene {
+      animation: scene-in 700ms cubic-bezier(.32,.72,0,1) both;
+    }
+    @keyframes scene-in {
+      0%   { opacity: 0; transform: translateY(8px) scale(0.96); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
   }
 
   /* The dotted travel arc draws across */
@@ -176,75 +183,128 @@
     100% { stroke-dashoffset: 0; }
   }
 
-  /* Origin + destination dots — pulse outward */
+  /* Origin + destination dots — visible by default, animate if motion allowed */
   .scene-pin {
-    fill: #f5ecd9;
     transform-origin: center;
     transform-box: fill-box;
-    opacity: 0;
-    animation: pin-in 400ms cubic-bezier(.32,1.6,.4,1) forwards;
-  }
-  .scene-pin.dest { animation-delay: 1700ms; }
-  .scene-pin.orig { animation-delay: 200ms; }
-  @keyframes pin-in {
-    0%   { opacity: 0; transform: scale(0); }
-    60%  { opacity: 1; transform: scale(1.6); }
-    100% { opacity: 1; transform: scale(1); }
   }
   .scene-pin-pulse {
-    fill: none;
     stroke: rgba(245,236,217,0.7);
     stroke-width: 1;
     transform-origin: center;
     transform-box: fill-box;
     opacity: 0;
-    animation: pin-pulse 1800ms ease-out infinite;
   }
-  .scene-pin-pulse.orig { animation-delay: 0.6s; }
-  .scene-pin-pulse.dest { animation-delay: 2.1s; }
-  @keyframes pin-pulse {
-    0%   { opacity: 0.8; transform: scale(0.8); }
-    100% { opacity: 0;   transform: scale(3); }
+  @media (prefers-reduced-motion: no-preference) {
+    .scene-pin {
+      opacity: 0;
+      animation: pin-in 400ms cubic-bezier(.32,1.6,.4,1) forwards;
+    }
+    .scene-pin.dest { animation-delay: 1700ms; }
+    .scene-pin.orig { animation-delay: 200ms; }
+    @keyframes pin-in {
+      0%   { opacity: 0; transform: scale(0); }
+      60%  { opacity: 1; transform: scale(1.6); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .scene-pin-pulse {
+      animation: pin-pulse 1800ms ease-out infinite;
+    }
+    .scene-pin-pulse.orig { animation-delay: 0.6s; }
+    .scene-pin-pulse.dest { animation-delay: 2.1s; }
+    @keyframes pin-pulse {
+      0%   { opacity: 0.8; transform: scale(0.8); }
+      100% { opacity: 0;   transform: scale(3); }
+    }
   }
 
-  /* Plane + trails use SVG native <animateMotion> (see markup below) —
-     that's universally supported, unlike CSS offset-path on SVG. */
+  /* Plane uses CSS transform keyframes — works EVERYWHERE (iOS Safari
+     PWA included). SMIL animateMotion was unreliable in standalone mode.
+     We approximate the Bezier curve with 5 waypoints. */
   .scene-plane {
-    fill: #f5ecd9;
-    filter: drop-shadow(0 0 6px rgba(255,210,140,0.7));
+    /* Sit at the origin pin by default — even if animation never runs */
+    transform: translate(30px, 120px) rotate(-30deg);
+    transform-origin: center;
+    transform-box: fill-box;
+    filter: drop-shadow(0 0 6px rgba(255,210,140,0.8));
+    animation: plane-arc 1900ms cubic-bezier(.42,.0,.58,1) 300ms forwards;
   }
-  .scene-trail {
-    fill: oklch(0.85 0.12 60);
+  @keyframes plane-arc {
+    0%   { transform: translate(30px, 120px)  rotate(-30deg); }
+    20%  { transform: translate(75px, 70px)   rotate(-18deg); }
+    40%  { transform: translate(125px, 30px)  rotate(-5deg); }
+    60%  { transform: translate(170px, 25px)  rotate(8deg); }
+    80%  { transform: translate(215px, 45px)  rotate(18deg); }
+    100% { transform: translate(250px, 80px)  rotate(25deg); }
   }
 
-  /* Mountain silhouette at the bottom — slight scale-in */
+  /* Sparkle trail — staggered dots following the same waypoints */
+  .scene-trail {
+    transform: translate(30px, 120px);
+    transform-origin: center;
+    transform-box: fill-box;
+    opacity: 0;
+  }
+  .scene-trail.t1 { animation: trail-arc 1900ms ease-out 400ms forwards; }
+  .scene-trail.t2 { animation: trail-arc 1900ms ease-out 550ms forwards; }
+  .scene-trail.t3 { animation: trail-arc 1900ms ease-out 700ms forwards; }
+  .scene-trail.t4 { animation: trail-arc 1900ms ease-out 850ms forwards; }
+  @keyframes trail-arc {
+    0%   { transform: translate(30px, 120px);  opacity: 0; }
+    15%  { opacity: 0.9; }
+    20%  { transform: translate(75px, 70px); }
+    40%  { transform: translate(125px, 30px); }
+    60%  { transform: translate(170px, 25px); }
+    80%  { transform: translate(215px, 45px); }
+    100% { transform: translate(250px, 80px);  opacity: 0; }
+  }
+
+  /* Reduced motion: just park the plane at the destination, no flight */
+  @media (prefers-reduced-motion: reduce) {
+    .scene-plane {
+      animation: none;
+      transform: translate(250px, 80px) rotate(20deg);
+    }
+    .scene-trail { display: none; }
+  }
+
+  /* Mountain silhouette — visible by default */
   .scene-mountain {
     fill: rgba(20,15,30,0.55);
     transform-origin: bottom center;
-    opacity: 0;
-    animation: mtn-in 900ms cubic-bezier(.32,.72,0,1) 100ms forwards;
   }
-  .scene-mountain.back { fill: rgba(40,30,55,0.45); animation-delay: 50ms; }
-  @keyframes mtn-in {
-    0%   { opacity: 0; transform: translateY(8px); }
-    100% { opacity: 1; transform: translateY(0); }
+  .scene-mountain.back { fill: rgba(40,30,55,0.45); }
+
+  /* Sun glow — always visible */
+  .scene-sun {
+    fill: #FFC972;
+    opacity: 0.65;
+    filter: blur(2px);
   }
 
-  /* Sun glow behind the path */
-  .scene-sun {
-    fill: oklch(0.85 0.14 50);
-    opacity: 0;
-    filter: blur(2px);
-    animation: sun-rise 1200ms cubic-bezier(.32,.72,0,1) 200ms forwards,
-               sun-pulse 3s ease-in-out 1400ms infinite;
-  }
-  @keyframes sun-rise {
-    0%   { opacity: 0; transform: translateY(20px); }
-    100% { opacity: 0.7; transform: translateY(0); }
-  }
-  @keyframes sun-pulse {
-    0%, 100% { opacity: 0.55; }
-    50%      { opacity: 0.85; }
+  @media (prefers-reduced-motion: no-preference) {
+    .scene-mountain {
+      opacity: 0;
+      animation: mtn-in 900ms cubic-bezier(.32,.72,0,1) 100ms forwards;
+    }
+    .scene-mountain.back { animation-delay: 50ms; }
+    @keyframes mtn-in {
+      0%   { opacity: 0; transform: translateY(8px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .scene-sun {
+      opacity: 0;
+      animation: sun-rise 1200ms cubic-bezier(.32,.72,0,1) 200ms forwards,
+                 sun-pulse 3s ease-in-out 1400ms infinite;
+    }
+    @keyframes sun-rise {
+      0%   { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 0.65; transform: translateY(0); }
+    }
+    @keyframes sun-pulse {
+      0%, 100% { opacity: 0.55; }
+      50%      { opacity: 0.85; }
+    }
   }
 
   /* Wordmark with shimmer pass */
@@ -359,15 +419,8 @@
       <span></span><span></span><span></span><span></span>
     </div>
     <div class="splash-stage">
-      <!-- The mini animated travel scene — plane flying across a curved path
-           over mountains, origin/destination pins, sun rising. -->
-      <svg class="splash-scene" viewBox="0 0 280 170"
-           xmlns="http://www.w3.org/2000/svg"
-           xmlns:xlink="http://www.w3.org/1999/xlink">
-        <!-- defs FIRST so animateMotion can find #splash-arc on any renderer -->
-        <defs>
-          <path id="splash-arc" d="M 30,120 Q 140,10 250,80" />
-        </defs>
+      <!-- Animated travel scene — pure CSS, no SMIL (iOS PWA compat). -->
+      <svg class="splash-scene" viewBox="0 0 280 170" xmlns="http://www.w3.org/2000/svg">
         <!-- Sun glow behind the path -->
         <ellipse class="scene-sun" cx="200" cy="105" rx="42" ry="42" />
         <!-- Distant mountain layer -->
@@ -376,50 +429,25 @@
         <!-- Front mountain layer -->
         <path class="scene-mountain"
               d="M 0,160 L 25,125 L 55,145 L 90,105 L 130,140 L 170,115 L 210,150 L 245,125 L 280,155 L 280,170 L 0,170 Z" />
-        <!-- The dotted travel arc -->
-        <path class="scene-path"
-              d="M 30,120 Q 140,10 250,80" />
+        <!-- The dotted travel arc — purely decorative -->
+        <path class="scene-path" d="M 30,120 Q 140,10 250,80" />
         <!-- Origin pin (left) -->
-        <circle class="scene-pin-pulse orig" cx="30" cy="120" r="4" />
-        <circle class="scene-pin orig"       cx="30" cy="120" r="3.5" />
+        <circle class="scene-pin-pulse orig" cx="30" cy="120" r="4" fill="none" />
+        <circle class="scene-pin orig"       cx="30" cy="120" r="3.5" fill="#f5ecd9" />
         <!-- Destination pin (right) -->
-        <circle class="scene-pin-pulse dest" cx="250" cy="80" r="4" />
-        <circle class="scene-pin dest"       cx="250" cy="80" r="3.5" />
+        <circle class="scene-pin-pulse dest" cx="250" cy="80" r="4" fill="none" />
+        <circle class="scene-pin dest"       cx="250" cy="80" r="3.5" fill="#f5ecd9" />
 
-        <!-- Sparkle trail — 4 dots that fly along the path, staggered by begin -->
-        <circle class="scene-trail" r="1.8" opacity="0" fill="#FFD9A8">
-          <animateMotion dur="1.8s" begin="0.4s" fill="freeze">
-            <mpath xlink:href="#splash-arc" href="#splash-arc" />
-          </animateMotion>
-          <animate attributeName="opacity" values="0;0.95;0" dur="1.8s" begin="0.4s" fill="freeze" />
-        </circle>
-        <circle class="scene-trail" r="1.4" opacity="0" fill="#FFD9A8">
-          <animateMotion dur="1.8s" begin="0.55s" fill="freeze">
-            <mpath xlink:href="#splash-arc" href="#splash-arc" />
-          </animateMotion>
-          <animate attributeName="opacity" values="0;0.85;0" dur="1.8s" begin="0.55s" fill="freeze" />
-        </circle>
-        <circle class="scene-trail" r="1.0" opacity="0" fill="#FFD9A8">
-          <animateMotion dur="1.8s" begin="0.7s" fill="freeze">
-            <mpath xlink:href="#splash-arc" href="#splash-arc" />
-          </animateMotion>
-          <animate attributeName="opacity" values="0;0.7;0" dur="1.8s" begin="0.7s" fill="freeze" />
-        </circle>
-        <circle class="scene-trail" r="0.7" opacity="0" fill="#FFD9A8">
-          <animateMotion dur="1.8s" begin="0.85s" fill="freeze">
-            <mpath xlink:href="#splash-arc" href="#splash-arc" />
-          </animateMotion>
-          <animate attributeName="opacity" values="0;0.6;0" dur="1.8s" begin="0.85s" fill="freeze" />
-        </circle>
+        <!-- Sparkle trail — 4 dots animated via pure CSS waypoints -->
+        <circle class="scene-trail t1" cx="0" cy="0" r="1.8" fill="#FFD9A8" />
+        <circle class="scene-trail t2" cx="0" cy="0" r="1.4" fill="#FFD9A8" />
+        <circle class="scene-trail t3" cx="0" cy="0" r="1.0" fill="#FFD9A8" />
+        <circle class="scene-trail t4" cx="0" cy="0" r="0.7" fill="#FFD9A8" />
 
-        <!-- Plane silhouette — flies along the arc, auto-rotating to face direction.
-             Explicit fill on path so it works without CSS inheritance. -->
+        <!-- Plane — CSS transform keyframes carry it along 5 waypoints -->
         <g class="scene-plane">
           <path d="M -10,-4 L 10,0 L -10,4 L -6,0 Z" fill="#f5ecd9" />
           <circle cx="0" cy="0" r="1.6" fill="#ffffff" />
-          <animateMotion dur="1.8s" begin="0.2s" fill="freeze" rotate="auto">
-            <mpath xlink:href="#splash-arc" href="#splash-arc" />
-          </animateMotion>
         </g>
       </svg>
       <div class="splash-wordmark">voyage</div>
