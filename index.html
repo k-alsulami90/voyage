@@ -361,7 +361,13 @@
     <div class="splash-stage">
       <!-- The mini animated travel scene — plane flying across a curved path
            over mountains, origin/destination pins, sun rising. -->
-      <svg class="splash-scene" viewBox="0 0 280 170" xmlns="http://www.w3.org/2000/svg">
+      <svg class="splash-scene" viewBox="0 0 280 170"
+           xmlns="http://www.w3.org/2000/svg"
+           xmlns:xlink="http://www.w3.org/1999/xlink">
+        <!-- defs FIRST so animateMotion can find #splash-arc on any renderer -->
+        <defs>
+          <path id="splash-arc" d="M 30,120 Q 140,10 250,80" />
+        </defs>
         <!-- Sun glow behind the path -->
         <ellipse class="scene-sun" cx="200" cy="105" rx="42" ry="42" />
         <!-- Distant mountain layer -->
@@ -372,50 +378,47 @@
               d="M 0,160 L 25,125 L 55,145 L 90,105 L 130,140 L 170,115 L 210,150 L 245,125 L 280,155 L 280,170 L 0,170 Z" />
         <!-- The dotted travel arc -->
         <path class="scene-path"
-              d="M 30,120 Q 140,10 250,80"
-              stroke-dasharray="320 0" />
+              d="M 30,120 Q 140,10 250,80" />
         <!-- Origin pin (left) -->
         <circle class="scene-pin-pulse orig" cx="30" cy="120" r="4" />
         <circle class="scene-pin orig"       cx="30" cy="120" r="3.5" />
         <!-- Destination pin (right) -->
         <circle class="scene-pin-pulse dest" cx="250" cy="80" r="4" />
         <circle class="scene-pin dest"       cx="250" cy="80" r="3.5" />
-        <!-- Hidden path used by animateMotion (mpath) -->
-        <defs>
-          <path id="splash-arc" d="M 30,120 Q 140,10 250,80" />
-        </defs>
-        <!-- Sparkle trail — 4 dots, staggered by begin offset -->
-        <circle class="scene-trail" r="1.8" opacity="0">
+
+        <!-- Sparkle trail — 4 dots that fly along the path, staggered by begin -->
+        <circle class="scene-trail" r="1.8" opacity="0" fill="#FFD9A8">
           <animateMotion dur="1.8s" begin="0.4s" fill="freeze">
-            <mpath href="#splash-arc" />
+            <mpath xlink:href="#splash-arc" href="#splash-arc" />
           </animateMotion>
           <animate attributeName="opacity" values="0;0.95;0" dur="1.8s" begin="0.4s" fill="freeze" />
         </circle>
-        <circle class="scene-trail" r="1.4" opacity="0">
+        <circle class="scene-trail" r="1.4" opacity="0" fill="#FFD9A8">
           <animateMotion dur="1.8s" begin="0.55s" fill="freeze">
-            <mpath href="#splash-arc" />
+            <mpath xlink:href="#splash-arc" href="#splash-arc" />
           </animateMotion>
           <animate attributeName="opacity" values="0;0.85;0" dur="1.8s" begin="0.55s" fill="freeze" />
         </circle>
-        <circle class="scene-trail" r="1.0" opacity="0">
+        <circle class="scene-trail" r="1.0" opacity="0" fill="#FFD9A8">
           <animateMotion dur="1.8s" begin="0.7s" fill="freeze">
-            <mpath href="#splash-arc" />
+            <mpath xlink:href="#splash-arc" href="#splash-arc" />
           </animateMotion>
           <animate attributeName="opacity" values="0;0.7;0" dur="1.8s" begin="0.7s" fill="freeze" />
         </circle>
-        <circle class="scene-trail" r="0.7" opacity="0">
+        <circle class="scene-trail" r="0.7" opacity="0" fill="#FFD9A8">
           <animateMotion dur="1.8s" begin="0.85s" fill="freeze">
-            <mpath href="#splash-arc" />
+            <mpath xlink:href="#splash-arc" href="#splash-arc" />
           </animateMotion>
           <animate attributeName="opacity" values="0;0.6;0" dur="1.8s" begin="0.85s" fill="freeze" />
         </circle>
-        <!-- Plane silhouette — flies along the arc, auto-rotating to face direction -->
+
+        <!-- Plane silhouette — flies along the arc, auto-rotating to face direction.
+             Explicit fill on path so it works without CSS inheritance. -->
         <g class="scene-plane">
-          <!-- Drawn pointing right; rotate=auto on animateMotion handles direction -->
-          <path d="M -9,-3 L 9,0 L -9,3 L -5,0 Z" />
-          <circle cx="0" cy="0" r="1.4" fill="rgba(255,255,255,0.95)" />
+          <path d="M -10,-4 L 10,0 L -10,4 L -6,0 Z" fill="#f5ecd9" />
+          <circle cx="0" cy="0" r="1.6" fill="#ffffff" />
           <animateMotion dur="1.8s" begin="0.2s" fill="freeze" rotate="auto">
-            <mpath href="#splash-arc" />
+            <mpath xlink:href="#splash-arc" href="#splash-arc" />
           </animateMotion>
         </g>
       </svg>
