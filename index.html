@@ -69,143 +69,250 @@
   }
 
   /* ─────────────────────────────────────────────────────────────
-     SPLASH — pure CSS, runs BEFORE Babel/React load.
-     Cold open: ~1.6s of brand animation, then fades into the app.
-     Auto-dismisses via JS when React mounts (whichever is later).
+     SPLASH — cinematic 2.5s cold-boot animation.
+     Pure CSS, paints before any JSX is parsed. JS auto-dismisses
+     after React mounts (with a 2500ms minimum show time).
      ───────────────────────────────────────────────────────────── */
   #splash {
     position: fixed; inset: 0; z-index: 9999;
-    display: grid; place-items: center;
-    background:
-      radial-gradient(ellipse 55% 50% at 30% 25%, oklch(0.32 0.06 30) 0%, transparent 60%),
-      radial-gradient(ellipse 70% 60% at 75% 100%, oklch(0.16 0.04 260) 0%, transparent 55%),
-      #0F172A;
+    display: grid; place-items: center; overflow: hidden;
+    background: #0a0f1e;
     color: #f5ecd9;
-    transition: opacity 600ms cubic-bezier(.32,.72,0,1), visibility 0s linear 600ms;
+    transition: opacity 700ms cubic-bezier(.32,.72,0,1), visibility 0s linear 700ms;
     will-change: opacity;
   }
   #splash.splash-leave {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
+    opacity: 0; visibility: hidden; pointer-events: none;
   }
 
+  /* Live aurora background — three blobs orbiting + breathing */
+  .splash-aurora { position: absolute; inset: 0; pointer-events: none; }
+  .splash-aurora b {
+    position: absolute; display: block;
+    border-radius: 50%; filter: blur(70px);
+    will-change: transform, opacity;
+  }
+  .splash-aurora b:nth-child(1) {
+    width: 70vw; height: 70vw; max-width: 560px; max-height: 560px;
+    background: oklch(0.62 0.17 35); top: -25%; left: -20%;
+    opacity: 0.55;
+    animation: aur-drift-1 7s cubic-bezier(.45,.05,.55,.95) infinite alternate,
+               aur-pulse  4s ease-in-out infinite alternate;
+  }
+  .splash-aurora b:nth-child(2) {
+    width: 65vw; height: 65vw; max-width: 520px; max-height: 520px;
+    background: oklch(0.55 0.18 260); bottom: -30%; right: -20%;
+    opacity: 0.50;
+    animation: aur-drift-2 8s cubic-bezier(.45,.05,.55,.95) infinite alternate,
+               aur-pulse  5s ease-in-out 1s infinite alternate;
+  }
+  .splash-aurora b:nth-child(3) {
+    width: 45vw; height: 45vw; max-width: 380px; max-height: 380px;
+    background: oklch(0.50 0.14 320); top: 40%; left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0.32;
+    animation: aur-drift-3 9s cubic-bezier(.45,.05,.55,.95) infinite alternate,
+               aur-pulse  6s ease-in-out 0.5s infinite alternate;
+  }
+  @keyframes aur-drift-1 { to { transform: translate(60px, 40px) scale(1.15); } }
+  @keyframes aur-drift-2 { to { transform: translate(-50px, -40px) scale(1.20); } }
+  @keyframes aur-drift-3 { to { transform: translate(-50%, -50%) translate(30px, -20px) scale(1.10); } }
+  @keyframes aur-pulse { to { opacity: 0.75; } }
+
+  /* Twinkling stars — 6 layered pseudo-elements via SVG-ish positions */
+  .splash-stars {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0;
+    animation: splash-fade-in 800ms ease-out 300ms forwards;
+  }
+  .splash-stars span {
+    position: absolute; width: 2px; height: 2px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 4px rgba(255,255,255,0.8);
+    animation: twinkle 2.5s ease-in-out infinite;
+  }
+  .splash-stars span:nth-child(1) { top: 18%; left: 22%; animation-delay: 0s; }
+  .splash-stars span:nth-child(2) { top: 32%; left: 78%; animation-delay: 0.4s; }
+  .splash-stars span:nth-child(3) { top: 70%; left: 18%; animation-delay: 0.9s; }
+  .splash-stars span:nth-child(4) { top: 75%; left: 82%; animation-delay: 0.2s; }
+  .splash-stars span:nth-child(5) { top: 15%; left: 60%; animation-delay: 1.3s; }
+  .splash-stars span:nth-child(6) { top: 85%; left: 50%; animation-delay: 0.7s; }
+  .splash-stars span:nth-child(7) { top: 45%; left: 12%; animation-delay: 1.6s; }
+  .splash-stars span:nth-child(8) { top: 55%; left: 90%; animation-delay: 0.5s; }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.15; transform: scale(0.7); }
+    50%      { opacity: 1;    transform: scale(1.4); }
+  }
+
+  /* Center stage */
   .splash-stage {
-    display: flex; flex-direction: column; align-items: center; gap: 18px;
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column; align-items: center; gap: 20px;
     text-align: center;
-    transform: translateY(8px);
-    animation: splash-stage-up 1100ms cubic-bezier(.32,.72,0,1) forwards;
-  }
-  @keyframes splash-stage-up {
-    0%   { transform: translateY(8px); }
-    100% { transform: translateY(0); }
   }
 
-  /* Brand mark — compass-like spinner that draws in */
+  /* Brand mark with rotating compass ring + breathing core */
   .splash-mark {
-    width: 56px; height: 56px;
-    border-radius: 18px;
-    background: linear-gradient(140deg, oklch(0.85 0.07 40) 0%, oklch(0.62 0.13 35) 100%);
-    display: grid; place-items: center;
-    box-shadow: 0 12px 28px rgba(60,30,15,0.55), inset 0 1px 0 rgba(255,255,255,0.25);
+    position: relative; width: 72px; height: 72px;
     opacity: 0;
-    transform: scale(0.86) rotate(-8deg);
-    animation: splash-mark-in 700ms cubic-bezier(.32,.72,0,1) 100ms forwards;
+    animation: mark-pop 800ms cubic-bezier(.32,1.6,.4,1) 100ms forwards;
   }
-  @keyframes splash-mark-in {
-    0%   { opacity: 0; transform: scale(0.86) rotate(-8deg); }
-    60%  { opacity: 1; transform: scale(1.05) rotate(2deg); }
+  @keyframes mark-pop {
+    0%   { opacity: 0; transform: scale(0.4) rotate(-30deg); }
+    60%  { opacity: 1; transform: scale(1.15) rotate(8deg); }
     100% { opacity: 1; transform: scale(1) rotate(0deg); }
   }
-  .splash-mark svg { color: #fff; opacity: 0.95; }
+  /* Outer ring that slowly rotates */
+  .splash-mark::before {
+    content: ''; position: absolute; inset: -6px;
+    border-radius: 50%;
+    border: 1px dashed rgba(245,236,217,0.35);
+    animation: ring-spin 8s linear infinite;
+  }
+  @keyframes ring-spin { to { transform: rotate(360deg); } }
+  /* Core badge — clay gradient with breathing scale */
+  .splash-mark-core {
+    position: absolute; inset: 0;
+    border-radius: 20px;
+    background: linear-gradient(140deg, oklch(0.85 0.09 40) 0%, oklch(0.62 0.16 30) 100%);
+    display: grid; place-items: center;
+    box-shadow:
+      0 14px 32px rgba(60,30,15,0.5),
+      inset 0 1px 0 rgba(255,255,255,0.3),
+      inset 0 -8px 16px rgba(0,0,0,0.15);
+    animation: mark-breathe 2.4s ease-in-out infinite;
+  }
+  @keyframes mark-breathe {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.06); }
+  }
+  .splash-mark-core svg { color: #fff; }
 
-  /* Wordmark "voyage" — fades in with subtle slide */
+  /* Wordmark with shimmer pass */
   .splash-wordmark {
     font-family: 'Instrument Serif', Georgia, serif;
     font-style: italic;
-    font-size: 56px;
+    font-size: 60px;
     line-height: 1;
     letter-spacing: -0.02em;
     color: #f5ecd9;
     opacity: 0;
-    animation: splash-fade-up 700ms cubic-bezier(.32,.72,0,1) 350ms forwards;
+    background: linear-gradient(110deg,
+      #f5ecd9 0%, #f5ecd9 40%,
+      #ffd9a8 50%,
+      #f5ecd9 60%, #f5ecd9 100%);
+    background-size: 200% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-position: 100% 0;
+    animation:
+      wm-in 700ms cubic-bezier(.32,.72,0,1) 500ms forwards,
+      wm-shimmer 2.6s ease-out 1100ms infinite;
+  }
+  @keyframes wm-in {
+    0%   { opacity: 0; transform: translateY(12px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes wm-shimmer {
+    0%   { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
   }
 
-  /* Thin tracking line that draws horizontally */
+  /* Tracking line that draws + glows */
   .splash-rule {
-    width: 0; height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(245,236,217,0.5), transparent);
-    animation: splash-line-grow 600ms cubic-bezier(.32,.72,0,1) 650ms forwards;
+    position: relative; width: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(245,236,217,0.6), transparent);
+    animation: rule-grow 700ms cubic-bezier(.32,.72,0,1) 900ms forwards;
   }
-  @keyframes splash-line-grow {
-    to { width: 140px; }
-  }
+  @keyframes rule-grow { to { width: 160px; } }
 
-  /* Tagline mono caps */
+  /* Tagline + loading dots */
   .splash-tagline {
     font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 9.5px;
+    font-size: 10px;
     letter-spacing: 0.32em;
     text-transform: uppercase;
-    color: rgba(245,236,217,0.72);
+    color: rgba(245,236,217,0.78);
     opacity: 0;
-    animation: splash-fade-up 700ms cubic-bezier(.32,.72,0,1) 900ms forwards;
+    animation: tag-in 700ms cubic-bezier(.32,.72,0,1) 1200ms forwards;
   }
-
-  @keyframes splash-fade-up {
+  @keyframes tag-in {
     0%   { opacity: 0; transform: translateY(6px); }
     100% { opacity: 1; transform: translateY(0); }
   }
 
-  /* Slow drifting aurora behind everything for depth */
-  .splash-aurora {
-    position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+  /* Animated loading dots beneath everything */
+  .splash-dots {
+    display: flex; gap: 6px; margin-top: 6px;
+    opacity: 0;
+    animation: tag-in 600ms ease-out 1500ms forwards;
   }
-  .splash-aurora::before,
-  .splash-aurora::after {
-    content: ''; position: absolute;
-    width: 60vw; height: 60vw; max-width: 500px; max-height: 500px;
-    border-radius: 50%; filter: blur(60px); opacity: 0.55;
+  .splash-dots span {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: rgba(245,236,217,0.85);
+    animation: dot-bounce 1.2s ease-in-out infinite;
   }
-  .splash-aurora::before {
-    background: oklch(0.55 0.14 35); top: -20%; left: -20%;
-    animation: splash-drift-a 8s ease-in-out infinite alternate;
-  }
-  .splash-aurora::after {
-    background: oklch(0.48 0.12 260); bottom: -25%; right: -15%;
-    animation: splash-drift-b 9s ease-in-out infinite alternate;
-  }
-  @keyframes splash-drift-a {
-    to { transform: translate(20px, 16px) scale(1.05); }
-  }
-  @keyframes splash-drift-b {
-    to { transform: translate(-18px, -14px) scale(1.08); }
+  .splash-dots span:nth-child(1) { animation-delay: 0s; }
+  .splash-dots span:nth-child(2) { animation-delay: 0.18s; }
+  .splash-dots span:nth-child(3) { animation-delay: 0.36s; }
+  @keyframes dot-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30%           { transform: translateY(-7px); opacity: 1; }
   }
 
-  /* Respect users who prefer reduced motion */
+  /* Bottom progress bar fills the full 2.5s */
+  .splash-progress {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: rgba(255,255,255,0.06);
+    overflow: hidden;
+  }
+  .splash-progress::after {
+    content: ''; display: block; height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--clay, oklch(0.72 0.14 30)) 0%, oklch(0.78 0.12 35) 100%);
+    box-shadow: 0 0 12px oklch(0.72 0.14 30 / 0.7);
+    animation: bar-fill 2400ms cubic-bezier(.45,.05,.55,.95) forwards;
+  }
+  @keyframes bar-fill { to { width: 100%; } }
+
+  @keyframes splash-fade-in { to { opacity: 1; } }
+
+  /* Reduced motion — skip animations, show final state immediately */
   @media (prefers-reduced-motion: reduce) {
-    #splash *, #splash::before, #splash::after { animation: none !important; }
-    .splash-mark, .splash-wordmark, .splash-rule, .splash-tagline { opacity: 1; transform: none; }
-    .splash-rule { width: 140px; }
+    #splash *,
+    #splash::before, #splash::after {
+      animation: none !important;
+    }
+    .splash-mark, .splash-wordmark, .splash-rule, .splash-tagline,
+    .splash-dots, .splash-stars { opacity: 1; transform: none; }
+    .splash-rule { width: 160px; }
+    .splash-progress::after { width: 100%; }
+    .splash-wordmark { -webkit-text-fill-color: #f5ecd9; background: none; }
   }
 </style>
 </head>
 <body>
-  <!-- Splash — rendered before React/Babel load. JS hides it once React mounts. -->
+  <!-- Splash — pure CSS, paints before React loads. JS dismisses after mount. -->
   <div id="splash" aria-hidden="true">
-    <div class="splash-aurora"></div>
+    <div class="splash-aurora"><b></b><b></b><b></b></div>
+    <div class="splash-stars">
+      <span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span>
+    </div>
     <div class="splash-stage">
       <div class="splash-mark">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M12 4 L14 12 L12 20 L10 12 Z" fill="currentColor" stroke="none" />
-        </svg>
+        <div class="splash-mark-core">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 4 L14.5 12 L12 20 L9.5 12 Z" fill="currentColor" stroke="none" />
+          </svg>
+        </div>
       </div>
       <div class="splash-wordmark">voyage</div>
       <div class="splash-rule"></div>
       <div class="splash-tagline">For people who wander</div>
+      <div class="splash-dots"><span></span><span></span><span></span></div>
     </div>
+    <div class="splash-progress"></div>
   </div>
 
   <div id="root">
@@ -234,8 +341,8 @@
     // (otherwise on fast networks the splash flashes for 200ms).
     // Maximum show time so a stuck app doesn't hide the splash forever.
     (function () {
-      var SPLASH_MIN_MS = 1400;
-      var SPLASH_MAX_MS = 6000;
+      var SPLASH_MIN_MS = 2500;
+      var SPLASH_MAX_MS = 7000;
       var mountedAt = Date.now();
       var splash = document.getElementById('splash');
       var dismissed = false;
