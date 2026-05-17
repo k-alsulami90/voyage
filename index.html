@@ -85,61 +85,49 @@
     opacity: 0; visibility: hidden; pointer-events: none;
   }
 
-  /* Live aurora background — three blobs orbiting + breathing */
+  /* Live aurora — TWO blobs (was 3), smaller blur (was 70px), GPU-promoted */
   .splash-aurora { position: absolute; inset: 0; pointer-events: none; }
   .splash-aurora b {
     position: absolute; display: block;
-    border-radius: 50%; filter: blur(70px);
-    will-change: transform, opacity;
+    border-radius: 50%;
+    filter: blur(40px);                 /* was 70 — half the GPU cost */
+    will-change: transform;             /* GPU layer, no opacity changes either */
+    transform: translateZ(0);           /* force compositing on iOS */
   }
   .splash-aurora b:nth-child(1) {
-    width: 70vw; height: 70vw; max-width: 560px; max-height: 560px;
-    background: oklch(0.62 0.17 35); top: -25%; left: -20%;
-    opacity: 0.55;
-    animation: aur-drift-1 7s cubic-bezier(.45,.05,.55,.95) infinite alternate,
-               aur-pulse  4s ease-in-out infinite alternate;
+    width: 70vw; height: 70vw; max-width: 480px; max-height: 480px;
+    background: #FF8A5C; top: -25%; left: -20%;   /* solid hex = faster than oklch */
+    opacity: 0.45;
+    animation: aur-drift-1 10s ease-in-out infinite alternate;
   }
   .splash-aurora b:nth-child(2) {
-    width: 65vw; height: 65vw; max-width: 520px; max-height: 520px;
-    background: oklch(0.55 0.18 260); bottom: -30%; right: -20%;
-    opacity: 0.50;
-    animation: aur-drift-2 8s cubic-bezier(.45,.05,.55,.95) infinite alternate,
-               aur-pulse  5s ease-in-out 1s infinite alternate;
+    width: 65vw; height: 65vw; max-width: 460px; max-height: 460px;
+    background: #6B7BFF; bottom: -30%; right: -20%;
+    opacity: 0.40;
+    animation: aur-drift-2 12s ease-in-out infinite alternate;
   }
-  .splash-aurora b:nth-child(3) {
-    width: 45vw; height: 45vw; max-width: 380px; max-height: 380px;
-    background: oklch(0.50 0.14 320); top: 40%; left: 50%;
-    transform: translate(-50%, -50%);
-    opacity: 0.32;
-    animation: aur-drift-3 9s cubic-bezier(.45,.05,.55,.95) infinite alternate,
-               aur-pulse  6s ease-in-out 0.5s infinite alternate;
-  }
-  @keyframes aur-drift-1 { to { transform: translate(60px, 40px) scale(1.15); } }
-  @keyframes aur-drift-2 { to { transform: translate(-50px, -40px) scale(1.20); } }
-  @keyframes aur-drift-3 { to { transform: translate(-50%, -50%) translate(30px, -20px) scale(1.10); } }
-  @keyframes aur-pulse { to { opacity: 0.75; } }
+  /* Removed 3rd blob + the pulse animation — both were FPS killers */
+  @keyframes aur-drift-1 { to { transform: translate3d(40px, 30px, 0) scale(1.1); } }
+  @keyframes aur-drift-2 { to { transform: translate3d(-40px, -30px, 0) scale(1.12); } }
 
-  /* Twinkling stars — 6 layered pseudo-elements via SVG-ish positions */
+  /* Twinkling stars — kept but reduced from 8 → 4, no box-shadow (cheaper) */
   .splash-stars {
-    position: absolute; inset: 0; pointer-events: none; opacity: 0;
-    animation: splash-fade-in 800ms ease-out 300ms forwards;
+    position: absolute; inset: 0; pointer-events: none;
   }
   .splash-stars span {
     position: absolute; width: 2px; height: 2px; border-radius: 50%;
-    background: #fff; box-shadow: 0 0 4px rgba(255,255,255,0.8);
-    animation: twinkle 2.5s ease-in-out infinite;
+    background: #fff;
+    opacity: 0.6;
+    will-change: opacity, transform;
+    animation: twinkle 3s ease-in-out infinite;
   }
   .splash-stars span:nth-child(1) { top: 18%; left: 22%; animation-delay: 0s; }
-  .splash-stars span:nth-child(2) { top: 32%; left: 78%; animation-delay: 0.4s; }
-  .splash-stars span:nth-child(3) { top: 70%; left: 18%; animation-delay: 0.9s; }
-  .splash-stars span:nth-child(4) { top: 75%; left: 82%; animation-delay: 0.2s; }
-  .splash-stars span:nth-child(5) { top: 15%; left: 60%; animation-delay: 1.3s; }
-  .splash-stars span:nth-child(6) { top: 85%; left: 50%; animation-delay: 0.7s; }
-  .splash-stars span:nth-child(7) { top: 45%; left: 12%; animation-delay: 1.6s; }
-  .splash-stars span:nth-child(8) { top: 55%; left: 90%; animation-delay: 0.5s; }
+  .splash-stars span:nth-child(2) { top: 32%; left: 78%; animation-delay: 0.7s; }
+  .splash-stars span:nth-child(3) { top: 75%; left: 82%; animation-delay: 0.3s; }
+  .splash-stars span:nth-child(4) { top: 15%; left: 60%; animation-delay: 1.4s; }
   @keyframes twinkle {
-    0%, 100% { opacity: 0.15; transform: scale(0.7); }
-    50%      { opacity: 1;    transform: scale(1.4); }
+    0%, 100% { opacity: 0.25; }
+    50%      { opacity: 1; }
   }
 
   /* Center stage */
@@ -208,7 +196,8 @@
       100% { opacity: 1; transform: scale(1); }
     }
     .scene-pin-pulse {
-      animation: pin-pulse 1800ms ease-out infinite;
+      animation: pin-pulse 1800ms ease-out 2;       /* run 2× then stop */
+      will-change: transform, opacity;
     }
     .scene-pin-pulse.orig { animation-delay: 0.6s; }
     .scene-pin-pulse.dest { animation-delay: 2.1s; }
@@ -218,15 +207,14 @@
     }
   }
 
-  /* Plane uses CSS transform keyframes — works EVERYWHERE (iOS Safari
-     PWA included). SMIL animateMotion was unreliable in standalone mode.
-     We approximate the Bezier curve with 5 waypoints. */
+  /* Plane uses CSS transform keyframes — works EVERYWHERE.
+     5 waypoints approximate the Bezier curve.
+     Drop-shadow filter removed — it's a per-frame GPU cost on iOS. */
   .scene-plane {
-    /* Sit at the origin pin by default — even if animation never runs */
     transform: translate(30px, 120px) rotate(-30deg);
     transform-origin: center;
     transform-box: fill-box;
-    filter: drop-shadow(0 0 6px rgba(255,210,140,0.8));
+    will-change: transform;
     animation: plane-arc 1900ms cubic-bezier(.42,.0,.58,1) 300ms forwards;
   }
   @keyframes plane-arc {
@@ -294,20 +282,15 @@
     }
     .scene-sun {
       opacity: 0;
-      animation: sun-rise 1200ms cubic-bezier(.32,.72,0,1) 200ms forwards,
-                 sun-pulse 3s ease-in-out 1400ms infinite;
+      animation: sun-rise 1200ms cubic-bezier(.32,.72,0,1) 200ms forwards;
     }
     @keyframes sun-rise {
       0%   { opacity: 0; transform: translateY(20px); }
       100% { opacity: 0.65; transform: translateY(0); }
     }
-    @keyframes sun-pulse {
-      0%, 100% { opacity: 0.55; }
-      50%      { opacity: 0.85; }
-    }
   }
 
-  /* Wordmark with shimmer pass */
+  /* Wordmark — plain text fade (shimmer killed for FPS) */
   .splash-wordmark {
     font-family: 'Instrument Serif', Georgia, serif;
     font-style: italic;
@@ -316,26 +299,12 @@
     letter-spacing: -0.02em;
     color: #f5ecd9;
     opacity: 0;
-    background: linear-gradient(110deg,
-      #f5ecd9 0%, #f5ecd9 40%,
-      #ffd9a8 50%,
-      #f5ecd9 60%, #f5ecd9 100%);
-    background-size: 200% 100%;
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-position: 100% 0;
-    animation:
-      wm-in 700ms cubic-bezier(.32,.72,0,1) 1900ms forwards,
-      wm-shimmer 2.6s ease-out 2500ms infinite;
+    will-change: opacity, transform;
+    animation: wm-in 700ms cubic-bezier(.32,.72,0,1) 1900ms forwards;
   }
   @keyframes wm-in {
     0%   { opacity: 0; transform: translateY(12px); }
     100% { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes wm-shimmer {
-    0%   { background-position: 100% 0; }
-    100% { background-position: -100% 0; }
   }
 
   /* Tracking line that draws + glows */
