@@ -501,7 +501,7 @@ function TripNav({ active, onChange, onExit, onAdd }) {
   return (
     <>
       <button onClick={onExit} className="glass" style={{
-        position: 'absolute', bottom: 'calc(78px + env(safe-area-inset-bottom))',
+        position: 'absolute', bottom: 'calc(72px + env(safe-area-inset-bottom))',
         left: '50%', transform: 'translateX(-50%)',
         zIndex: 51, padding: '6px 12px 6px 9px', borderRadius: 999,
         background: 'rgba(15, 23, 42, 0.78)', color: '#fff',
@@ -530,31 +530,31 @@ function TripNav({ active, onChange, onExit, onAdd }) {
   );
 }
 
+// Classic iOS-style tab bar — flush to the bottom edge, full width, safe-area inset
 const navShell = {
-  position: 'absolute', bottom: 'calc(14px + env(safe-area-inset-bottom))', left: 14, right: 14, zIndex: 50,
-  padding: '7px 8px', borderRadius: 28,
-  // Slate-900 with high opacity — works in both light + dark themes (always a dark floating pill)
-  background: 'rgba(15, 23, 42, 0.88)',
+  position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 50,
+  padding: '8px 10px calc(8px + env(safe-area-inset-bottom))',
+  background: 'rgba(15, 23, 42, 0.92)',
   backdropFilter: 'blur(28px) saturate(180%)',
   WebkitBackdropFilter: 'blur(28px) saturate(180%)',
-  border: '0.5px solid rgba(255,255,255,0.10)',
-  boxShadow: '0 16px 32px rgba(0,0,0,0.32)',
+  borderTop: '0.5px solid rgba(255,255,255,0.10)',
+  boxShadow: '0 -6px 20px rgba(0,0,0,0.25)',
   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  overflow: 'hidden',
+  gap: 4,
 };
 const navItem = (active) => ({
   display: 'flex', alignItems: 'center', gap: 6,
-  padding: active ? '8px 10px' : '8px', borderRadius: 18,
-  // Active state: always-white pill (visible on any theme's slate pill)
+  padding: active ? '8px 12px' : '8px', borderRadius: 16,
   background: active ? '#fff' : 'transparent',
   color: active ? '#0F172A' : 'rgba(255,255,255,0.70)',
   transition: 'all 240ms cubic-bezier(.2,.8,.2,1)',
   flexShrink: 1, minWidth: 0, overflow: 'hidden',
 });
 const navAdd = {
-  width: 40, height: 40, borderRadius: 999,
+  width: 38, height: 38, borderRadius: 999,
   background: 'var(--clay)', display: 'grid', placeItems: 'center',
   boxShadow: '0 4px 12px oklch(0.62 0.13 35 / 0.6)',
+  flexShrink: 0,
 };
 
 // ── Sheets ──
