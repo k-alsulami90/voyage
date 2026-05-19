@@ -11,18 +11,20 @@ function ScreenOnboarding({ onComplete, onCreateTrip }) {
   const [saving, setSaving] = React.useState(false);
   const TOTAL = 3;
 
-  // Smart defaults: detect Gulf timezone → suggest SAR + Makkah
+  // Smart defaults — Saudi-first audience: every Gulf timezone defaults
+  // currency to SAR. Home-base city is detected from the timezone.
   React.useEffect(() => {
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
-      const gulfTz = /Riyadh|Mecca|Makkah|Dubai|Doha|Kuwait|Bahrain|Muscat|Abu_Dhabi/i;
+      const gulfTz = /Riyadh|Mecca|Makkah|Dubai|Doha|Kuwait|Bahrain|Muscat|Abu_Dhabi|Qatar|Manama/i;
       if (gulfTz.test(tz)) {
         setCurrency('SAR');
-        if (tz.includes('Riyadh') || tz.includes('Mecca') || tz.includes('Makkah')) setHome('Makkah');
-        else if (tz.includes('Dubai') || tz.includes('Abu_Dhabi')) { setHome('Dubai'); setCurrency('AED'); }
-        else if (tz.includes('Kuwait')) { setHome('Kuwait City'); setCurrency('KWD'); }
-        else if (tz.includes('Doha')) { setHome('Doha'); setCurrency('USD'); }
-        else if (tz.includes('Muscat')) { setHome('Muscat'); setCurrency('USD'); }
+        if      (tz.includes('Riyadh') || tz.includes('Mecca') || tz.includes('Makkah')) setHome('Makkah');
+        else if (tz.includes('Dubai') || tz.includes('Abu_Dhabi')) setHome('Dubai');
+        else if (tz.includes('Kuwait'))                            setHome('Kuwait City');
+        else if (tz.includes('Doha') || tz.includes('Qatar'))      setHome('Doha');
+        else if (tz.includes('Muscat'))                            setHome('Muscat');
+        else if (tz.includes('Bahrain') || tz.includes('Manama'))  setHome('Manama');
       }
     } catch (_) {}
     // Try to grab the user's name from auth meta or profile
