@@ -21,18 +21,20 @@ function ScreenBudget({ go, openSheet, loading }) {
   };
   const daysAvailable = trip?.daysTotal ? Array.from({ length: trip.daysTotal }, (_, i) => i + 1) : [];
 
-  // Show skeleton while loading, empty state only when truly no trip
-  if (loading || !trip) {
+  // Show skeleton while data is still loading for this trip — prevents the
+  // 'flash of zeros' before real numbers arrive.
+  const dataReady = trip && window.isTripDataReady?.(trip.id);
+  if (loading || !trip || !dataReady) {
     return (
       <div style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>
         <Header title={t('budget')} onBack={() => go('hub')} />
-        {loading ? <TripSkeleton /> : (
+        {!trip && !loading ? (
           <div style={{ padding: '48px 32px', textAlign: 'center', color: 'var(--ink-mute)' }}>
             <div className="serif" style={{ fontSize: 18 }}>
               {window.isRTL ? 'الرجاء فتح رحلة أولاً' : 'Open a trip first'}
             </div>
           </div>
-        )}
+        ) : <TripSkeleton />}
       </div>
     );
   }

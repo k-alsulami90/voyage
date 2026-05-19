@@ -152,6 +152,46 @@ window.loadTrips = async (userId) => {
   }
 };
 
+// Track which trips have had their full per-trip data loaded at least once.
+// Screens read this to decide skeleton vs real content (prevents the
+// "flash of zeros before real numbers arrive" UX bug).
+window._tripDataLoadedAt = window._tripDataLoadedAt || {};
+window.isTripDataReady = (tripId) =>
+  !!(window._tripDataLoadedAt && tripId && window._tripDataLoadedAt[tripId]);
+
+// ── Stale-while-revalidate cache: write last-known summary to localStorage
+// so cold-boot opens of a known trip can render numbers instantly. ──
+window._cacheTripSummary = (tripId) => {
+  try {
+    if (!tripId || !window.TRIP || window.TRIP.id !== tripId) return;
+    const expenses = window.EXPENSES || [];
+    const summary = {
+      tripId,
+      title:    window.TRIP.title,
+      subtitle: window.TRIP.subtitle,
+      cover:    window.TRIP.cover,
+      coverImageUrl: window.TRIP.coverImageUrl,
+      dates:    window.TRIP.dates,
+      countries: window.TRIP.countries || [],
+      homeCurrency: window.TRIP.homeCurrency,
+      localCurrency: window.TRIP.localCurrency,
+      fx:       window.TRIP.fx,
+      plannedUSD: window.TRIP.budget?.plannedUSD || 0,
+      spentUSD:   expenses.reduce((s, e) => s + (e.usd || 0), 0),
+      expenseCount: expenses.length,
+      memberCount:  (window.MEMBERS || []).length,
+      cachedAt: Date.now(),
+    };
+    localStorage.setItem(`voyage:trip:${tripId}:summary`, JSON.stringify(summary));
+  } catch (_) {}
+};
+window._readTripSummary = (tripId) => {
+  try {
+    const raw = localStorage.getItem(`voyage:trip:${tripId}:summary`);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) { return null; }
+};
+
 window.loadExpenses = async (tripId) => {
   const { data, error } = await window.sb
     .from('expenses')
@@ -189,6 +229,10 @@ window.loadExpenses = async (tripId) => {
   if (window.TRIP && window.TRIP.id === tripId) {
     window.TRIP.budget.spentUSD = total;
   }
+
+  // Mark this trip's data as freshly loaded; cache summary for cold-boot
+  window._tripDataLoadedAt[tripId] = Date.now();
+  window._cacheTripSummary(tripId);
 };
 
 window.loadMembers = async (tripId) => {

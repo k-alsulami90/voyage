@@ -3,7 +3,10 @@
 
 function ScreenHub({ go, openSheet, loading }) {
   const trip    = window.TRIP;
-  if (loading && !trip) {
+  const dataReady = trip && window.isTripDataReady?.(trip.id);
+  // Show skeleton until expenses for THIS trip are actually loaded —
+  // prevents 'flash of 0 spent' before the real number arrives.
+  if (loading || !trip || !dataReady) {
     return <div style={{ background: 'var(--cream)', minHeight: '100%' }}><TripSkeleton /></div>;
   }
   const spent   = trip?.budget?.spentUSD   || (window.EXPENSES || []).reduce((s, e) => s + (e.usd || 0), 0);
