@@ -84,28 +84,20 @@ function ScreenTrips({ goTrip, go }) {
     <div data-screen-label="00 Trips Home" style={{
       background: 'var(--cream)', minHeight: '100%', paddingBottom: 100,
     }}>
-      {/* Header — profile + insights link */}
-      <div style={{
-        padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 22px 14px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexDirection: 'row',
-      }}>
-        <div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.16em', color: 'var(--ink-mute)' }}>
-            {t('heySunday')}
-          </div>
-          <div className="serif-italic" style={{ fontSize: 30, lineHeight: 1.05, marginTop: 4 }}>
-            {t('yourTravels')}
-          </div>
-        </div>
-        <button onClick={() => go('insights')} style={{
-          width: 42, height: 42, borderRadius: 999,
-          background: 'var(--ink)', display: 'grid', placeItems: 'center',
-          color: 'var(--cream)', boxShadow: 'var(--shadow-md)',
-        }}>
-          <IconSparkle size={20} stroke="currentColor" />
-        </button>
-      </div>
+      {/* iOS Large Title — collapses to inline title on scroll */}
+      <LargeTitleHeader
+        title={t('yourTravels')}
+        subtitle={t('heySunday')}
+        action={
+          <button onClick={() => go('insights')} aria-label={t('insightsNav')} style={{
+            width: 36, height: 36, borderRadius: 999,
+            background: 'var(--ink)', display: 'grid', placeItems: 'center',
+            color: 'var(--cream)',
+          }}>
+            <IconSparkle size={17} stroke="currentColor" />
+          </button>
+        }
+      />
 
       {/* GLOBAL INSIGHTS PREVIEW CARD — overlapping stat tiles */}
       <div style={{ padding: '0 14px' }}>

@@ -401,6 +401,7 @@ function App() {
         {appShell}
         <ToastHost />
         <OfflineBanner />
+        <ActionSheetHost />
       </div>
     );
   }
@@ -412,6 +413,7 @@ function App() {
       </IOSDevice>
       <ToastHost />
       <OfflineBanner />
+      <ActionSheetHost />
 
       <TweaksPanel>
         <TweakSection label="Theme">
@@ -494,15 +496,12 @@ function AppNav({ active, onChange, onAdd }) {
         const isActive = active === t.k;
         return (
           <button key={t.k} onClick={() => isActive ? scrollActiveToTop() : onChange(t.k)} style={navItem(isActive)}>
-            <t.i size={18} stroke="currentColor" />
-            {isActive && <span style={{
-              fontSize: window.isRTL ? 10 : 12, fontWeight: 600,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 64,
-            }}>{t.l}</span>}
+            <t.i size={22} stroke="currentColor" />
+            <span style={navLabel(isActive)}>{t.l}</span>
           </button>
         );
       })}
-      <button onClick={onAdd} style={navAdd}><IconPlus size={20} stroke="#fff" /></button>
+      <button onClick={onAdd} style={navAdd} aria-label="Add"><IconPlus size={22} stroke="#fff" /></button>
     </div>
   );
 }
@@ -519,7 +518,7 @@ function TripNav({ active, onChange, onExit, onAdd }) {
   return (
     <>
       <button onClick={onExit} className="glass" style={{
-        position: 'absolute', bottom: 'calc(72px + env(safe-area-inset-bottom))',
+        position: 'absolute', bottom: 'calc(78px + env(safe-area-inset-bottom))',
         left: '50%', transform: 'translateX(-50%)',
         zIndex: 51, padding: '6px 12px 6px 9px', borderRadius: 999,
         background: 'rgba(15, 23, 42, 0.78)', color: '#fff',
@@ -535,11 +534,8 @@ function TripNav({ active, onChange, onExit, onAdd }) {
           const isActive = active === t.k;
           return (
             <button key={t.k} onClick={() => isActive ? scrollActiveToTop() : onChange(t.k)} style={navItem(isActive)}>
-              <t.i size={18} stroke="currentColor" />
-              {isActive && <span style={{
-                fontSize: window.isRTL ? 9.5 : 11.5, fontWeight: 600,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 56,
-              }}>{t.l}</span>}
+              <t.i size={22} stroke="currentColor" />
+              <span style={navLabel(isActive)}>{t.l}</span>
             </button>
           );
         })}
@@ -560,19 +556,28 @@ const navShell = {
   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
   gap: 4,
 };
+// iOS tab item: icon stacked above label, both visible always
 const navItem = (active) => ({
-  display: 'flex', alignItems: 'center', gap: 6,
-  padding: active ? '8px 12px' : '8px', borderRadius: 16,
-  background: active ? '#fff' : 'transparent',
-  color: active ? '#0F172A' : 'rgba(255,255,255,0.70)',
-  transition: 'all 240ms cubic-bezier(.2,.8,.2,1)',
-  flexShrink: 1, minWidth: 0, overflow: 'hidden',
+  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+  padding: '4px 8px', borderRadius: 12,
+  background: 'transparent',
+  color: active ? '#fff' : 'rgba(255,255,255,0.55)',
+  transition: 'color 200ms',
+  flex: 1, minWidth: 0,
+});
+const navLabel = (active) => ({
+  fontSize: window.isRTL ? 9.5 : 10.5,
+  fontWeight: active ? 600 : 500,
+  letterSpacing: '-0.005em',
+  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+  maxWidth: 64,
 });
 const navAdd = {
-  width: 38, height: 38, borderRadius: 999,
+  width: 44, height: 44, borderRadius: 999,
   background: 'var(--clay)', display: 'grid', placeItems: 'center',
   boxShadow: '0 4px 12px oklch(0.62 0.13 35 / 0.6)',
   flexShrink: 0,
+  alignSelf: 'center',
 };
 
 // ── Sheets ──

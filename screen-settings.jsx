@@ -353,9 +353,30 @@ function RoleSelect({ role, onChange }) {
 
 function LifecycleActions() {
   const [archived, setArchived] = React.useState(window.TRIP?.status === 'past');
-  const [exported, setExported] = React.useState(false);
-  const [confirmDelete, setConfirmDelete] = React.useState(false);
-  const [deleting, setDeleting] = React.useState(false);
+
+  const doDelete = async () => {
+    const tripId = window.TRIP?.id;
+    if (!tripId) return;
+    try {
+      await window.sb.from('trips').delete().eq('id', tripId);
+      window.toast?.(window.isRTL ? 'تم حذف الرحلة' : 'Trip deleted', 'success');
+      window.clearAllMockData();
+      window.location.reload();
+    } catch (err) {
+      window.toast?.(err.message || 'Could not delete', 'error');
+    }
+  };
+
+  const promptDelete = () => {
+    window.actionSheet({
+      title: t('deleteTrip'),
+      message: t('areYouSure'),
+      actions: [
+        { label: t('delete'), destructive: true, onPress: doDelete },
+      ],
+    });
+  };
+
   return (
     <div style={{ padding: '20px 14px 0' }}>
       <SectionLabel>{t('tripLifecycle')}</SectionLabel>
@@ -370,40 +391,11 @@ function LifecycleActions() {
           labelColor={archived ? 'var(--moss)' : undefined}
           sub={archived ? t('archivedSub') : t('archiveSub')}
           onClick={() => setArchived(!archived)} />
-        {confirmDelete ? (
-          <div style={{
-            padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10,
-            flexDirection: 'row',
-            borderTop: '0.5px solid var(--hairline)',
-          }}>
-            <div style={{ flex: 1, fontSize: 12.5, color: 'var(--clay-deep)', fontWeight: 500 }}>
-              {t('areYouSure')}
-            </div>
-            <button onClick={() => setConfirmDelete(false)} style={{
-              padding: '7px 12px', borderRadius: 10, fontSize: 12,
-              background: 'var(--cream)', border: '0.5px solid var(--hairline)',
-            }}>{t('cancel')}</button>
-            <button disabled={deleting} onClick={async () => {
-              const tripId = window.TRIP?.id;
-              if (!tripId) return;
-              setDeleting(true);
-              try {
-                await window.sb.from('trips').delete().eq('id', tripId);
-                window.clearAllMockData();
-                window.location.reload();
-              } catch (err) { console.error(err); setDeleting(false); }
-            }} style={{
-              padding: '7px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600,
-              background: deleting ? 'var(--ink-mute)' : 'var(--clay)', color: '#fff',
-            }}>{deleting ? '...' : t('delete')}</button>
-          </div>
-        ) : (
-          <ActionRow
-            icon={<IconTrash size={17} stroke="var(--clay-deep)" />}
-            label={t('deleteTrip')} labelColor="var(--clay-deep)"
-            sub={t('deleteSub')} last
-            onClick={() => setConfirmDelete(true)} />
-        )}
+        <ActionRow
+          icon={<IconTrash size={17} stroke="var(--clay-deep)" />}
+          label={t('deleteTrip')} labelColor="var(--clay-deep)"
+          sub={t('deleteSub')} last
+          onClick={promptDelete} />
       </div>
     </div>
   );

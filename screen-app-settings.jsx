@@ -47,18 +47,8 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
     <div data-screen-label="App Settings" style={{
       background: 'var(--cream)', minHeight: '100%', paddingBottom: 100,
     }}>
-      {/* HEADER */}
-      <div style={{
-        padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 22px 14px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexDirection: 'row',
-      }}>
-        <div className="serif-italic" style={{ fontSize: 32 }}>{t('account')}</div>
-        <button style={{
-          width: 36, height: 36, borderRadius: 999, background: 'var(--cream-2)',
-          border: '0.5px solid var(--hairline)', display: 'grid', placeItems: 'center',
-        }}><IconSearch size={15} stroke="var(--ink-soft)" /></button>
-      </div>
+      {/* iOS Large Title */}
+      <LargeTitleHeader title={t('account')} />
 
       {/* PROFILE CARD — overflow avatar + dark backdrop */}
       <div style={{ padding: '0 14px 14px' }}>
@@ -191,21 +181,36 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
           margin: '0 8px', overflow: 'hidden',
           border: '0.5px solid var(--hairline)',
         }}>
-          <ActionRow onClick={async () => {
-            if (!confirm(window.isRTL ? 'مسح ذاكرة التخزين المؤقت وإعادة التحميل؟ بياناتك في السحابة آمنة.' : 'Clear cache and reload? Your cloud data is safe.')) return;
-            try {
-              if ('caches' in window) {
-                const names = await caches.keys();
-                await Promise.all(names.map((n) => caches.delete(n)));
-              }
-              if ('serviceWorker' in navigator) {
-                const regs = await navigator.serviceWorker.getRegistrations();
-                await Promise.all(regs.map((r) => r.unregister()));
-              }
-              try { sessionStorage.clear(); } catch (_) {}
-            } finally { location.reload(); }
+          <ActionRow onClick={() => {
+            window.actionSheet?.({
+              title: window.isRTL ? 'إعادة تعيين التطبيق' : 'Reset app cache',
+              message: window.isRTL ? 'بياناتك في السحابة آمنة. سيُعاد تحميل التطبيق.' : 'Your cloud data is safe. The app will reload.',
+              actions: [
+                { label: window.isRTL ? 'إعادة تعيين' : 'Reset', destructive: true, onPress: async () => {
+                  try {
+                    if ('caches' in window) {
+                      const names = await caches.keys();
+                      await Promise.all(names.map((n) => caches.delete(n)));
+                    }
+                    if ('serviceWorker' in navigator) {
+                      const regs = await navigator.serviceWorker.getRegistrations();
+                      await Promise.all(regs.map((r) => r.unregister()));
+                    }
+                    try { sessionStorage.clear(); } catch (_) {}
+                  } finally { location.reload(); }
+                }},
+              ],
+            });
           }} icon={<IconGear size={17} stroke="var(--ink)" />} label={window.isRTL ? 'إعادة تعيين التطبيق' : 'Reset app cache'} sub={window.isRTL ? 'مسح والتحميل من جديد إذا حدث خلل' : 'Clear cache & reload if something looks broken'} />
-          <ActionRow onClick={onSignOut} icon={<span className="icon-flip"><IconBack size={17} stroke="var(--ink)" /></span>} label={t('signOut')} sub={email ? `${me.name.split(' ')[0]} · ${email}` : me.name.split(' ')[0]} />
+          <ActionRow onClick={() => {
+            window.actionSheet?.({
+              title: t('signOut'),
+              message: window.isRTL ? 'سيتم تسجيل خروجك. يمكنك العودة في أي وقت.' : "You'll be signed out. You can sign back in anytime.",
+              actions: [
+                { label: t('signOut'), destructive: true, onPress: () => onSignOut?.() },
+              ],
+            });
+          }} icon={<span className="icon-flip"><IconBack size={17} stroke="var(--ink)" /></span>} label={t('signOut')} sub={email ? `${me.name.split(' ')[0]} · ${email}` : me.name.split(' ')[0]} />
           <ActionRow icon={<IconTrash size={17} stroke="var(--clay-deep)" />} labelColor="var(--clay-deep)" label={t('deleteAccount')} sub={t('deleteAccountSub')} last />
         </div>
       </div>

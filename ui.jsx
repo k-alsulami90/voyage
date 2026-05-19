@@ -349,6 +349,176 @@ function ToastHost() {
 }
 window.ToastHost = ToastHost;
 
+// ── LargeTitleHeader (iOS HIG pattern) ──────────────────────
+// On mount, displays a huge 34pt bold title in the content area.
+// As the user scrolls, the sticky compact bar at the top crossfades
+// in a small inline title, exactly like iOS Settings.app / Mail.app.
+// Pattern: an invisible sentinel sits BELOW the large title; an
+// IntersectionObserver flips `scrolled` when the sentinel leaves
+// the viewport (i.e. the large title has scrolled off-screen).
+function LargeTitleHeader({ title, subtitle, action, onBack }) {
+  const [scrolled, setScrolled] = React.useState(false);
+  const sentinelRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!sentinelRef.current) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => setScrolled(!entry.isIntersecting),
+      { threshold: 0, rootMargin: '-44px 0px 0px 0px' }
+    );
+    obs.observe(sentinelRef.current);
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <>
+      {/* Sticky compact bar */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 30,
+        paddingTop: 'max(54px, calc(env(safe-area-inset-top) + 10px))',
+        paddingBottom: 8,
+        paddingInlineStart: onBack ? 12 : 22,
+        paddingInlineEnd: 22,
+        background: scrolled ? 'rgba(245, 238, 216, 0.85)' : 'transparent',
+        backdropFilter: scrolled ? 'blur(20px) saturate(180%)' : 'none',
+        WebkitBackdropFilter: scrolled ? 'blur(20px) saturate(180%)' : 'none',
+        borderBottom: scrolled ? '0.5px solid var(--hairline)' : '0.5px solid transparent',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+        transition: 'background 200ms, border-color 200ms, backdrop-filter 200ms',
+      }}>
+        {onBack ? (
+          <button onClick={onBack} aria-label="Back" style={{
+            width: 36, height: 36, borderRadius: 999,
+            background: scrolled ? 'rgba(0,0,0,0)' : 'var(--cream-2)',
+            border: scrolled ? '0.5px solid transparent' : '0.5px solid var(--hairline)',
+            display: 'grid', placeItems: 'center', flexShrink: 0,
+            transition: 'background 200ms, border-color 200ms',
+          }}>
+            <span className="icon-flip"><IconBack size={17} stroke="var(--ink)" /></span>
+          </button>
+        ) : <span style={{ width: 36, height: 36, flexShrink: 0 }} />}
+        <div style={{
+          flex: 1, minWidth: 0, textAlign: 'center',
+          fontFamily: 'var(--sans)', fontSize: 16, fontWeight: 600,
+          color: 'var(--ink)',
+          opacity: scrolled ? 1 : 0,
+          transform: scrolled ? 'translateY(0)' : 'translateY(4px)',
+          transition: 'opacity 200ms, transform 200ms',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>{title}</div>
+        <div style={{ width: 36, minWidth: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+          {action || null}
+        </div>
+      </div>
+
+      {/* Large title that scrolls with content */}
+      <div style={{ padding: '4px 22px 8px' }}>
+        <div style={{
+          fontFamily: 'var(--sans)', fontWeight: 700,
+          fontSize: 34, lineHeight: 1.1,
+          color: 'var(--ink)', letterSpacing: '-0.02em',
+        }}>{title}</div>
+        {subtitle && (
+          <div style={{
+            fontSize: 13, color: 'var(--ink-mute)', marginTop: 4, lineHeight: 1.4,
+          }}>{subtitle}</div>
+        )}
+      </div>
+
+      {/* Sentinel — when this leaves the viewport, the compact bar crossfades in */}
+      <div ref={sentinelRef} style={{ height: 1, marginTop: 2 }} aria-hidden="true" />
+    </>
+  );
+}
+
+// ── ActionSheet (iOS HIG pattern) ───────────────────────────
+// Bottom-sliding sheet of options with a separated Cancel button.
+// Imperative API: window.actionSheet({ title, message, actions })
+window.__actionSheetSubs = window.__actionSheetSubs || new Set();
+window.actionSheet = function(config) {
+  const item = { id: ++(window._toastSeq || 0), ...config };
+  window.__actionSheetSubs.forEach((fn) => fn(item));
+};
+
+function ActionSheetHost() {
+  const [item, setItem] = React.useState(null);
+  React.useEffect(() => {
+    const handler = (it) => setItem(it);
+    window.__actionSheetSubs.add(handler);
+    return () => { window.__actionSheetSubs.delete(handler); };
+  }, []);
+  if (!item) return null;
+  const close = () => setItem(null);
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+      pointerEvents: 'auto',
+    }}>
+      <div onClick={close} style={{
+        position: 'absolute', inset: 0,
+        background: 'rgba(0,0,0,0.32)',
+        animation: 'as-fade 220ms ease-out forwards',
+      }} />
+      <div style={{
+        position: 'relative', padding: '10px',
+        paddingBottom: 'calc(10px + env(safe-area-inset-bottom))',
+        animation: 'as-up 320ms cubic-bezier(.32,.72,0,1) both',
+      }}>
+        {/* Options group */}
+        <div style={{
+          background: 'var(--cream-2)', borderRadius: 14, overflow: 'hidden',
+          backdropFilter: 'blur(28px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+        }}>
+          {(item.title || item.message) && (
+            <div style={{
+              padding: '14px 16px',
+              borderBottom: '0.5px solid var(--hairline-2)',
+              textAlign: 'center',
+            }}>
+              {item.title && <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{item.title}</div>}
+              {item.message && <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 4, lineHeight: 1.4 }}>{item.message}</div>}
+            </div>
+          )}
+          {(item.actions || []).map((a, i) => (
+            <button key={i} onClick={() => { close(); a.onPress?.(); }} style={{
+              width: '100%',
+              padding: '15px 16px',
+              borderTop: i > 0 ? '0.5px solid var(--hairline-2)' : 'none',
+              background: 'transparent',
+              color: a.destructive ? 'var(--clay-deep)' : 'var(--ink)',
+              fontSize: 17,
+              fontWeight: a.destructive ? 600 : 400,
+              textAlign: 'center',
+              fontFamily: 'var(--sans)',
+            }}>{a.label}</button>
+          ))}
+        </div>
+        {/* Cancel button — separate group */}
+        <button onClick={close} style={{
+          width: '100%',
+          marginTop: 8,
+          padding: '15px 16px',
+          borderRadius: 14,
+          background: 'var(--cream-2)',
+          backdropFilter: 'blur(28px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+          color: 'var(--ink)',
+          fontSize: 17, fontWeight: 600,
+          fontFamily: 'var(--sans)',
+        }}>{item.cancelLabel || (window.isRTL ? 'إلغاء' : 'Cancel')}</button>
+      </div>
+      <style>{`
+        @keyframes as-fade { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes as-up   { from { transform: translateY(100%) } to { transform: translateY(0) } }
+      `}</style>
+    </div>
+  );
+}
+window.ActionSheetHost = ActionSheetHost;
+window.LargeTitleHeader = LargeTitleHeader;
+
 // ── ErrorBoundary ────────────────────────────────────────────
 // Catches any React crash anywhere in the tree and shows a friendly
 // "Something went wrong" screen with hard-recovery options. Without
@@ -515,4 +685,4 @@ function OfflineBanner() {
   );
 }
 
-Object.assign(window, { Avatar, AvatarStack, RoleBadge, Chip, SectionLabel, KyotoHero, TintCard, Sheet, SwipeRow, Skeleton, TripSkeleton, ToastHost, ErrorBoundary, PullToRefresh, OfflineBanner });
+Object.assign(window, { Avatar, AvatarStack, RoleBadge, Chip, SectionLabel, KyotoHero, TintCard, Sheet, SwipeRow, Skeleton, TripSkeleton, ToastHost, ErrorBoundary, PullToRefresh, OfflineBanner, LargeTitleHeader, ActionSheetHost });

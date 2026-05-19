@@ -24,21 +24,11 @@ function ScreenInsights({ go }) {
   }, []);
 
   const HeaderEl = (
-    <div style={{
-      padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 22px 6px',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-    }}>
-      <button onClick={() => go('trips')} style={{
-        width: 36, height: 36, borderRadius: 999,
-        background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
-        display: 'grid', placeItems: 'center',
-      }}><span className="icon-flip"><IconBack size={17} stroke="var(--ink)" /></span></button>
-      <div style={{ flex: 1, textAlign: 'center' }}>
-        <div className="serif" style={{ fontSize: 22, color: 'var(--ink)', lineHeight: 1 }}>{t('insightsTitle')}</div>
-        <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 2 }}>{t('insightsSub')}</div>
-      </div>
-      <div style={{ width: 36 }} />
-    </div>
+    <LargeTitleHeader
+      title={t('insightsTitle')}
+      subtitle={t('insightsSub')}
+      onBack={() => go('trips')}
+    />
   );
 
   if (loading) {
