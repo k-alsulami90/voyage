@@ -198,11 +198,20 @@ function App() {
     try { sessionStorage.setItem('voyage:route', JSON.stringify(route)); } catch (_) {}
   }, [route]);
 
-  // Redirect to trips once session is confirmed — UNLESS we're in a recovery
-  // session (user clicked the reset-password email link).
+  // Redirect after session resolves:
+  //   - recovery session → keep them on reset screen
+  //   - signed in + onboarded → trips
+  //   - signed in + NOT onboarded → onboarding
+  //   - signed out → signin
   React.useEffect(() => {
     if (session && !window._authRecoveryActive) {
-      setRoute((r) => r.scope === 'auth' ? { scope: 'app', name: 'trips' } : r);
+      const onboarded = (() => {
+        try { return localStorage.getItem('voyage:onboarded') === '1'; } catch (_) { return false; }
+      })();
+      setRoute((r) => {
+        if (r.scope !== 'auth') return r;
+        return onboarded ? { scope: 'app', name: 'trips' } : { scope: 'app', name: 'onboarding' };
+      });
     } else if (session === null) {
       setRoute({ scope: 'auth', name: 'signin' });
     }
@@ -267,7 +276,15 @@ function App() {
     const authMode = ['signup', 'forgot', 'reset'].includes(route.name) ? route.name : 'signin';
     screenNode = <window.ScreenAuth mode={authMode} go={go} />;
   } else if (route.scope === 'app') {
-    if (route.name === 'insights') screenNode = <window.ScreenInsights go={go} />;
+    if (route.name === 'onboarding') {
+      screenNode = <window.ScreenOnboarding
+        onComplete={(alsoCreateTrip) => {
+          setRoute({ scope: 'app', name: 'trips' });
+          if (alsoCreateTrip) setSheet('addTrip');
+        }}
+      />;
+    }
+    else if (route.name === 'insights') screenNode = <window.ScreenInsights go={go} />;
     else if (route.name === 'appSettings') screenNode = <window.ScreenAppSettings go={go} onSignOut={async () => { await window.sbSignOut(); }} dark={tw.dark} lang={tw.lang} onDarkToggle={(v) => setTweak('dark', v)} onLangChange={(v) => setTweak('lang', v)} />;
     else screenNode = <window.ScreenTrips go={go} goTrip={goTrip} />;
   } else {
@@ -331,8 +348,9 @@ function App() {
         </div>
       )}
 
-      {/* Nav layers */}
-      {route.scope === 'app' && <AppNav active={route.name} onChange={go} onAdd={() => openSheet('addTrip')} />}
+      {/* Nav layers — hidden during onboarding (it has its own flow) */}
+      {route.scope === 'app' && route.name !== 'onboarding' &&
+        <AppNav active={route.name} onChange={go} onAdd={() => openSheet('addTrip')} />}
       {route.scope === 'trip' && (
         <TripNav active={route.name} onChange={go}
                  onExit={() => setRoute({ scope: 'app', name: 'trips' })}
