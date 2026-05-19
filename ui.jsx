@@ -435,8 +435,10 @@ function LargeTitleHeader({ title, subtitle, action, onBack }) {
 // Bottom-sliding sheet of options with a separated Cancel button.
 // Imperative API: window.actionSheet({ title, message, actions })
 window.__actionSheetSubs = window.__actionSheetSubs || new Set();
+window.__actionSheetSeq  = window.__actionSheetSeq  || 0;
 window.actionSheet = function(config) {
-  const item = { id: ++(window._toastSeq || 0), ...config };
+  window.__actionSheetSeq += 1;
+  const item = Object.assign({ id: window.__actionSheetSeq }, config);
   window.__actionSheetSubs.forEach((fn) => fn(item));
 };
 
