@@ -376,6 +376,29 @@ function ScreenBudget({ go, openSheet, loading }) {
                       <span>{m.name.split(' ')[0]} · {e.when}</span>
                       {e.note && <span style={{ opacity: 0.7 }}>· {e.note}</span>}
                     </div>
+                    {/* Split badge — show on shared expenses */}
+                    {(e.splitWith && e.splitWith.length > 0) && (() => {
+                      const totalSharers = e.splitWith.length + 1;
+                      const userIsInSplit = e.who === window.currentUserId
+                        || e.splitWith.includes(window.currentUserId);
+                      const yourShare = userIsInSplit ? (e.usd || 0) / totalSharers : 0;
+                      return (
+                        <div style={{
+                          fontSize: 10.5, color: 'var(--moss)', marginTop: 4,
+                          fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5,
+                          flexDirection: 'row',
+                        }}>
+                          <span style={{
+                            padding: '2px 6px', borderRadius: 999,
+                            background: 'oklch(0.50 0.08 155 / 0.12)',
+                            fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.06em',
+                          }}>÷{totalSharers}</span>
+                          {userIsInSplit && (
+                            <span>{t('splitYourShare')}: <strong>{conv(yourShare)}</strong></span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div style={{ textAlign: 'end' }}>
                     <div className="mono" style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>

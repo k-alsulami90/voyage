@@ -155,6 +155,54 @@ function ScreenHub({ go, openSheet, loading }) {
 
       </div>
 
+      {/* PERSONAL BALANCE CARD — only for shared trips with non-zero balance */}
+      {(window.MEMBERS || []).length > 1 && (() => {
+        const balance = window.computeUserBalance?.(window.currentUserId, window.EXPENSES || []);
+        if (!balance || Math.abs(balance.net) < 0.5) return null;  // hide near-zero
+        const owed = balance.net > 0;
+        const otherCount = Object.entries(balance.byOther || {})
+          .filter(([, v]) => Math.abs(v) > 0.5).length;
+        return (
+          <div style={{ padding: '20px 14px 0', position: 'relative', zIndex: 3 }}>
+            <button onClick={() => go('budget')} style={{
+              width: '100%', textAlign: 'start',
+              borderRadius: 22, padding: '16px 18px',
+              background: owed
+                ? 'linear-gradient(135deg, var(--moss) 0%, oklch(0.40 0.08 155) 100%)'
+                : 'linear-gradient(135deg, var(--clay) 0%, var(--clay-deep) 100%)',
+              color: '#fff', boxShadow: 'var(--shadow-md)',
+              display: 'flex', alignItems: 'center', gap: 14,
+              flexDirection: 'row',
+            }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 14, flexShrink: 0,
+                background: 'rgba(255,255,255,0.20)',
+                display: 'grid', placeItems: 'center',
+                fontFamily: 'var(--serif)', fontStyle: 'italic',
+                fontSize: 26, lineHeight: 1,
+              }}>{owed ? '+' : '−'}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em',
+                  opacity: 0.85,
+                }}>
+                  {owed ? t('balanceOwed').toUpperCase() : t('balanceOwe').toUpperCase()}
+                </div>
+                <div className="serif" style={{ fontSize: 26, lineHeight: 1.05, marginTop: 2 }}>
+                  {fmtC(Math.abs(balance.net))}
+                </div>
+                <div style={{ fontSize: 11.5, opacity: 0.88, marginTop: 3 }}>
+                  {owed
+                    ? (window.isRTL ? `من ${otherCount} شخص` : `from ${otherCount} ${otherCount === 1 ? 'person' : 'people'}`)
+                    : (window.isRTL ? `لـ ${otherCount} شخص` : `to ${otherCount} ${otherCount === 1 ? 'person' : 'people'}`)}
+                </div>
+              </div>
+              <IconChevron size={14} stroke="#fff" />
+            </button>
+          </div>
+        );
+      })()}
+
       {/* OVER-BUDGET BANNER — only when spent > planned */}
       {planned > 0 && spent > planned && (
         <div style={{ padding: '20px 14px 0', position: 'relative', zIndex: 3 }}>

@@ -152,6 +152,45 @@ window.loadTrips = async (userId) => {
   }
 };
 
+// ── Balance computation (shared trips) ───────────────────────
+// For a given user, given a list of expenses, returns the per-trip
+// totals: paid (what the user covered for the group), owes (their
+// share of expenses paid by others), and net (paid - owes).
+// Each expense:
+//   - payer = e.who
+//   - splitWith = array of user_ids the cost is shared with (excludes payer)
+//   - The payer is implicitly part of the share. So total people sharing
+//     = len(splitWith) + 1. Each member's share = e.usd / (len + 1).
+//   - If splitWith is empty, the expense is personal — payer covered it,
+//     not shared, nobody else owes anything.
+window.computeUserBalance = function(userId, expenses) {
+  let paid = 0;
+  let owes = 0;
+  const byOther = {};  // userId → net (positive: they owe you; negative: you owe them)
+  (expenses || []).forEach((e) => {
+    const splitters = (e.splitWith || []).filter(Boolean);
+    const isShared = splitters.length > 0;
+    const totalSharers = isShared ? (splitters.length + 1) : 1;
+    const shareAmount = (e.usd || 0) / totalSharers;
+    if (e.who === userId) {
+      // I paid
+      paid += (e.usd || 0);
+      if (isShared) {
+        // Others owe me their share
+        splitters.forEach((uid) => {
+          const portion = shareAmount;
+          byOther[uid] = (byOther[uid] || 0) + portion;
+        });
+      }
+    } else if (isShared && splitters.includes(userId)) {
+      // Someone else paid; I owe my share
+      owes += shareAmount;
+      byOther[e.who] = (byOther[e.who] || 0) - shareAmount;
+    }
+  });
+  return { paid, owes, net: paid - owes, byOther };
+};
+
 // Track which trips have had their full per-trip data loaded at least once.
 // Screens read this to decide skeleton vs real content (prevents the
 // "flash of zeros before real numbers arrive" UX bug).
@@ -211,6 +250,7 @@ window.loadExpenses = async (tripId) => {
     when:      window.fmtDate(r.created_at),
     createdAt: r.created_at,
     note:      r.note || '',
+    splitWith: Array.isArray(r.split_with) ? r.split_with.filter(Boolean) : [],
   }));
 
   // Recalculate category totals
@@ -324,7 +364,7 @@ window.uploadDocumentFile = async (docId, tripId, file) => {
 window.loadLifetimeStats = async () => {
   const { data, error } = await window.sb
     .from('expenses')
-    .select('amount_usd, category, trip_id, created_at, created_by, local_currency')
+    .select('amount_usd, category, trip_id, created_at, created_by, local_currency, split_with')
     .order('created_at', { ascending: false });
   if (error) { console.error('loadLifetimeStats', error); return; }
 
@@ -384,6 +424,25 @@ window.loadLifetimeStats = async () => {
   expenses.forEach((e) => {
     tripSpendMap[e.trip_id] = (tripSpendMap[e.trip_id] || 0) + (parseFloat(e.amount_usd) || 0);
   });
+  // Per-trip personal balance for the current user
+  const userId = window.currentUserId;
+  const balanceByTrip = {};
+  if (userId) {
+    expenses.forEach((e) => {
+      const splitters = Array.isArray(e.split_with) ? e.split_with.filter(Boolean) : [];
+      const isShared = splitters.length > 0;
+      const totalSharers = isShared ? splitters.length + 1 : 1;
+      const share = (parseFloat(e.amount_usd) || 0) / totalSharers;
+      balanceByTrip[e.trip_id] = balanceByTrip[e.trip_id] || 0;
+      if (e.created_by === userId) {
+        balanceByTrip[e.trip_id] += (parseFloat(e.amount_usd) || 0);
+        if (isShared) balanceByTrip[e.trip_id] -= share;  // your share back
+      } else if (isShared && splitters.includes(userId)) {
+        balanceByTrip[e.trip_id] -= share;
+      }
+    });
+  }
+
   const tripSpend = trips.map((t) => {
     const dur = (t.startDate && t.endDate)
       ? Math.max(1, Math.round((new Date(t.endDate) - new Date(t.startDate)) / 86400000) + 1)
@@ -394,6 +453,7 @@ window.loadLifetimeStats = async () => {
       spent, dur, dailyAvg: spent / dur,
       budgetPlanned: t.budgetPlannedUSD || 0,
       startDate: t.startDate, endDate: t.endDate,
+      personalBalance: balanceByTrip[t.id] || 0,
     };
   }).sort((a, b) => b.spent - a.spent);
 
@@ -438,7 +498,7 @@ window.loadLifetimeStats = async () => {
     totalSpentUSD, totalTrips, totalDays, countries: countries.length, countriesList: countries,
     byYear, byCategory, tripSpend, byMember, statusCounts,
     longestTrip, mostExpensive, avgTripCost, avgDailyAcrossLifetime,
-    topTx, currencyMix,
+    topTx, currencyMix, balanceByTrip,
     expenseCount: expenses.length,
     loadedAt: Date.now(),
   };
@@ -476,6 +536,7 @@ window.addExpense = async (tripId, userId, fields) => {
     amount_local:   fields.amountLocal,
     local_currency: fields.localCurrency,
     note:           fields.note || null,
+    split_with:     fields.splitWith || [],
   }).select().single();
   if (error) throw error;
 
@@ -628,6 +689,7 @@ window.updateExpense = async (expenseId, tripId, fields) => {
     amount_local:   fields.amountLocal,
     local_currency: fields.localCurrency,
     note:           fields.note || null,
+    split_with:     fields.splitWith || [],
   }).eq('id', expenseId);
   if (error) throw error;
   window.LIFETIME_STATS = null;

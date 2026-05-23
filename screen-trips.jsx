@@ -389,9 +389,35 @@ function UpcomingTripCard({ trip, onOpen }) {
       </div>
       <div style={{ padding: '14px 14px 12px' }}>
         <div className="serif" style={{ fontSize: 22, lineHeight: 1, color: 'var(--ink)' }}>{trip.title}</div>
-        <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 4 }}>{trip.dates}</div>
+        <div style={{
+          fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 4,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+        }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trip.dates}</span>
+          <BalancePill tripId={trip.id} />
+        </div>
       </div>
     </button>
+  );
+}
+
+// Personal balance pill — shows owed/owe for a shared trip
+function BalancePill({ tripId, big = false }) {
+  const balance = window.LIFETIME_STATS?.balanceByTrip?.[tripId];
+  if (!balance || Math.abs(balance) < 0.5) return null;
+  const owed = balance > 0;
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      padding: big ? '4px 10px' : '2px 8px', borderRadius: 999,
+      background: owed ? 'oklch(0.50 0.08 155 / 0.15)' : 'oklch(0.62 0.13 35 / 0.15)',
+      color:      owed ? 'var(--moss)' : 'var(--clay-deep)',
+      fontSize: big ? 11.5 : 10, fontWeight: 600,
+      fontFamily: 'var(--mono)', letterSpacing: '0.04em',
+      flexShrink: 0,
+    }}>
+      {owed ? '+' : '−'} {window.fmtMoney(Math.abs(balance), { in: 'home' })}
+    </span>
   );
 }
 
@@ -443,7 +469,10 @@ function PastTripCard({ trip, onOpen }) {
           </div>
         )}
       </div>
-      <span className="icon-flip"><IconChevron size={14} stroke="var(--ink-mute)" /></span>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+        <BalancePill tripId={trip.id} />
+        <span className="icon-flip"><IconChevron size={14} stroke="var(--ink-mute)" /></span>
+      </div>
     </button>
   );
 }

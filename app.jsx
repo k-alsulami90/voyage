@@ -710,7 +710,35 @@ function AddExpenseSheet({ onDone, onAdded, existing }) {
   const [loading, setLoading] = React.useState(false);
   const [error,   setError]   = React.useState(null);
 
+  // Split state — `splitMode` is one of 'everyone' | 'me' | 'custom'.
+  // `customSet` holds the explicit user_ids when mode is 'custom'.
+  // Saved to DB as the actual `split_with` array (excludes the payer).
+  const isShared = members.length > 1;
+  const initialSplit = (() => {
+    if (existing) {
+      const list = existing.splitWith || [];
+      if (list.length === 0) return { mode: 'me', set: [] };
+      // If list contains all OTHER members → 'everyone'
+      const otherMemberIds = members.map((m) => m.id).filter((id) => id !== (existing.who));
+      const isAll = list.length === otherMemberIds.length && otherMemberIds.every((id) => list.includes(id));
+      return isAll ? { mode: 'everyone', set: list } : { mode: 'custom', set: list };
+    }
+    return { mode: isShared ? 'everyone' : 'me', set: [] };
+  })();
+  const [splitMode, setSplitMode] = React.useState(initialSplit.mode);
+  const [customSet, setCustomSet] = React.useState(initialSplit.set);
+
   const amtNum   = parseFloat(amt) || 0;
+
+  // Compute the split_with array based on mode
+  const computeSplitWith = () => {
+    if (splitMode === 'me') return [];
+    if (splitMode === 'everyone') return members.map((m) => m.id).filter((id) => id !== paidBy);
+    return customSet.filter((id) => id !== paidBy);
+  };
+  const splitWithIds = computeSplitWith();
+  const totalSharers = splitWithIds.length + 1;
+  const sharePerPerson = totalSharers > 1 ? (amtNum / totalSharers) : null;
   // Convert input to USD (canonical storage) via the FX table.
   const amtUSD   = window.toUSD(amtNum, inputCur);
   // For display in the "other" currency
@@ -735,6 +763,7 @@ function AddExpenseSheet({ onDone, onAdded, existing }) {
         amountLocal: amtLocalForDB,
         localCurrency: local,
         note: note.trim() || null,
+        splitWith: splitWithIds,
       };
       if (isEdit) {
         await window.updateExpense(existing.id, trip?.id || 'demo', payload);
@@ -877,6 +906,84 @@ function AddExpenseSheet({ onDone, onAdded, existing }) {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Split with — only visible on shared trips (≥2 members) */}
+      {isShared && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase' }}>
+            {t('splitWithLabel')}
+          </div>
+          {/* 3-mode segmented picker */}
+          <div style={{
+            display: 'inline-flex', padding: 3, background: 'var(--cream-2)', borderRadius: 12,
+            border: '0.5px solid var(--hairline)', width: '100%',
+          }}>
+            {[
+              { k: 'everyone', l: t('splitEveryone') },
+              { k: 'me',       l: t('splitJustMe') },
+              { k: 'custom',   l: t('splitCustom') },
+            ].map((s) => (
+              <button key={s.k} onClick={() => setSplitMode(s.k)} style={{
+                flex: 1, padding: '8px', borderRadius: 9, fontSize: 12, fontWeight: 500,
+                background: splitMode === s.k ? 'var(--ink)' : 'transparent',
+                color: splitMode === s.k ? 'var(--cream)' : 'var(--ink-soft)',
+                transition: 'all 180ms',
+              }}>{s.l}</button>
+            ))}
+          </div>
+          {/* Custom: chip picker for members (excluding the payer) */}
+          {splitMode === 'custom' && (
+            <div className="no-scrollbar" style={{
+              display: 'flex', gap: 6, overflowX: 'auto', flexDirection: 'row',
+              marginTop: 8, paddingBottom: 2,
+            }}>
+              {members.filter((m) => m.id !== paidBy).map((m) => {
+                const on = customSet.includes(m.id);
+                return (
+                  <button key={m.id} onClick={() => {
+                    setCustomSet((prev) => on ? prev.filter((x) => x !== m.id) : [...prev, m.id]);
+                  }} style={{
+                    flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '6px 10px 6px 6px', borderRadius: 999,
+                    background: on ? 'var(--statement)' : 'var(--cream-2)',
+                    color: on ? 'var(--statement-fg)' : 'var(--ink-soft)',
+                    border: on ? 'none' : '0.5px solid var(--hairline)',
+                    transition: 'all 160ms',
+                  }}>
+                    <Avatar m={m} size={22} />
+                    <span style={{ fontSize: 12, fontWeight: 500 }}>{m.name.split(' ')[0]}</span>
+                    {on && <IconCheck size={11} stroke="currentColor" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {/* Live share-per-person preview */}
+          {totalSharers > 1 && amtNum > 0 && (
+            <div style={{
+              marginTop: 8, padding: '8px 12px', borderRadius: 10,
+              background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+              flexDirection: 'row', fontSize: 11.5,
+            }}>
+              <span style={{ color: 'var(--ink-mute)', fontFamily: 'var(--mono)', letterSpacing: '0.06em' }}>
+                {t('splitWithCount').replace('{n}', totalSharers)}
+              </span>
+              <span style={{ color: 'var(--ink)', fontWeight: 600 }}>
+                {t('splitYourShare')}: {window.fmtMoney(window.toUSD(sharePerPerson, inputCur), { in: inputCur })}
+              </span>
+            </div>
+          )}
+          {splitMode === 'me' && (
+            <div style={{
+              marginTop: 8, fontSize: 11.5, color: 'var(--ink-mute)',
+              fontStyle: 'italic', paddingInlineStart: 4,
+            }}>
+              ⓘ {t('splitCovered')}
+            </div>
+          )}
         </div>
       )}
 

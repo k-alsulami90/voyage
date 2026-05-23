@@ -62,6 +62,21 @@ const TRANSLATIONS = {
     obCreateTrip:'Create my first trip',
     obExplore:'Just explore for now',
 
+    // Splits & shared trips
+    splitWithLabel:'Split with',
+    splitEveryone:'Everyone',
+    splitJustMe:'Just me',
+    splitCustom:'Choose people',
+    splitWithCount:'split {n} ways',
+    splitYourShare:'your share',
+    splitCovered:"I'm covering this",
+    balanceOwed:"You're owed",
+    balanceOwe:'You owe',
+    balanceSettled:'All settled',
+    balanceFrom:'from {n} {n,plural,one{person}other{people}}',
+    balanceTo:'to {n} {n,plural,one{person}other{people}}',
+    balanceTapToSettle:'Tap to settle up',
+
     // Insights dashboard
     insightsTitle:'Lifetime insights',
     insightsSub:'Every trip, every expense — at a glance',
@@ -192,6 +207,21 @@ const TRANSLATIONS = {
     obDoneSub:'أنشئ أول رحلة لك أو ابدأ بالاستكشاف.',
     obCreateTrip:'إنشاء أول رحلة',
     obExplore:'استكشاف فقط',
+
+    // Splits & shared trips
+    splitWithLabel:'تقسيم مع',
+    splitEveryone:'الجميع',
+    splitJustMe:'أنا فقط',
+    splitCustom:'اختر أشخاصاً',
+    splitWithCount:'مقسوم بين {n}',
+    splitYourShare:'حصتك',
+    splitCovered:'تكفّلت بها',
+    balanceOwed:'مدين لك',
+    balanceOwe:'تدين بـ',
+    balanceSettled:'كل الحسابات متسوية',
+    balanceFrom:'من {n} {n,plural,one{شخص}other{أشخاص}}',
+    balanceTo:'إلى {n} {n,plural,one{شخص}other{أشخاص}}',
+    balanceTapToSettle:'اضغط للتسوية',
 
     // Insights dashboard
     insightsTitle:'إحصائيات شاملة',
