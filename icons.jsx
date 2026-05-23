@@ -37,6 +37,8 @@ const IconArchive  = (p) => <Ico {...p} d={<><rect x="3" y="5" width="18" height
 const IconSun      = (p) => <Ico {...p} d={<><circle cx="12" cy="12" r="3.5"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4l1.4-1.4M17 7l1.4-1.4"/></>} />;
 const IconCompass  = (p) => <Ico {...p} d={<><circle cx="12" cy="12" r="9"/><path d="M9 15l1.5-4.5L15 9l-1.5 4.5z" fill="currentColor"/></>} />;
 const IconSparkle  = (p) => <Ico {...p} d={<><path d="M12 4l1.5 4.5L18 10l-4.5 1.5L12 16l-1.5-4.5L6 10l4.5-1.5z"/></>} />;
+const IconCamera   = (p) => <Ico {...p} d={<><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z"/><circle cx="12" cy="13" r="3.5"/></>} />;
+const IconClose    = (p) => <Ico {...p} sw={2} d={<><path d="M6 6l12 12M18 6L6 18"/></>} />;
 
 Object.assign(window, {
   IconHome, IconWallet, IconDoc, IconUsers, IconGear,
@@ -44,4 +46,5 @@ Object.assign(window, {
   IconPin, IconClock, IconCloud, IconUpload, IconImg, IconPdf,
   IconSearch, IconFilter, IconSwap, IconEdit, IconTrash, IconCheck,
   IconLink, IconBell, IconArchive, IconSun, IconCompass, IconSparkle,
+  IconCamera, IconClose,
 });

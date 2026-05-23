@@ -350,6 +350,8 @@ window.loadExpenses = async (tripId) => {
     createdAt: r.created_at,
     note:      r.note || '',
     splitWith: Array.isArray(r.split_with) ? r.split_with.filter(Boolean) : [],
+    receiptPath: r.receipt_path || null,
+    receiptUrl:  r.receipt_url || null,
   }));
 
   // Recalculate category totals
@@ -437,6 +439,42 @@ window.loadDocuments = async (tripId) => {
 };
 
 // Upload a PDF/image to Supabase Storage and link it to a document record
+// Upload a receipt photo for an expense. Reuses the 'documents' bucket
+// with path `{tripId}/receipts/{expenseId}.{ext}` so existing storage RLS
+// (member-of-trip check via storage.foldername(name)[1]) keeps working.
+// Returns the public URL of the uploaded file.
+window.uploadReceipt = async (expenseId, tripId, file) => {
+  if (!file || !expenseId || !tripId) throw new Error('Missing receipt args');
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `${tripId}/receipts/${expenseId}.${ext}`;
+  const { error: upErr } = await window.sb.storage
+    .from('documents').upload(path, file, {
+      upsert: true, contentType: file.type || 'image/jpeg',
+    });
+  if (upErr) throw upErr;
+  const { data: { publicUrl } } = window.sb.storage
+    .from('documents').getPublicUrl(path);
+  const { error: dbErr } = await window.sb.from('expenses').update({
+    receipt_path: path, receipt_url: publicUrl,
+  }).eq('id', expenseId);
+  if (dbErr) {
+    // Graceful fallback if receipt columns not yet migrated
+    if (!/receipt/i.test(dbErr.message || '')) throw dbErr;
+  }
+  return publicUrl;
+};
+
+// Remove an expense's receipt (storage + DB pointer).
+window.deleteReceipt = async (expenseId, receiptPath) => {
+  if (receiptPath) {
+    try { await window.sb.storage.from('documents').remove([receiptPath]); } catch (_) {}
+  }
+  const { error } = await window.sb.from('expenses').update({
+    receipt_path: null, receipt_url: null,
+  }).eq('id', expenseId);
+  if (error && !/receipt/i.test(error.message || '')) throw error;
+};
+
 window.uploadDocumentFile = async (docId, tripId, file) => {
   const ext  = file.name.split('.').pop().toLowerCase();
   const path = `${tripId}/${docId}.${ext}`;

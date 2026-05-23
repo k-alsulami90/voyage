@@ -400,6 +400,18 @@ function ScreenBudget({ go, openSheet, loading }) {
                       );
                     })()}
                   </div>
+                  {e.receiptUrl && (
+                    <img
+                      src={e.receiptUrl}
+                      alt="receipt"
+                      onClick={(ev) => { ev.stopPropagation(); window.openImageOverlay?.(e.receiptUrl); }}
+                      style={{
+                        width: 32, height: 32, objectFit: 'cover',
+                        borderRadius: 8, border: '0.5px solid var(--hairline)',
+                        flexShrink: 0, cursor: 'zoom-in',
+                      }}
+                    />
+                  )}
                   <div style={{ textAlign: 'end' }}>
                     <div className="mono" style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>
                       {conv(e.usd)}

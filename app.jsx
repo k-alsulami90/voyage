@@ -223,6 +223,8 @@ function App() {
   const [editingExpense, setEditingExpense] = React.useState(null);
   const [showAddDoc, setShowAddDoc] = React.useState(false);
   const [showSettleUp, setShowSettleUp] = React.useState(false);
+  const [imageOverlay, setImageOverlay] = React.useState(null);
+  React.useEffect(() => { window.openImageOverlay = (src) => setImageOverlay(src); }, []);
 
   // DOM side-effects (palette, theme attribute, dir attribute)
   React.useEffect(() => {
@@ -396,6 +398,29 @@ function App() {
           animation: 'slideUpFull 280ms cubic-bezier(.2,.8,.2,1)',
         }} className="no-scrollbar">
           <window.ScreenSettleUp back={() => setShowSettleUp(false)} />
+        </div>
+      )}
+      {imageOverlay && (
+        <div
+          onClick={() => setImageOverlay(null)}
+          style={{
+            position: 'absolute', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,0.92)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'fadeIn 180ms ease',
+          }}
+        >
+          <img src={imageOverlay} alt="receipt"
+            style={{ maxWidth: '94%', maxHeight: '92%', objectFit: 'contain', borderRadius: 8 }} />
+          <button onClick={(e) => { e.stopPropagation(); setImageOverlay(null); }} style={{
+            position: 'absolute', top: 14, insetInlineEnd: 14,
+            width: 36, height: 36, borderRadius: 999,
+            background: 'rgba(255,255,255,0.18)', color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: 'none',
+          }}>
+            <window.IconClose size={16} stroke="currentColor" />
+          </button>
         </div>
       )}
     </div>
@@ -740,6 +765,20 @@ function AddExpenseSheet({ onDone, onAdded, existing }) {
   const [splitMode, setSplitMode] = React.useState(initialSplit.mode);
   const [customSet, setCustomSet] = React.useState(initialSplit.set);
 
+  // Receipt photo state
+  const [receiptFile, setReceiptFile] = React.useState(null);  // pending upload (new pick)
+  const [receiptUrl,  setReceiptUrl]  = React.useState(existing?.receiptUrl || null);
+  const [receiptPath, setReceiptPath] = React.useState(existing?.receiptPath || null);
+  const [previewSrc,  setPreviewSrc]  = React.useState(null);  // object URL for File preview
+  const receiptInputRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!receiptFile) { setPreviewSrc(null); return; }
+    const url = URL.createObjectURL(receiptFile);
+    setPreviewSrc(url);
+    return () => URL.revokeObjectURL(url);
+  }, [receiptFile]);
+
   const amtNum   = parseFloat(amt) || 0;
 
   // Compute the split_with array based on mode
@@ -777,10 +816,24 @@ function AddExpenseSheet({ onDone, onAdded, existing }) {
         note: note.trim() || null,
         splitWith: splitWithIds,
       };
+      let expenseId;
       if (isEdit) {
         await window.updateExpense(existing.id, trip?.id || 'demo', payload);
+        expenseId = existing.id;
       } else {
-        await window.addExpense(trip?.id || 'demo', createdBy, payload);
+        const inserted = await window.addExpense(trip?.id || 'demo', createdBy, payload);
+        expenseId = inserted?.id;
+      }
+      // Upload receipt if one was picked (after the row exists so we have the id)
+      if (receiptFile && expenseId) {
+        try {
+          await window.uploadReceipt(expenseId, trip?.id, receiptFile);
+        } catch (e) {
+          window.toast?.(e.message || 'Receipt upload failed', 'error');
+        }
+      } else if (isEdit && !receiptFile && !receiptUrl && existing?.receiptPath) {
+        // User cleared an existing receipt
+        try { await window.deleteReceipt(existing.id, existing.receiptPath); } catch (_) {}
       }
       await window.loadExpenses(trip?.id || 'demo');
       onAdded?.();
@@ -1009,6 +1062,72 @@ function AddExpenseSheet({ onDone, onAdded, existing }) {
           placeholder={window.isRTL ? 'تفاصيل إضافية...' : 'Extra details...'}
           style={fieldStyle}
         />
+      </div>
+
+      {/* Receipt photo */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase' }}>
+          {t('receiptLabel')}
+        </div>
+        <input
+          ref={receiptInputRef} type="file" accept="image/*" capture="environment"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files && e.target.files[0];
+            if (f) setReceiptFile(f);
+            e.target.value = '';
+          }}
+        />
+        {(previewSrc || receiptUrl) ? (
+          <div style={{
+            display: 'flex', gap: 10, alignItems: 'center',
+            padding: 10, borderRadius: 14,
+            background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+            flexDirection: 'row',
+          }}>
+            <img
+              src={previewSrc || receiptUrl}
+              alt="receipt"
+              onClick={() => window.openImageOverlay?.(previewSrc || receiptUrl)}
+              style={{
+                width: 58, height: 58, objectFit: 'cover',
+                borderRadius: 10, border: '0.5px solid var(--hairline)',
+                cursor: 'zoom-in', flexShrink: 0,
+              }}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--ink)' }}>
+                {receiptFile ? receiptFile.name : (window.isRTL ? 'الإيصال الحالي' : 'Current receipt')}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 2 }}>
+                {t('receiptHint')}
+              </div>
+            </div>
+            <button onClick={() => receiptInputRef.current?.click()} style={{
+              padding: '7px 11px', borderRadius: 10, fontSize: 11.5, fontWeight: 500,
+              background: 'var(--cream)', border: '0.5px solid var(--hairline)',
+              color: 'var(--ink-soft)',
+            }}>{t('receiptReplace')}</button>
+            <button onClick={() => { setReceiptFile(null); setReceiptUrl(null); setReceiptPath(null); }} style={{
+              padding: '7px 9px', borderRadius: 10,
+              background: 'transparent', color: 'var(--clay-deep)',
+              border: '0.5px solid var(--hairline)',
+            }}>
+              <IconTrash size={13} stroke="currentColor" />
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => receiptInputRef.current?.click()} style={{
+            width: '100%', padding: '14px', borderRadius: 14,
+            background: 'var(--cream-2)', border: '1px dashed var(--hairline-2)',
+            color: 'var(--ink-soft)', fontSize: 13, fontWeight: 500,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            flexDirection: 'row',
+          }}>
+            <IconCamera size={16} stroke="currentColor" />
+            <span>{t('receiptAdd')}</span>
+          </button>
+        )}
       </div>
 
       {error && (

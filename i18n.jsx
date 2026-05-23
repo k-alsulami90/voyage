@@ -62,6 +62,15 @@ const TRANSLATIONS = {
     obCreateTrip:'Create my first trip',
     obExplore:'Just explore for now',
 
+    // Receipts (Phase 3)
+    receiptLabel:'Receipt',
+    receiptAdd:'Add receipt',
+    receiptReplace:'Replace',
+    receiptRemove:'Remove',
+    receiptUploading:'Uploading…',
+    receiptHint:'Optional · take a photo or pick from library',
+    receiptOpenFull:'Open full size',
+
     // Settle up (Phase 2)
     settleUp:'Settle up',
     settleAllSettled:'All balances are zero. Nice trip.',
@@ -222,6 +231,15 @@ const TRANSLATIONS = {
     obDoneSub:'أنشئ أول رحلة لك أو ابدأ بالاستكشاف.',
     obCreateTrip:'إنشاء أول رحلة',
     obExplore:'استكشاف فقط',
+
+    // Receipts
+    receiptLabel:'الإيصال',
+    receiptAdd:'إضافة إيصال',
+    receiptReplace:'استبدال',
+    receiptRemove:'حذف',
+    receiptUploading:'جاري الرفع…',
+    receiptHint:'اختياري · صورة من الكاميرا أو المعرض',
+    receiptOpenFull:'فتح بالحجم الكامل',
 
     // Settle up
     settleUp:'تسوية الحسابات',
