@@ -362,9 +362,10 @@ window.uploadDocumentFile = async (docId, tripId, file) => {
 // Aggregate every expense the user can see (RLS scopes to their trips automatically)
 // and compute the full lifetime-stats payload used by the Insights screen.
 window.loadLifetimeStats = async () => {
+  // Use '*' so missing columns (e.g. split_with before migration runs) don't error
   const { data, error } = await window.sb
     .from('expenses')
-    .select('amount_usd, category, trip_id, created_at, created_by, local_currency, split_with')
+    .select('*')
     .order('created_at', { ascending: false });
   if (error) { console.error('loadLifetimeStats', error); return; }
 
@@ -527,7 +528,7 @@ window.loadAuditLog = async (tripId) => {
 // ── Write helpers ────────────────────────────────────────────
 
 window.addExpense = async (tripId, userId, fields) => {
-  const { data, error } = await window.sb.from('expenses').insert({
+  const basePayload = {
     trip_id:        tripId,
     created_by:     userId,
     title:          fields.title,
@@ -536,8 +537,15 @@ window.addExpense = async (tripId, userId, fields) => {
     amount_local:   fields.amountLocal,
     local_currency: fields.localCurrency,
     note:           fields.note || null,
-    split_with:     fields.splitWith || [],
-  }).select().single();
+  };
+  // Try with split_with first; if the column doesn't exist (migration not run),
+  // gracefully fall back to a payload without it.
+  let { data, error } = await window.sb.from('expenses')
+    .insert({ ...basePayload, split_with: fields.splitWith || [] })
+    .select().single();
+  if (error && /split_with/i.test(error.message || '')) {
+    ({ data, error } = await window.sb.from('expenses').insert(basePayload).select().single());
+  }
   if (error) throw error;
 
   window.LIFETIME_STATS = null;  // invalidate so Insights re-aggregates next visit
@@ -682,15 +690,20 @@ window.updateMemberRole = async (tripId, userId, role) => {
 };
 
 window.updateExpense = async (expenseId, tripId, fields) => {
-  const { error } = await window.sb.from('expenses').update({
+  const baseUpdate = {
     title:          fields.title,
     category:       fields.category,
     amount_usd:     fields.amountUSD,
     amount_local:   fields.amountLocal,
     local_currency: fields.localCurrency,
     note:           fields.note || null,
-    split_with:     fields.splitWith || [],
-  }).eq('id', expenseId);
+  };
+  let { error } = await window.sb.from('expenses')
+    .update({ ...baseUpdate, split_with: fields.splitWith || [] })
+    .eq('id', expenseId);
+  if (error && /split_with/i.test(error.message || '')) {
+    ({ error } = await window.sb.from('expenses').update(baseUpdate).eq('id', expenseId));
+  }
   if (error) throw error;
   window.LIFETIME_STATS = null;
   await window.sb.from('audit_log').insert({
