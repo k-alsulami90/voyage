@@ -69,6 +69,7 @@ function App() {
       window.loadMembers(tripId),
       window.loadDocuments(tripId),
       window.loadAuditLog(tripId),
+      window.loadSettlements(tripId),
     ]);
     results.forEach((r, i) => {
       if (r.status === 'rejected') {
@@ -221,6 +222,7 @@ function App() {
   const [docView, setDocView] = React.useState(null);
   const [editingExpense, setEditingExpense] = React.useState(null);
   const [showAddDoc, setShowAddDoc] = React.useState(false);
+  const [showSettleUp, setShowSettleUp] = React.useState(false);
 
   // DOM side-effects (palette, theme attribute, dir attribute)
   React.useEffect(() => {
@@ -265,7 +267,8 @@ function App() {
   }, [route.scope, route.tripId, loadTripData]);
   const openSheet = (s, payload) => {
     if (s === 'editExpense' && payload) setEditingExpense(payload);
-    if (s === 'addDoc') { setShowAddDoc(true); return; }   // full screen, not a sheet
+    if (s === 'addDoc') { setShowAddDoc(true); return; }       // full screen
+    if (s === 'settleUp') { setShowSettleUp(true); return; }   // full screen
     setSheet(s);
   };
   const openDoc = (doc, category) => setDocView({ doc, category, prevRoute: route });
@@ -384,6 +387,15 @@ function App() {
           <window.ScreenAddDoc
             back={() => setShowAddDoc(false)}
             onCreated={() => setShowAddDoc(false)} />
+        </div>
+      )}
+      {/* Full-screen Settle Up */}
+      {showSettleUp && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 85, overflow: 'auto',
+          animation: 'slideUpFull 280ms cubic-bezier(.2,.8,.2,1)',
+        }} className="no-scrollbar">
+          <window.ScreenSettleUp back={() => setShowSettleUp(false)} />
         </div>
       )}
     </div>

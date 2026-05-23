@@ -157,14 +157,18 @@ function ScreenHub({ go, openSheet, loading }) {
 
       {/* PERSONAL BALANCE CARD — only for shared trips with non-zero balance */}
       {(window.MEMBERS || []).length > 1 && (() => {
-        const balance = window.computeUserBalance?.(window.currentUserId, window.EXPENSES || []);
+        const balance = window.computeUserBalance?.(
+          window.currentUserId,
+          window.EXPENSES || [],
+          window.SETTLEMENTS || []
+        );
         if (!balance || Math.abs(balance.net) < 0.5) return null;  // hide near-zero
         const owed = balance.net > 0;
         const otherCount = Object.entries(balance.byOther || {})
           .filter(([, v]) => Math.abs(v) > 0.5).length;
         return (
           <div style={{ padding: '20px 14px 0', position: 'relative', zIndex: 3 }}>
-            <button onClick={() => go('budget')} style={{
+            <button onClick={() => openSheet?.('settleUp')} style={{
               width: '100%', textAlign: 'start',
               borderRadius: 22, padding: '16px 18px',
               background: owed
@@ -193,8 +197,8 @@ function ScreenHub({ go, openSheet, loading }) {
                 </div>
                 <div style={{ fontSize: 11.5, opacity: 0.88, marginTop: 3 }}>
                   {owed
-                    ? (window.isRTL ? `من ${otherCount} شخص` : `from ${otherCount} ${otherCount === 1 ? 'person' : 'people'}`)
-                    : (window.isRTL ? `لـ ${otherCount} شخص` : `to ${otherCount} ${otherCount === 1 ? 'person' : 'people'}`)}
+                    ? (window.isRTL ? `من ${otherCount} شخص · ${t('balanceTapToSettle')}` : `from ${otherCount} ${otherCount === 1 ? 'person' : 'people'} · ${t('balanceTapToSettle')}`)
+                    : (window.isRTL ? `لـ ${otherCount} شخص · ${t('balanceTapToSettle')}` : `to ${otherCount} ${otherCount === 1 ? 'person' : 'people'} · ${t('balanceTapToSettle')}`)}
                 </div>
               </div>
               <IconChevron size={14} stroke="#fff" />

@@ -62,6 +62,21 @@ const TRANSLATIONS = {
     obCreateTrip:'Create my first trip',
     obExplore:'Just explore for now',
 
+    // Settle up (Phase 2)
+    settleUp:'Settle up',
+    settleAllSettled:'All balances are zero. Nice trip.',
+    settleTransactions:'Transactions to settle',
+    settleSummary:'{n} {n,plural,one{transaction}other{transactions}} to balance everyone',
+    settleMarkPaid:'I paid this',
+    settleShare:'Share',
+    settleHistory:'Already settled',
+    settleNoActivity:'No expenses yet — add some to get started.',
+    settleConfirmTitle:'Mark as paid?',
+    settleConfirmMsg:'{from} paid {to} {amount}. This will appear in everyone\'s balance.',
+    settleConfirmYes:'Yes, paid',
+    settleWhatsappCopy:'Hey {to}, I owe you {amount} from our trip — settled via Voyage.',
+    settleHistoryTitle:'Settlements so far',
+
     // Splits & shared trips
     splitWithLabel:'Split with',
     splitEveryone:'Everyone',
@@ -207,6 +222,21 @@ const TRANSLATIONS = {
     obDoneSub:'أنشئ أول رحلة لك أو ابدأ بالاستكشاف.',
     obCreateTrip:'إنشاء أول رحلة',
     obExplore:'استكشاف فقط',
+
+    // Settle up
+    settleUp:'تسوية الحسابات',
+    settleAllSettled:'كل الحسابات متسوية. رحلة موفقة.',
+    settleTransactions:'تحويلات لتسوية الحسابات',
+    settleSummary:'{n} {n,plural,one{تحويل}other{تحويلات}} لتسوية الجميع',
+    settleMarkPaid:'تم الدفع',
+    settleShare:'مشاركة',
+    settleHistory:'تمت التسوية',
+    settleNoActivity:'لا توجد مصاريف بعد — أضف بعضاً للبدء.',
+    settleConfirmTitle:'تأكيد الدفع؟',
+    settleConfirmMsg:'{from} دفع {to} مبلغ {amount}. سيظهر في رصيد الجميع.',
+    settleConfirmYes:'نعم، تم الدفع',
+    settleWhatsappCopy:'مرحباً {to}، أدين لك بـ {amount} من رحلتنا — تمت التسوية عبر Voyage.',
+    settleHistoryTitle:'التسويات السابقة',
 
     // Splits & shared trips
     splitWithLabel:'تقسيم مع',

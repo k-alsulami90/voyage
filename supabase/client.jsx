@@ -152,6 +152,54 @@ window.loadTrips = async (userId) => {
   }
 };
 
+// ── Settlements (Phase 2) ────────────────────────────────────
+// Load settlements for a trip into window.SETTLEMENTS.
+// Falls back gracefully if the table doesn't exist yet (pre-migration).
+window.loadSettlements = async (tripId) => {
+  if (!tripId || !window.sb) return [];
+  const { data, error } = await window.sb.from('settlements')
+    .select('*').eq('trip_id', tripId).order('created_at', { ascending: false });
+  if (error) {
+    if (/settlements/i.test(error.message || '')) {
+      window.SETTLEMENTS = [];
+      return [];
+    }
+    console.error('loadSettlements', error);
+    window.SETTLEMENTS = [];
+    return [];
+  }
+  window.SETTLEMENTS = data || [];
+  return window.SETTLEMENTS;
+};
+
+// Record a real-world money transfer between two trip members.
+window.recordSettlement = async (tripId, fromUser, toUser, amountUSD, note = null) => {
+  if (!window.sb) throw new Error('Not signed in');
+  if (fromUser === toUser) throw new Error('Cannot pay yourself');
+  const { data, error } = await window.sb.from('settlements').insert({
+    trip_id: tripId,
+    from_user: fromUser,
+    to_user: toUser,
+    amount_usd: Math.round(amountUSD * 100) / 100,
+    note,
+    created_by: window.currentUserId,
+  }).select().single();
+  if (error) throw error;
+  // Refresh local cache + invalidate lifetime stats
+  await window.loadSettlements(tripId);
+  window.LIFETIME_STATS = null;
+  // Audit log
+  try {
+    await window.sb.from('audit_log').insert({
+      trip_id: tripId,
+      user_id: window.currentUserId,
+      action: 'edited',
+      target: `Settlement: ${(amountUSD || 0).toFixed(0)}`,
+    });
+  } catch (_) {}
+  return data;
+};
+
 // ── Balance computation (shared trips) ───────────────────────
 // For a given user, given a list of expenses, returns the per-trip
 // totals: paid (what the user covered for the group), owes (their
@@ -163,7 +211,7 @@ window.loadTrips = async (userId) => {
 //     = len(splitWith) + 1. Each member's share = e.usd / (len + 1).
 //   - If splitWith is empty, the expense is personal — payer covered it,
 //     not shared, nobody else owes anything.
-window.computeUserBalance = function(userId, expenses) {
+window.computeUserBalance = function(userId, expenses, settlements) {
   let paid = 0;
   let owes = 0;
   const byOther = {};  // userId → net (positive: they owe you; negative: you owe them)
@@ -173,22 +221,73 @@ window.computeUserBalance = function(userId, expenses) {
     const totalSharers = isShared ? (splitters.length + 1) : 1;
     const shareAmount = (e.usd || 0) / totalSharers;
     if (e.who === userId) {
-      // I paid
       paid += (e.usd || 0);
       if (isShared) {
-        // Others owe me their share
         splitters.forEach((uid) => {
-          const portion = shareAmount;
-          byOther[uid] = (byOther[uid] || 0) + portion;
+          byOther[uid] = (byOther[uid] || 0) + shareAmount;
         });
       }
     } else if (isShared && splitters.includes(userId)) {
-      // Someone else paid; I owe my share
       owes += shareAmount;
       byOther[e.who] = (byOther[e.who] || 0) - shareAmount;
     }
   });
+  // Apply settlements — each one reduces the from->to debt by amount.
+  // If userId is `from_user`: they paid `to_user` cash → their byOther[to] should INCREASE
+  //   (they no longer owe as much; they essentially 'paid in advance')
+  // If userId is `to_user`: they were paid by `from_user` → their byOther[from] should DECREASE
+  //   (they're no longer owed as much).
+  (settlements || []).forEach((s) => {
+    const amt = parseFloat(s.amount_usd) || 0;
+    if (s.from_user === userId) {
+      byOther[s.to_user] = (byOther[s.to_user] || 0) + amt;
+      paid += amt;  // counts toward your "paid" total too
+    } else if (s.to_user === userId) {
+      byOther[s.from_user] = (byOther[s.from_user] || 0) - amt;
+      owes += amt;
+    }
+  });
   return { paid, owes, net: paid - owes, byOther };
+};
+
+// ── Settle-up algorithm ──────────────────────────────────────
+// Given a per-member net balances map (positive = owed, negative = owes),
+// produce the minimum number of transactions to zero out everyone.
+// Greedy O(n log n) approach: max-creditor pays the max-debtor each round.
+window.computeSettlements = function(balances) {
+  // balances: { userId: net (USD-base) }
+  const creditors = []; // { id, amount }  positive
+  const debtors   = []; // { id, amount }  positive abs
+  Object.entries(balances || {}).forEach(([id, net]) => {
+    if (net > 0.5) creditors.push({ id, amount: net });
+    else if (net < -0.5) debtors.push({ id, amount: -net });
+  });
+  // Sort descending so we match biggest first (fewer transactions)
+  creditors.sort((a, b) => b.amount - a.amount);
+  debtors.sort((a, b) => b.amount - a.amount);
+  const transfers = [];
+  let i = 0, j = 0;
+  while (i < debtors.length && j < creditors.length) {
+    const d = debtors[i], c = creditors[j];
+    const amt = Math.min(d.amount, c.amount);
+    if (amt >= 0.5) {
+      transfers.push({ from: d.id, to: c.id, amount: Math.round(amt * 100) / 100 });
+    }
+    d.amount -= amt;
+    c.amount -= amt;
+    if (d.amount < 0.5) i++;
+    if (c.amount < 0.5) j++;
+  }
+  return transfers;
+};
+
+// Compute everyone's balance in one shot (used by Settle Up screen)
+window.computeAllBalances = function(memberIds, expenses, settlements) {
+  const balances = {};
+  (memberIds || []).forEach((uid) => {
+    balances[uid] = window.computeUserBalance(uid, expenses, settlements).net;
+  });
+  return balances;
 };
 
 // Track which trips have had their full per-trip data loaded at least once.
@@ -369,6 +468,14 @@ window.loadLifetimeStats = async () => {
     .order('created_at', { ascending: false });
   if (error) { console.error('loadLifetimeStats', error); return; }
 
+  // Fetch settlements across all trips (RLS scopes them automatically).
+  // Falls back to [] if the table doesn't exist yet (pre-migration 005).
+  let allSettlements = [];
+  try {
+    const { data: sData, error: sErr } = await window.sb.from('settlements').select('*');
+    if (!sErr) allSettlements = sData || [];
+  } catch (_) {}
+
   const trips = window.TRIPS || [];
   const expenses = data || [];
 
@@ -441,6 +548,13 @@ window.loadLifetimeStats = async () => {
       } else if (isShared && splitters.includes(userId)) {
         balanceByTrip[e.trip_id] -= share;
       }
+    });
+    // Apply settlements (post-payment balance reduction)
+    allSettlements.forEach((s) => {
+      const amt = parseFloat(s.amount_usd) || 0;
+      balanceByTrip[s.trip_id] = balanceByTrip[s.trip_id] || 0;
+      if (s.from_user === userId)      balanceByTrip[s.trip_id] += amt;
+      else if (s.to_user === userId)   balanceByTrip[s.trip_id] -= amt;
     });
   }
 
