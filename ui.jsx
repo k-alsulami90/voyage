@@ -211,6 +211,15 @@ function SwipeRow({ children, actions, onAction }) {
   // empty swipe affordance (and so the row keeps its native border-radius).
   if (!actions || actions.length === 0) return children;
 
+  // In RTL the action chip sits on the LEFT (see .swipe-actions rule),
+  // so the user swipes right-to-left from the leading edge — translation
+  // must go positive instead of negative. We mirror the math by direction.
+  const rtl = !!window.isRTL;
+  const dir = rtl ? 1 : -1;             // sign of "revealed" translation
+  const max = 150 * dir;                // clamp end
+  const openAt = 130 * dir;             // resting open position
+  const threshold = 60;                 // distance needed to commit
+
   const [dx, setDx] = React.useState(0);
   const [open, setOpen] = React.useState(false);
   const startX = React.useRef(0);
@@ -224,11 +233,14 @@ function SwipeRow({ children, actions, onAction }) {
   const onMove = (e) => {
     if (!startX.current) return;
     const x = e.touches ? e.touches[0].clientX : e.clientX;
-    const next = Math.min(0, Math.max(-150, x - startX.current));
+    const raw = x - startX.current;
+    // Clamp to [0, max] in the swipe direction; ignore the opposite direction.
+    const next = rtl ? Math.max(0, Math.min(max, raw))
+                     : Math.min(0, Math.max(max, raw));
     setDx(next);
   };
   const onEnd = () => {
-    if (dx < -60) { setDx(-130); setOpen(true); }
+    if (Math.abs(dx) > threshold) { setDx(openAt); setOpen(true); }
     else { setDx(0); setOpen(false); }
     startX.current = 0;
   };
