@@ -505,6 +505,8 @@ window.loadDocuments = async (tripId) => {
         : (r.file_path ? '...' : '--'),
       tint:      r.tint,
       filePath:  r.file_path || null,
+      coverUrl:  r.cover_url || null,
+      coverPath: r.cover_path || null,
       link:      resolvedLink,
       linkLabel: resolvedLabel,
       photos:    (r.document_photos || []).map((p) => p.storage_path),
@@ -660,6 +662,40 @@ window.deleteTripCover = async (tripId, coverPath) => {
   const { error } = await window.sb.from('trips').update({
     cover_path: null, cover_url: null,
   }).eq('id', tripId);
+  if (error && !/cover/i.test(error.message || '')) throw error;
+};
+
+// Upload a per-document cover photo (airline logo, hotel facade, etc.)
+// Reuses 'documents' bucket at {tripId}/doc-covers/{docId}.{ext} so the
+// existing storage RLS keeps working without new policies.
+window.uploadDocCover = async (docId, tripId, file) => {
+  if (!docId || !tripId || !file) throw new Error('Missing cover args');
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `${tripId}/doc-covers/${docId}.${ext}`;
+  const { error: upErr } = await window.sb.storage
+    .from('documents').upload(path, file, {
+      upsert: true, contentType: file.type || 'image/jpeg',
+    });
+  if (upErr) throw upErr;
+  const { data: { publicUrl } } = window.sb.storage
+    .from('documents').getPublicUrl(path);
+  const url = `${publicUrl}?v=${Date.now()}`;
+  const { error: dbErr } = await window.sb.from('documents').update({
+    cover_path: path, cover_url: url,
+  }).eq('id', docId);
+  if (dbErr) {
+    if (!/cover/i.test(dbErr.message || '')) throw dbErr;
+  }
+  return url;
+};
+
+window.deleteDocCover = async (docId, coverPath) => {
+  if (coverPath) {
+    try { await window.sb.storage.from('documents').remove([coverPath]); } catch (_) {}
+  }
+  const { error } = await window.sb.from('documents').update({
+    cover_path: null, cover_url: null,
+  }).eq('id', docId);
   if (error && !/cover/i.test(error.message || '')) throw error;
 };
 

@@ -9,10 +9,20 @@ function ScreenAddDoc({ back, onCreated }) {
   const [link,      setLink]      = React.useState('');
   const [linkLabel, setLinkLabel] = React.useState('');
   const [file,      setFile]      = React.useState(null);
+  const [coverFile, setCoverFile] = React.useState(null);
+  const [coverPreview, setCoverPreview] = React.useState(null);
   const [drag,      setDrag]      = React.useState(false);
   const [saving,    setSaving]    = React.useState(false);
   const [error,     setError]     = React.useState(null);
   const fileRef = React.useRef(null);
+  const coverRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!coverFile) { setCoverPreview(null); return; }
+    const url = URL.createObjectURL(coverFile);
+    setCoverPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [coverFile]);
 
   const TINTS = ['indigo', 'clay', 'moss', 'honey'];
   const TINT_FILL = { indigo: 'var(--indigo)', clay: 'var(--clay)', moss: 'var(--moss)', honey: 'var(--honey)' };
@@ -43,6 +53,11 @@ function ScreenAddDoc({ back, onCreated }) {
       // 2. If user picked a file, upload it now
       if (file) {
         await window.uploadDocumentFile(doc.id, tripId, file);
+      }
+      // 3. If user picked a cover photo, upload it
+      if (coverFile) {
+        try { await window.uploadDocCover(doc.id, tripId, coverFile); }
+        catch (e) { window.toast?.(e.message || 'Cover upload failed', 'error'); }
       }
 
       await window.loadDocuments(tripId);
@@ -217,6 +232,48 @@ function ScreenAddDoc({ back, onCreated }) {
             <input type="text" value={linkLabel} onChange={(e) => setLinkLabel(e.target.value)}
               placeholder={window.isRTL ? 'نص الرابط (مثال: خرائط جوجل)' : 'Link label (e.g. Google Maps)'}
               style={{ ...fieldStyle, marginTop: 6, fontSize: 13 }} />
+          )}
+        </div>
+
+        {/* Cover photo (optional) — shown as thumbnail in lists/grid */}
+        <div>
+          <label style={labelStyle}>{window.isRTL ? 'صورة الغلاف (اختياري)' : 'Cover photo (optional)'}</label>
+          <input ref={coverRef} type="file" accept="image/*" style={{ display: 'none' }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) setCoverFile(f); e.target.value = ''; }} />
+          {coverPreview ? (
+            <div style={{
+              display: 'flex', gap: 10, alignItems: 'center', flexDirection: 'row',
+              padding: 10, borderRadius: 14,
+              background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+            }}>
+              <div style={{
+                width: 58, height: 58, borderRadius: 10, flexShrink: 0,
+                backgroundImage: `url(${coverPreview})`, backgroundSize: 'cover', backgroundPosition: 'center',
+                border: '0.5px solid var(--hairline)',
+              }} />
+              <div style={{ flex: 1, fontSize: 12.5, color: 'var(--ink)' }}>{coverFile?.name}</div>
+              <button onClick={() => coverRef.current?.click()} style={{
+                padding: '7px 11px', borderRadius: 10, fontSize: 11.5, fontWeight: 500,
+                background: 'var(--cream)', border: '0.5px solid var(--hairline)',
+                color: 'var(--ink-soft)',
+              }}>{window.isRTL ? 'تغيير' : 'Replace'}</button>
+              <button onClick={() => setCoverFile(null)} style={{
+                padding: '7px 9px', borderRadius: 10,
+                background: 'transparent', color: 'var(--clay-deep)',
+                border: '0.5px solid var(--hairline)',
+              }}><window.IconTrash size={13} stroke="currentColor" /></button>
+            </div>
+          ) : (
+            <button onClick={() => coverRef.current?.click()} style={{
+              width: '100%', padding: '14px', borderRadius: 14,
+              background: 'var(--cream-2)', border: '1px dashed var(--hairline-2)',
+              color: 'var(--ink-soft)', fontSize: 13, fontWeight: 500,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              flexDirection: 'row',
+            }}>
+              <window.IconCamera size={16} stroke="currentColor" />
+              {window.isRTL ? 'إضافة صورة' : 'Add a photo'}
+            </button>
           )}
         </div>
 

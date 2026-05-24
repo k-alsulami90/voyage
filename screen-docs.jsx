@@ -364,20 +364,26 @@ function DocTileGrid({ doc, onOpen }) {
       background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
       boxShadow: 'var(--shadow-sm)',
     }}>
-      {/* Top: tinted preview area */}
+      {/* Top: cover photo if uploaded, else tinted preview area */}
       <div style={{
         aspectRatio: '1.3',
-        background: `linear-gradient(155deg, color-mix(in oklch, ${tint} 18%, var(--cream-2)) 0%, color-mix(in oklch, ${tint} 8%, var(--cream-2)) 100%)`,
+        background: doc.coverUrl
+          ? 'var(--cream-2)'
+          : `linear-gradient(155deg, color-mix(in oklch, ${tint} 18%, var(--cream-2)) 0%, color-mix(in oklch, ${tint} 8%, var(--cream-2)) 100%)`,
+        backgroundImage: doc.coverUrl ? `url(${doc.coverUrl})` : undefined,
+        backgroundSize: 'cover', backgroundPosition: 'center',
         position: 'relative', display: 'grid', placeItems: 'center',
         borderBottom: '0.5px solid var(--hairline)',
       }}>
-        <div style={{
-          width: 48, height: 48, borderRadius: 12,
-          background: tint, display: 'grid', placeItems: 'center',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
-        }}>
-          <Icon size={22} stroke="#fff" />
-        </div>
+        {!doc.coverUrl && (
+          <div style={{
+            width: 48, height: 48, borderRadius: 12,
+            background: tint, display: 'grid', placeItems: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+          }}>
+            <Icon size={22} stroke="#fff" />
+          </div>
+        )}
         {/* File kind badge top-end */}
         <div style={{
           position: 'absolute', top: 8, insetInlineEnd: 8,
@@ -417,19 +423,30 @@ function DocRowList({ doc, last, onOpen }) {
   const tint = tintColor(doc.tint);
   return (
     <button onClick={onOpen} style={{
-      all: 'unset', cursor: 'pointer',
+      all: 'unset', cursor: 'pointer', boxSizing: 'border-box', width: '100%',
       display: 'flex', alignItems: 'center', gap: 12,
       padding: '12px 14px',
+      // Solid bg so the swipe-action chip behind it stays hidden until swipe.
+      background: 'var(--cream-2)',
       borderBottom: last ? 'none' : '0.5px solid var(--hairline)',
     }}>
-      <div style={{
-        width: 40, height: 40, borderRadius: 11, flexShrink: 0,
-        background: tint, color: '#fff',
-        display: 'grid', placeItems: 'center',
-        boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
-      }}>
-        <Icon size={18} stroke="#fff" />
-      </div>
+      {doc.coverUrl ? (
+        <div style={{
+          width: 40, height: 40, borderRadius: 11, flexShrink: 0,
+          backgroundImage: `url(${doc.coverUrl})`,
+          backgroundSize: 'cover', backgroundPosition: 'center',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
+        }} />
+      ) : (
+        <div style={{
+          width: 40, height: 40, borderRadius: 11, flexShrink: 0,
+          background: tint, color: '#fff',
+          display: 'grid', placeItems: 'center',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
+        }}>
+          <Icon size={18} stroke="#fff" />
+        </div>
+      )}
 
       <div style={{ flex: 1, minWidth: 0, textAlign: 'start' }}>
         <div style={{
