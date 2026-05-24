@@ -80,9 +80,31 @@ function ScreenAnalytics({ go, loading }) {
     return { ...m, paid, pct: totalUSD > 0 ? Math.round((paid / totalUSD) * 100) : 0 };
   }).filter((m) => m.paid > 0).sort((a, b) => b.paid - a.paid);
 
-  // Sparkline data (last 7 date buckets or all)
-  const sparkBuckets = dateEntries.slice(-7);
-  const sparkMax = Math.max(...sparkBuckets.map(([, v]) => v), 1);
+  // Full-trip daily buckets — every day from start_date to end_date (or today).
+  // Bucket by ISO YYYY-MM-DD from raw createdAt so we don't depend on display format.
+  const isoOf = (iso) => (iso || '').slice(0, 10);
+  const dailyByISO = {};
+  const dailyByISOCats = {};
+  expenses.forEach((e) => {
+    const k = isoOf(e.createdAt);
+    if (!k) return;
+    dailyByISO[k] = (dailyByISO[k] || 0) + (e.usd || 0);
+    const m = dailyByISOCats[k] || (dailyByISOCats[k] = {});
+    m[e.cat] = (m[e.cat] || 0) + (e.usd || 0);
+  });
+  const allDays = (() => {
+    if (!trip?.startDate) return Object.keys(dailyByISO).sort();
+    const start = new Date(trip.startDate + 'T00:00:00');
+    const endRaw = trip.endDate ? new Date(trip.endDate + 'T00:00:00') : new Date();
+    const end = endRaw < new Date() ? endRaw : new Date();
+    const out = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      out.push(d.toISOString().slice(0, 10));
+    }
+    return out;
+  })();
+  const dailyMax = Math.max(...allDays.map((k) => dailyByISO[k] || 0), 1);
+  const peakISO = allDays.reduce((m, k) => (dailyByISO[k] || 0) > (dailyByISO[m] || 0) ? k : m, allDays[0]);
 
   // ── Empty state ─────────────────────────────────────────────
   if (expenses.length === 0) {
@@ -160,28 +182,51 @@ function ScreenAnalytics({ go, loading }) {
             }}>{daysElapsed} / {daysTotal} {window.isRTL ? 'يوم' : 'days'}</div>
           </div>
 
-          {/* Sparkline */}
-          {sparkBuckets.length > 0 && (
-            <div style={{
+          {/* Full-trip daily bar chart — scrolls horizontally if many days */}
+          {allDays.length > 0 && (
+            <div className="no-scrollbar" style={{
               position: 'relative', marginTop: 18,
-              display: 'flex', alignItems: 'flex-end',
-              justifyContent: 'space-between', gap: 4, height: 60,
-              flexDirection: 'row',
+              overflowX: 'auto', overflowY: 'hidden',
+              WebkitOverflowScrolling: 'touch',
             }}>
-              {sparkBuckets.map(([date, val], i) => (
-                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-end' }}>
-                    <div style={{
-                      width: '100%', height: `${(val / sparkMax) * 100}%`,
-                      background: val === maxDay.val ? 'var(--clay)' : 'rgba(255,255,255,0.2)',
-                      borderRadius: '3px 3px 0 0', minHeight: 4,
-                    }} />
-                  </div>
-                  <div style={{ fontSize: 8.5, opacity: 0.7, fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>
-                    {date.split(' ')[1] || date.slice(-5)}
-                  </div>
-                </div>
-              ))}
+              <div style={{
+                display: 'flex', alignItems: 'flex-end',
+                gap: 5, height: 64, flexDirection: 'row',
+                minWidth: '100%',
+                // Each bar ~18px wide so a 14-day trip fits without scroll, longer scrolls
+                width: Math.max(allDays.length * 22, 100),
+              }}>
+                {allDays.map((iso, i) => {
+                  const val = dailyByISO[iso] || 0;
+                  const isPeak = iso === peakISO && val > 0;
+                  const heightPct = val > 0 ? Math.max((val / dailyMax) * 100, 4) : 2;
+                  const d = new Date(iso + 'T00:00:00');
+                  const isFirstOfMonth = d.getDate() === 1 || i === 0;
+                  return (
+                    <div key={iso} style={{
+                      flex: '0 0 auto', width: 18,
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                    }}>
+                      <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-end' }}>
+                        <div style={{
+                          width: '100%', height: `${heightPct}%`,
+                          background: val === 0
+                            ? 'rgba(255,255,255,0.08)'
+                            : (isPeak ? 'var(--clay)' : 'rgba(255,255,255,0.32)'),
+                          borderRadius: '3px 3px 0 0',
+                        }} />
+                      </div>
+                      <div style={{
+                        fontSize: 8, opacity: isFirstOfMonth ? 0.85 : 0.5,
+                        fontFamily: 'var(--mono)', whiteSpace: 'nowrap',
+                        fontWeight: isFirstOfMonth ? 600 : 400,
+                      }}>
+                        {d.getDate()}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -330,6 +375,93 @@ function ScreenAnalytics({ go, loading }) {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* DAY-BY-DAY list with category mix */}
+      {allDays.length > 0 && (
+        <div style={{ padding: '22px 14px 0' }}>
+          <SectionLabel>{window.isRTL ? 'يوم بيوم' : 'Day by day'}</SectionLabel>
+          <div style={{
+            background: 'var(--cream-2)', borderRadius: 22,
+            margin: '0 8px', overflow: 'hidden',
+            border: '0.5px solid var(--hairline)',
+          }}>
+            {allDays.slice().reverse().map((iso, idx) => {
+              const val = dailyByISO[iso] || 0;
+              const catMix = dailyByISOCats[iso] || {};
+              const d = new Date(iso + 'T00:00:00');
+              const dayNum = trip?.startDate
+                ? Math.floor((d - new Date(trip.startDate + 'T00:00:00')) / 86400000) + 1
+                : null;
+              const weekday = d.toLocaleDateString(window.isRTL ? 'ar' : 'en', { weekday: 'short' });
+              const date = d.toLocaleDateString(window.isRTL ? 'ar' : 'en', { month: 'short', day: 'numeric' });
+              const isToday = iso === new Date().toISOString().slice(0, 10);
+              return (
+                <div key={iso} style={{
+                  padding: '11px 14px',
+                  borderTop: idx ? '0.5px solid var(--hairline)' : 'none',
+                  opacity: val === 0 ? 0.55 : 1,
+                  display: 'flex', alignItems: 'center', gap: 12, flexDirection: 'row',
+                }}>
+                  {/* Left: day label */}
+                  <div style={{ minWidth: 64 }}>
+                    <div style={{
+                      fontSize: 12.5, fontWeight: 500,
+                      color: isToday ? 'var(--clay-deep)' : 'var(--ink)',
+                    }}>
+                      {dayNum ? (window.isRTL ? `يوم ${dayNum}` : `Day ${dayNum}`) : date}
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--ink-mute)', marginTop: 1 }}>
+                      {weekday} · {date}
+                    </div>
+                  </div>
+                  {/* Middle: category mix bar */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {val > 0 ? (
+                      <div style={{
+                        height: 6, borderRadius: 3, overflow: 'hidden',
+                        background: 'var(--sand)',
+                        display: 'flex', flexDirection: 'row',
+                      }}>
+                        {cats.map((c) => {
+                          const cv = catMix[c.key] || 0;
+                          if (cv === 0) return null;
+                          return (
+                            <div key={c.key} style={{
+                              width: `${(cv / val) * 100}%`, height: '100%',
+                              background: c.color,
+                            }} />
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{
+                        height: 6, borderRadius: 3,
+                        background: 'var(--hairline)',
+                      }} />
+                    )}
+                    <div style={{ fontSize: 9.5, color: 'var(--ink-mute)', fontFamily: 'var(--mono)' }}>
+                      {Object.keys(catMix).length === 0
+                        ? (window.isRTL ? 'لا مصروفات' : 'no spend')
+                        : Object.entries(catMix)
+                            .sort((a, b) => b[1] - a[1])
+                            .slice(0, 3)
+                            .map(([k]) => cats.find((c) => c.key === k)?.label || k)
+                            .join(' · ')}
+                    </div>
+                  </div>
+                  {/* Right: amount */}
+                  <div className="mono" style={{
+                    fontSize: 13, fontWeight: 500, minWidth: 62, textAlign: 'end',
+                    color: val === 0 ? 'var(--ink-mute)' : 'var(--ink)',
+                  }}>
+                    {val === 0 ? '—' : fmtC(val)}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
