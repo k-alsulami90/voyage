@@ -333,7 +333,7 @@ function ScreenHub({ go, openSheet, loading }) {
             { i: <IconPlus size={20} />, l: t('add'), onClick: () => openSheet('addExpense') },
             { i: <IconUpload size={18} />, l: t('upload'), onClick: () => go('docs') },
             { i: <IconQR size={18} />, l: t('invite'), onClick: () => openSheet('share') },
-            { i: <IconCompass size={18} />, l: t('plan'), onClick: () => go('settings') },
+            { i: <IconCompass size={18} />, l: t('planNav') || t('plan'), onClick: () => go('plan') },
           ].map((q, i) => (
             <button key={i} onClick={q.onClick} style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
