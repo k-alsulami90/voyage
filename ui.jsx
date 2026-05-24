@@ -207,6 +207,10 @@ const Sheet = ({ open, onClose, children, title, height = 0.7 }) => {
 
 // Swipeable row (drag horizontally to reveal actions)
 function SwipeRow({ children, actions, onAction }) {
+  // If there are no actions, render the child as-is so we don't add an
+  // empty swipe affordance (and so the row keeps its native border-radius).
+  if (!actions || actions.length === 0) return children;
+
   const [dx, setDx] = React.useState(0);
   const [open, setOpen] = React.useState(false);
   const startX = React.useRef(0);

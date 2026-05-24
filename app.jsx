@@ -400,9 +400,7 @@ function App() {
       {route.scope === 'app' && route.name !== 'onboarding' &&
         <AppNav active={route.name} onChange={go} onAdd={() => openSheet('addTrip')} />}
       {route.scope === 'trip' && (
-        <TripNav active={route.name} onChange={go}
-                 onExit={() => setRoute({ scope: 'app', name: 'trips' })}
-                 onAdd={() => openSheet('addExpense')} />
+        <TripNav active={route.name} onChange={go} />
       )}
 
       <Sheet open={sheet === 'addTrip'} onClose={() => setSheet(null)} title={window.isRTL ? 'رحلة جديدة' : 'New trip'} height={0.88}>
@@ -601,7 +599,7 @@ function AppNav({ active, onChange, onAdd }) {
 }
 
 // ── Trip-scope bottom nav ──
-function TripNav({ active, onChange, onExit, onAdd }) {
+function TripNav({ active, onChange }) {
   const tabs = [
     { k: 'hub',      l: t('hub'),       i: IconHome },
     { k: 'plan',     l: t('planNav'),   i: IconCompass },

@@ -301,40 +301,6 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
           </button>
         )}
 
-        {/* OR divider — only in signin/signup */}
-        {(mode === 'signin' || mode === 'signup') && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10, margin: '14px 4px 12px',
-          flexDirection: 'row',
-        }}>
-          <div style={{ flex: 1, height: 0.5, background: 'var(--hairline-2)' }} />
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.16em', color: 'var(--ink-mute)' }}>
-            {t('orContinueWith')}
-          </span>
-          <div style={{ flex: 1, height: 0.5, background: 'var(--hairline-2)' }} />
-        </div>
-        )}
-
-        {(mode === 'signin' || mode === 'signup') && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-          {[
-            { name: t('apple'), glyph: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 12.04c-.02-2.16 1.77-3.2 1.85-3.25-1.01-1.48-2.58-1.68-3.14-1.7-1.34-.13-2.61.78-3.29.78-.68 0-1.73-.76-2.84-.74-1.46.02-2.81.85-3.56 2.16-1.52 2.63-.39 6.51 1.09 8.65.73 1.05 1.59 2.22 2.72 2.18 1.09-.04 1.5-.7 2.82-.7 1.32 0 1.7.7 2.85.68 1.18-.02 1.92-1.06 2.64-2.11.83-1.21 1.17-2.39 1.19-2.46-.03-.01-2.28-.88-2.3-3.49M14.78 5.69c.6-.73 1-1.74.89-2.74-.86.04-1.9.57-2.51 1.29-.55.64-1.04 1.66-.91 2.64.96.08 1.93-.49 2.53-1.19z"/></svg> },
-            { name: t('google'), glyph: <svg width="14" height="14" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A10.99 10.99 0 0012 23z"/><path fill="#FBBC05" d="M5.84 14.1A6.6 6.6 0 015.5 12c0-.73.12-1.43.34-2.1V7.06H2.18A11 11 0 001 12c0 1.78.43 3.46 1.18 4.94l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38z"/></svg> },
-            { name: t('passkey'), glyph: <IconCheck size={14} stroke="var(--ink)" /> },
-          ].map((p) => (
-            <button key={p.name} style={{
-              padding: '11px 8px', borderRadius: 14,
-              background: 'rgba(255,255,255,0.7)',
-              border: '0.5px solid var(--hairline)',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-              fontSize: 10.5, fontWeight: 500, color: 'var(--ink-soft)',
-            }}>
-              {p.glyph}
-              {p.name}
-            </button>
-          ))}
-        </div>
-        )}
       </div>
 
       {/* Footer */}

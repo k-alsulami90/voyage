@@ -63,8 +63,8 @@ function ScreenHub({ go, openSheet, loading }) {
           <span style={{ fontSize: 12, fontWeight: 500 }}>{t('dayLbl')} {trip.daysIn} {t('ofLbl')} {trip.daysTotal}</span>
         </div>
         <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
-          <button className="glass" style={btnGlass} onClick={() => go('settings')}><IconBell size={18} /></button>
-          <button className="glass" style={btnGlass} onClick={() => openSheet('share')}><IconShare size={18} /></button>
+          <button className="glass" style={btnGlass} onClick={() => openSheet('share')}
+                  aria-label={t('inviteTheCrew')}><IconShare size={18} /></button>
         </div>
       </div>
 
@@ -331,9 +331,9 @@ function ScreenHub({ go, openSheet, loading }) {
         }}>
           {[
             { i: <IconPlus size={20} />, l: t('add'), onClick: () => openSheet('addExpense') },
-            { i: <IconUpload size={18} />, l: t('upload'), onClick: () => go('docs') },
-            { i: <IconQR size={18} />, l: t('invite'), onClick: () => openSheet('share') },
             { i: <IconCompass size={18} />, l: t('planNav') || t('plan'), onClick: () => go('plan') },
+            { i: <IconUpload size={18} />, l: t('upload'), onClick: () => go('docs') },
+            { i: <IconSparkle size={18} />, l: t('statsNav'), onClick: () => go('analytics') },
           ].map((q, i) => (
             <button key={i} onClick={q.onClick} style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,

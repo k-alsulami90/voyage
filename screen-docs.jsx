@@ -188,12 +188,22 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
           border: '0.5px solid var(--hairline)', overflow: 'hidden',
         }}>
           {visible.map((d, i) => (
-            <DocRowList
-              key={d.id}
-              doc={d}
-              last={i === visible.length - 1}
-              onOpen={() => openDoc?.(d, cats.find((c) => c.key === d.category))}
-            />
+            <window.SwipeRow key={d.id}
+              actions={[{ key: 'delete', bg: 'var(--clay)', icon: <window.IconTrash size={18} stroke="#fff" /> }]}
+              onAction={async (key) => {
+                if (key !== 'delete') return;
+                if (!confirm(window.isRTL ? 'حذف هذا المستند؟' : 'Delete this document?')) return;
+                try {
+                  await window.deleteDocument(d.id, window.TRIP?.id, d.title);
+                  await window.loadDocuments(window.TRIP?.id);
+                } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
+              }}>
+              <DocRowList
+                doc={d}
+                last={i === visible.length - 1}
+                onOpen={() => openDoc?.(d, cats.find((c) => c.key === d.category))}
+              />
+            </window.SwipeRow>
           ))}
         </div>
       ))}

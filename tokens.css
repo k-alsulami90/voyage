@@ -155,7 +155,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 .swipe-row {
   position: relative;
   overflow: hidden;
-  border-radius: var(--r-lg);
+  /* Border-radius is intentionally not forced — inner row controls its shape
+     so the swipe wrapper doesn't double-round or override grouped lists. */
 }
 .swipe-actions {
   position: absolute; top: 0; right: 0; bottom: 0;
