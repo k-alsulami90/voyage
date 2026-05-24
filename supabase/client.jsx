@@ -475,6 +475,65 @@ window.deleteReceipt = async (expenseId, receiptPath) => {
   if (error && !/receipt/i.test(error.message || '')) throw error;
 };
 
+// ─────────────────────────────────────────────────────────────
+// Trip invites — shareable join links (one row per trip+role).
+// ─────────────────────────────────────────────────────────────
+function _makeInviteToken() {
+  // 10 chars, base32-ish (no 0/O/1/I) — short, URL-safe, hard to typo.
+  const alpha = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let out = '';
+  const buf = new Uint8Array(10);
+  crypto.getRandomValues(buf);
+  for (let i = 0; i < 10; i++) out += alpha[buf[i] % alpha.length];
+  return out;
+}
+
+// Lazily create (or reuse) an invite for a (trip, role). Returns the token.
+window.getOrCreateInvite = async (tripId, role = 'Editor') => {
+  // Check existing, non-revoked invite for this role
+  const { data: existing, error: selErr } = await window.sb
+    .from('trip_invites')
+    .select('token, revoked_at, expires_at')
+    .eq('trip_id', tripId).eq('role', role).maybeSingle();
+  if (selErr) throw selErr;
+  if (existing && !existing.revoked_at &&
+      (!existing.expires_at || new Date(existing.expires_at) > new Date())) {
+    return existing.token;
+  }
+
+  // Otherwise create one (delete a stale row first so the unique key is free)
+  if (existing) {
+    await window.sb.from('trip_invites').delete().eq('token', existing.token);
+  }
+  const token = _makeInviteToken();
+  const expires = new Date(); expires.setDate(expires.getDate() + 30);
+  const { error: insErr } = await window.sb.from('trip_invites').insert({
+    token, trip_id: tripId, role,
+    created_by: window.currentUserId,
+    expires_at: expires.toISOString(),
+  });
+  if (insErr) throw insErr;
+  return token;
+};
+
+window.revokeInvite = async (token) => {
+  const { error } = await window.sb.from('trip_invites')
+    .update({ revoked_at: new Date().toISOString() }).eq('token', token);
+  if (error) throw error;
+};
+
+// Redeem an invite via the SECURITY DEFINER RPC. Returns { tripId, role }.
+window.redeemInvite = async (token) => {
+  if (!token) throw new Error('No invite token');
+  const { data, error } = await window.sb.rpc('redeem_trip_invite', { p_token: token });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ? { tripId: row.trip_id, role: row.role } : null;
+};
+
+// Build a shareable link for a token using the current origin.
+window.inviteLink = (token) => `${window.location.origin}/?join=${token}`;
+
 window.uploadDocumentFile = async (docId, tripId, file) => {
   const ext  = file.name.split('.').pop().toLowerCase();
   const path = `${tripId}/${docId}.${ext}`;

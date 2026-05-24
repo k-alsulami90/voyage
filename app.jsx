@@ -218,6 +218,46 @@ function App() {
     }
   }, [session]);
 
+  // ── Invite-link redemption ────────────────────────────────────
+  // On first boot, capture ?join=TOKEN from the URL and stash it.
+  // When a session is active we redeem the stashed token, add the
+  // user to trip_members, and route them straight to the trip.
+  const [joining, setJoining] = React.useState(false);
+  React.useEffect(() => {
+    try {
+      const u = new URL(window.location.href);
+      const token = u.searchParams.get('join');
+      if (token) {
+        sessionStorage.setItem('voyage:pendingInvite', token);
+        u.searchParams.delete('join');
+        window.history.replaceState({}, '', u.toString());
+      }
+    } catch (_) {}
+  }, []);
+  React.useEffect(() => {
+    if (!session) return;
+    const token = sessionStorage.getItem('voyage:pendingInvite');
+    if (!token) return;
+    sessionStorage.removeItem('voyage:pendingInvite');
+    setJoining(true);
+    (async () => {
+      try {
+        const res = await window.redeemInvite(token);
+        if (res?.tripId) {
+          try { localStorage.setItem('voyage:onboarded', '1'); } catch (_) {}
+          await window.loadTrips(window.currentUserId);
+          setRoute({ scope: 'trip', name: 'hub', tripId: res.tripId });
+          loadTripData(res.tripId);
+          window.toast?.(t('joinSuccess') || 'Joined trip', 'success');
+        }
+      } catch (err) {
+        window.toast?.(err.message || 'Could not join trip', 'error');
+      } finally {
+        setJoining(false);
+      }
+    })();
+  }, [session, loadTripData]);
+
   const [sheet, setSheet] = React.useState(null);
   const [docView, setDocView] = React.useState(null);
   const [editingExpense, setEditingExpense] = React.useState(null);
@@ -398,6 +438,20 @@ function App() {
           animation: 'slideUpFull 280ms cubic-bezier(.2,.8,.2,1)',
         }} className="no-scrollbar">
           <window.ScreenSettleUp back={() => setShowSettleUp(false)} />
+        </div>
+      )}
+      {joining && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 250,
+          background: 'var(--cream)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14,
+        }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: '50%',
+            border: '3px solid var(--hairline)', borderTopColor: 'var(--clay)',
+            animation: 'expspin 0.7s linear infinite',
+          }} />
+          <div style={{ fontSize: 13.5, color: 'var(--ink-soft)' }}>{t('joinJoining') || 'Joining trip…'}</div>
         </div>
       )}
       {imageOverlay && (
@@ -621,74 +675,73 @@ const navAdd = {
 function ShareSheet() {
   const [copied, setCopied] = React.useState(false);
   const [inviteRole, setInviteRole] = React.useState('Editor');
-  const link = `voyage.app/j/${window.TRIP?.id || 'trip'}-invite`;
+  const [token, setToken] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+  const tripId = window.TRIP?.id;
+  const tripTitle = window.TRIP?.title || '';
 
-  const handleCopy = () => {
-    navigator.clipboard?.writeText(link).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(() => {
-      // Fallback for browsers without clipboard API
+  // Lazily fetch (or create) the invite for this trip+role on mount/role change
+  React.useEffect(() => {
+    if (!tripId) return;
+    let cancelled = false;
+    setLoading(true); setError(null); setToken(null);
+    window.getOrCreateInvite(tripId, inviteRole)
+      .then((tok) => { if (!cancelled) setToken(tok); })
+      .catch((err) => { if (!cancelled) setError(err.message || 'Could not create invite'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [tripId, inviteRole]);
+
+  const link = token ? window.inviteLink(token) : '';
+  const shareMsg = (window.isRTL
+    ? `انضم إلى رحلتنا "${tripTitle}" على Voyage:\n${link}`
+    : `Join our trip "${tripTitle}" on Voyage:\n${link}`);
+
+  const handleCopy = async () => {
+    if (!link) return;
+    try { await navigator.clipboard.writeText(link); }
+    catch (_) {
       const el = document.createElement('textarea');
-      el.value = link;
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand('copy');
-      document.body.removeChild(el);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+      el.value = link; document.body.appendChild(el); el.select();
+      document.execCommand('copy'); document.body.removeChild(el);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleNativeShare = async () => {
+    if (!link) return;
+    if (navigator.share) {
+      try { await navigator.share({ title: tripTitle, text: shareMsg, url: link }); }
+      catch (_) {}
+    } else {
+      handleCopy();
+    }
+  };
+
+  const handleWhatsApp = () => {
+    if (!link) return;
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareMsg)}`, '_blank');
   };
 
   return (
     <div style={{ padding: '8px 22px 22px' }}>
       <div style={{
-        background: 'var(--cream-2)', borderRadius: 22, padding: 22,
+        background: 'var(--cream-2)', borderRadius: 22, padding: '22px 18px',
         border: '0.5px solid var(--hairline)',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
       }}>
-        <div style={{
-          width: 180, height: 180, borderRadius: 16, padding: 10,
-          background: '#fff', boxShadow: 'var(--shadow-md)',
-        }}>
-          <div style={{
-            width: '100%', height: '100%',
-            background: `
-              radial-gradient(circle at 20% 20%, transparent 0 16px, #000 16px 20px, transparent 20px),
-              radial-gradient(circle at 80% 20%, transparent 0 16px, #000 16px 20px, transparent 20px),
-              radial-gradient(circle at 20% 80%, transparent 0 16px, #000 16px 20px, transparent 20px),
-              repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 50% 50% / 14px 14px
-            `,
-            backgroundColor: '#fff', borderRadius: 6,
-          }} />
+        <div style={{ fontSize: 30 }}>✈️</div>
+        <div className="serif" style={{ fontSize: 20, lineHeight: 1.1, textAlign: 'center' }}>
+          {t('inviteHeadline')} {tripTitle}
         </div>
-        <div style={{ textAlign: 'center' }}>
-          <div className="serif" style={{ fontSize: 22, lineHeight: 1.1 }}>
-            {t('scanToJoin')} {window.TRIP?.title || ''}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 4 }}>
-            {t('guestsSeeOnly')}
-          </div>
+        <div style={{ fontSize: 12, color: 'var(--ink-mute)', textAlign: 'center', maxWidth: 280 }}>
+          {t('inviteSubline')}
         </div>
       </div>
-      <div style={{
-        marginTop: 14, padding: '12px 14px',
-        background: 'var(--cream-2)', borderRadius: 16,
-        border: '0.5px solid var(--hairline)',
-        display: 'flex', alignItems: 'center', gap: 10,
-        flexDirection: 'row',
-      }}>
-        <IconLink size={16} stroke="var(--ink-mute)" />
-        <div className="mono" style={{ flex: 1, fontSize: 12.5, color: 'var(--ink-soft)',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {link}
-        </div>
-        <button onClick={handleCopy} style={{
-          padding: '6px 12px', borderRadius: 999,
-          background: copied ? 'var(--moss)' : 'var(--ink)', color: 'var(--cream)',
-          fontSize: 11, fontWeight: 500, transition: 'background 200ms', flexShrink: 0,
-        }}>{copied ? '✓' : t('copy')}</button>
-      </div>
+
+      {/* Role picker */}
       <div style={{ marginTop: 14 }}>
         <div style={{
           fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em',
@@ -710,6 +763,68 @@ function ShareSheet() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Link row */}
+      <div style={{
+        marginTop: 14, padding: '12px 14px',
+        background: 'var(--cream-2)', borderRadius: 16,
+        border: '0.5px solid var(--hairline)',
+        display: 'flex', alignItems: 'center', gap: 10,
+        flexDirection: 'row',
+      }}>
+        <IconLink size={16} stroke="var(--ink-mute)" />
+        <div className="mono" style={{ flex: 1, fontSize: 12.5, color: 'var(--ink-soft)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {loading ? (t('inviteLoading') || '…') : (error ? '—' : link)}
+        </div>
+        <button onClick={handleCopy} disabled={!link} style={{
+          padding: '6px 12px', borderRadius: 999,
+          background: copied ? 'var(--moss)' : 'var(--ink)', color: 'var(--cream)',
+          fontSize: 11, fontWeight: 500, transition: 'background 200ms', flexShrink: 0,
+          opacity: link ? 1 : 0.4,
+        }}>{copied ? '✓' : t('copy')}</button>
+      </div>
+
+      {error && (
+        <div style={{
+          marginTop: 10, padding: '10px 14px', borderRadius: 12,
+          background: 'oklch(0.62 0.13 35 / 0.10)',
+          border: '0.5px solid oklch(0.62 0.13 35 / 0.3)',
+          fontSize: 12.5, color: 'var(--clay-deep)',
+        }}>{error}</div>
+      )}
+
+      {/* Share buttons */}
+      <div style={{ marginTop: 12, display: 'flex', gap: 8, flexDirection: 'row' }}>
+        <button onClick={handleNativeShare} disabled={!link} style={{
+          flex: 1, padding: '14px', borderRadius: 16,
+          background: 'var(--clay)', color: '#fff',
+          fontSize: 13, fontWeight: 600,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          flexDirection: 'row',
+          opacity: link ? 1 : 0.5,
+          boxShadow: '0 6px 16px oklch(0.62 0.13 35 / 0.35)',
+        }}>
+          <IconShare size={14} stroke="currentColor" />
+          {t('inviteShareBtn')}
+        </button>
+        <button onClick={handleWhatsApp} disabled={!link} style={{
+          flex: 1, padding: '14px', borderRadius: 16,
+          background: 'var(--cream-2)', color: 'var(--ink)',
+          border: '0.5px solid var(--hairline)',
+          fontSize: 13, fontWeight: 600,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          flexDirection: 'row',
+          opacity: link ? 1 : 0.5,
+        }}>
+          <span style={{ fontSize: 16 }}>💬</span>
+          WhatsApp
+        </button>
+      </div>
+
+      <div style={{ marginTop: 12, fontSize: 11, color: 'var(--ink-mute)', textAlign: 'center', padding: '0 8px' }}>
+        {t('inviteExpiryHint')}
       </div>
     </div>
   );
