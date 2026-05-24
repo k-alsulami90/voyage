@@ -636,15 +636,17 @@ function TripNav({ active, onChange, onExit, onAdd }) {
   );
 }
 
-// Classic iOS-style tab bar — flush to the bottom edge, full width, safe-area inset
+// Classic iOS-style tab bar — flush to the bottom edge, full width, safe-area inset.
+// Matches the cream theme; safe-area inset is part of the bar so iOS draws nothing
+// underneath it (no white sliver under the home indicator).
 const navShell = {
   position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 50,
   padding: '8px 10px calc(8px + env(safe-area-inset-bottom))',
-  background: 'rgba(15, 23, 42, 0.92)',
+  background: 'var(--cream-2)',
   backdropFilter: 'blur(28px) saturate(180%)',
   WebkitBackdropFilter: 'blur(28px) saturate(180%)',
-  borderTop: '0.5px solid rgba(255,255,255,0.10)',
-  boxShadow: '0 -6px 20px rgba(0,0,0,0.25)',
+  borderTop: '0.5px solid var(--hairline)',
+  boxShadow: '0 -2px 12px rgba(0,0,0,0.06)',
   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
   gap: 4,
 };
@@ -653,7 +655,7 @@ const navItem = (active) => ({
   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
   padding: '4px 8px', borderRadius: 12,
   background: 'transparent',
-  color: active ? '#fff' : 'rgba(255,255,255,0.55)',
+  color: active ? 'var(--clay-deep)' : 'var(--ink-mute)',
   transition: 'color 200ms',
   flex: 1, minWidth: 0,
 });
