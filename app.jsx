@@ -70,6 +70,7 @@ function App() {
       window.loadDocuments(tripId),
       window.loadAuditLog(tripId),
       window.loadSettlements(tripId),
+      window.loadItinerary(tripId),
     ]);
     results.forEach((r, i) => {
       if (r.status === 'rejected') {
@@ -334,7 +335,7 @@ function App() {
     else screenNode = <window.ScreenTrips go={go} goTrip={goTrip} />;
   } else {
     const Screen = {
-      hub: window.ScreenHub, budget: window.ScreenBudget, docs: window.ScreenDocs,
+      hub: window.ScreenHub, plan: window.ScreenPlan, budget: window.ScreenBudget, docs: window.ScreenDocs,
       analytics: window.ScreenAnalytics, settings: window.ScreenSettings,
     }[route.name] || window.ScreenHub;
     screenNode = <Screen go={go} goTrip={goTrip} openSheet={openSheet} openDoc={openDoc} loading={tripLoading} />;
@@ -600,11 +601,11 @@ function AppNav({ active, onChange, onAdd }) {
 // ── Trip-scope bottom nav ──
 function TripNav({ active, onChange, onExit, onAdd }) {
   const tabs = [
-    { k: 'hub',       l: t('hub'),       i: IconHome },
-    { k: 'budget',    l: t('budgetNav'), i: IconWallet },
-    { k: 'docs',      l: t('vaultNav'),  i: IconDoc },
-    { k: 'analytics', l: t('statsNav'),  i: IconSparkle },
-    { k: 'settings',  l: t('settings'),  i: IconGear },
+    { k: 'hub',      l: t('hub'),       i: IconHome },
+    { k: 'plan',     l: t('planNav'),   i: IconCompass },
+    { k: 'budget',   l: t('budgetNav'), i: IconWallet },
+    { k: 'docs',     l: t('vaultNav'),  i: IconDoc },
+    { k: 'settings', l: t('settings'),  i: IconGear },
   ];
   return (
     <>

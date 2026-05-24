@@ -60,13 +60,25 @@ function ScreenBudget({ go, openSheet, loading }) {
     <div data-screen-label="02 Budget" style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>
       {/* Header */}
       <Header title={t('budget')} onBack={() => go('hub')} action={
-        <button onClick={() => openSheet?.('addExpense')} aria-label={t('add')} style={{
-          width: 36, height: 36, borderRadius: 999,
-          background: 'var(--clay)', display: 'grid', placeItems: 'center',
-          boxShadow: '0 4px 10px oklch(0.62 0.13 35 / 0.4)',
-        }}>
-          <IconPlus size={16} stroke="#fff" />
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexDirection: 'row' }}>
+          <button onClick={() => go('analytics')} aria-label={t('statsNav')} style={{
+            height: 32, padding: '0 12px', borderRadius: 999,
+            background: 'var(--cream-2)', color: 'var(--ink-soft)',
+            border: '0.5px solid var(--hairline)',
+            fontSize: 11.5, fontWeight: 500,
+            display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: 'row',
+          }}>
+            <IconSparkle size={12} stroke="currentColor" />
+            {t('statsNav')}
+          </button>
+          <button onClick={() => openSheet?.('addExpense')} aria-label={t('add')} style={{
+            width: 36, height: 36, borderRadius: 999,
+            background: 'var(--clay)', display: 'grid', placeItems: 'center',
+            boxShadow: '0 4px 10px oklch(0.62 0.13 35 / 0.4)',
+          }}>
+            <IconPlus size={16} stroke="#fff" />
+          </button>
+        </div>
       } />
 
       {/* OVER-BUDGET BANNER */}

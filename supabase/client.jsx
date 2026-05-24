@@ -200,6 +200,73 @@ window.recordSettlement = async (tripId, fromUser, toUser, amountUSD, note = nul
   return data;
 };
 
+// ── Itinerary (Phase 5) ──────────────────────────────────────
+// Day-by-day activity plan per trip. Activities have a date,
+// optional start_time, title, category, and optional location.
+window.ITINERARY = [];
+window.loadItinerary = async (tripId) => {
+  if (!tripId || !window.sb) { window.ITINERARY = []; return []; }
+  const { data, error } = await window.sb.from('itinerary_items')
+    .select('*').eq('trip_id', tripId)
+    .order('day_date', { ascending: true })
+    .order('start_time', { ascending: true, nullsFirst: false })
+    .order('sort_order', { ascending: true });
+  if (error) {
+    if (/itinerary_items/i.test(error.message || '')) {
+      window.ITINERARY = []; return [];
+    }
+    console.error('loadItinerary', error);
+    window.ITINERARY = []; return [];
+  }
+  window.ITINERARY = (data || []).map((r) => ({
+    id: r.id,
+    tripId: r.trip_id,
+    dayDate: r.day_date,
+    startTime: r.start_time,
+    title: r.title,
+    category: r.category || 'misc',
+    location: r.location,
+    sortOrder: r.sort_order,
+    createdBy: r.created_by,
+  }));
+  return window.ITINERARY;
+};
+
+window.addItineraryItem = async (tripId, fields) => {
+  if (!window.sb) throw new Error('Not signed in');
+  const { data, error } = await window.sb.from('itinerary_items').insert({
+    trip_id: tripId,
+    day_date: fields.dayDate,
+    start_time: fields.startTime || null,
+    title: (fields.title || '').trim(),
+    category: fields.category || 'misc',
+    location: (fields.location || '').trim() || null,
+    sort_order: fields.sortOrder || 0,
+    created_by: window.currentUserId,
+  }).select().single();
+  if (error) throw error;
+  return data;
+};
+
+window.updateItineraryItem = async (itemId, tripId, fields) => {
+  if (!window.sb) throw new Error('Not signed in');
+  const { error } = await window.sb.from('itinerary_items').update({
+    day_date: fields.dayDate,
+    start_time: fields.startTime || null,
+    title: (fields.title || '').trim(),
+    category: fields.category || 'misc',
+    location: (fields.location || '').trim() || null,
+    updated_at: new Date().toISOString(),
+  }).eq('id', itemId);
+  if (error) throw error;
+};
+
+window.deleteItineraryItem = async (itemId, tripId) => {
+  if (!window.sb) throw new Error('Not signed in');
+  const { error } = await window.sb.from('itinerary_items').delete().eq('id', itemId);
+  if (error) throw error;
+};
+
 // ── Balance computation (shared trips) ───────────────────────
 // For a given user, given a list of expenses, returns the per-trip
 // totals: paid (what the user covered for the group), owes (their
