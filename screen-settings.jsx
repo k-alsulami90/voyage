@@ -226,6 +226,9 @@ function ScreenSettings({ go, openSheet }) {
             </div>
           </div>
         </details>
+
+        {/* Active invites */}
+        <InvitesList tripId={trip.id} />
       </div>
 
       {/* Parameters — now fully editable */}
@@ -243,6 +246,106 @@ function ScreenSettings({ go, openSheet }) {
           TRIP ID · {(trip.id || '').toUpperCase()}
         </div>
       </div>
+    </div>
+  );
+}
+
+function InvitesList({ tripId }) {
+  const [invites, setInvites] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [copied,  setCopied]  = React.useState(null);
+
+  const refresh = React.useCallback(async () => {
+    setLoading(true);
+    try { setInvites(await window.loadTripInvites(tripId)); }
+    finally { setLoading(false); }
+  }, [tripId]);
+
+  React.useEffect(() => { refresh(); }, [refresh]);
+
+  const handleCopy = async (token) => {
+    const link = window.inviteLink(token);
+    try { await navigator.clipboard.writeText(link); } catch (_) {}
+    setCopied(token);
+    setTimeout(() => setCopied(null), 1500);
+  };
+
+  const handleRevoke = async (token) => {
+    if (!confirm(window.isRTL ? 'إلغاء هذا الرابط؟' : 'Revoke this invite link?')) return;
+    try {
+      await window.revokeInvite(token);
+      await refresh();
+      window.toast?.(t('inviteRevoked') || 'Invite revoked', 'success');
+    } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
+  };
+
+  const active = invites.filter((i) => !i.revoked_at && (!i.expires_at || new Date(i.expires_at) > new Date()));
+  const inactive = invites.filter((i) => !active.includes(i));
+
+  if (loading) return null;
+  if (invites.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 18, padding: '0 8px' }}>
+      <div style={{
+        fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em',
+        color: 'var(--ink-mute)', textTransform: 'uppercase', margin: '0 6px 8px',
+      }}>{t('activeInvites') || 'Active invites'}</div>
+      <div style={{
+        background: 'var(--cream-2)', borderRadius: 16,
+        border: '0.5px solid var(--hairline)', overflow: 'hidden',
+      }}>
+        {active.map((inv, i) => {
+          const exp = inv.expires_at ? new Date(inv.expires_at) : null;
+          const days = exp ? Math.max(0, Math.round((exp - new Date()) / 86400000)) : null;
+          return (
+            <div key={inv.token} style={{
+              padding: '12px 14px',
+              display: 'flex', alignItems: 'center', gap: 10,
+              flexDirection: 'row',
+              borderTop: i ? '0.5px solid var(--hairline)' : 'none',
+            }}>
+              <RoleBadge role={inv.role} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="mono" style={{
+                  fontSize: 11.5, color: 'var(--ink-soft)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>{inv.token}</div>
+                {days !== null && (
+                  <div style={{ fontSize: 10.5, color: 'var(--ink-mute)', marginTop: 2 }}>
+                    {window.isRTL ? `ينتهي خلال ${days} يوم` : `expires in ${days}d`}
+                  </div>
+                )}
+              </div>
+              <button onClick={() => handleCopy(inv.token)} style={{
+                padding: '6px 10px', borderRadius: 999, fontSize: 11, fontWeight: 500,
+                background: copied === inv.token ? 'var(--moss)' : 'var(--ink)',
+                color: 'var(--cream)',
+              }}>{copied === inv.token ? '✓' : t('copy')}</button>
+              <button onClick={() => handleRevoke(inv.token)} style={{
+                padding: '6px 8px', borderRadius: 999,
+                background: 'transparent', color: 'var(--clay-deep)',
+                border: '0.5px solid var(--hairline)',
+              }}>
+                <IconTrash size={12} stroke="currentColor" />
+              </button>
+            </div>
+          );
+        })}
+        {active.length === 0 && (
+          <div style={{
+            padding: '14px', fontSize: 12, color: 'var(--ink-mute)', textAlign: 'center',
+          }}>{window.isRTL ? 'لا توجد روابط نشطة' : 'No active invites'}</div>
+        )}
+      </div>
+      {inactive.length > 0 && (
+        <div style={{
+          marginTop: 8, padding: '0 6px',
+          fontSize: 10.5, color: 'var(--ink-mute)',
+        }}>
+          {inactive.length} {window.isRTL ? 'رابط منتهي أو ملغى' : 'expired or revoked'}
+        </div>
+      )}
     </div>
   );
 }
@@ -694,4 +797,4 @@ function EditRow({ editing, setEditing, icon, label, value, fieldKey, children, 
   );
 }
 
-Object.assign(window, { ScreenSettings, ParamGroup, ActionRow, Toggle, RoleSelect, EditableTripParams, EditRow });
+Object.assign(window, { ScreenSettings, ParamGroup, ActionRow, Toggle, RoleSelect, EditableTripParams, EditRow, InvitesList });

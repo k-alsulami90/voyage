@@ -583,6 +583,20 @@ window.getOrCreateInvite = async (tripId, role = 'Editor') => {
   return token;
 };
 
+// List all invites (active + revoked) for a trip, newest first.
+window.loadTripInvites = async (tripId) => {
+  if (!tripId || !window.sb) return [];
+  const { data, error } = await window.sb.from('trip_invites')
+    .select('*').eq('trip_id', tripId)
+    .order('created_at', { ascending: false });
+  if (error) {
+    if (/trip_invites/i.test(error.message || '')) return [];
+    console.error('loadTripInvites', error);
+    return [];
+  }
+  return data || [];
+};
+
 window.revokeInvite = async (token) => {
   const { error } = await window.sb.from('trip_invites')
     .update({ revoked_at: new Date().toISOString() }).eq('token', token);
