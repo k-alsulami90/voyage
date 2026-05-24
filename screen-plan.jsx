@@ -174,8 +174,20 @@ function PlanDay({ date, dayNumber, items, onAdd, onTapItem, openSheet }) {
             <span>{t('planEmptyDay') || 'Nothing planned yet — tap to add'}</span>
           </button>
         ) : items.map((it, i) => (
-          <PlanRow key={it.id} item={it} isLast={i === items.length - 1}
-                   onTap={() => onTapItem(it)} openSheet={openSheet} />
+          <window.SwipeRow key={it.id}
+            actions={[{ key: 'delete', bg: 'var(--clay)', icon: <window.IconTrash size={18} stroke="#fff" /> }]}
+            onAction={async (key) => {
+              if (key !== 'delete') return;
+              try {
+                await window.deleteItineraryItem(it.id, window.TRIP?.id);
+                await window.loadItinerary(window.TRIP?.id);
+              } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
+            }}>
+            <div style={{ background: 'var(--cream-2)' }}>
+              <PlanRow item={it} isLast={i === items.length - 1}
+                       onTap={() => onTapItem(it)} openSheet={openSheet} />
+            </div>
+          </window.SwipeRow>
         ))}
       </div>
     </div>

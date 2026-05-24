@@ -204,6 +204,16 @@ window.recordSettlement = async (tripId, fromUser, toUser, amountUSD, note = nul
   return data;
 };
 
+// Undo a settlement (only the creator or a trip Admin should call this;
+// RLS enforces both anyway). Refreshes local state.
+window.deleteSettlement = async (settlementId, tripId) => {
+  if (!window.sb) throw new Error('Not signed in');
+  const { error } = await window.sb.from('settlements').delete().eq('id', settlementId);
+  if (error) throw error;
+  await window.loadSettlements(tripId);
+  window.LIFETIME_STATS = null;
+};
+
 // ── Itinerary (Phase 5) ──────────────────────────────────────
 // Day-by-day activity plan per trip. Activities have a date,
 // optional start_time, title, category, and optional location.

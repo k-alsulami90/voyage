@@ -203,26 +203,39 @@ function ScreenSettleUp({ back }) {
             {settlements.map((s, i) => {
               const fromM = findMember(s.from_user);
               const toM = findMember(s.to_user);
+              const canDelete = s.created_by === window.currentUserId;
               return (
-                <div key={s.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '12px 16px',
-                  borderTop: i > 0 ? '0.5px solid var(--hairline)' : 'none',
-                  flexDirection: 'row',
-                }}>
-                  <Avatar m={fromM} size={26} />
-                  <span className="icon-flip" style={{ color: 'var(--ink-mute)' }}>
-                    <IconChevron size={14} stroke="currentColor" />
-                  </span>
-                  <Avatar m={toM} size={26} />
-                  <div style={{ flex: 1, fontSize: 12.5, color: 'var(--ink-soft)' }}>
-                    {fromM.name.split(' ')[0]} {window.isRTL ? '←' : '→'} {toM.name.split(' ')[0]}
+                <SwipeRow key={s.id}
+                  actions={canDelete ? [
+                    { key: 'delete', bg: 'var(--clay)', icon: <IconTrash size={18} stroke="#fff" /> },
+                  ] : []}
+                  onAction={async (key) => {
+                    if (key !== 'delete') return;
+                    if (!confirm(window.isRTL ? 'حذف هذا التحويل؟' : 'Undo this transfer?')) return;
+                    try { await window.deleteSettlement(s.id, trip?.id); }
+                    catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
+                  }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '12px 16px',
+                    background: 'var(--cream-2)',
+                    borderTop: i > 0 ? '0.5px solid var(--hairline)' : 'none',
+                    flexDirection: 'row',
+                  }}>
+                    <Avatar m={fromM} size={26} />
+                    <span className="icon-flip" style={{ color: 'var(--ink-mute)' }}>
+                      <IconChevron size={14} stroke="currentColor" />
+                    </span>
+                    <Avatar m={toM} size={26} />
+                    <div style={{ flex: 1, fontSize: 12.5, color: 'var(--ink-soft)' }}>
+                      {fromM.name.split(' ')[0]} {window.isRTL ? '←' : '→'} {toM.name.split(' ')[0]}
+                    </div>
+                    <span className="mono" style={{
+                      fontSize: 13, fontWeight: 600, color: 'var(--ink)',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}>{fmt(parseFloat(s.amount_usd) || 0)}</span>
                   </div>
-                  <span className="mono" style={{
-                    fontSize: 13, fontWeight: 600, color: 'var(--ink)',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}>{fmt(parseFloat(s.amount_usd) || 0)}</span>
-                </div>
+                </SwipeRow>
               );
             })}
           </div>
