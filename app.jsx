@@ -369,7 +369,7 @@ function App() {
       {/* Key only changes when entering/exiting a trip (or switching trips) — */}
       {/* not on every tab switch. Prevents losing local screen state. */}
       <div style={{
-        position: 'absolute', inset: 0, overflow: 'auto',
+        position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden',
         WebkitOverflowScrolling: 'touch',           // iOS momentum scroll
         overscrollBehavior: 'contain',              // don't bounce parent
       }}
