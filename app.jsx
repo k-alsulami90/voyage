@@ -608,31 +608,17 @@ function TripNav({ active, onChange, onExit, onAdd }) {
     { k: 'settings', l: t('settings'),  i: IconGear },
   ];
   return (
-    <>
-      <button onClick={onExit} className="glass" style={{
-        position: 'absolute', bottom: 'calc(78px + env(safe-area-inset-bottom))',
-        left: '50%', transform: 'translateX(-50%)',
-        zIndex: 51, padding: '6px 12px 6px 9px', borderRadius: 999,
-        background: 'rgba(15, 23, 42, 0.78)', color: '#fff',
-        display: 'flex', alignItems: 'center', gap: 6,
-        fontSize: 11, fontWeight: 500, letterSpacing: 0.04,
-        border: '0.5px solid rgba(255,255,255,0.1)',
-        flexDirection: 'row',
-      }}>
-        <span className="icon-flip"><IconBack size={12} stroke="currentColor" /></span> {t('exitTrip')}
-      </button>
-      <div style={navShell}>
-        {tabs.map((t) => {
-          const isActive = active === t.k;
-          return (
-            <button key={t.k} onClick={() => isActive ? scrollActiveToTop() : onChange(t.k)} style={navItem(isActive)}>
-              <t.i size={22} stroke="currentColor" />
-              <span style={navLabel(isActive)}>{t.l}</span>
-            </button>
-          );
-        })}
-      </div>
-    </>
+    <div style={navShell}>
+      {tabs.map((t) => {
+        const isActive = active === t.k;
+        return (
+          <button key={t.k} onClick={() => isActive ? scrollActiveToTop() : onChange(t.k)} style={navItem(isActive)}>
+            <t.i size={22} stroke="currentColor" />
+            <span style={navLabel(isActive)}>{t.l}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

@@ -74,10 +74,10 @@ function ScreenHub({ go, openSheet, loading }) {
           position: 'relative', height: 330, borderRadius: 32,
           overflow: 'hidden', boxShadow: 'var(--shadow-lg)',
         }}>
-          {trip.coverImageUrl ? (
+          {(trip.coverUrl || trip.coverImageUrl) ? (
             <div style={{
               position: 'absolute', inset: 0,
-              backgroundImage: `url(${trip.coverImageUrl})`,
+              backgroundImage: `url(${trip.coverUrl || trip.coverImageUrl})`,
               backgroundSize: 'cover', backgroundPosition: 'center',
             }}>
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 55%)' }} />

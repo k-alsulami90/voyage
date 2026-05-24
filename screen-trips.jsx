@@ -276,7 +276,7 @@ function CurrentTripCard({ trip, onOpen }) {
       boxShadow: 'var(--shadow-card)',
     }}>
       <div style={{ height: 180, position: 'relative', overflow: 'hidden' }}>
-        <CoverArt kind={trip.cover} imageUrl={trip.coverImageUrl} />
+        <CoverArt kind={trip.cover} imageUrl={trip.coverUrl || trip.coverImageUrl} />
         {/* LIVE pill — pulsing green dot */}
         <div className="glass" style={{
           position: 'absolute', top: 14, insetInlineStart: 14,
@@ -359,7 +359,7 @@ function UpcomingTripCard({ trip, onOpen }) {
       boxShadow: 'var(--shadow-card)',
     }}>
       <div style={{ height: 140, position: 'relative', overflow: 'hidden' }}>
-        <CoverArt kind={trip.cover} imageUrl={trip.coverImageUrl} />
+        <CoverArt kind={trip.cover} imageUrl={trip.coverUrl || trip.coverImageUrl} />
         {/* Countdown badge — top center */}
         <div className="glass" style={{
           position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
@@ -435,7 +435,7 @@ function PastTripCard({ trip, onOpen }) {
         width: 54, height: 54, borderRadius: 14, overflow: 'hidden',
         flexShrink: 0, position: 'relative',
       }}>
-        <CoverArt kind={trip.cover} imageUrl={trip.coverImageUrl} />
+        <CoverArt kind={trip.cover} imageUrl={trip.coverUrl || trip.coverImageUrl} />
         {/* Completed check overlay */}
         <div style={{
           position: 'absolute', bottom: 4, insetInlineEnd: 4,

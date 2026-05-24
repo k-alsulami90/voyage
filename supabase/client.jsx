@@ -116,6 +116,8 @@ window.loadTrips = async (userId) => {
     members:      (r.trip_members || []).length,
     cover:        r.cover_style || 'kyoto',
     coverImageUrl: r.cover_image_url || null,
+    coverUrl:     r.cover_url || null,
+    coverPath:    r.cover_path || null,
     budgetPct:    0,
     budgetPlannedUSD: parseFloat(r.budget_planned_usd) || 0,
     homeCurrency: r.home_currency || 'USD',
@@ -146,6 +148,8 @@ window.loadTrips = async (userId) => {
       fx:             parseFloat(active.fx_rate) || 1,
       budget:         { plannedUSD: parseFloat(active.budget_planned_usd) || 0, spentUSD: 0 },
       cover:          active.cover_style || 'kyoto',
+      coverUrl:       active.cover_url || null,
+      coverPath:      active.cover_path || null,
       weather:        { temp: '--', cond: '' },
       next:           { label: '', when: '' },
     };
@@ -614,6 +618,40 @@ window.redeemInvite = async (token) => {
 
 // Build a shareable link for a token using the current origin.
 window.inviteLink = (token) => `${window.location.origin}/?join=${token}`;
+
+// Upload a trip cover photo. Reuses 'documents' bucket at {tripId}/cover.{ext}
+// so the existing storage RLS (member-of-trip via foldername) keeps working.
+window.uploadTripCover = async (tripId, file) => {
+  if (!tripId || !file) throw new Error('Missing cover args');
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `${tripId}/cover.${ext}`;
+  const { error: upErr } = await window.sb.storage
+    .from('documents').upload(path, file, {
+      upsert: true, contentType: file.type || 'image/jpeg',
+    });
+  if (upErr) throw upErr;
+  const { data: { publicUrl } } = window.sb.storage
+    .from('documents').getPublicUrl(path);
+  // Cache-bust so the new image shows immediately after replace
+  const url = `${publicUrl}?v=${Date.now()}`;
+  const { error: dbErr } = await window.sb.from('trips').update({
+    cover_path: path, cover_url: url,
+  }).eq('id', tripId);
+  if (dbErr) {
+    if (!/cover/i.test(dbErr.message || '')) throw dbErr;
+  }
+  return url;
+};
+
+window.deleteTripCover = async (tripId, coverPath) => {
+  if (coverPath) {
+    try { await window.sb.storage.from('documents').remove([coverPath]); } catch (_) {}
+  }
+  const { error } = await window.sb.from('trips').update({
+    cover_path: null, cover_url: null,
+  }).eq('id', tripId);
+  if (error && !/cover/i.test(error.message || '')) throw error;
+};
 
 window.uploadDocumentFile = async (docId, tripId, file) => {
   const ext  = file.name.split('.').pop().toLowerCase();

@@ -3,7 +3,7 @@
 function ScreenSettings({ go, openSheet }) {
   const trip    = window.TRIP;
   const [members,    setMembers]    = React.useState(window.MEMBERS || []);
-  const [coverUrl,   setCoverUrl]   = React.useState(trip?.coverImageUrl || null);
+  const [coverUrl,   setCoverUrl]   = React.useState(trip?.coverUrl || trip?.coverImageUrl || null);
   const [uploading,  setUploading]  = React.useState(false);
   const coverInputRef = React.useRef(null);
   const counts = members.reduce((acc, m) => { acc[m.role] = (acc[m.role] || 0) + 1; return acc; }, {});
