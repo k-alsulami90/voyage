@@ -262,6 +262,7 @@ function App() {
   const [sheet, setSheet] = React.useState(null);
   const [docView, setDocView] = React.useState(null);
   const [editingExpense, setEditingExpense] = React.useState(null);
+  const [prefillExpense, setPrefillExpense] = React.useState(null);
   const [showAddDoc, setShowAddDoc] = React.useState(false);
   const [showSettleUp, setShowSettleUp] = React.useState(false);
   const [imageOverlay, setImageOverlay] = React.useState(null);
@@ -310,6 +311,7 @@ function App() {
   }, [route.scope, route.tripId, loadTripData]);
   const openSheet = (s, payload) => {
     if (s === 'editExpense' && payload) setEditingExpense(payload);
+    if (s === 'addExpense' && payload) setPrefillExpense(payload);
     if (s === 'addDoc') { setShowAddDoc(true); return; }       // full screen
     if (s === 'settleUp') { setShowSettleUp(true); return; }   // full screen
     setSheet(s);
@@ -414,8 +416,8 @@ function App() {
       <Sheet open={sheet === 'share'} onClose={() => setSheet(null)} title={t('inviteTheCrew')} height={0.62}>
         <ShareSheet />
       </Sheet>
-      <Sheet open={sheet === 'addExpense'} onClose={() => setSheet(null)} title={t('addExpenseTitle')} height={0.78}>
-        <AddExpenseSheet onDone={() => setSheet(null)} />
+      <Sheet open={sheet === 'addExpense'} onClose={() => { setSheet(null); setPrefillExpense(null); }} title={t('addExpenseTitle')} height={0.78}>
+        <AddExpenseSheet prefill={prefillExpense} onDone={() => { setSheet(null); setPrefillExpense(null); }} />
       </Sheet>
       <Sheet open={sheet === 'editExpense'} onClose={() => { setSheet(null); setEditingExpense(null); }}
              title={window.isRTL ? 'تعديل المصروف' : 'Edit expense'} height={0.82}>
@@ -827,7 +829,7 @@ const CAT_META = {
   misc:     { emoji: '📎', label_en: 'Misc',       label_ar: 'متنوع' },
 };
 
-function AddExpenseSheet({ onDone, onAdded, existing }) {
+function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
   const trip    = window.TRIP;
   const members = window.MEMBERS || [];
   const cats    = window.CATEGORIES || [];
@@ -838,8 +840,9 @@ function AddExpenseSheet({ onDone, onAdded, existing }) {
   const sameHomeLocal = home === local;
 
   // Pre-fill for edit mode: convert existing amountUSD back to the user's chosen display currency
-  const [title,   setTitle]   = React.useState(existing?.title || '');
-  const [cat,     setCat]     = React.useState(existing?.cat   || 'food');
+  // Prefill (e.g. from a Plan activity): seeds title + category, user still types the amount.
+  const [title,   setTitle]   = React.useState(existing?.title || prefill?.title || '');
+  const [cat,     setCat]     = React.useState(existing?.cat   || prefill?.cat   || 'food');
   const [inputCur, setInputCur] = React.useState(existing ? home : (local !== home ? local : home));
   const [amt,     setAmt]     = React.useState(() => {
     if (!existing) return '';

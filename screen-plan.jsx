@@ -76,6 +76,7 @@ function ScreenPlan({ go, openSheet, loading }) {
               items={dayItems}
               onAdd={() => setAddingForDay(iso)}
               onTapItem={(it) => setEditingItem(it)}
+              openSheet={openSheet}
             />
           );
         })}
@@ -128,7 +129,7 @@ function fmtTime(hms) {
   return d.toLocaleTimeString(window.isRTL ? 'ar' : 'en', { hour: 'numeric', minute: '2-digit' });
 }
 
-function PlanDay({ date, dayNumber, items, onAdd, onTapItem }) {
+function PlanDay({ date, dayNumber, items, onAdd, onTapItem, openSheet }) {
   const { weekday, datePart } = fmtDayLabel(date, dayNumber);
   return (
     <div style={{ marginTop: 18 }}>
@@ -173,19 +174,33 @@ function PlanDay({ date, dayNumber, items, onAdd, onTapItem }) {
             <span>{t('planEmptyDay') || 'Nothing planned yet — tap to add'}</span>
           </button>
         ) : items.map((it, i) => (
-          <PlanRow key={it.id} item={it} isLast={i === items.length - 1} onTap={() => onTapItem(it)} />
+          <PlanRow key={it.id} item={it} isLast={i === items.length - 1}
+                   onTap={() => onTapItem(it)} openSheet={openSheet} />
         ))}
       </div>
     </div>
   );
 }
 
-function PlanRow({ item, isLast, onTap }) {
+// Plan categories don't 1:1 map to expense categories — translate.
+const PLAN_TO_EXPENSE_CAT = {
+  food: 'food', sight: 'culture', transport: 'transit',
+  lodging: 'lodging', misc: 'misc',
+};
+
+function PlanRow({ item, isLast, onTap, openSheet }) {
   const meta = PLAN_CAT_META[item.category] || PLAN_CAT_META.misc;
   const openMaps = (e) => {
     e.stopPropagation();
     if (!item.location) return;
     window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}`, '_blank');
+  };
+  const logExpense = (e) => {
+    e.stopPropagation();
+    openSheet?.('addExpense', {
+      title: item.title,
+      cat: PLAN_TO_EXPENSE_CAT[item.category] || 'misc',
+    });
   };
   return (
     <div onClick={onTap} style={{
@@ -215,17 +230,32 @@ function PlanRow({ item, isLast, onTap }) {
           <span style={{ fontSize: 14 }}>{meta.emoji}</span>
           <span>{item.title}</span>
         </div>
-        {item.location && (
-          <button onClick={openMaps} style={{
-            marginTop: 4, padding: 0, background: 'transparent',
-            color: 'var(--ink-soft)', fontSize: 11.5,
-            display: 'flex', alignItems: 'center', gap: 4, flexDirection: 'row',
-            textAlign: 'start',
+        <div style={{
+          marginTop: 4, display: 'flex', alignItems: 'center',
+          gap: 10, flexDirection: 'row', flexWrap: 'wrap',
+        }}>
+          {item.location && (
+            <button onClick={openMaps} style={{
+              padding: 0, background: 'transparent',
+              color: 'var(--ink-soft)', fontSize: 11.5,
+              display: 'inline-flex', alignItems: 'center', gap: 4, flexDirection: 'row',
+              textAlign: 'start',
+            }}>
+              <window.IconPin size={11} stroke="currentColor" />
+              <span style={{ textDecoration: 'underline' }}>{item.location}</span>
+            </button>
+          )}
+          <button onClick={logExpense} style={{
+            padding: '3px 9px', borderRadius: 999,
+            background: 'var(--cream)', color: 'var(--ink-soft)',
+            border: '0.5px solid var(--hairline)',
+            fontSize: 10.5, fontWeight: 500,
+            display: 'inline-flex', alignItems: 'center', gap: 4, flexDirection: 'row',
           }}>
-            <window.IconPin size={11} stroke="currentColor" />
-            <span style={{ textDecoration: 'underline' }}>{item.location}</span>
+            <window.IconWallet size={10} stroke="currentColor" />
+            {t('planLogExpense') || 'Log expense'}
           </button>
-        )}
+        </div>
       </div>
     </div>
   );
