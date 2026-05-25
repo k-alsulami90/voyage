@@ -34,6 +34,8 @@ function PieChart({ data, size = 148 }) {
 
 // ── Main screen ───────────────────────────────────────────────
 function ScreenAnalytics({ go, loading }) {
+  // Tap a bar in the daily chart -> show that day's detail card below
+  const [selectedDay, setSelectedDay] = React.useState(null);
   if (loading) return <div style={{ background: 'var(--cream)', minHeight: '100%' }}><TripSkeleton /></div>;
   const expenses = window.EXPENSES || [];
   const trip     = window.TRIP;
@@ -245,7 +247,7 @@ function ScreenAnalytics({ go, loading }) {
                     />
                   </svg>
 
-                  {/* Bars + day labels */}
+                  {/* Bars + day labels (trip day #) */}
                   <div style={{
                     display: 'flex', alignItems: 'flex-end',
                     gap: barGap, height: '100%',
@@ -253,31 +255,45 @@ function ScreenAnalytics({ go, loading }) {
                     {allDays.map((iso, i) => {
                       const val = dailyByISO[iso] || 0;
                       const isPeak = iso === peakISO && val > 0;
+                      const isSelected = iso === selectedDay;
                       const heightPct = val > 0 ? Math.max((val / dailyMax) * 80, 4) : 2;
-                      const d = new Date(iso + 'T00:00:00');
-                      const isFirstOfMonth = d.getDate() === 1 || i === 0;
+                      const dayNum = i + 1;
+                      // Show label every day if <= 7, every 2 days if <= 14, else every 5
+                      const labelEvery = allDays.length <= 7 ? 1
+                                      : allDays.length <= 14 ? 2
+                                      : 5;
+                      const showLabel = dayNum === 1 || dayNum === allDays.length || dayNum % labelEvery === 0;
                       return (
-                        <div key={iso} style={{
-                          flex: '0 0 auto', width: barWidth, height: '100%',
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                        }}>
+                        <button key={iso}
+                          onClick={() => setSelectedDay((cur) => cur === iso ? null : iso)}
+                          aria-label={`Day ${dayNum}`}
+                          style={{
+                            all: 'unset', cursor: 'pointer',
+                            flex: '0 0 auto', width: barWidth, height: '100%',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                          }}>
                           <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-end' }}>
                             <div style={{
                               width: '100%', height: `${heightPct}%`,
                               background: val === 0
                                 ? 'rgba(255,255,255,0.08)'
-                                : (isPeak ? 'var(--clay)' : 'rgba(255,255,255,0.32)'),
+                                : (isSelected ? '#fff' : (isPeak ? 'var(--clay)' : 'rgba(255,255,255,0.32)')),
                               borderRadius: '3px 3px 0 0',
+                              outline: isSelected ? '1.5px solid var(--clay)' : 'none',
+                              transition: 'background 160ms',
                             }} />
                           </div>
-                          <div style={{
-                            fontSize: 8, opacity: isFirstOfMonth ? 0.85 : 0.5,
-                            fontFamily: 'var(--mono)', whiteSpace: 'nowrap',
-                            fontWeight: isFirstOfMonth ? 600 : 400,
-                          }}>
-                            {d.getDate()}
-                          </div>
-                        </div>
+                          {showLabel && (
+                            <div style={{
+                              fontSize: 8.5, opacity: isSelected ? 1 : 0.65,
+                              fontFamily: 'var(--mono)', whiteSpace: 'nowrap',
+                              fontWeight: isSelected ? 700 : 500,
+                              color: isSelected ? 'var(--clay)' : undefined,
+                            }}>
+                              {dayNum}
+                            </div>
+                          )}
+                        </button>
                       );
                     })}
                   </div>
@@ -303,6 +319,70 @@ function ScreenAnalytics({ go, loading }) {
                     </span>
                   )}
                 </div>
+
+                {/* Selected day detail — appears below the chart when a bar is tapped */}
+                {selectedDay && (() => {
+                  const val = dailyByISO[selectedDay] || 0;
+                  const catMix = dailyByISOCats[selectedDay] || {};
+                  const dayNum = allDays.indexOf(selectedDay) + 1;
+                  const d = new Date(selectedDay + 'T00:00:00');
+                  const dateStr = d.toLocaleDateString(window.isRTL ? 'ar' : 'en',
+                    { weekday: 'short', month: 'short', day: 'numeric' });
+                  const sortedCats = Object.entries(catMix).sort((a, b) => b[1] - a[1]);
+                  return (
+                    <div style={{
+                      marginTop: 12, padding: '12px 14px', borderRadius: 14,
+                      background: 'rgba(255,255,255,0.10)',
+                      border: '0.5px solid rgba(255,255,255,0.18)',
+                    }}>
+                      <div style={{
+                        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+                        gap: 8, flexDirection: 'row',
+                      }}>
+                        <div>
+                          <div className="serif" style={{ fontSize: 18, lineHeight: 1.1 }}>
+                            {window.isRTL ? `اليوم ${dayNum}` : `Day ${dayNum}`}
+                          </div>
+                          <div style={{ fontSize: 11, opacity: 0.72, marginTop: 2, fontFamily: 'var(--mono)' }}>
+                            {dateStr}
+                          </div>
+                        </div>
+                        <div className="mono" style={{
+                          fontSize: 22, fontWeight: 600,
+                        }}>{fmtC(val)}</div>
+                      </div>
+                      {sortedCats.length > 0 ? (
+                        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          {sortedCats.slice(0, 4).map(([k, v]) => {
+                            const c = cats.find((x) => x.key === k);
+                            const pct = val > 0 ? (v / val) * 100 : 0;
+                            return (
+                              <div key={k} style={{
+                                display: 'flex', alignItems: 'center', gap: 8, flexDirection: 'row',
+                              }}>
+                                <span style={{
+                                  width: 8, height: 8, borderRadius: 2,
+                                  background: c?.color || 'rgba(255,255,255,0.4)', flexShrink: 0,
+                                }} />
+                                <span style={{ flex: 1, fontSize: 12, opacity: 0.85 }}>{c?.label || k}</span>
+                                <span className="mono" style={{ fontSize: 11.5, opacity: 0.72 }}>
+                                  {Math.round(pct)}%
+                                </span>
+                                <span className="mono" style={{ fontSize: 11.5, fontWeight: 500, minWidth: 50, textAlign: 'end' }}>
+                                  {fmtC(v)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div style={{ marginTop: 8, fontSize: 11.5, opacity: 0.6 }}>
+                          {window.isRTL ? 'لا مصروفات في هذا اليوم' : 'No spending on this day'}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })()}

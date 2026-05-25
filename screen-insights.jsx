@@ -162,37 +162,58 @@ function MonthlyChart({ stats }) {
         </div>
       </div>
       <div style={{
-        background: 'var(--cream-2)', borderRadius: 22, padding: '18px 14px',
+        background: 'var(--cream-2)', borderRadius: 22, padding: '18px 14px 14px',
         margin: '0 8px', border: '0.5px solid var(--hairline)',
       }}>
         <div style={{
           display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-          gap: 5, height: 110,
+          gap: 5, height: 150,
+          // Baseline so empty months still anchor to the bottom visibly
+          borderBottom: '0.5px solid var(--hairline)',
         }}>
           {stats.byMonth.map((m) => {
-            const pct = (m.spent / maxVal) * 100;
+            // Use square-root scaling so smaller months are still distinguishable
+            // when there's one big outlier month
+            const ratio = m.spent > 0 ? Math.sqrt(m.spent / maxVal) : 0;
+            const heightPct = ratio * 92; // leave a little room at top for label
             const isCurrent = m.year === new Date().getFullYear() && m.month === new Date().getMonth();
+            const showLabel = m.spent > 0 && (ratio > 0.35 || isCurrent);
             return (
               <div key={m.key} style={{
                 flex: 1, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', gap: 4, minWidth: 0,
+                alignItems: 'center', gap: 0, minWidth: 0,
+                position: 'relative',
               }}>
-                <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-end' }}>
-                  <div style={{
-                    width: '100%',
-                    height: m.spent > 0 ? `${Math.max(pct, 4)}%` : '2%',
-                    background: m.spent === 0
-                      ? 'var(--hairline)'
-                      : (isCurrent
-                          ? 'linear-gradient(180deg, var(--clay) 0%, var(--clay-deep) 100%)'
-                          : 'linear-gradient(180deg, var(--ink-soft) 0%, var(--ink) 100%)'),
-                    borderRadius: '4px 4px 0 0',
-                    minHeight: 2,
-                    transition: 'height 380ms cubic-bezier(.32,.72,0,1)',
-                  }} />
+                <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-end', position: 'relative' }}>
+                  {/* Value label, only on bars that are tall enough not to clip */}
+                  {showLabel && (
+                    <div className="mono" style={{
+                      position: 'absolute',
+                      bottom: `${heightPct}%`, left: 0, right: 0, textAlign: 'center',
+                      fontSize: 8.5, color: isCurrent ? 'var(--clay-deep)' : 'var(--ink-soft)',
+                      fontWeight: 600, transform: 'translateY(-2px)',
+                      whiteSpace: 'nowrap', pointerEvents: 'none',
+                    }}>
+                      {m.spent >= 1000
+                        ? `${Math.round(m.spent / 1000)}k`
+                        : `${Math.round(m.spent)}`}
+                    </div>
+                  )}
+                  {m.spent > 0 ? (
+                    <div style={{
+                      width: '100%',
+                      height: `${Math.max(heightPct, 6)}%`,
+                      background: isCurrent
+                        ? 'linear-gradient(180deg, var(--clay) 0%, var(--clay-deep) 100%)'
+                        : 'linear-gradient(180deg, var(--ink-soft) 0%, var(--ink) 100%)',
+                      borderRadius: '4px 4px 0 0',
+                      transition: 'height 380ms cubic-bezier(.32,.72,0,1)',
+                    }} />
+                  ) : null}
                 </div>
                 <div style={{
-                  fontSize: 9, color: isCurrent ? 'var(--clay-deep)' : 'var(--ink-mute)',
+                  marginTop: 6,
+                  fontSize: 9.5, color: isCurrent ? 'var(--clay-deep)' : 'var(--ink-mute)',
                   fontFamily: 'var(--mono)', fontWeight: isCurrent ? 600 : 400,
                   whiteSpace: 'nowrap',
                 }}>{monthShort(m)}</div>
