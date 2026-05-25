@@ -122,5 +122,156 @@ function fmtDocSummary(doc) {
   return doc.sub || null;
 }
 
+// ── Smart Track: aggregate upcoming time-anchored events ────
+// Pulls timestamps out of docs (flights/lodging/rentals) and plan items
+// and returns them in chronological order, annotated with display info
+// + quick-action handles (file URL, location URL, etc.).
+//
+// We include events from (now - 4h) so a flight that "just took off"
+// still surfaces briefly. Cutoff is +30 days out to keep the list tight.
+function computeUpcomingEvents(opts = {}) {
+  const now = opts.now || new Date();
+  const cutoff = new Date(now.getTime() + 30 * 86400000);
+  const grace = new Date(now.getTime() - 4 * 3600 * 1000);
+  const events = [];
+
+  // Documents — flights, lodging, transport (rentals).
+  const docs = Object.values(window.DOCS_BY_CAT || {}).flat();
+  docs.forEach((doc) => {
+    const d = doc.details || {};
+    if (doc.category === 'flights' && d.dep_at) {
+      const startAt = new Date(d.dep_at);
+      const endAt   = d.arr_at ? new Date(d.arr_at) : null;
+      if (!isNaN(startAt) && startAt >= grace && startAt <= cutoff) {
+        events.push({
+          id:      `doc-${doc.id}`,
+          type:    'flight',
+          emoji:   '✈️',
+          title:   doc.title || (d.airline || 'Flight'),
+          detail:  [d.dep_airport, d.arr_airport].filter(Boolean).join(' → ') || null,
+          subtle:  [d.airline, d.dep_terminal && `T${d.dep_terminal}`].filter(Boolean).join(' · ') || null,
+          startAt, endAt,
+          docCategory: 'flights',
+          doc,
+          locationUrl:    d.location_url || null,
+          primaryFileUrl: doc.filePath ? doc.link : null,
+          primaryFileLabel: window.isRTL ? 'التذكرة' : 'E-ticket',
+          secondaryFileUrl: doc.secondaryLink,
+          secondaryFileLabel: window.isRTL ? 'بطاقة الصعود' : 'Boarding pass',
+        });
+      }
+    }
+    if (doc.category === 'lodging' && d.check_in_at) {
+      const startAt = new Date(d.check_in_at);
+      const endAt   = d.check_out_at ? new Date(d.check_out_at) : null;
+      if (!isNaN(startAt) && startAt >= grace && startAt <= cutoff) {
+        events.push({
+          id:      `doc-${doc.id}`,
+          type:    'lodging',
+          emoji:   '🏨',
+          title:   doc.title || 'Hotel',
+          detail:  window.isRTL ? 'تسجيل الدخول' : 'Check-in',
+          subtle:  d.address || null,
+          startAt, endAt,
+          docCategory: 'lodging',
+          doc,
+          locationUrl:    d.location_url || null,
+          primaryFileUrl: doc.filePath ? doc.link : null,
+          primaryFileLabel: window.isRTL ? 'الحجز' : 'Reservation',
+        });
+      }
+      // Also surface check-out as a separate event
+      if (endAt && !isNaN(endAt) && endAt >= grace && endAt <= cutoff) {
+        events.push({
+          id:      `doc-${doc.id}-out`,
+          type:    'lodging-out',
+          emoji:   '🏨',
+          title:   doc.title || 'Hotel',
+          detail:  window.isRTL ? 'تسجيل الخروج' : 'Check-out',
+          subtle:  d.address || null,
+          startAt: endAt, endAt: null,
+          docCategory: 'lodging',
+          doc,
+          locationUrl: d.location_url || null,
+          primaryFileUrl: doc.filePath ? doc.link : null,
+          primaryFileLabel: window.isRTL ? 'الحجز' : 'Reservation',
+        });
+      }
+    }
+    if (doc.category === 'transport' && d.pickup_at) {
+      const startAt = new Date(d.pickup_at);
+      const endAt   = d.dropoff_at ? new Date(d.dropoff_at) : null;
+      if (!isNaN(startAt) && startAt >= grace && startAt <= cutoff) {
+        events.push({
+          id:      `doc-${doc.id}`,
+          type:    'transport',
+          emoji:   '🚆',
+          title:   doc.title || d.vendor || 'Rental',
+          detail:  window.isRTL ? 'الاستلام' : 'Pick-up',
+          subtle:  d.vendor || null,
+          startAt, endAt,
+          docCategory: 'transport',
+          doc,
+          locationUrl:    d.location_url || null,
+          primaryFileUrl: doc.filePath ? doc.link : null,
+          primaryFileLabel: window.isRTL ? 'مرجع الإيجار' : 'Rental ref',
+        });
+      }
+    }
+  });
+
+  // Itinerary items — show those with a startTime today/upcoming.
+  (window.ITINERARY || []).forEach((it) => {
+    if (!it.dayDate) return;
+    const dayPart = it.dayDate;
+    const timePart = it.startTime || '12:00:00';
+    const startAt = new Date(`${dayPart}T${timePart.length === 5 ? timePart + ':00' : timePart}`);
+    if (isNaN(startAt) || startAt < grace || startAt > cutoff) return;
+    const PLAN_EMOJI = { food: '🍜', sight: '🎌', transport: '🚅', lodging: '🏨', misc: '📌' };
+    events.push({
+      id:      `plan-${it.id}`,
+      type:    'plan',
+      emoji:   PLAN_EMOJI[it.category] || '📌',
+      title:   it.title,
+      detail:  null,
+      subtle:  it.location || null,
+      startAt, endAt: null,
+      doc:     null,
+      locationUrl: it.location
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(it.location)}`
+        : null,
+    });
+  });
+
+  events.sort((a, b) => a.startAt - b.startAt);
+  return events;
+}
+
+// Friendly relative label: "Now", "in 2h 15m", "Today · 14:30", "Tomorrow · 09:00", "Mon · Mar 12"
+function relativeWhenLabel(startAt, now = new Date()) {
+  const diffMs = startAt - now;
+  const diffMin = Math.round(diffMs / 60000);
+  // Past but within grace = "Now"
+  if (diffMin <= 0 && diffMin > -240) return window.isRTL ? 'الآن' : 'Now';
+  if (diffMin > 0 && diffMin < 60) return window.isRTL ? `بعد ${diffMin} د` : `in ${diffMin}m`;
+  if (diffMin >= 60 && diffMin < 360) {
+    const h = Math.floor(diffMin / 60);
+    const m = diffMin % 60;
+    return window.isRTL ? `بعد ${h} س ${m ? m + ' د' : ''}` : `in ${h}h${m ? ` ${m}m` : ''}`;
+  }
+  const isSameDay = startAt.toDateString() === now.toDateString();
+  const tomorrow = new Date(now.getTime() + 86400000);
+  const isTomorrow = startAt.toDateString() === tomorrow.toDateString();
+  const time = startAt.toLocaleTimeString(window.isRTL ? 'ar' : 'en',
+    { hour: 'numeric', minute: '2-digit' });
+  if (isSameDay) return window.isRTL ? `اليوم · ${time}` : `Today · ${time}`;
+  if (isTomorrow) return window.isRTL ? `غداً · ${time}` : `Tomorrow · ${time}`;
+  const dayLabel = startAt.toLocaleDateString(window.isRTL ? 'ar' : 'en',
+    { weekday: 'short', month: 'short', day: 'numeric' });
+  return `${dayLabel} · ${time}`;
+}
+
 window.DOC_SCHEMAS = DOC_SCHEMAS;
 window.fmtDocSummary = fmtDocSummary;
+window.computeUpcomingEvents = computeUpcomingEvents;
+window.relativeWhenLabel = relativeWhenLabel;

@@ -31,6 +31,13 @@ function ScreenTrips({ goTrip, go }) {
   const [search, setSearch] = React.useState('');
   const [initialLoad, setInitialLoad] = React.useState(!window.TRIPS || window.TRIPS.length === 0);
   const [stats, setStats] = React.useState(window.LIFETIME_STATS || null);
+  // Tick once a minute so the relative time labels ("in 25m", "Now")
+  // stay fresh while the page is open.
+  const [, forceTick] = React.useState(0);
+  React.useEffect(() => {
+    const id = setInterval(() => forceTick((n) => n + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   // Lazy-load lifetime stats once trips exist
   React.useEffect(() => {
@@ -79,6 +86,25 @@ function ScreenTrips({ goTrip, go }) {
   const active   = enrichedTrips.find((t) => t.state.kind === 'current');
   const upcoming = enrichedTrips.filter((t) => t.state.kind === 'upcoming');
   const past     = enrichedTrips.filter((t) => t.state.kind === 'past');
+
+  // Pick the most relevant trip for Smart Track — active first, else
+  // the next upcoming. Auto-load its data so docs + itinerary are
+  // available even before the user enters the trip.
+  const smartTripCandidate = active
+    || enrichedTrips.find((t) => t.state.kind === 'upcoming')
+    || null;
+  React.useEffect(() => {
+    if (!smartTripCandidate) return;
+    if (window.TRIP?.id === smartTripCandidate.id && (window.DOCS_BY_CAT || window.ITINERARY)) return;
+    window.loadTripData?.(smartTripCandidate.id);
+  }, [smartTripCandidate?.id]);
+
+  // Compute upcoming events when the candidate's data is loaded.
+  const events = (smartTripCandidate && window.TRIP?.id === smartTripCandidate.id)
+    ? (window.computeUpcomingEvents?.() || [])
+    : [];
+  const nextEvent  = events[0] || null;
+  const followups  = events.slice(1, 4);
 
   return (
     <div data-screen-label="00 Trips Home" style={{
@@ -190,6 +216,25 @@ function ScreenTrips({ goTrip, go }) {
           </div>
         )}
       </div>
+
+      {/* SMART TRACK — next time-anchored event (flight, check-in, pickup) */}
+      {nextEvent && scope === 'all' && (
+        <div style={{ padding: '4px 14px 0' }}>
+          <SectionLabel>{window.isRTL ? 'القادم' : 'Up next'}</SectionLabel>
+          <SmartTrackCard event={nextEvent} trip={smartTripCandidate} onOpenTrip={() => goTrip(smartTripCandidate.id)} />
+          {followups.length > 0 && (
+            <div style={{
+              marginTop: 8, background: 'var(--cream-2)', borderRadius: 18,
+              border: '0.5px solid var(--hairline)', overflow: 'hidden',
+            }}>
+              {followups.map((ev, i) => (
+                <SmartTrackRow key={ev.id} event={ev} last={i === followups.length - 1}
+                  onOpenTrip={() => goTrip(smartTripCandidate.id)} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* CURRENT TRIP — live progress card */}
       {active && (scope === 'all' || scope === (active.shared ? 'shared' : 'private')) && (
@@ -574,4 +619,174 @@ const PeaksCover = () => (
   </svg>
 );
 
-Object.assign(window, { ScreenTrips, CoverArt });
+// ──────────────────────────────────────────────────────────────
+// Smart Track — hero card for the next time-anchored event
+// (flight, hotel check-in, rental pick-up, or planned activity).
+// ──────────────────────────────────────────────────────────────
+function SmartTrackCard({ event, trip, onOpenTrip }) {
+  const when = window.relativeWhenLabel(event.startAt);
+  const isNow = /now|الآن/i.test(when);
+  // Pick an accent colour matching the event type
+  const accent = event.type === 'flight'     ? 'var(--indigo)'
+               : event.type === 'lodging' || event.type === 'lodging-out' ? 'var(--clay)'
+               : event.type === 'transport' ? 'var(--honey)'
+               : 'var(--moss)';
+
+  return (
+    <div style={{
+      position: 'relative', borderRadius: 24, overflow: 'hidden',
+      background: 'var(--ink)', color: 'var(--cream)',
+      boxShadow: 'var(--shadow-card)',
+    }}>
+      {/* Accent glow */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: `radial-gradient(80% 60% at 100% 0%, ${accent} 0%, transparent 55%)`,
+        opacity: 0.32, pointerEvents: 'none',
+      }} />
+
+      <div style={{ position: 'relative', padding: '18px 18px 16px' }}>
+        {/* Status pill */}
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '4px 10px', borderRadius: 999,
+          background: isNow ? accent : 'rgba(255,255,255,0.12)',
+          border: '0.5px solid rgba(255,255,255,0.18)',
+          fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.08em',
+          textTransform: 'uppercase', fontWeight: 600,
+        }}>
+          {isNow && <span style={{
+            width: 6, height: 6, borderRadius: '50%', background: '#fff',
+            boxShadow: '0 0 8px #fff', animation: 'pulse 1.6s ease-in-out infinite',
+          }} />}
+          {when}
+        </div>
+
+        {/* Title row with emoji */}
+        <div style={{
+          marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexDirection: 'row',
+        }}>
+          <div style={{ fontSize: 38, lineHeight: 1 }}>{event.emoji}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="serif" style={{
+              fontSize: 22, lineHeight: 1.15, color: 'var(--cream)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>{event.title}</div>
+            {event.detail && (
+              <div className="mono" style={{
+                fontSize: 13, color: 'rgba(255,251,244,0.78)', marginTop: 3,
+                letterSpacing: '0.02em',
+              }}>{event.detail}</div>
+            )}
+            {event.subtle && (
+              <div style={{
+                fontSize: 11.5, color: 'rgba(255,251,244,0.55)', marginTop: 2,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>{event.subtle}</div>
+            )}
+          </div>
+        </div>
+
+        {/* Quick actions */}
+        {(event.primaryFileUrl || event.secondaryFileUrl || event.locationUrl) && (
+          <div style={{
+            marginTop: 14, display: 'flex', gap: 8, flexDirection: 'row', flexWrap: 'wrap',
+          }}>
+            {event.secondaryFileUrl && (
+              <ActionPill label={event.secondaryFileLabel || 'Open'} href={event.secondaryFileUrl}
+                icon={<window.IconDoc size={13} stroke="currentColor" />} primary />
+            )}
+            {event.primaryFileUrl && (
+              <ActionPill label={event.primaryFileLabel || 'Open file'} href={event.primaryFileUrl}
+                icon={<window.IconDoc size={13} stroke="currentColor" />}
+                primary={!event.secondaryFileUrl} />
+            )}
+            {event.locationUrl && (
+              <ActionPill label={window.isRTL ? 'الموقع' : 'Location'} href={event.locationUrl}
+                icon={<window.IconPin size={13} stroke="currentColor" />} />
+            )}
+            <button onClick={onOpenTrip} style={{
+              padding: '8px 12px', borderRadius: 999,
+              background: 'transparent', color: 'rgba(255,251,244,0.78)',
+              border: '0.5px solid rgba(255,255,255,0.18)',
+              fontSize: 12, fontWeight: 500,
+              display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: 'row',
+            }}>
+              {window.isRTL ? 'الرحلة' : 'Trip'}
+              <span className="icon-flip" style={{ opacity: 0.7 }}>
+                <window.IconChevron size={11} stroke="currentColor" />
+              </span>
+            </button>
+          </div>
+        )}
+      </div>
+      <style>{`@keyframes pulse {
+        0%, 100% { opacity: 1 }
+        50% { opacity: 0.35 }
+      }`}</style>
+    </div>
+  );
+}
+
+// Smaller secondary row, used for "later today" / follow-up events.
+function SmartTrackRow({ event, last, onOpenTrip }) {
+  const when = window.relativeWhenLabel(event.startAt);
+  return (
+    <div style={{
+      padding: '12px 14px',
+      display: 'flex', alignItems: 'center', gap: 12, flexDirection: 'row',
+      borderTop: last ? 'none' : 'none',
+      borderBottom: last ? 'none' : '0.5px solid var(--hairline)',
+    }}>
+      <div style={{ fontSize: 22, lineHeight: 1 }}>{event.emoji}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: 13.5, fontWeight: 500, color: 'var(--ink)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>{event.title}</div>
+        <div style={{
+          fontSize: 11, color: 'var(--ink-mute)', marginTop: 1,
+          display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row',
+        }}>
+          <span>{when}</span>
+          {event.detail && <span>· {event.detail}</span>}
+        </div>
+      </div>
+      {event.locationUrl && (
+        <a href={event.locationUrl} target="_blank" rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          aria-label={window.isRTL ? 'الموقع' : 'Location'} style={{
+          padding: 8, borderRadius: 10,
+          background: 'var(--cream)', color: 'var(--ink-soft)',
+          border: '0.5px solid var(--hairline)',
+          display: 'grid', placeItems: 'center', textDecoration: 'none',
+        }}><window.IconPin size={13} stroke="currentColor" /></a>
+      )}
+      <button onClick={onOpenTrip} aria-label="Open trip" style={{
+        padding: 8, borderRadius: 10,
+        background: 'transparent', color: 'var(--ink-mute)',
+        border: '0.5px solid var(--hairline)',
+        display: 'grid', placeItems: 'center',
+      }}><span className="icon-flip"><window.IconChevron size={13} stroke="currentColor" /></span></button>
+    </div>
+  );
+}
+
+function ActionPill({ label, href, icon, primary }) {
+  return (
+    <a href={href} target="_blank" rel="noreferrer" style={{
+      padding: '8px 12px', borderRadius: 999,
+      background: primary ? 'var(--cream)' : 'transparent',
+      color: primary ? 'var(--ink)' : 'rgba(255,251,244,0.92)',
+      border: primary ? 'none' : '0.5px solid rgba(255,255,255,0.18)',
+      fontSize: 12, fontWeight: 500,
+      display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: 'row',
+      textDecoration: 'none',
+    }}>
+      {icon}
+      {label}
+    </a>
+  );
+}
+
+Object.assign(window, { ScreenTrips, CoverArt, SmartTrackCard, SmartTrackRow });
