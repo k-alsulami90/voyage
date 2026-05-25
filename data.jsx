@@ -15,7 +15,7 @@ const TRIP = {
 };
 
 const MEMBERS = [
-  { id: 'u1', name: 'Mira K.',  role: 'Admin',  hue: 35,  initials: 'MK' },
+  { id: 'u1', name: 'Sample User',  role: 'Admin',  hue: 35,  initials: 'SU' },
   { id: 'u2', name: 'Theo R.',  role: 'Editor', hue: 200, initials: 'TR' },
   { id: 'u3', name: 'Naomi S.', role: 'Editor', hue: 155, initials: 'NS' },
   { id: 'u4', name: 'Jules P.', role: 'Viewer', hue: 280, initials: 'JP' },
@@ -97,7 +97,7 @@ const DOCS_BY_CAT = {
   flights: [
     { id: 'f1', kind: 'pdf', title: 'KLM 8721 · AMS → KIX',      sub: 'Apr 03 · 11:40', size: '2.1 MB', tint: 'indigo', link: 'https://checkin.klm.com', linkLabel: 'Online check-in', photos: [] },
     { id: 'f2', kind: 'pdf', title: 'KLM 8722 · KIX → AMS',      sub: 'Apr 14 · 19:25', size: '2.0 MB', tint: 'indigo', link: 'https://checkin.klm.com', linkLabel: 'Online check-in', photos: [] },
-    { id: 'f3', kind: 'pdf', title: 'Seat selection · Mira',      sub: 'window 18A',     size: '410 KB', tint: 'indigo', link: null, photos: [] },
+    { id: 'f3', kind: 'pdf', title: 'Seat selection',             sub: 'window 18A',     size: '410 KB', tint: 'indigo', link: null, photos: [] },
     { id: 'f4', kind: 'img', title: 'Frequent flyer · KLM',       sub: 'Elite Plus',     size: '1.4 MB', tint: 'indigo', link: 'https://klm.com/frequentflyer', linkLabel: 'Flying Blue portal', photos: [] },
   ],
   lodging: [

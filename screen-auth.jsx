@@ -28,6 +28,14 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
     setLoading(true);
     setError(null);
     try {
+      // Defensive: if the client.jsx auth helpers somehow haven't loaded yet
+      // (e.g. flaky CDN, stale service-worker cache), surface a real message
+      // instead of a cryptic "is not a function".
+      if (typeof window.sbSignIn !== 'function' || typeof window.sbSignUp !== 'function') {
+        throw new Error(window.isRTL
+          ? 'لم تكتمل تحميل صفحة تسجيل الدخول — أعد تحميل التطبيق'
+          : "Sign-in didn't finish loading. Reload the app.");
+      }
       if (mode === 'signup') {
         if (!email || !password) throw new Error(window.isRTL ? 'أكمل الحقول' : 'Fill all fields');
         const { data } = await window.sbSignUp(email, password, name || email.split('@')[0]);
@@ -180,12 +188,12 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
         {/* Form */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {mode === 'signup' && (
-            <Field label={t('fullName')} placeholder="Mira Kawasaki"
+            <Field label={t('fullName')} placeholder={window.isRTL ? 'الاسم الكامل' : 'Your full name'}
               value={name} onChange={setName}
               icon={<IconUsers size={14} stroke="var(--ink-mute)" />} />
           )}
           {(mode === 'signin' || mode === 'signup' || mode === 'forgot') && (
-            <Field label={t('email')} placeholder="mira@voyage.app" type="email"
+            <Field label={t('email')} placeholder="you@example.com" type="email"
               value={email} onChange={setEmail}
               icon={<IconLink size={14} stroke="var(--ink-mute)" />} />
           )}

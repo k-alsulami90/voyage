@@ -53,7 +53,7 @@ const TRANSLATIONS = {
     obBasicsTitle:'A few basics',
     obBasicsSub:'We use these to pick the right defaults for you.',
     obNameLabel:'YOUR NAME',
-    obNamePlaceholder:'Mira',
+    obNamePlaceholder:'Your name',
     obHomeLabel:'HOME BASE',
     obHomePlaceholder:'Makkah, Riyadh, Dubai…',
     obCurrencyLabel:'DEFAULT CURRENCY',
