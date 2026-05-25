@@ -209,9 +209,9 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
         </div>
       ))}
 
-      {/* Floating "Add" FAB when grid has results */}
-      {filteredCount > 0 && (
-        <button onClick={() => openSheet?.('addDoc')} style={{
+      {/* Floating "Add" FAB — always visible so the user can add a doc
+         to any category, including filters that currently show empty. */}
+      <button onClick={() => openSheet?.('addDoc')} style={{
           position: 'fixed',
           bottom: 'calc(env(safe-area-inset-bottom) + 86px)',
           insetInlineEnd: 22,
@@ -221,9 +221,8 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
           boxShadow: '0 12px 24px oklch(0.62 0.13 35 / 0.4)',
           zIndex: 30,
         }}>
-          <IconPlus size={24} stroke="#fff" />
-        </button>
-      )}
+        <IconPlus size={24} stroke="#fff" />
+      </button>
     </div>
   );
 }
