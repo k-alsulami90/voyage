@@ -182,53 +182,130 @@ function ScreenAnalytics({ go, loading }) {
             }}>{daysElapsed} / {daysTotal} {window.isRTL ? 'يوم' : 'days'}</div>
           </div>
 
-          {/* Full-trip daily bar chart — scrolls horizontally if many days */}
-          {allDays.length > 0 && (
-            <div className="no-scrollbar" style={{
-              position: 'relative', marginTop: 18,
-              overflowX: 'auto', overflowY: 'hidden',
-              WebkitOverflowScrolling: 'touch',
-            }}>
-              <div style={{
-                display: 'flex', alignItems: 'flex-end',
-                gap: 5, height: 64, flexDirection: 'row',
-                minWidth: '100%',
-                // Each bar ~18px wide so a 14-day trip fits without scroll, longer scrolls
-                width: Math.max(allDays.length * 22, 100),
+          {/* Full-trip daily bar chart with cumulative-spend overlay line.
+             Bars = each day's spend; thin line = running total against the
+             planned budget. Scrolls horizontally for trips > ~16 days. */}
+          {allDays.length > 0 && (() => {
+            const cumByDay = [];
+            let running = 0;
+            allDays.forEach((iso) => {
+              running += dailyByISO[iso] || 0;
+              cumByDay.push(running);
+            });
+            const cumMax = Math.max(running, trip?.budget?.plannedUSD || 0, 1);
+            const plannedY = trip?.budget?.plannedUSD
+              ? 100 - (trip.budget.plannedUSD / cumMax) * 100
+              : null;
+            const barWidth = 18;
+            const barGap   = 5;
+            const slot = barWidth + barGap;
+            const totalWidth = Math.max(allDays.length * slot - barGap, 100);
+
+            return (
+              <div className="no-scrollbar" style={{
+                position: 'relative', marginTop: 18,
+                overflowX: 'auto', overflowY: 'hidden',
+                WebkitOverflowScrolling: 'touch',
               }}>
-                {allDays.map((iso, i) => {
-                  const val = dailyByISO[iso] || 0;
-                  const isPeak = iso === peakISO && val > 0;
-                  const heightPct = val > 0 ? Math.max((val / dailyMax) * 100, 4) : 2;
-                  const d = new Date(iso + 'T00:00:00');
-                  const isFirstOfMonth = d.getDate() === 1 || i === 0;
-                  return (
-                    <div key={iso} style={{
-                      flex: '0 0 auto', width: 18,
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                    }}>
-                      <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-end' }}>
-                        <div style={{
-                          width: '100%', height: `${heightPct}%`,
-                          background: val === 0
-                            ? 'rgba(255,255,255,0.08)'
-                            : (isPeak ? 'var(--clay)' : 'rgba(255,255,255,0.32)'),
-                          borderRadius: '3px 3px 0 0',
-                        }} />
-                      </div>
+                <div style={{
+                  position: 'relative',
+                  minWidth: '100%', width: totalWidth, height: 88,
+                }}>
+                  {/* Planned daily reference line (cumulative budget cap) */}
+                  {plannedY !== null && (
+                    <>
                       <div style={{
-                        fontSize: 8, opacity: isFirstOfMonth ? 0.85 : 0.5,
-                        fontFamily: 'var(--mono)', whiteSpace: 'nowrap',
-                        fontWeight: isFirstOfMonth ? 600 : 400,
-                      }}>
-                        {d.getDate()}
-                      </div>
-                    </div>
-                  );
-                })}
+                        position: 'absolute', left: 0, right: 0,
+                        top: `${plannedY}%`, height: 1,
+                        background: 'rgba(255,255,255,0.32)',
+                        borderTop: '1px dashed rgba(255,255,255,0.45)',
+                        pointerEvents: 'none',
+                      }} />
+                      <div style={{
+                        position: 'absolute', insetInlineEnd: 0, top: `${plannedY}%`,
+                        transform: 'translateY(-100%)',
+                        fontSize: 8, fontFamily: 'var(--mono)', letterSpacing: '0.06em',
+                        color: 'rgba(255,255,255,0.6)', padding: '0 2px',
+                      }}>{window.isRTL ? 'الميزانية' : 'budget'}</div>
+                    </>
+                  )}
+
+                  {/* Cumulative-spend line (SVG polyline over the bars) */}
+                  <svg width={totalWidth} height={68} viewBox={`0 0 ${totalWidth} 68`}
+                    style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}>
+                    <polyline
+                      fill="none"
+                      stroke="var(--clay)" strokeWidth="1.5"
+                      strokeLinecap="round" strokeLinejoin="round"
+                      points={cumByDay.map((c, i) => {
+                        const x = i * slot + barWidth / 2;
+                        const y = 68 - (c / cumMax) * 64;
+                        return `${x},${y}`;
+                      }).join(' ')}
+                    />
+                  </svg>
+
+                  {/* Bars + day labels */}
+                  <div style={{
+                    display: 'flex', alignItems: 'flex-end',
+                    gap: barGap, height: '100%',
+                  }}>
+                    {allDays.map((iso, i) => {
+                      const val = dailyByISO[iso] || 0;
+                      const isPeak = iso === peakISO && val > 0;
+                      const heightPct = val > 0 ? Math.max((val / dailyMax) * 80, 4) : 2;
+                      const d = new Date(iso + 'T00:00:00');
+                      const isFirstOfMonth = d.getDate() === 1 || i === 0;
+                      return (
+                        <div key={iso} style={{
+                          flex: '0 0 auto', width: barWidth, height: '100%',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                        }}>
+                          <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-end' }}>
+                            <div style={{
+                              width: '100%', height: `${heightPct}%`,
+                              background: val === 0
+                                ? 'rgba(255,255,255,0.08)'
+                                : (isPeak ? 'var(--clay)' : 'rgba(255,255,255,0.32)'),
+                              borderRadius: '3px 3px 0 0',
+                            }} />
+                          </div>
+                          <div style={{
+                            fontSize: 8, opacity: isFirstOfMonth ? 0.85 : 0.5,
+                            fontFamily: 'var(--mono)', whiteSpace: 'nowrap',
+                            fontWeight: isFirstOfMonth ? 600 : 400,
+                          }}>
+                            {d.getDate()}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                {/* Legend */}
+                <div style={{
+                  marginTop: 8, display: 'flex', gap: 12, flexDirection: 'row',
+                  fontSize: 9, fontFamily: 'var(--mono)', letterSpacing: '0.06em',
+                  color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase',
+                }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 2, background: 'rgba(255,255,255,0.32)' }} />
+                    {window.isRTL ? 'يومي' : 'daily'}
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ width: 12, height: 2, background: 'var(--clay)' }} />
+                    {window.isRTL ? 'إجمالي تراكمي' : 'running total'}
+                  </span>
+                  {plannedY !== null && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ width: 12, height: 1, borderTop: '1px dashed rgba(255,255,255,0.45)' }} />
+                      {window.isRTL ? 'الميزانية' : 'budget'}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 

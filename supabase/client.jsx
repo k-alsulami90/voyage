@@ -815,6 +815,40 @@ window.loadLifetimeStats = async () => {
   });
   const byYear = Object.values(byYearMap).sort((a, b) => a.year - b.year);
 
+  // ── By month (last 12 months, including months with 0 spend) ──
+  const now = new Date();
+  const byMonth = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    byMonth.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      year: d.getFullYear(), month: d.getMonth(),
+      spent: 0, count: 0,
+    });
+  }
+  const monthIndex = Object.fromEntries(byMonth.map((m, i) => [m.key, i]));
+  expenses.forEach((e) => {
+    const dt = new Date(e.created_at);
+    const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+    const idx = monthIndex[key];
+    if (idx == null) return;
+    byMonth[idx].spent += parseFloat(e.amount_usd) || 0;
+    byMonth[idx].count += 1;
+  });
+
+  // ── By weekday (Sun..Sat across all expenses) — avg spend per active day ──
+  const wkSpend = [0, 0, 0, 0, 0, 0, 0];
+  const wkDays  = [new Set(), new Set(), new Set(), new Set(), new Set(), new Set(), new Set()];
+  expenses.forEach((e) => {
+    const dt = new Date(e.created_at);
+    const wd = dt.getDay();
+    wkSpend[wd] += parseFloat(e.amount_usd) || 0;
+    wkDays[wd].add(dt.toISOString().slice(0, 10));
+  });
+  const byWeekday = wkSpend.map((spent, i) => ({
+    day: i, spent, avg: wkDays[i].size > 0 ? spent / wkDays[i].size : 0,
+  }));
+
   // ── By category (lifetime)
   const byCatMap = {};
   expenses.forEach((e) => {
@@ -909,7 +943,7 @@ window.loadLifetimeStats = async () => {
 
   window.LIFETIME_STATS = {
     totalSpentUSD, totalTrips, totalDays, countries: countries.length, countriesList: countries,
-    byYear, byCategory, tripSpend, byMember, statusCounts,
+    byYear, byMonth, byWeekday, byCategory, tripSpend, byMember, statusCounts,
     longestTrip, mostExpensive, avgTripCost, avgDailyAcrossLifetime,
     topTx, currencyMix, balanceByTrip,
     expenseCount: expenses.length,
