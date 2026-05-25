@@ -1,447 +1,416 @@
-// Document detail subpage — shows full details, links, photos. Upload/file is optional.
+// Doc Detail — one job: show a document and let you change it.
+// Layout: cover/header → title → primary actions (open file / open link) →
+// editable detail rows → replace file / delete in a sticky footer.
 
-function ScreenDocDetail({ doc, category, go, back, openSheet }) {
-  const [editing, setEditing] = React.useState(false);
-  const [localLink, setLocalLink] = React.useState(doc?.link || '');
-  const [linkEditing, setLinkEditing] = React.useState(false);
-  const [uploading, setUploading] = React.useState(false);
-  const [uploadErr, setUploadErr] = React.useState(null);
-  const fileInputRef = React.useRef(null);
+function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
+  // Re-pull from window.DOCS_BY_CAT so edits show fresh data here.
+  // (DOCS_BY_CAT is keyed by category — search all of them in case the
+  // category itself was changed in this session.)
+  const allDocs = Object.values(window.DOCS_BY_CAT || {}).flat();
+  const doc = allDocs.find((d) => d.id === initialDoc?.id) || initialDoc;
   if (!doc) return null;
 
-  const handleFileUpload = async (file) => {
+  const TINT_FILL = { indigo: 'var(--indigo)', clay: 'var(--clay)', moss: 'var(--moss)', honey: 'var(--honey)' };
+  const tintFill = TINT_FILL[doc.tint] || 'var(--clay)';
+
+  // Edit state — toggling the pencil pulls the rows into input mode.
+  const [editing,  setEditing]  = React.useState(false);
+  const [title,    setTitle]    = React.useState(doc.title || '');
+  const [subtitle, setSubtitle] = React.useState(doc.sub || '');
+  const [link,     setLink]     = React.useState(doc.link || '');
+  const [cat,      setCat]      = React.useState(doc.category || category?.key || 'flights');
+  const [saving,   setSaving]   = React.useState(false);
+
+  // File / cover replace
+  const [uploading,    setUploading]    = React.useState(false);
+  const [uploadingCov, setUploadingCov] = React.useState(false);
+  const fileRef  = React.useRef(null);
+  const coverRef = React.useRef(null);
+
+  // When the underlying doc object refreshes (after save), sync the local form.
+  React.useEffect(() => {
+    setTitle(doc.title || '');
+    setSubtitle(doc.sub || '');
+    setLink(doc.link || '');
+    setCat(doc.category || category?.key || 'flights');
+  }, [doc.id, doc.title, doc.sub, doc.link, doc.category, category?.key]);
+
+  const replaceFile = async (file) => {
     if (!file || !window.TRIP?.id) return;
     setUploading(true);
-    setUploadErr(null);
     try {
-      const url = await window.uploadDocumentFile(doc.id, window.TRIP.id, file);
-      setLocalLink(url);
+      await window.uploadDocumentFile(doc.id, window.TRIP.id, file);
       await window.loadDocuments(window.TRIP.id);
+      window.toast?.(window.isRTL ? 'تم استبدال الملف' : 'File replaced', 'success');
     } catch (err) {
-      setUploadErr(err.message || 'Upload failed');
-    } finally {
-      setUploading(false);
-    }
+      window.toast?.(err.message || 'Upload failed', 'error');
+    } finally { setUploading(false); }
   };
 
-  const tintFill = {
-    indigo: 'var(--indigo)', moss: 'var(--moss)', clay: 'var(--clay)', honey: 'var(--honey)',
-  }[doc.tint] || 'var(--clay)';
+  const replaceCover = async (file) => {
+    if (!file || !window.TRIP?.id) return;
+    setUploadingCov(true);
+    try {
+      await window.uploadDocCover(doc.id, window.TRIP.id, file);
+      await window.loadDocuments(window.TRIP.id);
+    } catch (err) {
+      window.toast?.(err.message || 'Cover upload failed', 'error');
+    } finally { setUploadingCov(false); }
+  };
 
-  const hasPhotos = doc.photos && doc.photos.length > 0;
-  const hasLink = localLink && localLink.trim().length > 0;
+  const removeCover = async () => {
+    if (!doc.coverPath) return;
+    if (!confirm(window.isRTL ? 'إزالة صورة الغلاف؟' : 'Remove cover photo?')) return;
+    try {
+      await window.deleteDocCover(doc.id, doc.coverPath);
+      await window.loadDocuments(window.TRIP?.id);
+    } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
+  };
+
+  const saveEdits = async () => {
+    if (!title.trim()) { window.toast?.(window.isRTL ? 'العنوان مطلوب' : 'Title is required', 'error'); return; }
+    setSaving(true);
+    try {
+      await window.updateDocument(doc.id, {
+        title, subtitle, category: cat, linkUrl: link,
+        linkLabel: link.trim() ? (window.isRTL ? 'فتح الرابط' : 'Open link') : null,
+      });
+      await window.loadDocuments(window.TRIP?.id);
+      setEditing(false);
+      window.toast?.(window.isRTL ? 'تم الحفظ' : 'Saved', 'success');
+    } catch (err) {
+      window.toast?.(err.message || 'Save failed', 'error');
+    } finally { setSaving(false); }
+  };
+
+  const deleteDoc = async () => {
+    if (!confirm(window.isRTL ? 'حذف هذا المستند؟' : 'Delete this document?')) return;
+    try {
+      await window.deleteDocument(doc.id, window.TRIP?.id, doc.title);
+      await window.loadDocuments(window.TRIP?.id);
+      back();
+    } catch (err) { window.toast?.(err.message || 'Delete failed', 'error'); }
+  };
+
+  const hasFile  = !!doc.filePath;
+  const hasLink  = !!(link && link.trim());
+  const hasCover = !!doc.coverUrl;
+
+  const CAT_T = { flights: 'docFlights', lodging: 'docLodging', visas: 'docVisas', transport: 'docTransport' };
+  const catLabel = CAT_T[cat] ? t(CAT_T[cat]) : (category?.label || cat);
 
   return (
-    <div data-screen-label={`03 Vault · ${doc.title}`} style={{
-      background: 'var(--cream)', minHeight: '100%', paddingBottom: 120,
+    <div data-screen-label={`Vault · ${doc.title}`} style={{
+      background: 'var(--cream)', minHeight: '100%', paddingBottom: 140,
     }}>
-      {/* HEADER — translucent over preview */}
+
+      {/* ── COVER HEADER ─────────────────────────────────────────
+         Either: uploaded cover photo, or a clean tinted header with
+         the category emoji. No more fake-paper preview.
+         ─────────────────────────────────────────────────────── */}
       <div style={{
-        position: 'absolute', top: 0, insetInlineStart: 0, insetInlineEnd: 0, zIndex: 20,
-        padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 18px 12px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        flexDirection: 'row',
+        position: 'relative', height: 240, overflow: 'hidden',
+        background: hasCover ? 'var(--ink)' : tintFill,
       }}>
-        <button onClick={back} className="glass" style={{
-          width: 36, height: 36, borderRadius: 999, display: 'grid', placeItems: 'center',
-          color: '#fff', background: 'rgba(0,0,0,0.32)',
-        }}><span className="icon-flip"><IconBack size={17} stroke="#fff" /></span></button>
-        <div className="glass" style={{
-          padding: '5px 12px', borderRadius: 999, color: '#fff',
-          background: 'rgba(0,0,0,0.32)', fontSize: 11, fontWeight: 500, letterSpacing: 0.04,
-        }}>{category?.label || 'Vault'}</div>
-        <button onClick={() => setEditing(!editing)} className="glass" style={{
-          width: 36, height: 36, borderRadius: 999, display: 'grid', placeItems: 'center',
-          color: '#fff', background: editing ? 'var(--clay)' : 'rgba(0,0,0,0.32)',
-        }}>{editing ? <IconCheck size={15} stroke="#fff" /> : <IconEdit size={16} stroke="#fff" />}</button>
-      </div>
-
-      {/* PREVIEW PANE */}
-      <div style={{ position: 'relative', height: 300, overflow: 'hidden' }}>
-        <TintCard tint={doc.tint}>
+        {hasCover && (
           <div style={{
-            position: 'absolute', top: 60, left: '50%', transform: 'translateX(-50%) rotate(-3deg)',
-            width: 200, height: 250, borderRadius: 8,
-            background: '#fff', boxShadow: '0 24px 50px -10px rgba(0,0,0,0.45)',
-            padding: '16px 14px',
+            position: 'absolute', inset: 0,
+            backgroundImage: `url(${doc.coverUrl})`,
+            backgroundSize: 'cover', backgroundPosition: 'center',
+          }} />
+        )}
+        {!hasCover && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'grid', placeItems: 'center',
+            fontSize: 80, opacity: 0.4,
           }}>
-            {doc.kind === 'pdf' && (
-              <>
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  paddingBottom: 10, borderBottom: '1px solid rgba(0,0,0,0.08)',
-                }}>
-                  <div style={{
-                    fontFamily: 'var(--serif)', fontSize: 12, color: 'var(--ink)',
-                    fontWeight: 600, letterSpacing: '-0.01em',
-                  }}>{doc.title.split(/[·—]/)[0].trim()}</div>
-                  <div style={{
-                    padding: '2px 6px', borderRadius: 4, background: tintFill,
-                    color: '#fff', fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '0.1em',
-                  }}>PDF</div>
-                </div>
-                <div style={{ marginTop: 10 }}>
-                  {[100, 92, 78, 95, 88, 70, 55, 90].map((w, i) => (
-                    <div key={i} style={{
-                      height: 3, marginBottom: 6, borderRadius: 2,
-                      background: 'rgba(0,0,0,0.10)', width: `${w}%`,
-                    }} />
-                  ))}
-                </div>
-                <div style={{
-                  marginTop: 12, padding: 8, borderRadius: 6,
-                  background: 'rgba(0,0,0,0.04)', display: 'flex', gap: 6, alignItems: 'center',
-                }}>
-                  <div style={{ width: 22, height: 22, borderRadius: 6, background: tintFill, opacity: 0.7 }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ height: 4, background: 'rgba(0,0,0,0.12)', borderRadius: 2, width: '60%' }} />
-                    <div style={{ height: 3, background: 'rgba(0,0,0,0.08)', borderRadius: 2, marginTop: 3, width: '40%' }} />
-                  </div>
-                </div>
-              </>
-            )}
-            {doc.kind === 'img' && (
-              <div style={{
-                width: '100%', height: '100%', borderRadius: 4,
-                background: `linear-gradient(155deg, oklch(0.72 0.08 60) 0%, oklch(0.42 0.10 30) 100%)`,
-                position: 'relative', overflow: 'hidden',
-              }}>
-                <div style={{ position: 'absolute', top: 28, insetInlineStart: 28, width: 20, height: 20, borderRadius: '50%', background: 'rgba(255,255,255,0.85)' }} />
-                <div style={{
-                  position: 'absolute', bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, height: 100,
-                  background: 'rgba(255,255,255,0.35)',
-                  clipPath: 'polygon(0 100%, 22% 40%, 45% 70%, 70% 25%, 100% 65%, 100% 100%)',
-                }} />
-              </div>
+            {{ flights:'✈️', lodging:'🏨', visas:'📘', transport:'🚆' }[cat] || '📄'}
+          </div>
+        )}
+        {/* Bottom-fade so the title card below blends in */}
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: 80,
+          background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.45))',
+        }} />
+
+        {/* Header buttons floating over the cover */}
+        <div style={{
+          position: 'absolute', top: 0, insetInlineStart: 0, insetInlineEnd: 0, zIndex: 5,
+          padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 18px 12px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flexDirection: 'row',
+        }}>
+          <button onClick={back} className="glass" style={{
+            width: 36, height: 36, borderRadius: 999, display: 'grid', placeItems: 'center',
+            color: '#fff', background: 'rgba(0,0,0,0.38)',
+          }}><span className="icon-flip"><IconBack size={17} stroke="#fff" /></span></button>
+
+          <div className="glass" style={{
+            padding: '5px 12px', borderRadius: 999, color: '#fff',
+            background: 'rgba(0,0,0,0.38)', fontSize: 11, fontWeight: 500, letterSpacing: 0.04,
+          }}>{catLabel}</div>
+
+          {/* Edit toggle. In edit mode it becomes the Save button. */}
+          {editing ? (
+            <button onClick={saveEdits} disabled={saving} className="glass" style={{
+              padding: '8px 14px', borderRadius: 999, color: '#fff',
+              background: 'var(--clay)', fontSize: 12.5, fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row',
+            }}>
+              {saving
+                ? <span style={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', display: 'inline-block', animation: 'expspin 0.7s linear infinite' }} />
+                : <IconCheck size={13} stroke="#fff" />}
+              {window.isRTL ? 'حفظ' : 'Save'}
+            </button>
+          ) : (
+            <button onClick={() => setEditing(true)} className="glass" style={{
+              width: 36, height: 36, borderRadius: 999, display: 'grid', placeItems: 'center',
+              color: '#fff', background: 'rgba(0,0,0,0.38)',
+            }}><IconEdit size={16} stroke="#fff" /></button>
+          )}
+        </div>
+
+        {/* Cover-edit affordance — small floating button on the cover */}
+        {editing && (
+          <div style={{
+            position: 'absolute', bottom: 12, insetInlineEnd: 14, zIndex: 6,
+            display: 'flex', gap: 6, flexDirection: 'row',
+          }}>
+            <input ref={coverRef} type="file" accept="image/*" style={{ display: 'none' }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) replaceCover(f); e.target.value = ''; }} />
+            <button onClick={() => coverRef.current?.click()} disabled={uploadingCov} className="glass" style={{
+              padding: '6px 12px', borderRadius: 999, color: '#fff',
+              background: 'rgba(0,0,0,0.55)', fontSize: 11.5, fontWeight: 500,
+              display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row',
+            }}>
+              <window.IconCamera size={12} stroke="#fff" />
+              {uploadingCov ? '…' : (hasCover ? (window.isRTL ? 'تغيير' : 'Change') : (window.isRTL ? 'إضافة' : 'Add cover'))}
+            </button>
+            {hasCover && (
+              <button onClick={removeCover} className="glass" style={{
+                padding: '6px 10px', borderRadius: 999, color: '#fff',
+                background: 'rgba(0,0,0,0.55)',
+                display: 'grid', placeItems: 'center',
+              }}><IconTrash size={12} stroke="#fff" /></button>
             )}
           </div>
-          <div style={{
-            position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
-            display: 'flex', gap: 6,
-          }}>
-            {[0,1,2,3].map((i) => (
-              <div key={i} style={{
-                width: i === 0 ? 16 : 6, height: 6, borderRadius: 999,
-                background: i === 0 ? '#fff' : 'rgba(255,255,255,0.4)',
-              }} />
-            ))}
-          </div>
-        </TintCard>
+        )}
       </div>
 
-      {/* TITLE + META CARD */}
+      {/* ── TITLE CARD ─────────────────────────────────────────── */}
       <div style={{
-        margin: '-22px 14px 0', position: 'relative', zIndex: 4,
-        background: 'var(--cream-2)', borderRadius: 24,
-        padding: '18px 20px', boxShadow: 'var(--shadow-md)',
+        margin: '-26px 14px 0', position: 'relative', zIndex: 4,
+        background: 'var(--cream-2)', borderRadius: 22,
+        padding: '16px 18px', boxShadow: 'var(--shadow-md)',
         border: '0.5px solid var(--hairline)',
       }}>
-        <div style={{
-          fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em',
-          color: tintFill, fontWeight: 600,
-        }}>{category?.label.toUpperCase() || 'DOCUMENT'} · {doc.kind.toUpperCase()}</div>
         {editing ? (
-          <input defaultValue={doc.title} autoFocus style={{
-            marginTop: 4, fontFamily: 'var(--serif)', fontSize: 26, lineHeight: 1.1,
-            color: 'var(--ink)', letterSpacing: '-0.01em', width: '100%',
+          <input value={title} onChange={(e) => setTitle(e.target.value)} autoFocus style={{
+            width: '100%', boxSizing: 'border-box',
+            fontFamily: 'var(--serif)', fontSize: 22, lineHeight: 1.2,
+            color: 'var(--ink)', letterSpacing: '-0.01em',
             border: 0, outline: 'none', background: 'transparent',
             borderBottom: '1.5px dashed var(--clay)',
+            padding: '2px 0',
           }} />
         ) : (
-          <div className="serif" style={{ fontSize: 26, lineHeight: 1.1, marginTop: 4 }}>
+          <div className="serif" style={{ fontSize: 22, lineHeight: 1.2, color: 'var(--ink)' }}>
             {doc.title}
           </div>
         )}
-        <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 4 }}>{doc.sub}</div>
-
-        {/* Stat row */}
-        <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0,
-          marginTop: 14, paddingTop: 14, borderTop: '0.5px solid var(--hairline)',
-        }}>
-          {[
-            { l: t('sizeLbl'),   v: doc.size },
-            { l: t('pagesLbl'),  v: doc.kind === 'pdf' ? '—' : '1' },
-            { l: t('syncedLbl'), v: doc.filePath ? (window.isRTL ? 'متزامن' : 'synced') : (window.isRTL ? 'لا يوجد' : 'no file') },
-          ].map((s, i) => (
-            <div key={i} style={{
-              padding: i === 1 ? '0 14px' : '0',
-              borderInlineStart: i ? '0.5px solid var(--hairline)' : 'none',
-              textAlign: i === 0 ? 'left' : i === 1 ? 'center' : 'right',
-            }}>
-              <div style={{ fontSize: 10, fontFamily: 'var(--mono)', letterSpacing: '0.12em', color: 'var(--ink-mute)' }}>
-                {s.l.toUpperCase()}
-              </div>
-              <div className="mono" style={{ fontSize: 14, marginTop: 2, color: 'var(--ink)', fontWeight: 500 }}>{s.v}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* DETAILS — editable fields (primary) */}
-      <div style={{ padding: '20px 14px 0' }}>
-        <SectionLabel>{t('details')}</SectionLabel>
-        <div style={{
-          background: 'var(--cream-2)', borderRadius: 22,
-          margin: '0 8px', overflow: 'hidden',
-          border: '0.5px solid var(--hairline)',
-        }}>
-          {detailFields(doc, category).map((f, i, arr) => (
-            <DetailRow key={i} {...f} editing={editing} last={i === arr.length - 1} />
-          ))}
-        </div>
-      </div>
-
-      {/* LINK — location, booking, or reference URL */}
-      <div style={{ padding: '20px 14px 0' }}>
-        <SectionLabel>{t('link')}</SectionLabel>
-        <div style={{
-          background: 'var(--cream-2)', borderRadius: 22,
-          margin: '0 8px', border: '0.5px solid var(--hairline)',
-          overflow: 'hidden',
-        }}>
-          {(hasLink && !linkEditing) ? (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
-              flexDirection: 'row',
-            }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: 10, background: tintFill,
-                display: 'grid', placeItems: 'center', flexShrink: 0,
-              }}><IconLink size={16} stroke="#fff" /></div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', letterSpacing: '0.06em' }}>
-                  {doc.linkLabel || 'LINK'}
-                </div>
-                <div style={{
-                  fontSize: 13, fontWeight: 500, color: tintFill,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>{localLink}</div>
-              </div>
-              <div style={{ display: 'flex', gap: 6, flexDirection: 'row' }}>
-                <button onClick={() => setLinkEditing(true)} style={{
-                  padding: '6px 10px', borderRadius: 10, background: 'var(--cream)',
-                  border: '0.5px solid var(--hairline)', fontSize: 11.5, color: 'var(--ink-soft)',
-                }}>{t('edit')}</button>
-                <a href={localLink} target="_blank" rel="noreferrer" style={{
-                  padding: '6px 12px', borderRadius: 10, background: 'var(--ink)',
-                  color: 'var(--cream)', fontSize: 11.5, fontWeight: 500,
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                }}>{t('open')}</a>
-              </div>
-            </div>
-          ) : linkEditing ? (
-            <div style={{ padding: '14px 16px', display: 'flex', gap: 8, alignItems: 'center', flexDirection: 'row' }}>
-              <input
-                value={localLink}
-                onChange={(e) => setLocalLink(e.target.value)}
-                placeholder={t('linkPlaceholder')}
-                autoFocus
-                style={{
-                  flex: 1, padding: '10px 12px', borderRadius: 12,
-                  border: '1px solid var(--clay)', background: 'var(--cream)',
-                  fontSize: 13, outline: 'none', fontFamily: 'var(--mono)', color: 'var(--ink)',
-                }}
-              />
-              <button onClick={() => setLinkEditing(false)} style={{
-                padding: '10px 14px', borderRadius: 12,
-                background: 'var(--ink)', color: 'var(--cream)', fontSize: 12.5, fontWeight: 500,
-              }}>{t('save')}</button>
-            </div>
+        {(subtitle || editing) && (
+          editing ? (
+            <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)}
+              placeholder={window.isRTL ? 'مرجع أو رقم حجز' : 'Reference or confirmation'}
+              style={{
+                width: '100%', boxSizing: 'border-box', marginTop: 6,
+                fontSize: 13, color: 'var(--ink-soft)',
+                border: 0, outline: 'none', background: 'transparent',
+                borderBottom: '1px dashed var(--hairline-2)', padding: '2px 0',
+              }} />
           ) : (
-            <button onClick={() => setLinkEditing(true)} style={{
-              width: '100%', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12,
-              color: 'var(--ink-mute)', flexDirection: 'row',
+            <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 5 }}>{subtitle}</div>
+          )
+        )}
+      </div>
+
+      {/* ── PRIMARY ACTIONS — open file / open link ─────────────── */}
+      <div style={{ padding: '16px 14px 0' }}>
+        <div style={{
+          display: 'grid', gap: 8,
+          gridTemplateColumns: (hasFile && hasLink) ? '1fr 1fr' : '1fr',
+        }}>
+          {hasFile && (
+            <a href={doc.link} target="_blank" rel="noreferrer" style={{
+              padding: '14px 16px', borderRadius: 16,
+              background: 'var(--ink)', color: 'var(--cream)',
+              fontSize: 13.5, fontWeight: 600,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              flexDirection: 'row', textDecoration: 'none',
             }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: 10, background: 'var(--cream)',
-                display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
-                flexShrink: 0,
-              }}><IconLink size={16} stroke="var(--ink-soft)" /></div>
-              <div style={{ textAlign: 'start' }}>
-                <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink-soft)' }}>{t('addLink')}</div>
-                <div style={{ fontSize: 11, marginTop: 1 }}>{t('linkHint')}</div>
-              </div>
-            </button>
+              <IconDoc size={16} stroke="currentColor" />
+              {window.isRTL ? 'فتح الملف' : 'Open file'}
+            </a>
+          )}
+          {hasLink && !editing && (
+            <a href={link} target="_blank" rel="noreferrer" style={{
+              padding: '14px 16px', borderRadius: 16,
+              background: tintFill, color: '#fff',
+              fontSize: 13.5, fontWeight: 600,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              flexDirection: 'row', textDecoration: 'none',
+            }}>
+              <IconLink size={16} stroke="currentColor" />
+              {window.isRTL ? 'فتح الرابط' : 'Open link'}
+            </a>
           )}
         </div>
+        {!hasFile && !editing && (
+          <div style={{
+            marginTop: 8, padding: '10px 14px', borderRadius: 12,
+            background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+            fontSize: 12, color: 'var(--ink-mute)', textAlign: 'center',
+          }}>
+            {window.isRTL ? 'لا يوجد ملف مرفوع — استخدم زر الاستبدال أدناه' : 'No file attached yet — use Replace below'}
+          </div>
+        )}
       </div>
 
-      {/* PHOTOS */}
-      <div style={{ padding: '20px 14px 0' }}>
-        <SectionLabel>{t('photos')}</SectionLabel>
-        <div style={{ padding: '0 8px' }}>
-          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', flexDirection: 'row' }} className="no-scrollbar">
-            {hasPhotos && (
-              <div style={{
-                flexShrink: 0, width: 120, height: 120, borderRadius: 16, overflow: 'hidden',
-                position: 'relative',
+      {/* ── EDITABLE DETAILS ─────────────────────────────────── */}
+      {editing && (
+        <div style={{ padding: '20px 14px 0' }}>
+          <SectionLabel>{window.isRTL ? 'التفاصيل' : 'Details'}</SectionLabel>
+          <div style={{
+            background: 'var(--cream-2)', borderRadius: 18,
+            margin: '0 8px', overflow: 'hidden',
+            border: '0.5px solid var(--hairline)',
+          }}>
+            {/* Category */}
+            <DetailEditRow label={window.isRTL ? 'الفئة' : 'Category'}>
+              <select value={cat} onChange={(e) => setCat(e.target.value)} style={{
+                fontSize: 13, color: 'var(--ink)', fontWeight: 500,
+                background: 'transparent', border: 0, outline: 'none',
+                textAlign: 'end', padding: '2px 0',
               }}>
-                <TintCard tint={doc.tint}>
-                  <div style={{
-                    position: 'absolute', inset: 0,
-                    background: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.08) 0 6px, transparent 6px 12px)',
-                  }} />
-                  <div style={{
-                    position: 'absolute', bottom: 8, insetInlineStart: 8,
-                    padding: '3px 7px', borderRadius: 6,
-                    background: 'rgba(0,0,0,0.4)', color: '#fff',
-                    fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.08em',
-                    backdropFilter: 'blur(4px)',
-                  }}>JPG</div>
-                </TintCard>
-              </div>
-            )}
-            {/* Add photo button */}
-            <label style={{
-              flexShrink: 0, width: 120, height: 120, borderRadius: 16,
-              border: '1.5px dashed var(--sand-deep)', background: 'transparent',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
-              color: 'var(--ink-mute)', cursor: 'pointer',
-            }}>
-              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => {
-                if (e.target.files[0]) console.log('Photo selected:', e.target.files[0].name);
-              }} />
-              <div style={{
-                width: 36, height: 36, borderRadius: 10, background: 'var(--cream-2)',
-                display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
-              }}><IconPlus size={16} stroke="var(--ink-soft)" /></div>
-              <div style={{ fontSize: 11, fontWeight: 500 }}>{t('addPhoto')}</div>
-            </label>
+                {(window.DOC_CATEGORIES || []).map((c) => {
+                  const label = CAT_T[c.key] ? t(CAT_T[c.key]) : c.label;
+                  return <option key={c.key} value={c.key}>{label}</option>;
+                })}
+              </select>
+            </DetailEditRow>
+            {/* Link */}
+            <DetailEditRow label={window.isRTL ? 'رابط' : 'Link'} last>
+              <input value={link} onChange={(e) => setLink(e.target.value)}
+                placeholder="https://..." type="url" style={{
+                  flex: 1, fontSize: 13, color: 'var(--ink)', fontWeight: 500,
+                  border: 0, outline: 'none', background: 'transparent',
+                  textAlign: 'end', fontFamily: 'var(--mono)',
+                }} />
+            </DetailEditRow>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* ACTIVITY */}
-      <div style={{ padding: '22px 14px 0' }}>
-        <SectionLabel>{t('activity')}</SectionLabel>
-        <div style={{
-          background: 'var(--cream-2)', borderRadius: 22,
-          margin: '0 8px', padding: '12px 16px',
-          border: '0.5px solid var(--hairline)',
-        }}>
-          {(window.AUDIT || []).filter((a) => a.target === doc.title).slice(0, 5).map((a, i, arr) => {
-            const m = window.MEMBERS.find((x) => x.id === a.who) || { name: '—', hue: 200, initials: '?' };
-            return (
-              <div key={a.id} style={{
-                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
-                flexDirection: 'row',
-                borderTop: i ? '0.5px solid var(--hairline)' : 'none',
-              }}>
-                <Avatar m={m} size={22} />
-                <div style={{ flex: 1, fontSize: 12.5, color: 'var(--ink-soft)' }}>
-                  <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{m.name.split(' ')[0]}</span> {a.action}
-                </div>
-                <div className="mono" style={{ fontSize: 10.5, color: 'var(--ink-mute)' }}>{a.when}</div>
-              </div>
-            );
-          })}
-          {((window.AUDIT || []).filter((a) => a.target === doc.title).length === 0) && (
-            <div style={{ padding: '12px 0', fontSize: 12, color: 'var(--ink-mute)', textAlign: 'center' }}>
-              {window.isRTL ? 'لا يوجد نشاط بعد' : 'No activity yet'}
-            </div>
-          )}
+      {/* ── METADATA (read-only) ─────────────────────────────── */}
+      {!editing && (
+        <div style={{ padding: '20px 14px 0' }}>
+          <SectionLabel>{window.isRTL ? 'معلومات' : 'About'}</SectionLabel>
+          <div style={{
+            background: 'var(--cream-2)', borderRadius: 18,
+            margin: '0 8px', overflow: 'hidden',
+            border: '0.5px solid var(--hairline)',
+          }}>
+            <InfoRow label={window.isRTL ? 'الفئة' : 'Category'} value={catLabel} />
+            <InfoRow label={window.isRTL ? 'النوع' : 'Type'} value={(doc.kind || '').toUpperCase() || '—'} />
+            <InfoRow label={window.isRTL ? 'الحجم' : 'Size'} value={doc.size && doc.size !== '--' ? doc.size : '—'} />
+            <InfoRow label={window.isRTL ? 'الحالة' : 'Status'}
+              value={hasFile ? (window.isRTL ? 'متزامن' : 'Uploaded') : (window.isRTL ? 'لا ملف' : 'No file')}
+              accent={hasFile ? 'var(--moss)' : 'var(--clay-deep)'} last />
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* BOTTOM ACTION BAR */}
+      {/* ── STICKY BOTTOM ACTIONS ────────────────────────────── */}
       <div style={{
-        position: 'fixed',
-        bottom: 'calc(env(safe-area-inset-bottom) + 78px)',
+        position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 78px)',
         insetInlineStart: 14, insetInlineEnd: 14, zIndex: 49,
         display: 'flex', gap: 8, flexDirection: 'row',
-        padding: 6, borderRadius: 22,
+        padding: 7, borderRadius: 20,
         background: 'rgba(255,251,244,0.92)',
         backdropFilter: 'blur(20px) saturate(180%)',
         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
         border: '0.5px solid var(--hairline-2)',
         boxShadow: '0 12px 30px rgba(34,28,22,0.18)',
-        overflow: 'visible',
       }}>
-        <button onClick={() => setEditing(true)} style={{
-          flex: 1, padding: '11px', borderRadius: 16,
+        <input ref={fileRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
+          onChange={(e) => { if (e.target.files[0]) replaceFile(e.target.files[0]); }} />
+        <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{
+          flex: 1, padding: '12px', borderRadius: 14,
           background: 'var(--cream)', border: '0.5px solid var(--hairline)',
-          fontSize: 12.5, fontWeight: 500, color: 'var(--ink)',
+          color: 'var(--ink)',
+          fontSize: 12.5, fontWeight: 500,
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           flexDirection: 'row',
         }}>
-          <IconEdit size={14} stroke="currentColor" /> {t('edit')}
-        </button>
-        <button onClick={() => openSheet?.('share')} style={{
-          flex: 1, padding: '11px', borderRadius: 16,
-          background: 'var(--cream)', border: '0.5px solid var(--hairline)',
-          fontSize: 12.5, fontWeight: 500, color: 'var(--ink)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          flexDirection: 'row',
-        }}>
-          <IconShare size={14} stroke="currentColor" /> {t('share')}
-        </button>
-        <label style={{
-          flex: 1.4, padding: '11px', borderRadius: 16,
-          background: uploading ? 'var(--ink-soft)' : 'var(--ink)', color: 'var(--cream)',
-          fontSize: 12.5, fontWeight: 600, cursor: uploading ? 'not-allowed' : 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          flexDirection: 'row',
-          boxShadow: '0 6px 14px rgba(34,28,22,0.3)',
-        }}>
-          <input ref={fileInputRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
-            onChange={(e) => { if (e.target.files[0]) handleFileUpload(e.target.files[0]); }} />
           {uploading
-            ? <><div style={{ width:13, height:13, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', animation:'appspin 0.8s linear infinite' }} /> Uploading…</>
-            : <><IconUpload size={14} stroke="currentColor" /> {doc.filePath ? t('replace') || 'Replace' : t('uploadBtn')}</>
-          }
-        </label>
-        {uploadErr && (
-          <div style={{ position:'absolute', bottom:90, left:14, right:14, padding:'8px 14px', borderRadius:10, background:'var(--clay)', color:'#fff', fontSize:12 }}>
-            {uploadErr}
-          </div>
-        )}
+            ? <span style={{ width:12, height:12, borderRadius:'50%', border:'2px solid var(--hairline-2)', borderTopColor:'var(--ink)', animation:'expspin 0.8s linear infinite' }} />
+            : <IconUpload size={13} stroke="currentColor" />}
+          {hasFile ? (window.isRTL ? 'استبدال الملف' : 'Replace file') : (window.isRTL ? 'رفع ملف' : 'Upload file')}
+        </button>
+        <button onClick={deleteDoc} style={{
+          padding: '12px 14px', borderRadius: 14,
+          background: 'transparent', color: 'var(--clay-deep)',
+          border: '0.5px solid var(--hairline)',
+          fontSize: 12.5, fontWeight: 500,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          flexDirection: 'row',
+        }}>
+          <IconTrash size={13} stroke="currentColor" />
+          {window.isRTL ? 'حذف' : 'Delete'}
+        </button>
       </div>
     </div>
   );
 }
 
-function detailFields(doc, category) {
-  // Generic fields derived from the actual document — no hardcoded mock data.
-  const rtl = window.isRTL;
-  return [
-    { label: rtl ? 'العنوان' : 'Title',    value: doc.title || '—' },
-    { label: rtl ? 'الفئة' : 'Category',   value: category?.label || '—' },
-    { label: rtl ? 'النوع' : 'Type',       value: (doc.kind || '').toUpperCase() || '—' },
-    { label: rtl ? 'التفاصيل' : 'Details', value: doc.sub || '—' },
-    { label: rtl ? 'الحجم' : 'Size',       value: doc.size || '—' },
-    { label: rtl ? 'الملف' : 'File',       value: doc.filePath ? (rtl ? 'مرفوع' : 'uploaded') : (rtl ? 'غير مرفوع' : 'not uploaded'), accent: doc.filePath ? 'var(--moss)' : 'var(--clay-deep)' },
-  ];
-}
-
-function DetailRow({ label, value, mono, accent, editing, last }) {
+// Read-only row inside the About card.
+function InfoRow({ label, value, accent, last }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 12,
-      padding: '12px 16px',
-      flexDirection: 'row',
-      borderBottom: !last ? '0.5px solid var(--hairline)' : 'none',
+      padding: '12px 16px', flexDirection: 'row',
+      borderBottom: last ? 'none' : '0.5px solid var(--hairline)',
     }}>
       <div style={{
+        flex: '0 0 auto', minWidth: 80,
         fontSize: 11, fontFamily: 'var(--mono)', letterSpacing: '0.06em',
-        color: 'var(--ink-mute)', textTransform: 'uppercase', flex: '0 0 90px',
+        color: 'var(--ink-mute)', textTransform: 'uppercase',
         textAlign: 'start',
       }}>{label}</div>
-      {editing ? (
-        <input defaultValue={value} style={{
-          flex: 1, fontSize: 13, fontFamily: mono ? 'var(--mono)' : 'var(--sans)',
-          color: accent || 'var(--ink)', fontWeight: 500,
-          border: 0, outline: 'none', background: 'transparent',
-          borderBottom: '1px dashed var(--clay)',
-          padding: '2px 0', textAlign: 'right',
-        }} />
-      ) : (
-        <div style={{
-          flex: 1, textAlign: 'end',
-          fontSize: 13, fontFamily: mono ? 'var(--mono)' : 'var(--sans)',
-          color: accent || 'var(--ink)', fontWeight: 500,
-        }}>{value}</div>
-      )}
+      <div style={{
+        flex: 1, textAlign: 'end',
+        fontSize: 13, fontWeight: 500,
+        color: accent || 'var(--ink)',
+      }}>{value}</div>
+    </div>
+  );
+}
+
+// Inline-edit row (used in edit mode).
+function DetailEditRow({ label, children, last }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '12px 16px', flexDirection: 'row',
+      borderBottom: last ? 'none' : '0.5px solid var(--hairline)',
+    }}>
+      <div style={{
+        flex: '0 0 auto', minWidth: 80,
+        fontSize: 11, fontFamily: 'var(--mono)', letterSpacing: '0.06em',
+        color: 'var(--ink-mute)', textTransform: 'uppercase',
+      }}>{label}</div>
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>{children}</div>
     </div>
   );
 }

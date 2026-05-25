@@ -934,6 +934,20 @@ window.addExpense = async (tripId, userId, fields) => {
   return data;
 };
 
+// Update an existing document's editable fields.
+window.updateDocument = async (docId, fields) => {
+  if (!window.sb) throw new Error('Not signed in');
+  const payload = {};
+  if (fields.title !== undefined)    payload.title    = (fields.title || '').trim();
+  if (fields.subtitle !== undefined) payload.subtitle = (fields.subtitle || '').trim() || null;
+  if (fields.category !== undefined) payload.category = fields.category;
+  if (fields.linkUrl !== undefined)  payload.link_url = (fields.linkUrl || '').trim() || null;
+  if (fields.linkLabel !== undefined) payload.link_label = (fields.linkLabel || '').trim() || null;
+  if (Object.keys(payload).length === 0) return;
+  const { error } = await window.sb.from('documents').update(payload).eq('id', docId);
+  if (error) throw error;
+};
+
 window.addDocument = async (tripId, userId, fields) => {
   const { data, error } = await window.sb.from('documents').insert({
     trip_id:     tripId,
