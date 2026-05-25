@@ -58,7 +58,6 @@ function ScreenInsights({ go }) {
       <LifetimeHero stats={stats} />
       <KpiGrid stats={stats} />
       {stats.byMonth && stats.byMonth.some((m) => m.spent > 0) && <MonthlyChart stats={stats} />}
-      {stats.byWeekday && stats.byWeekday.some((w) => w.avg > 0) && <WeekdayPattern stats={stats} />}
       {stats.byYear.length > 0 && <YearlyChart stats={stats} />}
       {stats.byCategory.length > 0 && <CategoryBreakdown stats={stats} />}
       {stats.tripSpend.length > 0 && <TripLeaderboard stats={stats} go={go} />}
@@ -290,12 +289,12 @@ function YearlyChart({ stats }) {
         </div>
         <div style={{ display: 'inline-flex', padding: 2, gap: 2, background: 'var(--cream-2)', borderRadius: 999, border: '0.5px solid var(--hairline)' }}>
           {[
-            { k: 'spent', l: '$' },
-            { k: 'days',  l: window.isRTL ? 'يوم' : 'D' },
-            { k: 'trips', l: window.isRTL ? 'رحلة' : 'N' },
+            { k: 'spent',     l: window.isRTL ? 'صرف' : 'Spent' },
+            { k: 'days',      l: window.isRTL ? 'أيام' : 'Days' },
+            { k: 'countries', l: window.isRTL ? 'دول' : 'Ctry' },
           ].map((m) => (
             <button key={m.k} onClick={() => setMetric(m.k)} style={{
-              padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600,
+              padding: '4px 12px', borderRadius: 999, fontSize: 11, fontWeight: 600,
               background: metric === m.k ? 'var(--ink)' : 'transparent',
               color: metric === m.k ? 'var(--cream)' : 'var(--ink-soft)',
             }}>{m.l}</button>
@@ -319,8 +318,10 @@ function YearlyChart({ stats }) {
                 </div>
                 <div style={{ fontSize: 10, color: 'var(--ink-mute)', fontFamily: 'var(--mono)' }}>'{String(y.year).slice(2)}</div>
                 <div className="mono" style={{ fontSize: 10.5, color: 'var(--ink)', fontWeight: 600 }}>
-                  {metric === 'spent' ? window.fmtMoney(v, { in: 'home' }) :
-                   metric === 'days'  ? `${v}d` : `${v}`}
+                  {metric === 'spent'     ? window.fmtMoney(v, { in: 'home' })
+                 : metric === 'days'      ? `${v}d`
+                 : metric === 'countries' ? `${v}`
+                 : `${v}`}
                 </div>
               </div>
             );

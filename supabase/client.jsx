@@ -805,6 +805,8 @@ window.loadLifetimeStats = async () => {
     byYearMap[y].spent += parseFloat(e.amount_usd) || 0;
     byYearMap[y].count += 1;
   });
+  // Track distinct countries per year so the yearly chart can show "ctry".
+  const yearCountrySets = {};
   trips.forEach((t) => {
     if (!t.startDate) return;
     const y = new Date(t.startDate).getFullYear();
@@ -812,6 +814,15 @@ window.loadLifetimeStats = async () => {
     byYearMap[y].trips = (byYearMap[y].trips || 0) + 1;
     const dur = t.endDate ? Math.round((new Date(t.endDate) - new Date(t.startDate)) / 86400000) + 1 : 1;
     byYearMap[y].days = (byYearMap[y].days || 0) + Math.max(1, dur);
+    // Tally distinct countries (uses the trip's countries[] or fallback to country_code)
+    yearCountrySets[y] = yearCountrySets[y] || new Set();
+    const list = Array.isArray(t.countries) && t.countries.length > 0
+      ? t.countries.filter(Boolean)
+      : (t.country_code ? [t.country_code] : []);
+    list.forEach((c) => yearCountrySets[y].add(c));
+  });
+  Object.keys(byYearMap).forEach((y) => {
+    byYearMap[y].countries = yearCountrySets[y] ? yearCountrySets[y].size : 0;
   });
   const byYear = Object.values(byYearMap).sort((a, b) => a.year - b.year);
 
