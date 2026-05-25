@@ -50,15 +50,34 @@ function ScreenPlan({ go, openSheet, loading }) {
       <div style={{ padding: '8px 14px 24px' }}>
         {days.length === 0 ? (
           <div style={{
-            padding: '36px 22px', textAlign: 'center',
-            color: 'var(--ink-mute)', fontSize: 13,
+            padding: '48px 24px', textAlign: 'center',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', gap: 12,
             background: 'var(--cream-2)', borderRadius: 22,
             border: '0.5px solid var(--hairline)',
             margin: '14px 8px',
           }}>
-            {window.isRTL
-              ? 'أضف تواريخ البداية والنهاية في إعدادات الرحلة لرؤية الأيام.'
-              : 'Add start & end dates in trip settings to see your days.'}
+            <div style={{
+              width: 56, height: 56, borderRadius: 16, background: 'var(--cream)',
+              display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
+            }}><window.IconCompass size={24} stroke="var(--ink-mute)" /></div>
+            <div className="serif" style={{ fontSize: 18, color: 'var(--ink)' }}>
+              {window.isRTL ? 'لا توجد أيام للتخطيط بعد' : 'Pick your trip dates first'}
+            </div>
+            <div style={{ fontSize: 12.5, color: 'var(--ink-mute)', maxWidth: 260, lineHeight: 1.5 }}>
+              {window.isRTL
+                ? 'أضف تواريخ البداية والنهاية في إعدادات الرحلة لترى الأيام هنا.'
+                : 'Add start & end dates in trip settings, then plan each day here.'}
+            </div>
+            <button onClick={() => go?.('settings')} style={{
+              marginTop: 4, padding: '10px 18px', borderRadius: 14,
+              background: 'var(--ink)', color: 'var(--cream)',
+              fontSize: 13, fontWeight: 600,
+              display: 'inline-flex', alignItems: 'center', gap: 6, flexDirection: 'row',
+            }}>
+              <window.IconGear size={13} stroke="currentColor" />
+              {window.isRTL ? 'إعدادات الرحلة' : 'Open trip settings'}
+            </button>
           </div>
         ) : days.map((d, idx) => {
           const iso = isoDay(d);

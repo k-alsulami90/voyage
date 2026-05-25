@@ -132,25 +132,50 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
       {/* EMPTY STATE — no docs at all */}
       {totalCount === 0 && <EmptyVault onAdd={() => openSheet?.('addDoc')} />}
 
-      {/* EMPTY STATE — filter/search returned nothing */}
-      {totalCount > 0 && filteredCount === 0 && (
-        <div style={{
-          padding: '32px 24px', display: 'flex', flexDirection: 'column',
-          alignItems: 'center', textAlign: 'center', gap: 10,
-        }}>
+      {/* EMPTY STATE — filter/search returned nothing.
+         If a category is selected, invite adding one in that category;
+         otherwise just offer to clear filters. */}
+      {totalCount > 0 && filteredCount === 0 && (() => {
+        const isCategoryFilter = filter !== 'all' && !search;
+        const catLabel = isCategoryFilter
+          ? (cats.find((c) => c.key === filter)?.label || filter)
+          : null;
+        return (
           <div style={{
-            width: 48, height: 48, borderRadius: 14, background: 'var(--cream-2)',
-            display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
-          }}><IconSearch size={20} stroke="var(--ink-mute)" /></div>
-          <div className="serif" style={{ fontSize: 16, color: 'var(--ink)' }}>
-            {window.isRTL ? 'لا توجد نتائج' : 'No matching documents'}
+            padding: '32px 24px', display: 'flex', flexDirection: 'column',
+            alignItems: 'center', textAlign: 'center', gap: 12,
+          }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: 16, background: 'var(--cream-2)',
+              display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
+            }}><IconDoc size={24} stroke="var(--ink-mute)" /></div>
+            <div className="serif" style={{ fontSize: 17, color: 'var(--ink)' }}>
+              {isCategoryFilter
+                ? (window.isRTL ? `لا يوجد في ${catLabel}` : `No ${catLabel} yet`)
+                : (window.isRTL ? 'لا توجد نتائج' : 'No matching documents')}
+            </div>
+            <div style={{
+              display: 'flex', gap: 8, flexDirection: 'row',
+            }}>
+              {isCategoryFilter && (
+                <button onClick={() => openSheet?.('addDoc')} style={{
+                  padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 600,
+                  background: 'var(--clay)', color: '#fff', border: 'none',
+                  display: 'inline-flex', alignItems: 'center', gap: 6, flexDirection: 'row',
+                  boxShadow: '0 4px 12px oklch(0.62 0.13 35 / 0.35)',
+                }}>
+                  <IconPlus size={12} stroke="currentColor" />
+                  {window.isRTL ? `أضف ${catLabel}` : `Add ${catLabel}`}
+                </button>
+              )}
+              <button onClick={() => { setFilter('all'); setSearch(''); }} style={{
+                padding: '9px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 500,
+                background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', color: 'var(--ink-soft)',
+              }}>{window.isRTL ? 'الكل' : 'Show all'}</button>
+            </div>
           </div>
-          <button onClick={() => { setFilter('all'); setSearch(''); }} style={{
-            padding: '6px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 500,
-            background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', color: 'var(--ink-soft)',
-          }}>{window.isRTL ? 'مسح الفلتر' : 'Clear filter'}</button>
-        </div>
-      )}
+        );
+      })()}
 
       {/* DOCUMENT LIST */}
       {filteredCount > 0 && (view === 'grid' ? (

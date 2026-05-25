@@ -21,6 +21,14 @@ function ScreenBudget({ go, openSheet, loading }) {
   };
   const daysAvailable = trip?.daysTotal ? Array.from({ length: trip.daysTotal }, (_, i) => i + 1) : [];
 
+  // Pre-filtered list — reused by both the empty-state and the rows below
+  const filteredExpenses = (window.EXPENSES || []).filter((e) =>
+    (filter === 'all' || e.cat === filter) &&
+    (paidBy === 'all' || e.who === paidBy) &&
+    (dayFilter === 'all' || dayOf(e.createdAt) === dayFilter) &&
+    (!search || e.title?.toLowerCase().includes(search.toLowerCase()) || e.note?.toLowerCase().includes(search.toLowerCase()))
+  );
+
   // Show skeleton while data is still loading for this trip — prevents the
   // 'flash of zeros' before real numbers arrive.
   const dataReady = trip && window.isTripDataReady?.(trip.id);
@@ -321,33 +329,64 @@ function ScreenBudget({ go, openSheet, loading }) {
           </div>
         )}
 
-        {/* Empty state */}
+        {/* Empty state — no expenses at all */}
         {window.EXPENSES.length === 0 && (
           <div style={{
-            padding: '32px 16px', textAlign: 'center', display: 'flex',
-            flexDirection: 'column', alignItems: 'center', gap: 10,
+            padding: '40px 24px', textAlign: 'center',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', gap: 12,
           }}>
             <div style={{
-              width: 48, height: 48, borderRadius: 14, background: 'var(--cream-2)',
+              width: 64, height: 64, borderRadius: 18, background: 'var(--cream-2)',
               display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
-            }}><IconWallet size={22} stroke="var(--ink-mute)" /></div>
-            <div className="serif" style={{ fontSize: 18, color: 'var(--ink)' }}>
+            }}><IconWallet size={28} stroke="var(--ink-mute)" /></div>
+            <div className="serif" style={{ fontSize: 20, color: 'var(--ink)' }}>
               {window.isRTL ? 'لا توجد مصروفات بعد' : 'No expenses yet'}
             </div>
-            <div style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>
-              {window.isRTL ? 'اضغط + لإضافة أول مصروف' : 'Tap + to add your first expense'}
+            <div style={{
+              fontSize: 13, color: 'var(--ink-mute)',
+              maxWidth: 260, lineHeight: 1.5,
+            }}>
+              {window.isRTL
+                ? 'تتبَّع كل ما تصرفه في الرحلة — تظهر الإحصائيات تلقائياً'
+                : 'Track every expense — stats and charts update automatically.'}
             </div>
+            <button onClick={() => openSheet?.('addExpense')} style={{
+              marginTop: 6, padding: '12px 22px', borderRadius: 14,
+              background: 'var(--clay)', color: '#fff',
+              fontSize: 13.5, fontWeight: 600,
+              display: 'inline-flex', alignItems: 'center', gap: 8, flexDirection: 'row',
+              boxShadow: '0 6px 14px oklch(0.62 0.13 35 / 0.35)',
+            }}>
+              <IconPlus size={14} stroke="currentColor" />
+              {window.isRTL ? 'أضف أول مصروف' : 'Add first expense'}
+            </button>
+          </div>
+        )}
+        {/* Filter narrowed to zero results */}
+        {window.EXPENSES.length > 0 && filteredExpenses.length === 0 && (
+          <div style={{
+            padding: '28px 24px', textAlign: 'center',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', gap: 10,
+          }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 12, background: 'var(--cream-2)',
+              display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
+            }}><IconSearch size={18} stroke="var(--ink-mute)" /></div>
+            <div className="serif" style={{ fontSize: 16, color: 'var(--ink)' }}>
+              {window.isRTL ? 'لا توجد نتائج' : 'No matching expenses'}
+            </div>
+            <button onClick={() => { setFilter('all'); setPaidBy('all'); setDayFilter('all'); setSearch(''); }} style={{
+              padding: '6px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 500,
+              background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', color: 'var(--ink-soft)',
+            }}>{window.isRTL ? 'مسح الفلاتر' : 'Clear filters'}</button>
           </div>
         )}
 
         {/* Expense rows — swipeable with delete */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 4px' }}>
-          {window.EXPENSES.filter((e) =>
-            (filter === 'all' || e.cat === filter) &&
-            (paidBy === 'all' || e.who === paidBy) &&
-            (dayFilter === 'all' || dayOf(e.createdAt) === dayFilter) &&
-            (!search || e.title?.toLowerCase().includes(search.toLowerCase()) || e.note?.toLowerCase().includes(search.toLowerCase()))
-          ).map((e) => {
+          {filteredExpenses.map((e) => {
             const m = window.MEMBERS.find((x) => x.id === e.who) || { name: 'Unknown', hue: 200, initials: '?' };
             const c = cats.find((x) => x.key === e.cat) || { color: 'var(--ink-mute)' };
             const localAmt = e.jpy > 0 ? `¥${e.jpy.toLocaleString()}` : null;
