@@ -439,30 +439,23 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
         </div>
       </div>
 
-      {/* ── STICKY BOTTOM (just delete) ─────────────────────── */}
-      <div style={{
-        position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 78px)',
-        insetInlineStart: 14, insetInlineEnd: 14, zIndex: 49,
-        display: 'flex', gap: 8, flexDirection: 'row',
-        padding: 7, borderRadius: 20,
-        background: 'rgba(255,251,244,0.92)',
-        backdropFilter: 'blur(20px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-        border: '0.5px solid var(--hairline-2)',
-        boxShadow: '0 12px 30px rgba(34,28,22,0.18)',
-      }}>
-        <button onClick={deleteDoc} style={{
-          flex: 1, padding: '12px', borderRadius: 14,
-          background: 'transparent', color: 'var(--clay-deep)',
-          border: '0.5px solid var(--hairline)',
-          fontSize: 13, fontWeight: 500,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          flexDirection: 'row',
-        }}>
-          <IconTrash size={14} stroke="currentColor" />
-          {window.isRTL ? 'حذف المستند' : 'Delete document'}
-        </button>
-      </div>
+      {/* ── DELETE — only inside edit mode, at the end of the form ── */}
+      {editing && (
+        <div style={{ padding: '20px 14px 0' }}>
+          <button onClick={deleteDoc} style={{
+            width: '100%', margin: '0 8px', boxSizing: 'border-box',
+            padding: '14px', borderRadius: 16,
+            background: 'transparent', color: 'var(--clay-deep)',
+            border: '0.5px solid var(--hairline)',
+            fontSize: 13.5, fontWeight: 500,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            flexDirection: 'row',
+          }}>
+            <IconTrash size={14} stroke="currentColor" />
+            {window.isRTL ? 'حذف المستند' : 'Delete document'}
+          </button>
+        </div>
+      )}
 
       {/* Image cropper modal */}
       {coverToCrop && (
