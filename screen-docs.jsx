@@ -403,13 +403,19 @@ function DocTileGrid({ doc, onOpen }) {
         <div style={{
           fontSize: 10.5, color: 'var(--ink-mute)', marginTop: 3,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>{doc.sub || doc.categoryLabel}</div>
+        }}>{(window.fmtDocSummary?.(doc)) || doc.categoryLabel}</div>
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           marginTop: 6, gap: 6,
         }}>
           <StatusDot status={status} />
-          <span className="mono" style={{ fontSize: 10, color: 'var(--ink-mute)' }}>{doc.size && doc.size !== '--' ? doc.size : ''}</span>
+          {doc.costUSD != null && (
+            <span className="mono" style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-soft)' }}>
+              {doc.costCurrency && doc.costLocal != null
+                ? `${doc.costCurrency} ${Math.round(doc.costLocal).toLocaleString()}`
+                : `$${Math.round(doc.costUSD).toLocaleString()}`}
+            </span>
+          )}
         </div>
       </div>
     </button>
@@ -458,15 +464,16 @@ function DocRowList({ doc, last, onOpen }) {
           display: 'flex', alignItems: 'center', gap: 6,
           overflow: 'hidden',
         }}>
-          <span style={{
-            padding: '1px 6px', borderRadius: 4,
-            background: 'var(--sand)', color: 'var(--ink-soft)',
-            fontSize: 9.5, fontFamily: 'var(--mono)', letterSpacing: '0.06em',
-            textTransform: 'uppercase', flexShrink: 0,
-          }}>{doc.categoryLabel}</span>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {doc.sub || doc.size}
+            {(window.fmtDocSummary?.(doc)) || doc.categoryLabel}
           </span>
+          {doc.costUSD != null && (
+            <span className="mono" style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-soft)', flexShrink: 0 }}>
+              · {doc.costCurrency && doc.costLocal != null
+                  ? `${doc.costCurrency} ${Math.round(doc.costLocal).toLocaleString()}`
+                  : `$${Math.round(doc.costUSD).toLocaleString()}`}
+            </span>
+          )}
         </div>
       </div>
 

@@ -1,55 +1,67 @@
-// Doc Detail — one job: show a document and let you change it.
-// Layout: cover/header → title → primary actions (open file / open link) →
-// editable detail rows → replace file / delete in a sticky footer.
+// Doc Detail — structured per-category view + edit mode.
+// Fields come from window.DOC_SCHEMAS so this stays in sync with AddDoc.
 
 function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
-  // Re-pull from window.DOCS_BY_CAT so edits show fresh data here.
-  // (DOCS_BY_CAT is keyed by category — search all of them in case the
-  // category itself was changed in this session.)
+  // Re-pull from window.DOCS_BY_CAT so edits show fresh data
   const allDocs = Object.values(window.DOCS_BY_CAT || {}).flat();
   const doc = allDocs.find((d) => d.id === initialDoc?.id) || initialDoc;
   if (!doc) return null;
 
+  const schema = window.DOC_SCHEMAS[doc.category] || window.DOC_SCHEMAS.visas;
   const TINT_FILL = { indigo: 'var(--indigo)', clay: 'var(--clay)', moss: 'var(--moss)', honey: 'var(--honey)' };
   const tintFill = TINT_FILL[doc.tint] || 'var(--clay)';
 
-  // Edit state — toggling the pencil pulls the rows into input mode.
+  // ── Edit state ────────────────────────────────────────────
   const [editing,  setEditing]  = React.useState(false);
   const [title,    setTitle]    = React.useState(doc.title || '');
-  const [subtitle, setSubtitle] = React.useState(doc.sub || '');
-  const [link,     setLink]     = React.useState(doc.link || '');
+  const [details,  setDetails]  = React.useState(doc.details || {});
   const [cat,      setCat]      = React.useState(doc.category || category?.key || 'flights');
+  const [cost,     setCost]     = React.useState(doc.costLocal != null ? String(doc.costLocal) : (doc.costUSD != null ? String(doc.costUSD) : ''));
+  const [costCur,  setCostCur]  = React.useState(doc.costCurrency || window.TRIP?.localCurrency || 'USD');
   const [saving,   setSaving]   = React.useState(false);
 
-  // File / cover replace
+  // ── File / cover state ────────────────────────────────────
   const [uploading,    setUploading]    = React.useState(false);
+  const [uploadingSec, setUploadingSec] = React.useState(false);
   const [uploadingCov, setUploadingCov] = React.useState(false);
-  const [coverToCrop,  setCoverToCrop]  = React.useState(null);  // file awaiting crop
-  const fileRef  = React.useRef(null);
-  const coverRef = React.useRef(null);
+  const [coverToCrop,  setCoverToCrop]  = React.useState(null);
+  const [linking,      setLinking]      = React.useState(false);
+  const fileRef      = React.useRef(null);
+  const secondaryRef = React.useRef(null);
+  const coverRef     = React.useRef(null);
 
-  // When the underlying doc object refreshes (after save), sync the local form.
+  // Sync local form when underlying doc refreshes
   React.useEffect(() => {
     setTitle(doc.title || '');
-    setSubtitle(doc.sub || '');
-    setLink(doc.link || '');
+    setDetails(doc.details || {});
     setCat(doc.category || category?.key || 'flights');
-  }, [doc.id, doc.title, doc.sub, doc.link, doc.category, category?.key]);
+    setCost(doc.costLocal != null ? String(doc.costLocal) : (doc.costUSD != null ? String(doc.costUSD) : ''));
+    setCostCur(doc.costCurrency || window.TRIP?.localCurrency || 'USD');
+  }, [doc.id, doc.title, doc.category, JSON.stringify(doc.details), doc.costLocal, doc.costUSD, doc.costCurrency, category?.key]);
 
-  const replaceFile = async (file) => {
+  // ── File operations ───────────────────────────────────────
+  const replacePrimary = async (file) => {
     if (!file || !window.TRIP?.id) return;
     setUploading(true);
     try {
       await window.uploadDocumentFile(doc.id, window.TRIP.id, file);
       await window.loadDocuments(window.TRIP.id);
-      window.toast?.(window.isRTL ? 'تم استبدال الملف' : 'File replaced', 'success');
+      window.toast?.(window.isRTL ? 'تم الاستبدال' : 'File replaced', 'success');
     } catch (err) {
       window.toast?.(err.message || 'Upload failed', 'error');
     } finally { setUploading(false); }
   };
-
-  // The flow is: pick → ImageCropper opens → user adjusts → onDone gives us
-  // a cropped Blob/File → upload that. So this only runs with the cropped output.
+  const replaceSecondary = async (file) => {
+    if (!file || !window.TRIP?.id) return;
+    setUploadingSec(true);
+    try {
+      await window.uploadDocumentSecondaryFile(doc.id, window.TRIP.id, file);
+      await window.loadDocuments(window.TRIP.id);
+      window.toast?.(window.isRTL ? 'تم الاستبدال' : 'File replaced', 'success');
+    } catch (err) {
+      window.toast?.(err.message || 'Upload failed', 'error');
+    } finally { setUploadingSec(false); }
+  };
   const replaceCover = async (file) => {
     if (!file || !window.TRIP?.id) return;
     setUploadingCov(true);
@@ -60,17 +72,6 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
       window.toast?.(err.message || 'Cover upload failed', 'error');
     } finally { setUploadingCov(false); }
   };
-
-  const removeFile = async () => {
-    if (!doc.filePath) return;
-    if (!confirm(window.isRTL ? 'إزالة الملف المرفق؟' : 'Remove the attached file?')) return;
-    try {
-      await window.removeDocumentFile(doc.id, doc.filePath);
-      await window.loadDocuments(window.TRIP?.id);
-      window.toast?.(window.isRTL ? 'تم حذف الملف' : 'File removed', 'success');
-    } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
-  };
-
   const removeCover = async () => {
     if (!doc.coverPath) return;
     if (!confirm(window.isRTL ? 'إزالة صورة الغلاف؟' : 'Remove cover photo?')) return;
@@ -79,14 +80,36 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
       await window.loadDocuments(window.TRIP?.id);
     } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
   };
+  const removePrimary = async () => {
+    if (!doc.filePath) return;
+    if (!confirm(window.isRTL ? 'إزالة الملف؟' : 'Remove file?')) return;
+    try {
+      await window.removeDocumentFile(doc.id, doc.filePath);
+      await window.loadDocuments(window.TRIP?.id);
+    } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
+  };
+  const removeSecondary = async () => {
+    if (!doc.secondaryFilePath) return;
+    if (!confirm(window.isRTL ? 'إزالة الملف؟' : 'Remove file?')) return;
+    try {
+      await window.removeDocumentSecondaryFile(doc.id, doc.secondaryFilePath);
+      await window.loadDocuments(window.TRIP?.id);
+    } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
+  };
 
+  // ── Save edits ─────────────────────────────────────────────
   const saveEdits = async () => {
     if (!title.trim()) { window.toast?.(window.isRTL ? 'العنوان مطلوب' : 'Title is required', 'error'); return; }
     setSaving(true);
     try {
+      const costNum = cost ? parseFloat(cost) : null;
+      const costUSD = costNum != null ? window.toUSD(costNum, costCur) : null;
       await window.updateDocument(doc.id, {
-        title, subtitle, category: cat, linkUrl: link,
-        linkLabel: link.trim() ? (window.isRTL ? 'فتح الرابط' : 'Open link') : null,
+        title, category: cat, details,
+        costLocal: costNum, costCurrency: cost ? costCur : null,
+        costUSD,
+        linkUrl: details.location_url || null,
+        linkLabel: details.location_url ? (window.isRTL ? 'الموقع' : 'Location') : null,
       });
       await window.loadDocuments(window.TRIP?.id);
       setEditing(false);
@@ -96,9 +119,28 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
     } finally { setSaving(false); }
   };
 
+  // ── Expense linkage ────────────────────────────────────────
+  const toggleExpense = async () => {
+    setLinking(true);
+    try {
+      if (doc.linkedExpenseId) {
+        await window.unlinkDocExpense(doc.id, window.TRIP?.id);
+        window.toast?.(window.isRTL ? 'أُزيل من المصروفات' : 'Removed from expenses', 'success');
+      } else {
+        await window.linkDocExpense(doc.id, window.TRIP?.id);
+        window.toast?.(window.isRTL ? 'أُضيف للمصروفات' : 'Added to expenses', 'success');
+      }
+    } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
+    finally { setLinking(false); }
+  };
+
   const deleteDoc = async () => {
     if (!confirm(window.isRTL ? 'حذف هذا المستند؟' : 'Delete this document?')) return;
     try {
+      // If linked to an expense, drop the expense too so we don't orphan it.
+      if (doc.linkedExpenseId) {
+        try { await window.unlinkDocExpense(doc.id, window.TRIP?.id); } catch (_) {}
+      }
       await window.deleteDocument(doc.id, window.TRIP?.id, doc.title);
       await window.loadDocuments(window.TRIP?.id);
       back();
@@ -106,21 +148,17 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
   };
 
   const hasFile  = !!doc.filePath;
-  const hasLink  = !!(link && link.trim());
+  const hasSec   = !!doc.secondaryFilePath;
   const hasCover = !!doc.coverUrl;
-
   const CAT_T = { flights: 'docFlights', lodging: 'docLodging', visas: 'docVisas', transport: 'docTransport' };
-  const catLabel = CAT_T[cat] ? t(CAT_T[cat]) : (category?.label || cat);
+  const catLabel = CAT_T[doc.category] ? t(CAT_T[doc.category]) : (category?.label || doc.category);
+  const summary = window.fmtDocSummary(doc);
 
   return (
     <div data-screen-label={`Vault · ${doc.title}`} style={{
       background: 'var(--cream)', minHeight: '100%', paddingBottom: 140,
     }}>
-
-      {/* ── COVER HEADER ─────────────────────────────────────────
-         Either: uploaded cover photo, or a clean tinted header with
-         the category emoji. No more fake-paper preview.
-         ─────────────────────────────────────────────────────── */}
+      {/* ── COVER / HEADER ─────────────────────────────────── */}
       <div style={{
         position: 'relative', height: 240, overflow: 'hidden',
         background: hasCover ? 'var(--ink)' : tintFill,
@@ -137,17 +175,14 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
             position: 'absolute', inset: 0,
             display: 'grid', placeItems: 'center',
             fontSize: 80, opacity: 0.4,
-          }}>
-            {{ flights:'✈️', lodging:'🏨', visas:'📘', transport:'🚆' }[cat] || '📄'}
-          </div>
+          }}>{schema.emoji}</div>
         )}
-        {/* Bottom-fade so the title card below blends in */}
         <div style={{
           position: 'absolute', bottom: 0, left: 0, right: 0, height: 80,
           background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.45))',
         }} />
 
-        {/* Header buttons floating over the cover */}
+        {/* Top buttons */}
         <div style={{
           position: 'absolute', top: 0, insetInlineStart: 0, insetInlineEnd: 0, zIndex: 5,
           padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 18px 12px',
@@ -164,7 +199,6 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
             background: 'rgba(0,0,0,0.38)', fontSize: 11, fontWeight: 500, letterSpacing: 0.04,
           }}>{catLabel}</div>
 
-          {/* Edit toggle. In edit mode it becomes the Save button. */}
           {editing ? (
             <button onClick={saveEdits} disabled={saving} className="glass" style={{
               padding: '8px 14px', borderRadius: 999, color: '#fff',
@@ -184,7 +218,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
           )}
         </div>
 
-        {/* Cover-edit affordance — small floating button on the cover */}
+        {/* Cover edit chip (in edit mode only) */}
         {editing && (
           <div style={{
             position: 'absolute', bottom: 12, insetInlineEnd: 14, zIndex: 6,
@@ -211,7 +245,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
         )}
       </div>
 
-      {/* ── TITLE CARD ─────────────────────────────────────────── */}
+      {/* ── TITLE + SUMMARY CARD ───────────────────────────── */}
       <div style={{
         margin: '-26px 14px 0', position: 'relative', zIndex: 4,
         background: 'var(--cream-2)', borderRadius: 22,
@@ -224,127 +258,188 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
             fontFamily: 'var(--serif)', fontSize: 22, lineHeight: 1.2,
             color: 'var(--ink)', letterSpacing: '-0.01em',
             border: 0, outline: 'none', background: 'transparent',
-            borderBottom: '1.5px dashed var(--clay)',
-            padding: '2px 0',
+            borderBottom: '1.5px dashed var(--clay)', padding: '2px 0',
           }} />
         ) : (
           <div className="serif" style={{ fontSize: 22, lineHeight: 1.2, color: 'var(--ink)' }}>
             {doc.title}
           </div>
         )}
-        {(subtitle || editing) && (
-          editing ? (
-            <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)}
-              placeholder={window.isRTL ? 'مرجع أو رقم حجز' : 'Reference or confirmation'}
-              style={{
-                width: '100%', boxSizing: 'border-box', marginTop: 6,
-                fontSize: 13, color: 'var(--ink-soft)',
-                border: 0, outline: 'none', background: 'transparent',
-                borderBottom: '1px dashed var(--hairline-2)', padding: '2px 0',
-              }} />
-          ) : (
-            <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 5 }}>{subtitle}</div>
-          )
-        )}
-      </div>
-
-      {/* ── PRIMARY ACTIONS — open file / open link ─────────────── */}
-      <div style={{ padding: '16px 14px 0' }}>
-        <div style={{
-          display: 'grid', gap: 8,
-          gridTemplateColumns: (hasFile && hasLink) ? '1fr 1fr' : '1fr',
-        }}>
-          {hasFile && (
-            <a href={doc.link} target="_blank" rel="noreferrer" style={{
-              padding: '14px 16px', borderRadius: 16,
-              background: 'var(--ink)', color: 'var(--cream)',
-              fontSize: 13.5, fontWeight: 600,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              flexDirection: 'row', textDecoration: 'none',
-            }}>
-              <IconDoc size={16} stroke="currentColor" />
-              {window.isRTL ? 'فتح الملف' : 'Open file'}
-            </a>
-          )}
-          {hasLink && !editing && (
-            <a href={link} target="_blank" rel="noreferrer" style={{
-              padding: '14px 16px', borderRadius: 16,
-              background: tintFill, color: '#fff',
-              fontSize: 13.5, fontWeight: 600,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              flexDirection: 'row', textDecoration: 'none',
-            }}>
-              <IconLink size={16} stroke="currentColor" />
-              {window.isRTL ? 'فتح الرابط' : 'Open link'}
-            </a>
-          )}
-        </div>
-        {!hasFile && !editing && (
-          <div style={{
-            marginTop: 8, padding: '10px 14px', borderRadius: 12,
-            background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
-            fontSize: 12, color: 'var(--ink-mute)', textAlign: 'center',
-          }}>
-            {window.isRTL ? 'لا يوجد ملف مرفوع — استخدم زر الاستبدال أدناه' : 'No file attached yet — use Replace below'}
+        {!editing && summary && (
+          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 6 }}>
+            {summary}
           </div>
         )}
       </div>
 
-      {/* ── EDITABLE DETAILS ─────────────────────────────────── */}
+      {/* ── EDIT MODE: structured fields ─────────────────────── */}
       {editing && (
-        <div style={{ padding: '20px 14px 0' }}>
+        <div style={{ padding: '18px 14px 0' }}>
           <SectionLabel>{window.isRTL ? 'التفاصيل' : 'Details'}</SectionLabel>
-          <div style={{
-            background: 'var(--cream-2)', borderRadius: 18,
-            margin: '0 8px', overflow: 'hidden',
-            border: '0.5px solid var(--hairline)',
-          }}>
-            {/* Category */}
-            <DetailEditRow label={window.isRTL ? 'الفئة' : 'Category'}>
+          <div style={{ padding: '0 8px' }}>
+            {/* Category switcher first */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{
+                fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.10em',
+                color: 'var(--ink-mute)', textTransform: 'uppercase', marginBottom: 5,
+              }}>{window.isRTL ? 'الفئة' : 'Category'}</div>
               <select value={cat} onChange={(e) => setCat(e.target.value)} style={{
-                fontSize: 13, color: 'var(--ink)', fontWeight: 500,
-                background: 'transparent', border: 0, outline: 'none',
-                textAlign: 'end', padding: '2px 0',
+                ...window.docFieldStyle, fontSize: 14, padding: '11px 13px',
               }}>
                 {(window.DOC_CATEGORIES || []).map((c) => {
                   const label = CAT_T[c.key] ? t(CAT_T[c.key]) : c.label;
                   return <option key={c.key} value={c.key}>{label}</option>;
                 })}
               </select>
-            </DetailEditRow>
-            {/* Link */}
-            <DetailEditRow label={window.isRTL ? 'رابط' : 'Link'} last>
-              <input value={link} onChange={(e) => setLink(e.target.value)}
-                placeholder="https://..." type="url" style={{
-                  flex: 1, fontSize: 13, color: 'var(--ink)', fontWeight: 500,
-                  border: 0, outline: 'none', background: 'transparent',
-                  textAlign: 'end', fontFamily: 'var(--mono)',
-                }} />
-            </DetailEditRow>
+            </div>
+
+            {/* Category fields */}
+            {schema.fields.length > 0 && (
+              <window.DocFieldGrid fields={schema.fields} values={details} onChange={setDetails} />
+            )}
+
+            {/* Cost (only on cost-enabled categories) */}
+            {schema.showCost && (
+              <div style={{ marginTop: 14 }}>
+                <div style={{
+                  fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.10em',
+                  color: 'var(--ink-mute)', textTransform: 'uppercase', marginBottom: 5,
+                }}>{window.isRTL ? 'التكلفة' : 'Cost'}</div>
+                <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
+                  <input type="number" inputMode="decimal" value={cost}
+                    onChange={(e) => setCost(e.target.value)}
+                    placeholder="0"
+                    style={{ ...window.docFieldStyle, fontSize: 14, padding: '11px 13px', flex: 1 }} />
+                  <select value={costCur} onChange={(e) => setCostCur(e.target.value)} style={{
+                    ...window.docFieldStyle, fontSize: 14, padding: '11px 13px',
+                    width: 'auto', minWidth: 80, fontFamily: 'var(--mono)',
+                  }}>
+                    {[window.TRIP?.localCurrency || 'USD', window.TRIP?.homeCurrency || 'USD', 'USD', 'SAR', 'AED', 'EUR']
+                      .filter((v, i, a) => v && a.indexOf(v) === i)
+                      .map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* ── METADATA (read-only) ─────────────────────────────── */}
-      {!editing && (
-        <div style={{ padding: '20px 14px 0' }}>
-          <SectionLabel>{window.isRTL ? 'معلومات' : 'About'}</SectionLabel>
+      {/* ── READ MODE: structured field list + cost/expense ─── */}
+      {!editing && schema.fields.length > 0 && (
+        <div style={{ padding: '18px 14px 0' }}>
+          <SectionLabel>{window.isRTL ? 'التفاصيل' : 'Details'}</SectionLabel>
           <div style={{
             background: 'var(--cream-2)', borderRadius: 18,
             margin: '0 8px', overflow: 'hidden',
             border: '0.5px solid var(--hairline)',
           }}>
-            <InfoRow label={window.isRTL ? 'الفئة' : 'Category'} value={catLabel} />
-            <InfoRow label={window.isRTL ? 'النوع' : 'Type'} value={(doc.kind || '').toUpperCase() || '—'} />
-            <InfoRow label={window.isRTL ? 'الحجم' : 'Size'} value={doc.size && doc.size !== '--' ? doc.size : '—'} />
-            <InfoRow label={window.isRTL ? 'الحالة' : 'Status'}
-              value={hasFile ? (window.isRTL ? 'متزامن' : 'Uploaded') : (window.isRTL ? 'لا ملف' : 'No file')}
-              accent={hasFile ? 'var(--moss)' : 'var(--clay-deep)'} last />
+            {schema.fields.map((f, i) => {
+              const raw = (details || {})[f.key];
+              if (!raw) return null;
+              const v = f.type === 'datetime' ? fmtDateTime(raw)
+                      : f.type === 'date'     ? fmtDateOnly(raw)
+                      : raw;
+              const isLink = f.type === 'url';
+              return (
+                <DocInfoRow key={f.key}
+                  label={f.label()}
+                  value={v}
+                  href={isLink ? raw : undefined}
+                  last={false} />
+              );
+            }).filter(Boolean).map((node, i, arr) =>
+              i === arr.length - 1 ? React.cloneElement(node, { last: true }) : node
+            )}
           </div>
         </div>
       )}
 
-      {/* ── STICKY BOTTOM ACTIONS ────────────────────────────── */}
+      {/* ── COST + EXPENSE TOGGLE (read mode) ─────────────────── */}
+      {!editing && schema.showCost && doc.costUSD != null && (
+        <div style={{ padding: '16px 14px 0' }}>
+          <SectionLabel>{window.isRTL ? 'التكلفة' : 'Cost'}</SectionLabel>
+          <div style={{
+            margin: '0 8px', padding: '14px 16px',
+            background: 'var(--cream-2)', borderRadius: 18,
+            border: '0.5px solid var(--hairline)',
+            display: 'flex', alignItems: 'center', gap: 12, flexDirection: 'row',
+          }}>
+            <div style={{ flex: 1 }}>
+              <div className="mono" style={{ fontSize: 18, fontWeight: 600, color: 'var(--ink)' }}>
+                {doc.costLocal != null && doc.costCurrency
+                  ? `${doc.costCurrency} ${doc.costLocal.toLocaleString()}`
+                  : `$${doc.costUSD.toLocaleString()}`}
+              </div>
+              {doc.linkedExpenseId ? (
+                <div style={{
+                  fontSize: 11, color: 'var(--moss)', marginTop: 3,
+                  display: 'flex', alignItems: 'center', gap: 4, flexDirection: 'row',
+                }}>
+                  <IconCheck size={11} stroke="currentColor" />
+                  {window.isRTL ? 'مُسجَّل في المصروفات' : 'Logged in expenses'}
+                </div>
+              ) : (
+                <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 3 }}>
+                  {window.isRTL ? 'غير مُسجَّل في الميزانية' : 'Not in the trip budget'}
+                </div>
+              )}
+            </div>
+            <button onClick={toggleExpense} disabled={linking || doc.costUSD == null} style={{
+              padding: '9px 14px', borderRadius: 12,
+              background: doc.linkedExpenseId ? 'var(--cream)' : 'var(--ink)',
+              color: doc.linkedExpenseId ? 'var(--ink)' : 'var(--cream)',
+              border: doc.linkedExpenseId ? '0.5px solid var(--hairline)' : 'none',
+              fontSize: 12.5, fontWeight: 500,
+              display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row',
+            }}>
+              {linking ? '…'
+                : (doc.linkedExpenseId
+                    ? (window.isRTL ? 'إزالة' : 'Remove')
+                    : (window.isRTL ? 'أضف' : 'Add to expenses'))}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── FILES SECTION ──────────────────────────────────────
+         Primary + (if category has it) secondary file. Each shows
+         open/replace/remove inline. */}
+      <div style={{ padding: '18px 14px 0' }}>
+        <SectionLabel>{window.isRTL ? 'الملفات' : 'Files'}</SectionLabel>
+        <div style={{
+          margin: '0 8px',
+          display: 'flex', flexDirection: 'column', gap: 8,
+        }}>
+          <FileRow
+            label={schema.primaryFileLabel()}
+            file={hasFile ? { name: window.isRTL ? 'مرفوع' : 'Uploaded', size: doc.size, url: doc.link } : null}
+            tint={tintFill}
+            uploading={uploading}
+            onPick={() => fileRef.current?.click()}
+            onRemove={removePrimary}
+          />
+          <input ref={fileRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
+            onChange={(e) => { if (e.target.files[0]) replacePrimary(e.target.files[0]); e.target.value = ''; }} />
+
+          {schema.secondaryFile && (
+            <>
+              <FileRow
+                label={schema.secondaryFile.label()}
+                file={hasSec ? { name: window.isRTL ? 'مرفوع' : 'Uploaded', size: null, url: doc.secondaryLink } : null}
+                tint={tintFill}
+                uploading={uploadingSec}
+                onPick={() => secondaryRef.current?.click()}
+                onRemove={removeSecondary}
+              />
+              <input ref={secondaryRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
+                onChange={(e) => { if (e.target.files[0]) replaceSecondary(e.target.files[0]); e.target.value = ''; }} />
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ── STICKY BOTTOM (just delete) ─────────────────────── */}
       <div style={{
         position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 78px)',
         insetInlineStart: 14, insetInlineEnd: 14, zIndex: 49,
@@ -356,44 +451,20 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
         border: '0.5px solid var(--hairline-2)',
         boxShadow: '0 12px 30px rgba(34,28,22,0.18)',
       }}>
-        <input ref={fileRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
-          onChange={(e) => { if (e.target.files[0]) replaceFile(e.target.files[0]); }} />
-        <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{
+        <button onClick={deleteDoc} style={{
           flex: 1, padding: '12px', borderRadius: 14,
-          background: 'var(--cream)', border: '0.5px solid var(--hairline)',
-          color: 'var(--ink)',
-          fontSize: 12.5, fontWeight: 500,
+          background: 'transparent', color: 'var(--clay-deep)',
+          border: '0.5px solid var(--hairline)',
+          fontSize: 13, fontWeight: 500,
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           flexDirection: 'row',
         }}>
-          {uploading
-            ? <span style={{ width:12, height:12, borderRadius:'50%', border:'2px solid var(--hairline-2)', borderTopColor:'var(--ink)', animation:'expspin 0.8s linear infinite' }} />
-            : <IconUpload size={13} stroke="currentColor" />}
-          {hasFile ? (window.isRTL ? 'استبدال' : 'Replace') : (window.isRTL ? 'رفع ملف' : 'Upload file')}
-        </button>
-        {hasFile && (
-          <button onClick={removeFile} title={window.isRTL ? 'إزالة الملف' : 'Remove file'}
-            aria-label={window.isRTL ? 'إزالة الملف' : 'Remove file'} style={{
-            padding: '12px', borderRadius: 14,
-            background: 'transparent', color: 'var(--ink-soft)',
-            border: '0.5px solid var(--hairline)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <window.IconClose size={14} stroke="currentColor" />
-          </button>
-        )}
-        <button onClick={deleteDoc} title={window.isRTL ? 'حذف المستند' : 'Delete document'}
-          aria-label={window.isRTL ? 'حذف المستند' : 'Delete document'} style={{
-          padding: '12px', borderRadius: 14,
-          background: 'transparent', color: 'var(--clay-deep)',
-          border: '0.5px solid var(--hairline)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
           <IconTrash size={14} stroke="currentColor" />
+          {window.isRTL ? 'حذف المستند' : 'Delete document'}
         </button>
       </div>
 
-      {/* Image cropper modal — opens when user picks a cover, closes when they hit Done/Cancel */}
+      {/* Image cropper modal */}
       {coverToCrop && (
         <window.ImageCropper
           file={coverToCrop}
@@ -405,8 +476,19 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
   );
 }
 
-// Read-only row inside the About card.
-function InfoRow({ label, value, accent, last }) {
+// ── Read-only row, like InfoRow but value can be a clickable link. ──
+function DocInfoRow({ label, value, href, last }) {
+  const content = href ? (
+    <a href={href} target="_blank" rel="noreferrer" style={{
+      color: 'var(--clay-deep)', fontSize: 13, fontWeight: 500, textDecoration: 'none',
+      display: 'inline-flex', alignItems: 'center', gap: 4, flexDirection: 'row',
+    }}>
+      <IconLink size={12} stroke="currentColor" />
+      {window.isRTL ? 'افتح' : 'Open'}
+    </a>
+  ) : (
+    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>{value}</div>
+  );
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 12,
@@ -414,36 +496,88 @@ function InfoRow({ label, value, accent, last }) {
       borderBottom: last ? 'none' : '0.5px solid var(--hairline)',
     }}>
       <div style={{
-        flex: '0 0 auto', minWidth: 80,
+        flex: '0 0 auto', minWidth: 100,
         fontSize: 11, fontFamily: 'var(--mono)', letterSpacing: '0.06em',
         color: 'var(--ink-mute)', textTransform: 'uppercase',
         textAlign: 'start',
       }}>{label}</div>
-      <div style={{
-        flex: 1, textAlign: 'end',
-        fontSize: 13, fontWeight: 500,
-        color: accent || 'var(--ink)',
-      }}>{value}</div>
+      <div style={{ flex: 1, textAlign: 'end' }}>{content}</div>
     </div>
   );
 }
 
-// Inline-edit row (used in edit mode).
-function DetailEditRow({ label, children, last }) {
+// ── File row: shows name + size + open/replace/remove. ──
+function FileRow({ label, file, tint, uploading, onPick, onRemove }) {
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 12,
-      padding: '12px 16px', flexDirection: 'row',
-      borderBottom: last ? 'none' : '0.5px solid var(--hairline)',
+      background: 'var(--cream-2)', borderRadius: 16,
+      padding: '12px 14px',
+      border: '0.5px solid var(--hairline)',
+      display: 'flex', alignItems: 'center', gap: 12, flexDirection: 'row',
     }}>
       <div style={{
-        flex: '0 0 auto', minWidth: 80,
-        fontSize: 11, fontFamily: 'var(--mono)', letterSpacing: '0.06em',
-        color: 'var(--ink-mute)', textTransform: 'uppercase',
-      }}>{label}</div>
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>{children}</div>
+        width: 40, height: 40, borderRadius: 11, background: tint,
+        color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0,
+      }}>
+        <IconDoc size={18} stroke="#fff" />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>{label}</div>
+        <div style={{
+          fontSize: 13, fontWeight: 500, color: 'var(--ink)', marginTop: 2,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {file ? (file.size ? `${file.name} · ${file.size}` : file.name) : (window.isRTL ? 'لا يوجد ملف' : 'No file yet')}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 6, flexDirection: 'row', flexShrink: 0 }}>
+        {file && file.url && (
+          <a href={file.url} target="_blank" rel="noreferrer" style={{
+            padding: '7px 10px', borderRadius: 10,
+            background: 'var(--ink)', color: 'var(--cream)',
+            fontSize: 11.5, fontWeight: 500,
+            display: 'inline-flex', alignItems: 'center', gap: 4, flexDirection: 'row',
+            textDecoration: 'none',
+          }}>
+            <IconDoc size={11} stroke="currentColor" />
+            {window.isRTL ? 'فتح' : 'Open'}
+          </a>
+        )}
+        <button onClick={onPick} disabled={uploading} style={{
+          padding: '7px 10px', borderRadius: 10,
+          background: 'var(--cream)', color: 'var(--ink-soft)',
+          border: '0.5px solid var(--hairline)',
+          fontSize: 11.5, fontWeight: 500,
+        }}>
+          {uploading ? '…' : (file ? (window.isRTL ? 'استبدال' : 'Replace') : (window.isRTL ? 'رفع' : 'Upload'))}
+        </button>
+        {file && (
+          <button onClick={onRemove} aria-label={window.isRTL ? 'إزالة' : 'Remove'} style={{
+            padding: '7px', borderRadius: 10,
+            background: 'transparent', color: 'var(--clay-deep)',
+            border: '0.5px solid var(--hairline)',
+            display: 'grid', placeItems: 'center',
+          }}><window.IconClose size={12} stroke="currentColor" /></button>
+        )}
+      </div>
     </div>
   );
+}
+
+function fmtDateTime(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleString(window.isRTL ? 'ar' : 'en', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  });
+}
+function fmtDateOnly(iso) {
+  const d = new Date(iso + (iso.length === 10 ? 'T00:00:00' : ''));
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString(window.isRTL ? 'ar' : 'en', {
+    month: 'short', day: 'numeric', year: 'numeric',
+  });
 }
 
 window.ScreenDocDetail = ScreenDocDetail;

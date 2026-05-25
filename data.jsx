@@ -90,7 +90,7 @@ const DOC_CATEGORIES = [
   { key: 'flights',      label: 'Flights',      tint: 'indigo', icon: 'plane',  count: 4 },
   { key: 'lodging',      label: 'Accommodation',tint: 'clay',   icon: 'bed',    count: 3 },
   { key: 'visas',        label: 'Visas & Official', tint: 'moss',  icon: 'stamp',  count: 5 },
-  { key: 'transport',    label: 'Local Transport',  tint: 'honey', icon: 'rail',   count: 3 },
+  { key: 'transport',    label: 'Rentals',          tint: 'honey', icon: 'rail',   count: 3 },
 ];
 
 const DOCS_BY_CAT = {

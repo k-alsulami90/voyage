@@ -495,8 +495,16 @@ window.loadDocuments = async (tripId) => {
       resolvedLink  = publicUrl;
       resolvedLabel = window.isRTL ? 'فتح PDF' : 'Open PDF';
     }
+    // Secondary file (e.g. boarding pass for flights) — resolve URL if present.
+    let secondaryLink = null;
+    if (r.secondary_file_path) {
+      const { data: { publicUrl: pu } } = window.sb.storage
+        .from('documents').getPublicUrl(r.secondary_file_path);
+      secondaryLink = pu;
+    }
     const doc = {
       id:        r.id,
+      category:  r.category,
       kind:      r.kind,
       title:     r.title,
       sub:       r.subtitle || '',
@@ -510,6 +518,15 @@ window.loadDocuments = async (tripId) => {
       link:      resolvedLink,
       linkLabel: resolvedLabel,
       photos:    (r.document_photos || []).map((p) => p.storage_path),
+      // Phase 8 — structured per-category data
+      details:           r.details || {},
+      costUSD:           r.cost_usd != null ? parseFloat(r.cost_usd) : null,
+      costLocal:         r.cost_local != null ? parseFloat(r.cost_local) : null,
+      costCurrency:      r.cost_currency || null,
+      linkedExpenseId:   r.linked_expense_id || null,
+      secondaryFilePath: r.secondary_file_path || null,
+      secondaryFileSize: r.secondary_file_size || null,
+      secondaryLink,
     };
     if (byCat[r.category]) byCat[r.category].push(doc);
   });
@@ -962,9 +979,90 @@ window.updateDocument = async (docId, fields) => {
   if (fields.category !== undefined) payload.category = fields.category;
   if (fields.linkUrl !== undefined)  payload.link_url = (fields.linkUrl || '').trim() || null;
   if (fields.linkLabel !== undefined) payload.link_label = (fields.linkLabel || '').trim() || null;
+  if (fields.details !== undefined)  payload.details  = fields.details || {};
+  if (fields.costUSD !== undefined)  payload.cost_usd = fields.costUSD == null ? null : Number(fields.costUSD);
+  if (fields.costLocal !== undefined) payload.cost_local = fields.costLocal == null ? null : Number(fields.costLocal);
+  if (fields.costCurrency !== undefined) payload.cost_currency = fields.costCurrency || null;
   if (Object.keys(payload).length === 0) return;
   const { error } = await window.sb.from('documents').update(payload).eq('id', docId);
   if (error) throw error;
+};
+
+// Toggle "Add to expenses" — creates an expense linked to this document.
+// Uses the doc's own cost columns and an automatic title like "Flight: …".
+window.linkDocExpense = async (docId, tripId) => {
+  if (!window.sb || !tripId) throw new Error('Missing context');
+  const { data: doc, error: docErr } = await window.sb.from('documents')
+    .select('*').eq('id', docId).single();
+  if (docErr) throw docErr;
+  if (doc.linked_expense_id) return doc.linked_expense_id;  // already linked
+  if (doc.cost_usd == null || doc.cost_usd <= 0) throw new Error('Set a cost first');
+
+  const CAT_MAP = { flights: 'transit', lodging: 'lodging', transport: 'transit', visas: 'misc' };
+  const expenseCat = CAT_MAP[doc.category] || 'misc';
+  const titlePrefix = doc.category === 'flights' ? '✈ ' : doc.category === 'lodging' ? '🏨 ' : doc.category === 'transport' ? '🚆 ' : '';
+
+  const { data: exp, error: expErr } = await window.sb.from('expenses').insert({
+    trip_id: tripId,
+    created_by: window.currentUserId,
+    title: (titlePrefix + (doc.title || 'Document')).slice(0, 100),
+    category: expenseCat,
+    amount_usd: Number(doc.cost_usd),
+    amount_local: doc.cost_local != null ? Number(doc.cost_local) : null,
+    local_currency: doc.cost_currency || null,
+    note: doc.subtitle || null,
+  }).select().single();
+  if (expErr) throw expErr;
+
+  const { error: linkErr } = await window.sb.from('documents')
+    .update({ linked_expense_id: exp.id }).eq('id', docId);
+  if (linkErr) throw linkErr;
+
+  window.LIFETIME_STATS = null;
+  await window.loadExpenses(tripId);
+  await window.loadDocuments(tripId);
+  return exp.id;
+};
+
+window.unlinkDocExpense = async (docId, tripId) => {
+  if (!window.sb) throw new Error('Not signed in');
+  const { data: doc } = await window.sb.from('documents')
+    .select('linked_expense_id').eq('id', docId).single();
+  if (!doc?.linked_expense_id) return;
+  // ON DELETE SET NULL on linked_expense_id, so deleting the expense
+  // also clears the pointer.
+  await window.sb.from('expenses').delete().eq('id', doc.linked_expense_id);
+  window.LIFETIME_STATS = null;
+  await window.loadExpenses(tripId);
+  await window.loadDocuments(tripId);
+};
+
+// Upload a SECONDARY file (e.g. boarding pass for flights, second photo
+// for visas). Stored at {tripId}/{docId}-2.{ext} so the regular file stays
+// at {tripId}/{docId}.{ext}.
+window.uploadDocumentSecondaryFile = async (docId, tripId, file) => {
+  if (!docId || !tripId || !file) throw new Error('Missing args');
+  const ext = (file.name.split('.').pop() || 'pdf').toLowerCase();
+  const path = `${tripId}/${docId}-2.${ext}`;
+  const { error: upErr } = await window.sb.storage.from('documents')
+    .upload(path, file, { upsert: true, contentType: file.type || 'application/pdf' });
+  if (upErr) throw upErr;
+  const { error: dbErr } = await window.sb.from('documents').update({
+    secondary_file_path: path,
+    secondary_file_size: file.size,
+  }).eq('id', docId);
+  if (dbErr && !/secondary/i.test(dbErr.message || '')) throw dbErr;
+};
+
+window.removeDocumentSecondaryFile = async (docId, secondaryPath) => {
+  if (!window.sb) throw new Error('Not signed in');
+  if (secondaryPath) {
+    try { await window.sb.storage.from('documents').remove([secondaryPath]); } catch (_) {}
+  }
+  const { error } = await window.sb.from('documents').update({
+    secondary_file_path: null, secondary_file_size: null,
+  }).eq('id', docId);
+  if (error && !/secondary/i.test(error.message || '')) throw error;
 };
 
 window.addDocument = async (tripId, userId, fields) => {
@@ -978,6 +1076,10 @@ window.addDocument = async (tripId, userId, fields) => {
     tint:        fields.tint || 'clay',
     link_url:    fields.linkUrl || null,
     link_label:  fields.linkLabel || null,
+    details:     fields.details || {},
+    cost_usd:    fields.costUSD != null ? Number(fields.costUSD) : null,
+    cost_local:  fields.costLocal != null ? Number(fields.costLocal) : null,
+    cost_currency: fields.costCurrency || null,
   }).select().single();
   if (error) throw error;
 

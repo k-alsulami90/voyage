@@ -27,7 +27,7 @@ const TRANSLATIONS = {
     expenses:'Expenses', auditLog:'Audit log',
     lodging:'Lodging', food:'Food', transit:'Transit', culture:'Culture', misc:'Misc',
     // Document categories (separate from expense categories above)
-    docFlights:'Flights', docLodging:'Accommodation', docVisas:'Visas & Official', docTransport:'Local Transport',
+    docFlights:'Flights', docLodging:'Hotels', docVisas:'Visas', docTransport:'Rentals',
     // Dynamic trip card states
     daysAway:'{n} days away',    dayAway:'Tomorrow',
     startingToday:'Starting today',
@@ -207,7 +207,7 @@ const TRANSLATIONS = {
     expenses:'المصروفات', auditLog:'سجل المراجعة',
     lodging:'الإقامة', food:'الطعام', transit:'المواصلات', culture:'الثقافة', misc:'متنوع',
     // Document categories — premium phrasing for Gulf users
-    docFlights:'الرحلات الجوية', docLodging:'الإقامة والفنادق', docVisas:'التأشيرات والوثائق', docTransport:'وسائل النقل',
+    docFlights:'الرحلات', docLodging:'الفنادق', docVisas:'التأشيرات', docTransport:'الإيجارات',
     // Dynamic trip card states
     daysAway:'بعد {n} أيام',    dayAway:'غداً',
     startingToday:'تبدأ اليوم',
