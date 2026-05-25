@@ -272,6 +272,7 @@ function App() {
   const [prefillExpense, setPrefillExpense] = React.useState(null);
   const [showAddDoc, setShowAddDoc] = React.useState(false);
   const [showSettleUp, setShowSettleUp] = React.useState(false);
+  const [showSearch,   setShowSearch]   = React.useState(false);
   const [imageOverlay, setImageOverlay] = React.useState(null);
   React.useEffect(() => { window.openImageOverlay = (src) => setImageOverlay(src); }, []);
 
@@ -321,6 +322,7 @@ function App() {
     if (s === 'addExpense' && payload) setPrefillExpense(payload);
     if (s === 'addDoc') { setShowAddDoc(true); return; }       // full screen
     if (s === 'settleUp') { setShowSettleUp(true); return; }   // full screen
+    if (s === 'search')   { setShowSearch(true);   return; }   // full screen
     setSheet(s);
   };
   const openDoc = (doc, category) => setDocView({ doc, category, prevRoute: route });
@@ -446,6 +448,20 @@ function App() {
           animation: 'slideUpFull 280ms cubic-bezier(.2,.8,.2,1)',
         }} className="no-scrollbar">
           <window.ScreenSettleUp back={() => setShowSettleUp(false)} />
+        </div>
+      )}
+      {/* Full-screen Trip Search */}
+      {showSearch && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 86, overflowY: 'auto', overflowX: 'hidden',
+          animation: 'slideUpFull 240ms cubic-bezier(.2,.8,.2,1)',
+        }} className="no-scrollbar">
+          <window.ScreenTripSearch
+            back={() => setShowSearch(false)}
+            openSheet={openSheet}
+            openDoc={openDoc}
+            go={go}
+          />
         </div>
       )}
       {joining && (

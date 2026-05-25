@@ -63,6 +63,8 @@ function ScreenHub({ go, openSheet, loading }) {
           <span style={{ fontSize: 12, fontWeight: 500 }}>{t('dayLbl')} {trip.daysIn} {t('ofLbl')} {trip.daysTotal}</span>
         </div>
         <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
+          <button className="glass" style={btnGlass} onClick={() => openSheet('search')}
+                  aria-label={window.isRTL ? 'بحث' : 'Search'}><IconSearch size={18} /></button>
           <button className="glass" style={btnGlass} onClick={() => openSheet('share')}
                   aria-label={t('inviteTheCrew')}><IconShare size={18} /></button>
         </div>

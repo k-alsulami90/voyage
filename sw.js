@@ -7,7 +7,7 @@
 
 // Bump this on every deploy that changes shell behaviour. Vercel deploys
 // rebuild the file from git so the string itself is enough — no build step needed.
-const VERSION = 'v53-empty-states';
+const VERSION = 'v54-trip-search';
 const SHELL_CACHE  = `voyage-shell-${VERSION}`;
 const STATIC_CACHE = `voyage-static-${VERSION}`;
 const FONT_CACHE   = `voyage-fonts-${VERSION}`;
@@ -37,6 +37,7 @@ const SHELL_FILES = [
   '/screen-add-doc.jsx',
   '/screen-settings.jsx',
   '/screen-plan.jsx',
+  '/screen-trip-search.jsx',
   '/docs-schema.jsx',
   '/app.jsx',
 ];
