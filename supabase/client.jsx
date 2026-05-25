@@ -699,6 +699,25 @@ window.deleteDocCover = async (docId, coverPath) => {
   if (error && !/cover/i.test(error.message || '')) throw error;
 };
 
+// Detach the uploaded file from a document — deletes the storage object
+// and clears the file pointer columns. The document record itself stays
+// so the user can re-upload (or just keep it as a link-only doc).
+window.removeDocumentFile = async (docId, filePath) => {
+  if (!window.sb) throw new Error('Not signed in');
+  if (filePath) {
+    try { await window.sb.storage.from('documents').remove([filePath]); } catch (_) {}
+  }
+  // Read current row so we only clear link_url if it was the file's own URL
+  // (so an external link the user typed in survives the file removal).
+  const { data: row } = await window.sb.from('documents')
+    .select('link_label').eq('id', docId).maybeSingle();
+  const fileOwnsLink = row && /^Open (PDF|file)/i.test(row.link_label || '');
+  const patch = { file_path: null, file_size_bytes: null };
+  if (fileOwnsLink) { patch.link_url = null; patch.link_label = null; }
+  const { error } = await window.sb.from('documents').update(patch).eq('id', docId);
+  if (error) throw error;
+};
+
 window.uploadDocumentFile = async (docId, tripId, file) => {
   const ext  = file.name.split('.').pop().toLowerCase();
   const path = `${tripId}/${docId}.${ext}`;

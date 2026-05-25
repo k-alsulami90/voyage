@@ -703,4 +703,207 @@ function OfflineBanner() {
   );
 }
 
-Object.assign(window, { Avatar, AvatarStack, RoleBadge, Chip, SectionLabel, KyotoHero, TintCard, Sheet, SwipeRow, Skeleton, TripSkeleton, ToastHost, ErrorBoundary, PullToRefresh, OfflineBanner, LargeTitleHeader, ActionSheetHost });
+// ──────────────────────────────────────────────────────────────
+// ImageCropper — full-screen modal that lets the user pan + zoom
+// an image inside a square frame and emit a cropped JPEG Blob.
+//
+// Usage:
+//   <ImageCropper file={pickedFile} onCancel={...} onDone={(blob) => ...} />
+//
+// Output: 800x800 JPEG (quality 0.9). Roughly 80–250 KB per photo —
+// plenty of detail for our list/grid thumbnails and ~10x smaller than
+// the original phone photo.
+// ──────────────────────────────────────────────────────────────
+function ImageCropper({ file, onCancel, onDone, frameSize = 280, outputSize = 800 }) {
+  const [src, setSrc]     = React.useState(null);
+  const [img, setImg]     = React.useState(null);     // HTMLImageElement (for naturalSize)
+  const [scale, setScale] = React.useState(1);
+  const [off, setOff]     = React.useState({ x: 0, y: 0 });
+  const [busy, setBusy]   = React.useState(false);
+
+  // Load file → Object URL → HTMLImageElement (so we know natural size).
+  React.useEffect(() => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setSrc(url);
+    const el = new Image();
+    el.onload = () => {
+      setImg(el);
+      // Start zoom such that the image's SHORTER side equals the frame.
+      const fit = frameSize / Math.min(el.naturalWidth, el.naturalHeight);
+      setScale(fit);
+      setOff({ x: 0, y: 0 });
+    };
+    el.src = url;
+    return () => URL.revokeObjectURL(url);
+  }, [file, frameSize]);
+
+  // ── Drag handlers ────────────────────────────────────────
+  const dragRef = React.useRef(null);
+  const onStart = (e) => {
+    const p = e.touches ? e.touches[0] : e;
+    dragRef.current = { x: p.clientX, y: p.clientY, ox: off.x, oy: off.y };
+  };
+  const onMove = (e) => {
+    if (!dragRef.current) return;
+    const p = e.touches ? e.touches[0] : e;
+    setOff(clampOffset({
+      x: dragRef.current.ox + (p.clientX - dragRef.current.x),
+      y: dragRef.current.oy + (p.clientY - dragRef.current.y),
+    }, img, scale, frameSize));
+  };
+  const onEnd = () => { dragRef.current = null; };
+
+  // Re-clamp when scale changes (so the image can't be smaller than the frame)
+  React.useEffect(() => {
+    if (!img) return;
+    setOff((o) => clampOffset(o, img, scale, frameSize));
+  }, [scale, img, frameSize]);
+
+  // Min / max zoom: from "shorter side fills frame" up to 4× that.
+  const minScale = img ? (frameSize / Math.min(img.naturalWidth, img.naturalHeight)) : 1;
+  const maxScale = minScale * 4;
+
+  const handleConfirm = async () => {
+    if (!img) return;
+    setBusy(true);
+    try {
+      const blob = await renderCrop(img, scale, off, frameSize, outputSize);
+      // Wrap into a File so existing uploadDocCover signature works
+      const out = new File([blob], 'cover.jpg', { type: 'image/jpeg' });
+      onDone(out);
+    } finally { setBusy(false); }
+  };
+
+  if (!src) return null;
+
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 300,
+      background: 'rgba(0,0,0,0.95)',
+      display: 'flex', flexDirection: 'column',
+      animation: 'fadeIn 180ms ease',
+    }}>
+      {/* Top bar */}
+      <div style={{
+        padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 18px 12px',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        flexDirection: 'row',
+      }}>
+        <button onClick={onCancel} style={{
+          padding: '8px 14px', borderRadius: 999, color: '#fff',
+          background: 'rgba(255,255,255,0.12)', fontSize: 13, fontWeight: 500,
+          border: '0.5px solid rgba(255,255,255,0.18)',
+        }}>{window.isRTL ? 'إلغاء' : 'Cancel'}</button>
+        <div style={{ color: '#fff', fontSize: 13.5, fontWeight: 500 }}>
+          {window.isRTL ? 'اضبط صورة الغلاف' : 'Adjust cover'}
+        </div>
+        <button onClick={handleConfirm} disabled={busy} style={{
+          padding: '8px 14px', borderRadius: 999, color: '#fff',
+          background: 'var(--clay)', fontSize: 13, fontWeight: 600,
+          border: 'none',
+          boxShadow: '0 4px 12px oklch(0.62 0.13 35 / 0.4)',
+        }}>{busy ? '…' : (window.isRTL ? 'تم' : 'Done')}</button>
+      </div>
+
+      {/* Crop frame */}
+      <div style={{
+        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        overflow: 'hidden',
+      }}>
+        <div
+          onMouseDown={onStart} onMouseMove={(e) => dragRef.current && onMove(e)}
+          onMouseUp={onEnd} onMouseLeave={onEnd}
+          onTouchStart={onStart} onTouchMove={onMove} onTouchEnd={onEnd}
+          style={{
+            position: 'relative', width: frameSize, height: frameSize,
+            cursor: 'move', touchAction: 'none',
+            userSelect: 'none', WebkitUserSelect: 'none',
+            overflow: 'hidden', borderRadius: 6,
+            background: '#000',
+            boxShadow: '0 0 0 1px rgba(255,255,255,0.2), 0 0 0 9999px rgba(0,0,0,0.5)',
+          }}
+        >
+          {img && (
+            <img
+              src={src} draggable={false} alt=""
+              style={{
+                position: 'absolute',
+                top: '50%', left: '50%',
+                width: img.naturalWidth * scale,
+                height: img.naturalHeight * scale,
+                transform: `translate(calc(-50% + ${off.x}px), calc(-50% + ${off.y}px))`,
+                pointerEvents: 'none',
+                maxWidth: 'none',
+              }}
+            />
+          )}
+          {/* Grid overlay (rule of thirds) */}
+          <div style={{
+            position: 'absolute', inset: 0, pointerEvents: 'none',
+            backgroundImage: `
+              linear-gradient(to right, transparent 33%, rgba(255,255,255,0.18) 33%, rgba(255,255,255,0.18) 33.5%, transparent 33.5%, transparent 66.5%, rgba(255,255,255,0.18) 66.5%, rgba(255,255,255,0.18) 67%, transparent 67%),
+              linear-gradient(to bottom, transparent 33%, rgba(255,255,255,0.18) 33%, rgba(255,255,255,0.18) 33.5%, transparent 33.5%, transparent 66.5%, rgba(255,255,255,0.18) 66.5%, rgba(255,255,255,0.18) 67%, transparent 67%)
+            `,
+          }} />
+        </div>
+      </div>
+
+      {/* Zoom slider */}
+      <div style={{
+        padding: '0 30px',
+        marginBottom: 'calc(env(safe-area-inset-bottom) + 22px)',
+        display: 'flex', alignItems: 'center', gap: 12, flexDirection: 'row',
+      }}>
+        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>−</span>
+        <input type="range"
+          min={minScale} max={maxScale} step={(maxScale - minScale) / 100}
+          value={scale}
+          onChange={(e) => setScale(parseFloat(e.target.value))}
+          style={{ flex: 1, accentColor: 'var(--clay)' }} />
+        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>+</span>
+      </div>
+    </div>
+  );
+}
+
+function clampOffset(off, img, scale, frame) {
+  if (!img) return off;
+  const w = img.naturalWidth * scale;
+  const h = img.naturalHeight * scale;
+  const maxX = Math.max(0, (w - frame) / 2);
+  const maxY = Math.max(0, (h - frame) / 2);
+  return {
+    x: Math.min(maxX, Math.max(-maxX, off.x)),
+    y: Math.min(maxY, Math.max(-maxY, off.y)),
+  };
+}
+
+// Render the visible square back out at outputSize × outputSize.
+async function renderCrop(img, scale, off, frame, outputSize) {
+  const canvas = document.createElement('canvas');
+  canvas.width = outputSize;
+  canvas.height = outputSize;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  // The displayed image is centered then offset. Compute the source rect
+  // that corresponds to the frame.
+  const dispW = img.naturalWidth * scale;
+  const dispH = img.naturalHeight * scale;
+  // Top-left of the visible image (in screen px), with frame at 0,0:
+  const imgLeft = (frame - dispW) / 2 + off.x;
+  const imgTop  = (frame - dispH) / 2 + off.y;
+  // The portion of the source image inside the frame:
+  const sx = (-imgLeft) / scale;
+  const sy = (-imgTop)  / scale;
+  const sSize = frame / scale;
+
+  ctx.drawImage(img, sx, sy, sSize, sSize, 0, 0, outputSize, outputSize);
+  return new Promise((resolve) =>
+    canvas.toBlob(resolve, 'image/jpeg', 0.9)
+  );
+}
+
+Object.assign(window, { Avatar, AvatarStack, RoleBadge, Chip, SectionLabel, KyotoHero, TintCard, Sheet, SwipeRow, Skeleton, TripSkeleton, ToastHost, ErrorBoundary, PullToRefresh, OfflineBanner, LargeTitleHeader, ActionSheetHost, ImageCropper });

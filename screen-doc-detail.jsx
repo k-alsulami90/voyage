@@ -24,6 +24,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
   // File / cover replace
   const [uploading,    setUploading]    = React.useState(false);
   const [uploadingCov, setUploadingCov] = React.useState(false);
+  const [coverToCrop,  setCoverToCrop]  = React.useState(null);  // file awaiting crop
   const fileRef  = React.useRef(null);
   const coverRef = React.useRef(null);
 
@@ -47,6 +48,8 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
     } finally { setUploading(false); }
   };
 
+  // The flow is: pick → ImageCropper opens → user adjusts → onDone gives us
+  // a cropped Blob/File → upload that. So this only runs with the cropped output.
   const replaceCover = async (file) => {
     if (!file || !window.TRIP?.id) return;
     setUploadingCov(true);
@@ -56,6 +59,16 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
     } catch (err) {
       window.toast?.(err.message || 'Cover upload failed', 'error');
     } finally { setUploadingCov(false); }
+  };
+
+  const removeFile = async () => {
+    if (!doc.filePath) return;
+    if (!confirm(window.isRTL ? 'إزالة الملف المرفق؟' : 'Remove the attached file?')) return;
+    try {
+      await window.removeDocumentFile(doc.id, doc.filePath);
+      await window.loadDocuments(window.TRIP?.id);
+      window.toast?.(window.isRTL ? 'تم حذف الملف' : 'File removed', 'success');
+    } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
   };
 
   const removeCover = async () => {
@@ -178,7 +191,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
             display: 'flex', gap: 6, flexDirection: 'row',
           }}>
             <input ref={coverRef} type="file" accept="image/*" style={{ display: 'none' }}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) replaceCover(f); e.target.value = ''; }} />
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) setCoverToCrop(f); e.target.value = ''; }} />
             <button onClick={() => coverRef.current?.click()} disabled={uploadingCov} className="glass" style={{
               padding: '6px 12px', borderRadius: 999, color: '#fff',
               background: 'rgba(0,0,0,0.55)', fontSize: 11.5, fontWeight: 500,
@@ -356,20 +369,38 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
           {uploading
             ? <span style={{ width:12, height:12, borderRadius:'50%', border:'2px solid var(--hairline-2)', borderTopColor:'var(--ink)', animation:'expspin 0.8s linear infinite' }} />
             : <IconUpload size={13} stroke="currentColor" />}
-          {hasFile ? (window.isRTL ? 'استبدال الملف' : 'Replace file') : (window.isRTL ? 'رفع ملف' : 'Upload file')}
+          {hasFile ? (window.isRTL ? 'استبدال' : 'Replace') : (window.isRTL ? 'رفع ملف' : 'Upload file')}
         </button>
-        <button onClick={deleteDoc} style={{
-          padding: '12px 14px', borderRadius: 14,
+        {hasFile && (
+          <button onClick={removeFile} title={window.isRTL ? 'إزالة الملف' : 'Remove file'}
+            aria-label={window.isRTL ? 'إزالة الملف' : 'Remove file'} style={{
+            padding: '12px', borderRadius: 14,
+            background: 'transparent', color: 'var(--ink-soft)',
+            border: '0.5px solid var(--hairline)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <window.IconClose size={14} stroke="currentColor" />
+          </button>
+        )}
+        <button onClick={deleteDoc} title={window.isRTL ? 'حذف المستند' : 'Delete document'}
+          aria-label={window.isRTL ? 'حذف المستند' : 'Delete document'} style={{
+          padding: '12px', borderRadius: 14,
           background: 'transparent', color: 'var(--clay-deep)',
           border: '0.5px solid var(--hairline)',
-          fontSize: 12.5, fontWeight: 500,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          flexDirection: 'row',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <IconTrash size={13} stroke="currentColor" />
-          {window.isRTL ? 'حذف' : 'Delete'}
+          <IconTrash size={14} stroke="currentColor" />
         </button>
       </div>
+
+      {/* Image cropper modal — opens when user picks a cover, closes when they hit Done/Cancel */}
+      {coverToCrop && (
+        <window.ImageCropper
+          file={coverToCrop}
+          onCancel={() => setCoverToCrop(null)}
+          onDone={(cropped) => { setCoverToCrop(null); replaceCover(cropped); }}
+        />
+      )}
     </div>
   );
 }

@@ -10,8 +10,9 @@ function ScreenAddDoc({ back, onCreated }) {
   const [reference, setReference] = React.useState('');   // PNR / confirmation
   const [link,      setLink]      = React.useState('');
   const [file,      setFile]      = React.useState(null);
-  const [coverFile, setCoverFile] = React.useState(null);
+  const [coverFile, setCoverFile]   = React.useState(null);
   const [coverPreview, setCoverPreview] = React.useState(null);
+  const [coverToCrop, setCoverToCrop] = React.useState(null); // raw pick awaiting crop
   const [showMore,  setShowMore]  = React.useState(false);  // reveals reference + link
   const [drag,      setDrag]      = React.useState(false);
   const [saving,    setSaving]    = React.useState(false);
@@ -212,7 +213,7 @@ function ScreenAddDoc({ back, onCreated }) {
                 ? 'صورة صغيرة تظهر في القائمة بدل الأيقونة الافتراضية'
                 : 'A small image that replaces the default icon in the list'}>
           <input ref={coverRef} type="file" accept="image/*" style={{ display: 'none' }}
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) setCoverFile(f); e.target.value = ''; }} />
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) setCoverToCrop(f); e.target.value = ''; }} />
           {coverPreview ? (
             <div style={{
               display: 'flex', gap: 10, alignItems: 'center', flexDirection: 'row',
@@ -292,6 +293,15 @@ function ScreenAddDoc({ back, onCreated }) {
           }}>{error}</div>
         )}
       </div>
+
+      {/* Image cropper — appears after the user picks a photo */}
+      {coverToCrop && (
+        <window.ImageCropper
+          file={coverToCrop}
+          onCancel={() => setCoverToCrop(null)}
+          onDone={(cropped) => { setCoverToCrop(null); setCoverFile(cropped); }}
+        />
+      )}
 
       {/* Sticky save bar */}
       <div style={{

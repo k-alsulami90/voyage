@@ -364,9 +364,9 @@ function DocTileGrid({ doc, onOpen }) {
       background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
       boxShadow: 'var(--shadow-sm)',
     }}>
-      {/* Top: cover photo if uploaded, else tinted preview area */}
+      {/* Top: cover photo if uploaded (square — matches the crop), else tinted preview */}
       <div style={{
-        aspectRatio: '1.3',
+        aspectRatio: doc.coverUrl ? '1' : '1.3',
         background: doc.coverUrl
           ? 'var(--cream-2)'
           : `linear-gradient(155deg, color-mix(in oklch, ${tint} 18%, var(--cream-2)) 0%, color-mix(in oklch, ${tint} 8%, var(--cream-2)) 100%)`,
