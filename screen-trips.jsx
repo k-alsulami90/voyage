@@ -39,6 +39,20 @@ function ScreenTrips({ goTrip, go }) {
     return () => clearInterval(id);
   }, []);
 
+  // Smart Track candidate trip — must compute BEFORE any early return so
+  // the React hook order stays stable across renders.
+  const smartTripCandidate = (() => {
+    const list = (window.TRIPS || []).map((trip) => ({ ...trip, state: tripTemporalState(trip) }));
+    return list.find((t) => t.state.kind === 'current')
+        || list.find((t) => t.state.kind === 'upcoming')
+        || null;
+  })();
+  React.useEffect(() => {
+    if (!smartTripCandidate) return;
+    if (window.TRIP?.id === smartTripCandidate.id) return;
+    window.loadTripData?.(smartTripCandidate.id);
+  }, [smartTripCandidate?.id]);
+
   // Lazy-load lifetime stats once trips exist
   React.useEffect(() => {
     if (!stats && window.TRIPS && window.TRIPS.length > 0 && window.loadLifetimeStats) {
@@ -86,18 +100,6 @@ function ScreenTrips({ goTrip, go }) {
   const active   = enrichedTrips.find((t) => t.state.kind === 'current');
   const upcoming = enrichedTrips.filter((t) => t.state.kind === 'upcoming');
   const past     = enrichedTrips.filter((t) => t.state.kind === 'past');
-
-  // Pick the most relevant trip for Smart Track — active first, else
-  // the next upcoming. Auto-load its data so docs + itinerary are
-  // available even before the user enters the trip.
-  const smartTripCandidate = active
-    || enrichedTrips.find((t) => t.state.kind === 'upcoming')
-    || null;
-  React.useEffect(() => {
-    if (!smartTripCandidate) return;
-    if (window.TRIP?.id === smartTripCandidate.id && (window.DOCS_BY_CAT || window.ITINERARY)) return;
-    window.loadTripData?.(smartTripCandidate.id);
-  }, [smartTripCandidate?.id]);
 
   // Compute upcoming events when the candidate's data is loaded.
   const events = (smartTripCandidate && window.TRIP?.id === smartTripCandidate.id)
@@ -662,11 +664,18 @@ function SmartTrackCard({ event, trip, onOpenTrip }) {
           {when}
         </div>
 
-        {/* Title row with emoji */}
+        {/* Title row */}
         <div style={{
           marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexDirection: 'row',
         }}>
-          <div style={{ fontSize: 38, lineHeight: 1 }}>{event.emoji}</div>
+          <div style={{
+            width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+            background: accent,
+            display: 'grid', placeItems: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+          }}>
+            <SmartTrackTypeIcon type={event.type} />
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="serif" style={{
               fontSize: 22, lineHeight: 1.15, color: 'var(--cream)',
@@ -738,7 +747,15 @@ function SmartTrackRow({ event, last, onOpenTrip }) {
       borderTop: last ? 'none' : 'none',
       borderBottom: last ? 'none' : '0.5px solid var(--hairline)',
     }}>
-      <div style={{ fontSize: 22, lineHeight: 1 }}>{event.emoji}</div>
+      <div style={{
+        width: 30, height: 30, borderRadius: 9, flexShrink: 0,
+        background: event.type === 'flight' ? 'var(--indigo)'
+                  : event.type === 'lodging' || event.type === 'lodging-out' ? 'var(--clay)'
+                  : event.type === 'transport' ? 'var(--honey)' : 'var(--moss)',
+        display: 'grid', placeItems: 'center',
+      }}>
+        <SmartTrackTypeIcon type={event.type} size={14} />
+      </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontSize: 13.5, fontWeight: 500, color: 'var(--ink)',
@@ -786,6 +803,48 @@ function ActionPill({ label, href, icon, primary }) {
       {icon}
       {label}
     </a>
+  );
+}
+
+// Small inline glyph by event type — used in place of an emoji on the
+// Smart Track card so the design stays restrained.
+function SmartTrackTypeIcon({ type, size = 22 }) {
+  const stroke = '#fff';
+  if (type === 'flight') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke}
+        strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1L15 22v-1.5L13 19v-5.5l8 2.5z" />
+      </svg>
+    );
+  }
+  if (type === 'lodging' || type === 'lodging-out') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke}
+        strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 21V8a1 1 0 011-1h16a1 1 0 011 1v13" />
+        <path d="M3 21h18M7 12h2M7 16h2M13 12h4v9h-4z" />
+      </svg>
+    );
+  }
+  if (type === 'transport') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke}
+        strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="4" width="16" height="13" rx="2.5" />
+        <path d="M4 11h16M8 17v3M16 17v3" />
+        <circle cx="8.5" cy="14.5" r=".8" fill={stroke} />
+        <circle cx="15.5" cy="14.5" r=".8" fill={stroke} />
+      </svg>
+    );
+  }
+  // plan / generic
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke}
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
   );
 }
 

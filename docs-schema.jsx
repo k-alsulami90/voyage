@@ -127,12 +127,12 @@ function fmtDocSummary(doc) {
 // and returns them in chronological order, annotated with display info
 // + quick-action handles (file URL, location URL, etc.).
 //
-// We include events from (now - 4h) so a flight that "just took off"
-// still surfaces briefly. Cutoff is +30 days out to keep the list tight.
+// Window: from (now - 2h) so an event that just started still surfaces,
+// out to (now + 24h). Anything further than a day away is not shown.
 function computeUpcomingEvents(opts = {}) {
   const now = opts.now || new Date();
-  const cutoff = new Date(now.getTime() + 30 * 86400000);
-  const grace = new Date(now.getTime() - 4 * 3600 * 1000);
+  const cutoff = new Date(now.getTime() + 24 * 3600 * 1000);
+  const grace = new Date(now.getTime() - 2 * 3600 * 1000);
   const events = [];
 
   // Documents — flights, lodging, transport (rentals).
