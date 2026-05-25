@@ -329,6 +329,50 @@ function ScreenBudget({ go, openSheet, loading }) {
           </div>
         )}
 
+        {/* Filter summary — totals + count for whatever's currently filtered */}
+        {(paidBy !== 'all' || dayFilter !== 'all' || filter !== 'all' || search)
+          && filteredExpenses.length > 0 && (() => {
+          const total = filteredExpenses.reduce((s, e) => s + (e.usd || 0), 0);
+          const labels = [];
+          if (filter !== 'all') {
+            const c = cats.find((x) => x.key === filter);
+            labels.push(c?.label || filter);
+          }
+          if (paidBy !== 'all') {
+            const m = (window.MEMBERS || []).find((x) => x.id === paidBy);
+            if (m) labels.push(`${window.isRTL ? 'دفعها' : 'paid by'} ${m.name.split(' ')[0]}`);
+          }
+          if (dayFilter !== 'all') {
+            labels.push(`${window.isRTL ? 'يوم' : 'Day'} ${dayFilter}`);
+          }
+          if (search) labels.push(`"${search}"`);
+          return (
+            <div style={{
+              margin: '0 4px 8px', padding: '12px 14px', borderRadius: 16,
+              background: 'var(--statement)', color: 'var(--statement-fg)',
+              border: '0.5px solid var(--hairline-2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              flexDirection: 'row', gap: 12,
+            }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{
+                  fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.14em',
+                  opacity: 0.72, textTransform: 'uppercase',
+                }}>
+                  {filteredExpenses.length} {window.isRTL ? 'مصروف' : (filteredExpenses.length === 1 ? 'expense' : 'expenses')}
+                </div>
+                <div style={{
+                  fontSize: 12.5, marginTop: 3, opacity: 0.88,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>{labels.join(' · ')}</div>
+              </div>
+              <div className="mono" style={{
+                fontSize: 18, fontWeight: 600, flexShrink: 0,
+              }}>{window.fmtMoney(total, { in: 'home' })}</div>
+            </div>
+          );
+        })()}
+
         {/* Empty state — no expenses at all */}
         {window.EXPENSES.length === 0 && (
           <div style={{
@@ -479,25 +523,85 @@ function ScreenBudget({ go, openSheet, loading }) {
         </div>
       </div>
 
-      {/* AUDIT LOG */}
-      <div style={{ padding: '22px 14px 0' }}>
-        <SectionLabel>{t('auditLog')}</SectionLabel>
-        <div style={{
-          background: 'var(--cream-2)', borderRadius: 22, padding: '14px 16px',
-          margin: '0 8px', border: '0.5px solid var(--hairline)',
-        }}>
-          {window.AUDIT.map((a, i) => {
-            const m = window.MEMBERS.find((x) => x.id === a.who);
+      {/* AUDIT LOG — collapsed by default, expand on tap */}
+      {(window.AUDIT || []).length > 0 && (
+        <div style={{ padding: '22px 14px 0' }}>
+          <SectionLabel>{t('auditLog')}</SectionLabel>
+          <AuditLogPanel entries={window.AUDIT} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Collapsed audit log — shows just the latest entry as a short bar. Tap
+// to expand and see the full list.
+function AuditLogPanel({ entries }) {
+  const [open, setOpen] = React.useState(false);
+  const list = entries || [];
+  const latest = list[0];
+  const m = latest && (window.MEMBERS || []).find((x) => x.id === latest.who);
+
+  return (
+    <div style={{
+      background: 'var(--cream-2)', borderRadius: 22,
+      margin: '0 8px', border: '0.5px solid var(--hairline)',
+      overflow: 'hidden',
+    }}>
+      <button onClick={() => setOpen((v) => !v)} style={{
+        all: 'unset', cursor: 'pointer', width: '100%', boxSizing: 'border-box',
+        padding: '12px 16px',
+        display: 'flex', alignItems: 'center', gap: 10, flexDirection: 'row',
+      }}>
+        {latest && m ? <Avatar m={m} size={22} /> : (
+          <div style={{
+            width: 22, height: 22, borderRadius: 999, background: 'var(--cream)',
+            display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
+          }}><IconClock size={11} stroke="var(--ink-mute)" /></div>
+        )}
+        <div style={{ flex: 1, minWidth: 0, textAlign: 'start' }}>
+          {latest ? (
+            <>
+              <div style={{
+                fontSize: 12.5, color: 'var(--ink-soft)',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{(m?.name || '—').split(' ')[0]}</span>
+                <span style={{ color: 'var(--ink-mute)' }}> {latest.action} </span>
+                <span style={{ fontWeight: 500 }}>{latest.target}</span>
+              </div>
+              <div style={{ fontSize: 10.5, color: 'var(--ink-mute)', marginTop: 1 }}>
+                {list.length} {window.isRTL ? 'إجراء' : (list.length === 1 ? 'entry' : 'entries')}
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>
+              {window.isRTL ? 'لا يوجد سجل بعد' : 'No activity yet'}
+            </div>
+          )}
+        </div>
+        <span style={{
+          color: 'var(--ink-mute)',
+          transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+          transition: 'transform 200ms',
+        }} className="icon-flip">
+          <IconChevron size={13} stroke="currentColor" />
+        </span>
+      </button>
+      {open && (
+        <div style={{ padding: '0 16px 12px', borderTop: '0.5px solid var(--hairline)' }}>
+          {list.slice(1).map((a) => {
+            const am = (window.MEMBERS || []).find((x) => x.id === a.who);
             return (
               <div key={a.id} style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 flexDirection: 'row',
-                padding: '7px 0',
-                borderTop: i ? '0.5px solid var(--hairline)' : 'none',
+                padding: '8px 0',
+                borderTop: '0.5px solid var(--hairline)',
               }}>
-                <Avatar m={m} size={22} />
+                <Avatar m={am} size={22} />
                 <div style={{ flex: 1, fontSize: 12.5, color: 'var(--ink-soft)', textAlign: 'start' }}>
-                  <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{m.name.split(' ')[0]}</span>
+                  <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{(am?.name || '—').split(' ')[0]}</span>
                   <span style={{ color: 'var(--ink-mute)' }}> {a.action} </span>
                   <span style={{ fontWeight: 500 }}>{a.target}</span>
                 </div>
@@ -505,8 +609,13 @@ function ScreenBudget({ go, openSheet, loading }) {
               </div>
             );
           })}
+          {list.length === 1 && (
+            <div style={{
+              padding: '10px 0 0', fontSize: 11.5, color: 'var(--ink-mute)', textAlign: 'center',
+            }}>{window.isRTL ? 'هذا كل النشاط' : "That's all the activity"}</div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
