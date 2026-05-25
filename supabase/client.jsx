@@ -932,14 +932,14 @@ window.loadLifetimeStats = async () => {
     .sort((a, b) => b.value - a.value);
 
   // ── Status counts
-  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
   const statusCounts = { current: 0, upcoming: 0, past: 0 };
   trips.forEach((t) => {
     if (!t.startDate || !t.endDate) { statusCounts.past++; return; }
     const s = new Date(t.startDate); s.setHours(0, 0, 0, 0);
     const e = new Date(t.endDate); e.setHours(0, 0, 0, 0);
-    if (now < s) statusCounts.upcoming++;
-    else if (now > e) statusCounts.past++;
+    if (todayMidnight < s) statusCounts.upcoming++;
+    else if (todayMidnight > e) statusCounts.past++;
     else statusCounts.current++;
   });
 
