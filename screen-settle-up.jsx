@@ -212,7 +212,10 @@ function ScreenSettleUp({ back }) {
                   onAction={async (key) => {
                     if (key !== 'delete') return;
                     if (!confirm(window.isRTL ? 'حذف هذا التحويل؟' : 'Undo this transfer?')) return;
-                    try { await window.deleteSettlement(s.id, trip?.id); }
+                    try {
+                      await window.deleteSettlement(s.id, trip?.id);
+                      window.toast?.(window.isRTL ? 'تم الحذف' : 'Deleted', 'success');
+                    }
                     catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
                   }}>
                   <div style={{

@@ -138,12 +138,13 @@ function ScreenSettings({ go, openSheet }) {
                 { key: 'remove', bg: 'var(--clay)', icon: <IconTrash size={18} stroke="#fff" /> },
               ]}
               onAction={async (key) => {
-                if (key === 'remove' && m.id !== window.currentUserId) {
-                  try {
-                    await window.removeMember(trip.id, m.id);
-                    setMembers(members.filter((x) => x.id !== m.id));
-                  } catch (err) { window.toast?.(err.message || 'Action failed', 'error'); }
-                }
+                if (key !== 'remove' || m.id === window.currentUserId) return;
+                if (!confirm(window.isRTL ? `إزالة ${m.name} من الرحلة؟` : `Remove ${m.name} from the trip?`)) return;
+                try {
+                  await window.removeMember(trip.id, m.id);
+                  setMembers(members.filter((x) => x.id !== m.id));
+                  window.toast?.(window.isRTL ? 'تمت الإزالة' : 'Removed', 'success');
+                } catch (err) { window.toast?.(err.message || 'Action failed', 'error'); }
               }}>
               <div style={{
                 background: 'var(--cream-2)', borderRadius: 16,

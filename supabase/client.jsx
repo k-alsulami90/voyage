@@ -1295,3 +1295,22 @@ window.subscribeToTrip = (tripId, onChange) => {
     window._activeRtChannels.delete(tripId);
   };
 };
+
+// ─────────────────────────────────────────────────────────────
+// Live-refresh: wrap every loader so the React tree re-renders
+// after the window.X cache updates. Fixes the "I deleted X but
+// the row stays until I navigate away" bug. Applied centrally
+// so individual screens don't have to remember to bump state.
+// ─────────────────────────────────────────────────────────────
+['loadTrips', 'loadTripDetail', 'loadMembers', 'loadExpenses',
+ 'loadDocuments', 'loadAuditLog', 'loadSettlements', 'loadItinerary',
+ 'loadLifetimeStats', 'loadTripInvites'].forEach((name) => {
+  const orig = window[name];
+  if (typeof orig !== 'function') return;
+  window[name] = async (...args) => {
+    const out = await orig(...args);
+    try { window.notifyDataChange?.(); } catch (_) {}
+    return out;
+  };
+});
+

@@ -192,10 +192,11 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
               actions={[{ key: 'delete', bg: 'var(--clay)', icon: <window.IconTrash size={18} stroke="#fff" /> }]}
               onAction={async (key) => {
                 if (key !== 'delete') return;
-                if (!confirm(window.isRTL ? 'حذف هذا المستند؟' : 'Delete this document?')) return;
+                if (!confirm(window.isRTL ? `حذف "${d.title}"؟` : `Delete "${d.title}"?`)) return;
                 try {
                   await window.deleteDocument(d.id, window.TRIP?.id, d.title);
                   await window.loadDocuments(window.TRIP?.id);
+                  window.toast?.(window.isRTL ? 'تم الحذف' : 'Deleted', 'success');
                 } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
               }}>
               <DocRowList

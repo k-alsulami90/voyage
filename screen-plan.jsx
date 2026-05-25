@@ -178,9 +178,11 @@ function PlanDay({ date, dayNumber, items, onAdd, onTapItem, openSheet }) {
             actions={[{ key: 'delete', bg: 'var(--clay)', icon: <window.IconTrash size={18} stroke="#fff" /> }]}
             onAction={async (key) => {
               if (key !== 'delete') return;
+              if (!confirm(window.isRTL ? `حذف "${it.title}"؟` : `Delete "${it.title}"?`)) return;
               try {
                 await window.deleteItineraryItem(it.id, window.TRIP?.id);
                 await window.loadItinerary(window.TRIP?.id);
+                window.toast?.(window.isRTL ? 'تم الحذف' : 'Deleted', 'success');
               } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
             }}>
             <div style={{ background: 'var(--cream-2)' }}>

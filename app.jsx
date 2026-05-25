@@ -51,6 +51,13 @@ function App() {
   // ── Auth session ──
   const [session, setSession] = React.useState(undefined); // undefined = still checking
   const [dataVersion, setDataVersion] = React.useState(0); // bump to force re-render after data loads
+  // Expose a global notifier so any helper (deleteExpense, loadDocuments, etc.)
+  // can ask the React tree to re-render after mutating the window.X caches.
+  // Avoids the "I deleted X but the row is still there until I navigate away" bug.
+  React.useEffect(() => {
+    window.notifyDataChange = () => setDataVersion((v) => v + 1);
+    return () => { window.notifyDataChange = null; };
+  }, []);
   const [tripLoading, setTripLoading] = React.useState(false);
 
   // Track active trip + realtime subscription so we can re-load after auth refresh / refetch on demand

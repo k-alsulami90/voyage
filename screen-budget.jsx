@@ -357,12 +357,13 @@ function ScreenBudget({ go, openSheet, loading }) {
                   { key: 'delete', bg: 'var(--clay)', icon: <IconTrash size={18} stroke="#fff" /> },
                 ]}
                 onAction={async (key) => {
-                  if (key === 'delete') {
-                    try {
-                      await window.deleteExpense(e.id, trip.id);
-                      await window.loadExpenses(trip.id);
-                    } catch (err) { console.error(err); }
-                  }
+                  if (key !== 'delete') return;
+                  if (!confirm(window.isRTL ? `حذف "${e.title}"؟` : `Delete "${e.title}"?`)) return;
+                  try {
+                    await window.deleteExpense(e.id, trip.id);
+                    await window.loadExpenses(trip.id);
+                    window.toast?.(window.isRTL ? 'تم الحذف' : 'Deleted', 'success');
+                  } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
                 }}>
                 <div onClick={() => openSheet?.('editExpense', e)} style={{
                   background: 'var(--cream-2)', borderRadius: 18, cursor: 'pointer',
