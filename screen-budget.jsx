@@ -206,10 +206,10 @@ function ScreenBudget({ go, openSheet, loading }) {
                 position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
                 alignItems: 'center', justifyContent: 'center', textAlign: 'center',
               }}>
-                <div style={{ fontFamily: 'var(--serif)', fontSize: 34, lineHeight: 1 }}>
-                  {planned > 0 ? Math.min(Math.round((realSpent / planned) * 100), 999) : 0}<span style={{ fontSize: 16 }}>%</span>
+                <div className="mono" style={{ fontSize: 32, lineHeight: 1, fontWeight: 600, letterSpacing: '-0.02em' }}>
+                  {planned > 0 ? Math.min(Math.round((realSpent / planned) * 100), 999) : 0}<span style={{ fontSize: 16, opacity: 0.65 }}>%</span>
                 </div>
-                <div style={{ fontSize: 10, opacity: 0.6, fontFamily: 'var(--mono)', letterSpacing: '0.12em', marginTop: 2 }}>{t('used')}</div>
+                <div style={{ fontSize: 11, opacity: 0.62, marginTop: 3 }}>{t('used')}</div>
               </div>
             </div>
           </div>
@@ -250,11 +250,16 @@ function ScreenBudget({ go, openSheet, loading }) {
         }}>
           <div className="serif" style={{ fontSize: 22 }}>{t('expenses')}</div>
           <div style={{ display: 'flex', gap: 5, flexDirection: 'row' }}>
-            <button onClick={() => { setShowSearch(!showSearch); setSearch(''); }} style={{
-              width: 30, height: 30, borderRadius: 10,
+            {/* Was 30x30, below iOS thumb-zone floor and inconsistent with
+               the 36x36 header buttons. Now 38x38 to match the v69 Trips
+               home fix; aria-label added for screen reader support. */}
+            <button onClick={() => { setShowSearch(!showSearch); setSearch(''); }}
+              aria-label={window.isRTL ? 'بحث في المصروفات' : 'Search expenses'} style={{
+              width: 38, height: 38, borderRadius: 12,
               background: showSearch ? 'var(--ink)' : 'var(--cream-2)',
               border: '0.5px solid var(--hairline)', display: 'grid', placeItems: 'center',
-            }}><IconSearch size={14} stroke={showSearch ? 'var(--cream)' : 'var(--ink-soft)'} /></button>
+              flexShrink: 0,
+            }}><IconSearch size={16} stroke={showSearch ? 'var(--cream)' : 'var(--ink-soft)'} /></button>
           </div>
         </div>
 
@@ -283,14 +288,19 @@ function ScreenBudget({ go, openSheet, loading }) {
             <Chip key={c.key} active={filter === c.key} onClick={() => setFilter(c.key)}>{t(c.key) || c.label}</Chip>
           ))}
           <div style={{ flex: 1 }} />
+          {/* Was a Unicode "⚙" dingbat that rendered inconsistently
+             across platforms (filled vs outlined, weight, even color
+             on emoji-rendering systems). Now uses IconFilter from the
+             SVG icon set, matching every other icon on the screen. */}
           <button onClick={() => setShowFilters(!showFilters)} style={{
-            flexShrink: 0, padding: '6px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 500,
+            flexShrink: 0, padding: '6px 12px 6px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 500,
             background: showFilters || paidBy !== 'all' || dayFilter !== 'all' ? 'var(--ink)' : 'var(--cream-2)',
             color: showFilters || paidBy !== 'all' || dayFilter !== 'all' ? 'var(--cream)' : 'var(--ink-soft)',
             border: '0.5px solid var(--hairline)',
             display: 'inline-flex', alignItems: 'center', gap: 5,
           }}>
-            ⚙ {window.isRTL ? 'فلاتر' : 'Filters'}
+            <IconFilter size={12} stroke="currentColor" />
+            {window.isRTL ? 'فلاتر' : 'Filters'}
             {(paidBy !== 'all' || dayFilter !== 'all') && (
               <span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--clay)' }} />
             )}
@@ -306,7 +316,7 @@ function ScreenBudget({ go, openSheet, loading }) {
           }}>
             {/* Paid by row */}
             <div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.12em', color: 'var(--ink-mute)', textTransform: 'uppercase', marginBottom: 6 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
                 {window.isRTL ? 'دفع بواسطة' : 'Paid by'}
               </div>
               <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', flexDirection: 'row' }}>
@@ -322,7 +332,7 @@ function ScreenBudget({ go, openSheet, loading }) {
             {/* Day row */}
             {daysAvailable.length > 0 && (
               <div>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.12em', color: 'var(--ink-mute)', textTransform: 'uppercase', marginBottom: 6 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
                   {window.isRTL ? 'اليوم' : 'Day'}
                 </div>
                 <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', flexDirection: 'row' }}>
@@ -375,13 +385,13 @@ function ScreenBudget({ go, openSheet, loading }) {
             }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{
-                  fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.14em',
-                  opacity: 0.72, textTransform: 'uppercase',
+                  fontSize: 13, fontWeight: 600,
+                  color: 'var(--statement-fg)',
                 }}>
                   {filteredExpenses.length} {window.isRTL ? 'مصروف' : (filteredExpenses.length === 1 ? 'expense' : 'expenses')}
                 </div>
                 <div style={{
-                  fontSize: 12.5, marginTop: 3, opacity: 0.88,
+                  fontSize: 12, marginTop: 3, opacity: 0.78,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>{labels.join(' · ')}</div>
               </div>
