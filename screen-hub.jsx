@@ -391,7 +391,11 @@ function ScreenHub({ go, openSheet, loading }) {
         </div>
       </div>
 
-      {/* RECENT — only when there are expenses */}
+      {/* RECENT — only when there are expenses.
+         Rows used to be inert <div>s — they looked like list rows but
+         did nothing on tap. Now wrapped in <button> with onClick that
+         opens the edit sheet (same handler Budget uses on its rows).
+         Trailing chevron makes the affordance visible. */}
       {(window.EXPENSES || []).length > 0 && (
       <div style={{ padding: '24px 14px 0' }}>
         <SectionLabel action={t('seeAll')} onAction={() => go('budget')}>{t('recentActivity')}</SectionLabel>
@@ -400,7 +404,13 @@ function ScreenHub({ go, openSheet, loading }) {
             const m = (window.MEMBERS || []).find((x) => x.id === e.who) || { name: '—', hue: 200, initials: '?' };
             const c = (window.CATEGORIES || []).find((x) => x.key === e.cat) || { color: 'var(--ink-mute)', label: e.cat || '—' };
             return (
-              <div key={e.id} style={{
+              <button key={e.id}
+                onClick={() => openSheet?.('editExpense', e)}
+                aria-label={window.isRTL
+                  ? `تعديل ${e.title}، ${fmtC(e.usd)}`
+                  : `Edit ${e.title}, ${fmtC(e.usd)}`}
+                style={{
+                all: 'unset', cursor: 'pointer', width: '100%', boxSizing: 'border-box',
                 background: 'var(--cream-2)', borderRadius: 18,
                 padding: '12px 14px',
                 border: '0.5px solid var(--hairline)',
@@ -427,10 +437,16 @@ function ScreenHub({ go, openSheet, loading }) {
                     <Avatar m={m} size={14} /> {m.name.split(' ')[0]} · {e.when}
                   </div>
                 </div>
-                <div className="mono" style={{ fontSize: 13.5, color: 'var(--ink)', fontWeight: 500 }}>
+                <div className="mono" style={{
+                  fontSize: 13.5, color: 'var(--ink)', fontWeight: 600,
+                  flexShrink: 0,
+                }}>
                   {fmtC(e.usd)}
                 </div>
-              </div>
+                <span className="icon-flip" style={{ color: 'var(--ink-mute)', flexShrink: 0 }}>
+                  <IconChevron size={13} stroke="currentColor" />
+                </span>
+              </button>
             );
           })}
         </div>
