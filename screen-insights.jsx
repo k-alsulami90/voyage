@@ -76,10 +76,11 @@ function ScreenInsights({ go }) {
 }
 
 // ── Overview ─────────────────────────────────────────────────
-// Composed editorial summary instead of the previous hero-metric
-// template + identical KPI tile grid. Reads as a sentence, not a
-// dashboard. Numbers carry the eye via type weight, not via tile
-// frames around them.
+// Dark statement card as the page anchor — same pattern as the Trips
+// home Insights card. The structural slop the audit caught is gone:
+// no 56px hero-metric serif number, no identical 3-tile KPI grid,
+// no uppercase mono eyebrow. The body reads as a sentence; the spend
+// gets a dedicated mono row below it as the headline number.
 function LifetimeOverview({ stats }) {
   const isAr = !!window.isRTL;
   const spent     = window.fmtMoney(stats.totalSpentUSD, { in: 'home' });
@@ -88,41 +89,59 @@ function LifetimeOverview({ stats }) {
   const days      = stats.totalDays;
   const countries = stats.countries;
 
-  const big = {
-    fontWeight: 600, color: 'var(--ink)',
-    letterSpacing: '-0.02em',
+  const num = {
+    color: 'var(--statement-fg)', fontWeight: 600,
   };
 
-  // English: "You've spent $X across N trips ... that's $Y / day, in C countries, over D travel days."
-  // Arabic mirrors the same sentence structure.
   return (
-    <div style={{ padding: '6px 22px 0' }}>
+    <div style={{ padding: '4px 14px 0' }}>
       <div style={{
-        fontSize: 22, lineHeight: 1.45, color: 'var(--ink-mute)',
-        fontWeight: 400, maxWidth: 460,
-        // Generous breathing room so the numbers can punch through
+        background: 'var(--statement)', color: 'var(--statement-fg)',
+        borderRadius: 26, padding: '22px 22px 20px',
+        position: 'relative', overflow: 'hidden',
+        boxShadow: 'var(--shadow-card)',
       }}>
-        {isAr ? (
-          <>
-            صرفت{' '}
-            <span style={{ ...big, fontSize: 30 }}>{spent}</span>{' '}
-            عبر <span style={big}>{trips}</span> {trips === 1 ? 'رحلة' : 'رحلات'}.{' '}
-            بمعدل <span style={big}>{avg}</span> في اليوم،{' '}
-            في <span style={big}>{countries}</span> {countries === 1 ? 'دولة' : 'دول'}،{' '}
-            على مدى <span style={big}>{days}</span> {days === 1 ? 'يوم سفر' : 'يوم سفر'}.
-          </>
-        ) : (
-          <>
-            You've spent{' '}
-            <span style={{ ...big, fontSize: 30 }}>{spent}</span>{' '}
-            across <span style={big}>{trips}</span>{' '}
-            {trips === 1 ? 'trip' : 'trips'}.{' '}
-            That's <span style={big}>{avg}</span> a day,{' '}
-            in <span style={big}>{countries}</span>{' '}
-            {countries === 1 ? 'country' : 'countries'},{' '}
-            over <span style={big}>{days}</span> travel days.
-          </>
-        )}
+        {/* Single one-corner warm wash, not the dual-aurora SaaS
+           gradient. Subtle, no chroma competition. */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'radial-gradient(70% 60% at 100% 0%, oklch(0.45 0.10 35 / 0.40) 0%, transparent 65%)',
+          pointerEvents: 'none',
+        }} />
+
+        <div style={{ position: 'relative' }}>
+          {/* Editorial sentence — no eyebrow above it. The sentence IS
+             the section. */}
+          <div style={{
+            fontSize: 16, lineHeight: 1.5,
+            color: 'var(--statement-sub)', fontWeight: 400,
+            maxWidth: 460,
+          }}>
+            {isAr ? (
+              <>
+                صرفت عبر <span style={num}>{trips}</span> {trips === 1 ? 'رحلة' : 'رحلات'}،{' '}
+                في <span style={num}>{countries}</span> {countries === 1 ? 'دولة' : 'دول'}،{' '}
+                على مدى <span style={num}>{days}</span> يوم سفر،{' '}
+                بمعدل <span style={num}>{avg}</span> في اليوم.
+              </>
+            ) : (
+              <>
+                Across <span style={num}>{trips}</span> {trips === 1 ? 'trip' : 'trips'},
+                in <span style={num}>{countries}</span> {countries === 1 ? 'country' : 'countries'},
+                over <span style={num}>{days}</span> travel days,
+                at <span style={num}>{avg}</span> a day.
+              </>
+            )}
+          </div>
+
+          {/* Headline money number — earns the size because PRODUCT.md
+             principle #1 says money math is the load-bearing job. */}
+          <div className="mono" style={{
+            marginTop: 14, fontSize: 36, fontWeight: 600,
+            color: 'var(--statement-fg)', letterSpacing: '-0.025em',
+            lineHeight: 1,
+          }}>{spent}</div>
+        </div>
       </div>
     </div>
   );
