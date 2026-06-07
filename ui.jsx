@@ -68,24 +68,34 @@ const Chip = ({ children, active = false, onClick, tone = 'default' }) => {
   );
 };
 
-const SectionLabel = ({ children, action, onAction }) => (
-  <div style={{
-    display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-    flexDirection: 'row',
-    padding: '0 22px', marginBottom: 10,
-  }}>
+// Section header. Was uppercase mono tracked — the saturated 2026 AI tell.
+// Now: sans, semibold, sentence-case, normal tracking. Hierarchy via weight
+// and size against the ink-mute body text, not via "ALL CAPS WIDE TRACKED."
+const SectionLabel = ({ children, action, onAction }) => {
+  // Display sentence-case if the consumer passed an uppercase string
+  // (most existing callers passed t('SECTION_NAME') which returned upper)
+  const text = typeof children === 'string'
+    ? children.charAt(0).toUpperCase() + children.slice(1).toLowerCase()
+    : children;
+  return (
     <div style={{
-      fontFamily: 'var(--mono)', fontSize: 10.5,
-      textTransform: 'uppercase', letterSpacing: '0.14em',
-      color: 'var(--ink-mute)', fontWeight: 500,
-    }}>{children}</div>
-    {action && (
-      <button onClick={onAction} style={{
-        fontSize: 12, color: 'var(--clay-deep)', fontWeight: 500, background: 'none', border: 0,
-      }}>{action}</button>
-    )}
-  </div>
-);
+      display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+      flexDirection: 'row',
+      padding: '0 22px', marginBottom: 10,
+    }}>
+      <div style={{
+        fontSize: 13, fontWeight: 600,
+        color: 'var(--ink)', letterSpacing: '-0.01em',
+      }}>{text}</div>
+      {action && (
+        <button onClick={onAction} style={{
+          fontSize: 12.5, color: 'var(--clay-deep)', fontWeight: 500,
+          background: 'none', border: 0,
+        }}>{action}</button>
+      )}
+    </div>
+  );
+};
 
 // Kyoto hero — gradient sky, layered mountains, branch + blossoms.
 // All geometric primitives: gradients, polygons, circles, lines.

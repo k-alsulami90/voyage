@@ -55,8 +55,7 @@ function ScreenInsights({ go }) {
   return (
     <div data-screen-label="Lifetime Insights" style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>
       {HeaderEl}
-      <LifetimeHero stats={stats} />
-      <KpiGrid stats={stats} />
+      <LifetimeOverview stats={stats} />
       {stats.byMonth && stats.byMonth.some((m) => m.spent > 0) && <MonthlyChart stats={stats} />}
       {stats.byYear.length > 0 && <YearlyChart stats={stats} />}
       {stats.byCategory.length > 0 && <CategoryBreakdown stats={stats} />}
@@ -64,75 +63,67 @@ function ScreenInsights({ go }) {
       <HighlightCards stats={stats} />
       <TripStatusBreakdown stats={stats} />
       {stats.byMember.length > 1 && <MemberBreakdown stats={stats} />}
-      <div style={{ padding: '32px 22px 20px', textAlign: 'center' }}>
-        <div className="serif-italic" style={{ fontSize: 18, color: 'var(--ink-mute)' }}>voyage</div>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.16em', marginTop: 4, color: 'var(--ink-mute)' }}>
-          {stats.expenseCount} {window.isRTL ? 'مصروف · ' : 'EXPENSES · '}{stats.totalTrips} {window.isRTL ? 'رحلة' : 'TRIPS'}
+      <div style={{ padding: '40px 22px 24px', textAlign: 'center' }}>
+        <div className="wordmark" style={{ fontSize: 22, color: 'var(--ink-soft)' }}>voyage</div>
+        <div style={{ fontSize: 12, marginTop: 6, color: 'var(--ink-mute)' }}>
+          {stats.expenseCount} {window.isRTL ? 'مصروف' : (stats.expenseCount === 1 ? 'expense' : 'expenses')}
+          {' · '}
+          {stats.totalTrips} {window.isRTL ? 'رحلة' : (stats.totalTrips === 1 ? 'trip' : 'trips')}
         </div>
       </div>
     </div>
   );
 }
 
-// ── HERO ─────────────────────────────────────────────────────
-function LifetimeHero({ stats }) {
+// ── Overview ─────────────────────────────────────────────────
+// Composed editorial summary instead of the previous hero-metric
+// template + identical KPI tile grid. Reads as a sentence, not a
+// dashboard. Numbers carry the eye via type weight, not via tile
+// frames around them.
+function LifetimeOverview({ stats }) {
+  const isAr = !!window.isRTL;
+  const spent     = window.fmtMoney(stats.totalSpentUSD, { in: 'home' });
+  const avg       = window.fmtMoney(stats.avgDailyAcrossLifetime, { in: 'home' });
+  const trips     = stats.totalTrips;
+  const days      = stats.totalDays;
+  const countries = stats.countries;
+
+  const big = {
+    fontWeight: 600, color: 'var(--ink)',
+    letterSpacing: '-0.02em',
+  };
+
+  // English: "You've spent $X across N trips ... that's $Y / day, in C countries, over D travel days."
+  // Arabic mirrors the same sentence structure.
   return (
-    <div style={{ padding: '4px 14px 0' }}>
+    <div style={{ padding: '6px 22px 0' }}>
       <div style={{
-        background: 'var(--statement)', color: 'var(--statement-fg)',
-        borderRadius: 28, padding: '24px', position: 'relative', overflow: 'hidden',
-        boxShadow: 'var(--shadow-card)',
+        fontSize: 22, lineHeight: 1.45, color: 'var(--ink-mute)',
+        fontWeight: 400, maxWidth: 460,
+        // Generous breathing room so the numbers can punch through
       }}>
-        <div style={{
-          position: 'absolute', inset: 0,
-          background:
-            'radial-gradient(55% 45% at 12% 100%, oklch(0.45 0.10 35 / 0.50) 0%, transparent 60%),' +
-            'radial-gradient(45% 40% at 90% 0%, oklch(0.40 0.10 260 / 0.45) 0%, transparent 60%)',
-          pointerEvents: 'none',
-        }} />
-        <div style={{ position: 'relative' }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.16em', opacity: 0.72 }}>
-            {t('kpiLifetimeSpent').toUpperCase()}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
-            <span className="serif" style={{ fontSize: 56, lineHeight: 0.9 }}>{window.fmtMoney(stats.totalSpentUSD, { in: 'home' })}</span>
-          </div>
-          <div style={{ fontSize: 12, opacity: 0.78, marginTop: 6 }}>
-            {window.fmtMoney(stats.avgDailyAcrossLifetime, { in: 'home' })} {window.isRTL ? 'في اليوم في المتوسط' : 'avg / day across all travel'}
-          </div>
-        </div>
+        {isAr ? (
+          <>
+            صرفت{' '}
+            <span style={{ ...big, fontSize: 30 }}>{spent}</span>{' '}
+            عبر <span style={big}>{trips}</span> {trips === 1 ? 'رحلة' : 'رحلات'}.{' '}
+            بمعدل <span style={big}>{avg}</span> في اليوم،{' '}
+            في <span style={big}>{countries}</span> {countries === 1 ? 'دولة' : 'دول'}،{' '}
+            على مدى <span style={big}>{days}</span> {days === 1 ? 'يوم سفر' : 'يوم سفر'}.
+          </>
+        ) : (
+          <>
+            You've spent{' '}
+            <span style={{ ...big, fontSize: 30 }}>{spent}</span>{' '}
+            across <span style={big}>{trips}</span>{' '}
+            {trips === 1 ? 'trip' : 'trips'}.{' '}
+            That's <span style={big}>{avg}</span> a day,{' '}
+            in <span style={big}>{countries}</span>{' '}
+            {countries === 1 ? 'country' : 'countries'},{' '}
+            over <span style={big}>{days}</span> travel days.
+          </>
+        )}
       </div>
-    </div>
-  );
-}
-
-// ── KPI grid ─────────────────────────────────────────────────
-function KpiGrid({ stats }) {
-  const tiles = [
-    { label: t('kpiTotalTrips'),    value: stats.totalTrips,    tint: 'var(--clay)' },
-    { label: t('kpiCountries'),     value: stats.countries,     tint: 'var(--moss)' },
-    { label: t('kpiTravelDays'),    value: stats.totalDays,     tint: 'var(--indigo)' },
-    { label: t('statTotalExpenses'),value: stats.expenseCount,  tint: 'var(--honey)' },
-  ];
-  return (
-    <div style={{ padding: '14px 14px 0', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-      {tiles.map((tile, i) => (
-        <div key={i} style={{
-          padding: '14px 16px', borderRadius: 18,
-          background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
-          boxShadow: 'var(--shadow-sm)', position: 'relative', overflow: 'hidden',
-        }}>
-          <div style={{
-            position: 'absolute', top: -10, insetInlineEnd: -10,
-            width: 44, height: 44, borderRadius: '50%',
-            background: tile.tint, opacity: 0.16,
-          }} />
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)' }}>
-            {tile.label.toUpperCase()}
-          </div>
-          <div className="serif" style={{ fontSize: 30, lineHeight: 1, marginTop: 6, color: 'var(--ink)' }}>{tile.value}</div>
-        </div>
-      ))}
     </div>
   );
 }

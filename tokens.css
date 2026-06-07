@@ -4,14 +4,17 @@
    ───────────────────────────────────────────────────────────── */
 
 :root {
-  /* Neutrals — warm parchment */
-  --cream:      oklch(0.965 0.012 80);
-  --cream-2:    oklch(0.945 0.016 78);
-  --sand:       oklch(0.92  0.018 75);
-  --sand-deep:  oklch(0.86  0.022 72);
+  /* Neutrals — committed warm tinted neutrals.
+     Body is the deeper surface, cards FLOAT above it as brighter cream.
+     This inversion (darker body, lighter cards) is the editorial move:
+     it stops the cream-AI tell where body == card == near-white. */
+  --cream:      oklch(0.93  0.018 78);  /* BODY — committed warm neutral */
+  --cream-2:    oklch(0.975 0.010 80);  /* CARD — bright surface, floats above body */
+  --sand:       oklch(0.89  0.022 75);
+  --sand-deep:  oklch(0.82  0.025 72);
   --ink:        oklch(0.22  0.025 250);
-  --ink-soft:   oklch(0.36  0.025 250);  /* darker, hits 7:1 on cream-2 */
-  --ink-mute:   oklch(0.46  0.020 248);  /* was 0.55 — bumped for WCAG AA on tinted bg */
+  --ink-soft:   oklch(0.36  0.025 250);  /* hits 7:1 on cream-2 */
+  --ink-mute:   oklch(0.46  0.020 248);  /* WCAG AA on tinted bg */
 
   /* Accents — shared chroma family */
   --clay:       oklch(0.62  0.13 35);   /* terracotta */
@@ -45,9 +48,11 @@
   --r-xl: 28px;
   --r-2xl: 36px;
 
-  /* Type — Arabic faces appended; browser only activates them for Arabic codepoints.
-     Tajawal is the modern premium choice for Gulf UI (sharp, geometric, 7 weights). */
-  --serif: 'Instrument Serif', 'Markazi Text', 'Amiri', 'Cormorant Garamond', Georgia, serif;
+  /* Type — One sans family carries everything. Serif kept only for the
+     actual brand wordmark via .wordmark / .serif-italic, not for UI
+     headings. Generic warm-cream + serif display is the AI lane we're
+     leaving; sans with weight contrast does the editorial work instead. */
+  --serif: 'Cormorant Garamond', 'Markazi Text', 'Amiri', Georgia, serif;  /* reserved for .wordmark */
   --sans:  'Geist', 'Tajawal', 'IBM Plex Sans Arabic', 'Inter Tight', -apple-system, system-ui, sans-serif;
   --mono:  'JetBrains Mono', 'IBM Plex Mono', 'Geist Mono', ui-monospace, monospace;
   --arabic-line-height: 1.6;
@@ -65,10 +70,10 @@ html, body {
   margin: 0; padding: 0;
   font-family: var(--sans);
   color: var(--ink);
-  /* Match the tab-bar surface so any safe-area sliver below the nav
-     (or any 1px rounding edge on iOS) blends into the bar instead of
-     showing the dark backstop. */
-  background: var(--cream-2);
+  /* Body is the committed warm surface. The nav uses --cream-2 (lighter)
+     so it floats; this is intentional contrast, not a gap. The hairline
+     border-top on the nav anchors the boundary. */
+  background: var(--cream);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-size-adjust: 100%;
@@ -148,8 +153,22 @@ textarea:focus-visible,
   color: #fff;
 }
 
-.serif { font-family: var(--serif); letter-spacing: -0.01em; }
-.serif-italic { font-family: var(--serif); font-style: italic; letter-spacing: -0.005em; }
+/* .serif used to mean Instrument Serif. Now it's a heavier, tighter cut of
+   the sans — kept the same class name so every screen inherits the new
+   identity automatically. Editorial weight contrast, no display serif. */
+.serif {
+  font-family: var(--sans);
+  font-weight: 600;
+  letter-spacing: -0.024em;
+}
+/* The actual brand wordmark "voyage" stays serif italic — that's the one
+   place a serif still earns its keep. Reserved for the wordmark and
+   the wordmark only. */
+.serif-italic, .wordmark {
+  font-family: var(--serif);
+  font-style: italic;
+  letter-spacing: -0.005em;
+}
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 
 .tab-num { font-variant-numeric: tabular-nums; }
@@ -204,9 +223,10 @@ textarea:focus-visible,
    Hairlines: white@8%.  Text: AA contrast.  Accents brighter for legibility.
    ───────────────────────────────────────────────────────────── */
 [data-theme="dark"] {
-  /* Neutrals — slate (cool, deep, premium) */
-  --cream:      oklch(0.18 0.020 250);   /* page bg ≈ slate-900 */
-  --cream-2:    oklch(0.23 0.022 250);   /* card bg ≈ slate-800 */
+  /* Neutrals — slate. Same inversion principle: body is the deeper
+     surface, cards are the brighter floating layer. */
+  --cream:      oklch(0.17 0.020 250);   /* BODY ≈ slate-900 */
+  --cream-2:    oklch(0.25 0.022 250);   /* CARD ≈ elevated slate */
   --sand:       oklch(0.28 0.024 250);   /* recessed surface ≈ slate-700 */
   --sand-deep:  oklch(0.34 0.026 250);   /* divider/track ≈ slate-600 */
   --ink:        oklch(0.98 0.008 250);   /* primary text — near-white */
