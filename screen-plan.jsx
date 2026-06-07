@@ -165,13 +165,17 @@ function PlanDay({ date, dayNumber, items, onAdd, onTapItem, openSheet }) {
             · {weekday} {datePart}
           </span>
         </div>
-        <button onClick={onAdd} style={{
-          padding: '5px 10px', borderRadius: 999,
+        {/* Day-header Add button. Padding bumped from 5px 10px to
+           7px 12px so the chip clears the iOS thumb-zone floor for
+           one-handed Casey use. */}
+        <button onClick={onAdd}
+          aria-label={window.isRTL ? 'إضافة نشاط' : 'Add activity'} style={{
+          padding: '7px 12px', borderRadius: 999,
           background: 'var(--ink)', color: 'var(--cream)',
-          fontSize: 11, fontWeight: 500,
-          display: 'flex', alignItems: 'center', gap: 4, flexDirection: 'row',
+          fontSize: 12, fontWeight: 500,
+          display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: 'row',
         }}>
-          <window.IconPlus size={11} stroke="currentColor" />
+          <window.IconPlus size={12} stroke="currentColor" />
           {t('planAddBtn') || 'Add'}
         </button>
       </div>
@@ -183,13 +187,24 @@ function PlanDay({ date, dayNumber, items, onAdd, onTapItem, openSheet }) {
         margin: '0 8px', overflow: 'hidden',
       }}>
         {items.length === 0 ? (
+          // Was prefixed with a 📝 Unicode dingbat that rendered
+          // inconsistently across platforms. Now a clean text-only
+          // empty row with a hairline + IconPlus chip — matches the
+          // SVG icon vocabulary the rest of the app uses.
           <button onClick={onAdd} style={{
             width: '100%', padding: '20px 18px',
             background: 'transparent', color: 'var(--ink-mute)',
             fontSize: 12.5, textAlign: 'start',
             display: 'flex', alignItems: 'center', gap: 10, flexDirection: 'row',
           }}>
-            <span style={{ fontSize: 16, opacity: 0.5 }}>📝</span>
+            <span style={{
+              width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+              background: 'var(--cream)', border: '0.5px solid var(--hairline)',
+              display: 'grid', placeItems: 'center',
+              color: 'var(--ink-mute)',
+            }}>
+              <window.IconPlus size={13} stroke="currentColor" />
+            </span>
             <span>{t('planEmptyDay') || 'Nothing planned yet — tap to add'}</span>
           </button>
         ) : items.map((it, i) => (
@@ -249,12 +264,9 @@ function PlanRow({ item, isLast, onTap, openSheet }) {
       }}>
         {item.startTime ? fmtTime(item.startTime) : '—'}
       </div>
-      {/* Dot */}
-      <div style={{
-        width: 10, height: 10, borderRadius: '50%',
-        background: meta.color, marginTop: 6, flexShrink: 0,
-      }} />
-      {/* Body */}
+      {/* Body. The colored dot used to live here too, but the emoji
+         next to the title already encodes the category — two glyphs
+         for the same information was unnecessary. */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontSize: 14, fontWeight: 500, color: 'var(--ink)',
@@ -267,25 +279,35 @@ function PlanRow({ item, isLast, onTap, openSheet }) {
           marginTop: 4, display: 'flex', alignItems: 'center',
           gap: 10, flexDirection: 'row', flexWrap: 'wrap',
         }}>
+          {/* Location + Log expense inline pills had padding 0 and 3/9,
+             both under the iOS HIG touch floor. Bumped to 6/10 with
+             icon+text 12px so distracted thumbs can hit them. Both
+             carry aria-label so the row reads in context for screen
+             readers. */}
           {item.location && (
-            <button onClick={openMaps} style={{
-              padding: 0, background: 'transparent',
-              color: 'var(--ink-soft)', fontSize: 11.5,
-              display: 'inline-flex', alignItems: 'center', gap: 4, flexDirection: 'row',
+            <button onClick={openMaps}
+              aria-label={window.isRTL ? `الموقع: ${item.location}` : `Location: ${item.location}`} style={{
+              padding: '6px 10px', borderRadius: 999,
+              background: 'var(--cream)', border: '0.5px solid var(--hairline)',
+              color: 'var(--ink-soft)', fontSize: 11.5, fontWeight: 500,
+              display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: 'row',
               textAlign: 'start',
             }}>
               <window.IconPin size={11} stroke="currentColor" />
-              <span style={{ textDecoration: 'underline' }}>{item.location}</span>
+              <span style={{
+                maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>{item.location}</span>
             </button>
           )}
-          <button onClick={logExpense} style={{
-            padding: '3px 9px', borderRadius: 999,
+          <button onClick={logExpense}
+            aria-label={window.isRTL ? 'سجل مصروف لهذا النشاط' : 'Log expense for this activity'} style={{
+            padding: '6px 10px', borderRadius: 999,
             background: 'var(--cream)', color: 'var(--ink-soft)',
             border: '0.5px solid var(--hairline)',
-            fontSize: 10.5, fontWeight: 500,
-            display: 'inline-flex', alignItems: 'center', gap: 4, flexDirection: 'row',
+            fontSize: 11.5, fontWeight: 500,
+            display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: 'row',
           }}>
-            <window.IconWallet size={10} stroke="currentColor" />
+            <window.IconWallet size={11} stroke="currentColor" />
             {t('planLogExpense') || 'Log expense'}
           </button>
         </div>
@@ -345,9 +367,12 @@ function AddPlanItemSheet({ dayDate, existing, onDone }) {
     fontSize: 14, fontFamily: 'var(--sans)', outline: 'none',
     textAlign: 'start',
   };
+  // One label style drives all four fields. Was uppercase mono with wide
+  // tracking — the saturated AI eyebrow shape. Now sentence-case sans
+  // semibold; same hierarchy, no shouting. One swap cleans the whole sheet.
   const labelStyle = {
-    fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em',
-    color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase',
+    fontSize: 12, fontWeight: 600,
+    color: 'var(--ink)', marginBottom: 6,
   };
 
   return (
