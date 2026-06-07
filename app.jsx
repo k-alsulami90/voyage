@@ -849,6 +849,10 @@ const CAT_META = {
   culture:  { emoji: '🎌', label_en: 'Culture',    label_ar: 'الثقافة' },
   misc:     { emoji: '📎', label_en: 'Misc',       label_ar: 'متنوع' },
 };
+// Expose so any screen-file can pick the same category glyph instead of
+// inventing its own (the Hub used a "first letter on color square" before,
+// which was unreadable at the small thumbnail size).
+window.CAT_META = CAT_META;
 
 function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
   const trip    = window.TRIP;

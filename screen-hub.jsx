@@ -190,7 +190,7 @@ function ScreenHub({ go, openSheet, loading }) {
               ? <>You're owed <BalanceAmt>{amount}</BalanceAmt> from {otherCount} {peopleEN}.</>
               : <>You owe <BalanceAmt>{amount}</BalanceAmt> to {otherCount} {peopleEN}.</>);
         return (
-          <div style={{ padding: '20px 14px 0', position: 'relative', zIndex: 3 }}>
+          <div style={{ padding: '24px 14px 0', position: 'relative', zIndex: 3 }}>
             <button onClick={() => openSheet?.('settleUp')}
               aria-label={window.isRTL
                 ? (owed ? `أنت دائن بـ ${amount}` : `أنت مدين بـ ${amount}`)
@@ -231,7 +231,7 @@ function ScreenHub({ go, openSheet, loading }) {
          clay-deep text, and inline icon. Still unmistakably "alert,"
          no longer competing with the balance gradient for the same eye. */}
       {planned > 0 && spent > planned && (
-        <div style={{ padding: '20px 14px 0', position: 'relative', zIndex: 3 }}>
+        <div style={{ padding: '24px 14px 0', position: 'relative', zIndex: 3 }}>
           <div style={{
             borderRadius: 14, padding: '12px 14px',
             background: 'oklch(0.62 0.13 35 / 0.10)',
@@ -359,7 +359,7 @@ function ScreenHub({ go, openSheet, loading }) {
       </div>
 
       {/* QUICK ACTIONS */}
-      <div style={{ padding: '22px 14px 0' }}>
+      <div style={{ padding: '24px 14px 0' }}>
         <SectionLabel>{t('quickActions')}</SectionLabel>
         <div style={{
           display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 9,
@@ -418,13 +418,20 @@ function ScreenHub({ go, openSheet, loading }) {
                 display: 'flex', alignItems: 'center', gap: 12,
                 flexDirection: 'row',
               }}>
+                {/* Category badge. Was a single serif-italic letter on a
+                   colour square ("F" for Food, "C" for Culture) which
+                   required memorising the system. Now: the category
+                   emoji from window.CAT_META — same vocabulary the
+                   Add-Expense sheet and Budget filters use, so the
+                   user only learns it once. Colour square stays for
+                   wayfinding by hue. */}
                 <div style={{
                   width: 38, height: 38, borderRadius: 11,
-                  background: c.color, color: '#fff',
+                  background: c.color,
                   display: 'grid', placeItems: 'center',
-                  fontFamily: 'var(--serif)', fontSize: 18, fontStyle: 'italic',
+                  fontSize: 19, lineHeight: 1,
                   flexShrink: 0,
-                }}>{c.label[0]}</div>
+                }}>{(window.CAT_META?.[e.cat]?.emoji) || '·'}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink)',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
