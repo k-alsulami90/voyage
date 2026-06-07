@@ -211,13 +211,15 @@ function MonthlyChart({ stats }) {
                   )}
                   {m.spent > 0 ? (
                     <div style={{
-                      width: '100%',
-                      height: `${Math.max(heightPct, 6)}%`,
+                      width: '100%', height: '100%',
                       background: isCurrent
                         ? 'linear-gradient(180deg, var(--clay) 0%, var(--clay-deep) 100%)'
                         : 'linear-gradient(180deg, var(--ink-soft) 0%, var(--ink) 100%)',
                       borderRadius: '4px 4px 0 0',
-                      transition: 'height 380ms cubic-bezier(.32,.72,0,1)',
+                      transform: `scaleY(${Math.max(heightPct, 6) / 100})`,
+                      transformOrigin: 'bottom',
+                      transition: 'transform 380ms cubic-bezier(.32,.72,0,1)',
+                      willChange: 'transform',
                     }} />
                   ) : null}
                 </div>
@@ -341,10 +343,13 @@ function YearlyChart({ stats }) {
               <div key={y.year} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 0 }}>
                 <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-end' }}>
                   <div style={{
-                    width: '100%', height: `${Math.max(pct, 4)}%`,
+                    width: '100%', height: '100%',
                     background: 'linear-gradient(180deg, var(--clay) 0%, var(--clay-deep) 100%)',
-                    borderRadius: '6px 6px 0 0', minHeight: 4,
-                    transition: 'height 380ms cubic-bezier(.32,.72,0,1)',
+                    borderRadius: '6px 6px 0 0',
+                    transform: `scaleY(${Math.max(pct, 4) / 100})`,
+                    transformOrigin: 'bottom',
+                    transition: 'transform 380ms cubic-bezier(.32,.72,0,1)',
+                    willChange: 'transform',
                   }} />
                 </div>
                 <div style={{ fontSize: 10, color: 'var(--ink-mute)', fontFamily: 'var(--mono)' }}>'{String(y.year).slice(2)}</div>
@@ -547,9 +552,12 @@ function MemberBreakdown({ stats }) {
               </div>
               <div style={{ height: 5, marginTop: 5, borderRadius: 3, background: 'var(--sand)', overflow: 'hidden' }}>
                 <div style={{
-                  width: `${m.pct}%`, height: '100%',
+                  width: '100%', height: '100%',
                   background: `linear-gradient(90deg, oklch(0.62 0.13 ${m.hue}) 0%, oklch(0.48 0.13 ${m.hue}) 100%)`,
-                  transition: 'width 380ms cubic-bezier(.32,.72,0,1)',
+                  transform: `scaleX(${m.pct / 100})`,
+                  transformOrigin: window.isRTL ? 'right center' : 'left center',
+                  transition: 'transform 380ms cubic-bezier(.32,.72,0,1)',
+                  willChange: 'transform',
                 }} />
               </div>
               <div style={{ fontSize: 10, color: 'var(--ink-mute)', marginTop: 3 }}>

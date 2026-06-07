@@ -392,11 +392,20 @@ function CurrentTripCard({ trip, onOpen }) {
           <div style={{ fontSize: 11.5, color: 'var(--ink-mute)' }}>
             {window.isRTL ? 'الميزانية' : 'Budget used'}
           </div>
-          <div style={{ height: 5, marginTop: 4, borderRadius: 3, background: 'var(--sand)', overflow: 'hidden' }}>
+          <div style={{
+            height: 5, marginTop: 4, borderRadius: 3,
+            background: 'var(--sand)', overflow: 'hidden',
+          }}>
+            {/* Track is full-width; the fill scales via transform so the
+               animation runs on the compositor (no layout reflow). Origin
+               is leading-edge in both LTR and RTL. */}
             <div style={{
-              width: `${Math.min(trip.budgetPct, 100)}%`, height: '100%',
+              width: '100%', height: '100%',
               background: trip.budgetPct > 100 ? 'var(--clay-deep)' : 'var(--clay)',
-              transition: 'width 380ms ease-out',
+              transform: `scaleX(${Math.min(trip.budgetPct, 100) / 100})`,
+              transformOrigin: window.isRTL ? 'right center' : 'left center',
+              transition: 'transform 380ms cubic-bezier(.2,.8,.2,1)',
+              willChange: 'transform',
             }} />
           </div>
         </div>
