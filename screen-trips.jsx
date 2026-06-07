@@ -671,26 +671,41 @@ const PeaksCover = () => (
 // Smart Track — hero card for the next time-anchored event
 // (flight, hotel check-in, rental pick-up, or planned activity).
 // ──────────────────────────────────────────────────────────────
+// Smart Track now uses an event-type-tinted surface instead of a dark
+// surface. Splits the previous "two dark cards" pattern: Insights
+// stays dark (permanent summary), Smart Track is colored (contextual,
+// time-anchored). Surface lightness is L 0.28-0.34 so white text hits
+// AA on body and AAA on the title; chroma is high enough to read as
+// the brand colour even on small previews.
+const SMART_TRACK_PALETTES = {
+  flight:        { surface: 'oklch(0.28 0.10 260)', glow: 'oklch(0.55 0.16 260)', chip: 'var(--indigo)' },
+  lodging:       { surface: 'oklch(0.32 0.10 35)',  glow: 'oklch(0.60 0.14 35)',  chip: 'var(--clay)' },
+  'lodging-out': { surface: 'oklch(0.32 0.10 35)',  glow: 'oklch(0.60 0.14 35)',  chip: 'var(--clay)' },
+  transport:     { surface: 'oklch(0.34 0.08 75)',  glow: 'oklch(0.74 0.13 80)',  chip: 'var(--honey)' },
+  plan:          { surface: 'oklch(0.30 0.09 155)', glow: 'oklch(0.55 0.13 155)', chip: 'var(--moss)' },
+};
+function getSmartTrackPalette(type) {
+  return SMART_TRACK_PALETTES[type] || SMART_TRACK_PALETTES.plan;
+}
+
 function SmartTrackCard({ event, trip, onOpenTrip }) {
   const when = window.relativeWhenLabel(event.startAt);
   const isNow = /now|الآن/i.test(when);
-  // Pick an accent colour matching the event type
-  const accent = event.type === 'flight'     ? 'var(--indigo)'
-               : event.type === 'lodging' || event.type === 'lodging-out' ? 'var(--clay)'
-               : event.type === 'transport' ? 'var(--honey)'
-               : 'var(--moss)';
+  const palette = getSmartTrackPalette(event.type);
 
   return (
     <div style={{
       position: 'relative', borderRadius: 24, overflow: 'hidden',
-      background: 'var(--ink)', color: 'var(--cream)',
+      background: palette.surface, color: '#fff',
       boxShadow: 'var(--shadow-card)',
     }}>
-      {/* Accent glow */}
+      {/* Top-corner brightness wash. Same hue as the surface but at higher
+         lightness + chroma; lifts the corner without introducing a new
+         color. Keeps the card identifiably one-colour. */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: `radial-gradient(80% 60% at 100% 0%, ${accent} 0%, transparent 55%)`,
-        opacity: 0.32, pointerEvents: 'none',
+        background: `radial-gradient(85% 60% at 100% 0%, ${palette.glow} 0%, transparent 60%)`,
+        opacity: 0.38, pointerEvents: 'none',
       }} />
 
       <div style={{ position: 'relative', padding: '18px 18px 16px' }}>
@@ -698,12 +713,8 @@ function SmartTrackCard({ event, trip, onOpenTrip }) {
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
           padding: '4px 10px', borderRadius: 999,
-          background: isNow ? accent : 'rgba(255,255,255,0.12)',
-          border: '0.5px solid rgba(255,255,255,0.18)',
-          // Was uppercase mono with 0.08em — that fought against the
-          // natural-case content the formatter returns ("Today · 14:30",
-          // "in 25m"). Mono kept for tabular alignment of numbers; the
-          // label keeps its real case.
+          background: isNow ? palette.chip : 'rgba(255,255,255,0.14)',
+          border: '0.5px solid rgba(255,255,255,0.20)',
           fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 600,
           letterSpacing: 0,
         }}>
@@ -718,28 +729,32 @@ function SmartTrackCard({ event, trip, onOpenTrip }) {
         <div style={{
           marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexDirection: 'row',
         }}>
+          {/* The icon chip used to be the accent color on a dark surface;
+             now the surface IS the accent. So flip the chip to a light
+             frosted treatment so it pops against the brand-tinted card. */}
           <div style={{
             width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-            background: accent,
+            background: 'rgba(255,255,255,0.15)',
+            border: '0.5px solid rgba(255,255,255,0.25)',
             display: 'grid', placeItems: 'center',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+            backdropFilter: 'blur(8px)',
           }}>
             <SmartTrackTypeIcon type={event.type} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="serif" style={{
-              fontSize: 22, lineHeight: 1.15, color: 'var(--cream)',
+              fontSize: 22, lineHeight: 1.15, color: '#fff',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{event.title}</div>
             {event.detail && (
               <div className="mono" style={{
-                fontSize: 13, color: 'rgba(255,251,244,0.78)', marginTop: 3,
+                fontSize: 13, color: 'rgba(255,255,255,0.86)', marginTop: 3,
                 letterSpacing: '0.02em',
               }}>{event.detail}</div>
             )}
             {event.subtle && (
               <div style={{
-                fontSize: 11.5, color: 'rgba(255,251,244,0.55)', marginTop: 2,
+                fontSize: 11.5, color: 'rgba(255,255,255,0.68)', marginTop: 2,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>{event.subtle}</div>
             )}
@@ -766,8 +781,8 @@ function SmartTrackCard({ event, trip, onOpenTrip }) {
             )}
             <button onClick={onOpenTrip} style={{
               padding: '8px 12px', borderRadius: 999,
-              background: 'transparent', color: 'rgba(255,251,244,0.78)',
-              border: '0.5px solid rgba(255,255,255,0.18)',
+              background: 'transparent', color: 'rgba(255,255,255,0.85)',
+              border: '0.5px solid rgba(255,255,255,0.22)',
               fontSize: 12, fontWeight: 500,
               display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: 'row',
             }}>
@@ -842,13 +857,16 @@ function SmartTrackRow({ event, last, onOpenTrip }) {
   );
 }
 
+// Sits on either the dark Insights card or the colored Smart Track surface.
+// Primary = bright white pill with dark ink text (high-contrast CTA).
+// Secondary = transparent with light border on whatever surface it's on.
 function ActionPill({ label, href, icon, primary }) {
   return (
     <a href={href} target="_blank" rel="noreferrer" style={{
       padding: '8px 12px', borderRadius: 999,
-      background: primary ? 'var(--cream)' : 'transparent',
-      color: primary ? 'var(--ink)' : 'rgba(255,251,244,0.92)',
-      border: primary ? 'none' : '0.5px solid rgba(255,255,255,0.18)',
+      background: primary ? '#fff' : 'transparent',
+      color: primary ? 'var(--ink)' : 'rgba(255,255,255,0.92)',
+      border: primary ? 'none' : '0.5px solid rgba(255,255,255,0.22)',
       fontSize: 12, fontWeight: 500,
       display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: 'row',
       textDecoration: 'none',
