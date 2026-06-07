@@ -87,28 +87,32 @@ function ScreenBudget({ go, openSheet, loading }) {
         </>
       } />
 
-      {/* OVER-BUDGET BANNER */}
+      {/* OVER-BUDGET ALERT — matches the v72 Hub treatment.
+         Was a full clay gradient surface, the loud SaaS-alert pattern.
+         Now: a restrained clay-tinted card with hairline, small icon
+         chip, and inline body sentence. Still unmistakably "alert,"
+         but no longer competing with the statement card below for
+         the same eye. */}
       {overBudget && (
         <div style={{ padding: '4px 14px 0' }}>
           <div style={{
-            borderRadius: 18, padding: '12px 14px',
-            background: 'linear-gradient(135deg, var(--clay) 0%, var(--clay-deep) 100%)',
-            color: '#fff', boxShadow: 'var(--shadow-md)',
-            display: 'flex', alignItems: 'center', gap: 12,
+            borderRadius: 14, padding: '12px 14px',
+            background: 'oklch(0.62 0.13 35 / 0.10)',
+            border: '0.5px solid oklch(0.62 0.13 35 / 0.30)',
+            display: 'flex', alignItems: 'center', gap: 10,
             flexDirection: 'row',
           }}>
             <div style={{
-              width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-              background: 'rgba(255,255,255,0.18)', display: 'grid', placeItems: 'center',
-              fontSize: 18,
+              width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+              background: 'var(--clay)', color: '#fff',
+              display: 'grid', placeItems: 'center', fontSize: 14, lineHeight: 1,
             }}>⚠</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>
-                {window.isRTL ? `تجاوزت الميزانية بنسبة ${overPct}٪` : `Over budget by ${overPct}%`}
-              </div>
-              <div style={{ fontSize: 11.5, opacity: 0.85, marginTop: 2 }}>
-                {conv(realSpent - planned)} {window.isRTL ? 'فوق الحد المخطط' : 'above your planned cap'}
-              </div>
+            <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--clay-deep)' }}>
+              {window.isRTL ? (
+                <>تجاوزت الميزانية بـ <strong>{conv(realSpent - planned)}</strong> ({overPct}٪ فوق الخطة).</>
+              ) : (
+                <>Over budget by <strong>{conv(realSpent - planned)}</strong> ({overPct}% above plan).</>
+              )}
             </div>
           </div>
         </div>
@@ -133,15 +137,30 @@ function ScreenBudget({ go, openSheet, loading }) {
             flexDirection: 'row',
             position: 'relative',
           }}>
-            <div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.72 }}>
-                {t('totalSpent')}
-              </div>
-              <div style={{ fontFamily: 'var(--serif)', fontSize: 44, lineHeight: 1, marginTop: 4 }}>
-                {conv(realSpent)}
-              </div>
-              <div style={{ fontSize: 12, opacity: 0.6, marginTop: 4 }}>
-                {t('ofPlanned')} {conv(planned)} {t('planned')}
+            {/* Editorial sentence replaces the previous uppercase-mono
+               eyebrow + 44px serif headline + small "of planned" line
+               (the hero-metric template from the bans list, same one
+               removed from Hub in v72). The donut to the right carries
+               the visual % indicator; the sentence carries the precise
+               numbers. Money math gets the weight via type, not via
+               size escalation. */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 17, lineHeight: 1.5, color: 'var(--statement-sub)', fontWeight: 400,
+              }}>
+                {window.isRTL ? (
+                  planned > 0 ? (
+                    <>صرفت <BudgetNum>{conv(realSpent)}</BudgetNum> من <BudgetNum dim>{conv(planned)}</BudgetNum>.</>
+                  ) : (
+                    <>صرفت <BudgetNum>{conv(realSpent)}</BudgetNum> حتى الآن.</>
+                  )
+                ) : (
+                  planned > 0 ? (
+                    <>Spent <BudgetNum>{conv(realSpent)}</BudgetNum> of <BudgetNum dim>{conv(planned)}</BudgetNum> planned.</>
+                  ) : (
+                    <>Spent <BudgetNum>{conv(realSpent)}</BudgetNum> so far.</>
+                  )
+                )}
               </div>
               {/* Currency toggle — Home ↔ Local (only shown if they differ) */}
               {!sameHomeLocal && (
@@ -659,6 +678,21 @@ function Header({ title, onBack, action }) {
         {action || <IconMore size={18} stroke="var(--ink-soft)" />}
       </div>
     </div>
+  );
+}
+
+// Inline emphasis for money numbers inside the editorial sentence on the
+// statement card. Mono for tabular alignment, semibold for emphasis;
+// `dim` softens the "of $X planned" reference number so the spent
+// number reads as the primary one without size escalation.
+function BudgetNum({ children, dim }) {
+  return (
+    <span className="mono" style={{
+      fontWeight: dim ? 500 : 700,
+      fontSize: '1.18em',
+      color: dim ? 'rgba(255,251,244,0.55)' : 'var(--statement-fg)',
+      letterSpacing: '-0.01em',
+    }}>{children}</span>
   );
 }
 
