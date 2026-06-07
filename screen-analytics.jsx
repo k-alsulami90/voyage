@@ -217,6 +217,14 @@ function ScreenAnalytics({ go, loading }) {
             const slot = barWidth + barGap;
             const totalWidth = Math.max(allDays.length * slot - barGap, 100);
 
+            // Bars area is now a FIXED 64px row (was sharing height with
+            // the label inside each button — labelled vs unlabelled days
+            // had different bar slots, so same-value bars rendered at
+            // different visual heights and the chart looked floating).
+            // Labels live in their own row below the baseline. Polyline
+            // + planned line + baseline are absolutely positioned siblings
+            // of the bars row so everything shares one coordinate space.
+            const BARS_H = 64;
             return (
               <div className="no-scrollbar" style={{
                 position: 'relative', marginTop: 18,
@@ -224,90 +232,130 @@ function ScreenAnalytics({ go, loading }) {
                 WebkitOverflowScrolling: 'touch',
               }}>
                 <div style={{
-                  position: 'relative',
-                  minWidth: '100%', width: totalWidth, height: 88,
+                  minWidth: '100%', width: totalWidth,
                 }}>
-                  {/* Planned daily reference line (cumulative budget cap) */}
-                  {plannedY !== null && (
-                    <>
-                      <div style={{
-                        position: 'absolute', left: 0, right: 0,
-                        top: `${plannedY}%`, height: 1,
-                        background: 'rgba(255,255,255,0.32)',
-                        borderTop: '1px dashed rgba(255,255,255,0.45)',
-                        pointerEvents: 'none',
-                      }} />
-                      <div style={{
-                        position: 'absolute', insetInlineEnd: 0, top: `${plannedY}%`,
-                        transform: 'translateY(-100%)',
-                        fontSize: 8, fontFamily: 'var(--mono)', letterSpacing: '0.06em',
-                        color: 'rgba(255,255,255,0.6)', padding: '0 2px',
-                      }}>{window.isRTL ? 'الميزانية' : 'budget'}</div>
-                    </>
-                  )}
+                  {/* ── BARS AREA ─────────────────────────────────── */}
+                  <div style={{ position: 'relative', height: BARS_H }}>
+                    {/* Planned daily reference line (cumulative budget cap)
+                       — positioned inside the bars area so the y-coordinate
+                       lines up with the bars + polyline. */}
+                    {plannedY !== null && (
+                      <>
+                        <div style={{
+                          position: 'absolute', left: 0, right: 0,
+                          top: `${plannedY}%`,
+                          borderTop: '1px dashed rgba(255,255,255,0.5)',
+                          pointerEvents: 'none', zIndex: 2,
+                        }} />
+                        <div style={{
+                          position: 'absolute', insetInlineEnd: 0, top: `${plannedY}%`,
+                          transform: 'translateY(-110%)',
+                          fontSize: 9, color: 'rgba(255,255,255,0.7)', padding: '0 2px',
+                          zIndex: 3,
+                        }}>{window.isRTL ? 'الميزانية' : 'budget'}</div>
+                      </>
+                    )}
 
-                  {/* Cumulative-spend line (SVG polyline over the bars) */}
-                  <svg width={totalWidth} height={68} viewBox={`0 0 ${totalWidth} 68`}
-                    style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}>
-                    <polyline
-                      fill="none"
-                      stroke="var(--clay)" strokeWidth="1.5"
-                      strokeLinecap="round" strokeLinejoin="round"
-                      points={cumByDay.map((c, i) => {
-                        const x = i * slot + barWidth / 2;
-                        const y = 68 - (c / cumMax) * 64;
-                        return `${x},${y}`;
-                      }).join(' ')}
-                    />
-                  </svg>
+                    {/* Cumulative-spend line (SVG polyline). Now uses the
+                       same BARS_H coordinate space so it sits perfectly
+                       over the bars. */}
+                    <svg width={totalWidth} height={BARS_H}
+                      viewBox={`0 0 ${totalWidth} ${BARS_H}`}
+                      style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: 1 }}>
+                      <polyline
+                        fill="none"
+                        stroke="var(--clay)" strokeWidth="1.75"
+                        strokeLinecap="round" strokeLinejoin="round"
+                        points={cumByDay.map((c, i) => {
+                          const x = i * slot + barWidth / 2;
+                          const y = BARS_H - (c / cumMax) * (BARS_H - 4);
+                          return `${x},${y}`;
+                        }).join(' ')}
+                      />
+                    </svg>
 
-                  {/* Bars + day labels (trip day #) */}
+                    {/* Bars row — every button is the same fixed height,
+                       so bars share a common baseline regardless of
+                       whether the day shows a label. */}
+                    <div style={{
+                      display: 'flex', alignItems: 'flex-end',
+                      gap: barGap, height: '100%', position: 'relative', zIndex: 0,
+                    }}>
+                      {allDays.map((iso, i) => {
+                        const val = dailyByISO[iso] || 0;
+                        const isPeak = iso === peakISO && val > 0;
+                        const isSelected = iso === selectedDay;
+                        // Min heights bumped so small + zero days are
+                        // visible above the baseline (was 4% / 2% which
+                        // rendered as ~1-2px against the dark card).
+                        const heightPct = val > 0
+                          ? Math.max((val / dailyMax) * 88, 9)
+                          : 5;
+                        return (
+                          <button key={iso}
+                            onClick={() => setSelectedDay((cur) => cur === iso ? null : iso)}
+                            aria-label={`Day ${i + 1}`}
+                            style={{
+                              all: 'unset', cursor: 'pointer',
+                              flex: '0 0 auto', width: barWidth, height: '100%',
+                              display: 'flex', alignItems: 'flex-end',
+                            }}>
+                            <div style={{
+                              width: '100%', height: `${heightPct}%`,
+                              // Non-peak bars opacity bumped 0.32 -> 0.45
+                              // for readable contrast against the dark
+                              // statement card. Zero-spend day is a thin
+                              // marker, not a faint ghost.
+                              background: val === 0
+                                ? 'rgba(255,255,255,0.18)'
+                                : (isSelected ? '#fff' : (isPeak ? 'var(--clay)' : 'rgba(255,255,255,0.45)')),
+                              borderRadius: '3px 3px 0 0',
+                              outline: isSelected ? '1.5px solid var(--clay)' : 'none',
+                              transition: 'background 160ms, height 160ms ease-out',
+                            }} />
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Baseline axis — a 1px line at the bottom of the
+                       bars area so every bar visually rests on something
+                       instead of floating in the void. */}
+                    <div style={{
+                      position: 'absolute', left: 0, right: 0, bottom: 0,
+                      height: 1, background: 'rgba(255,255,255,0.30)',
+                      pointerEvents: 'none', zIndex: 4,
+                    }} />
+                  </div>
+
+                  {/* ── LABELS ROW ────────────────────────────────────
+                     Day numbers used to live inside each bar's flex
+                     column, which broke the bars' shared baseline.
+                     Now they're a separate row aligned to the bar
+                     columns by matching width + gap. */}
                   <div style={{
-                    display: 'flex', alignItems: 'flex-end',
-                    gap: barGap, height: '100%',
+                    display: 'flex', gap: barGap, marginTop: 6,
                   }}>
                     {allDays.map((iso, i) => {
-                      const val = dailyByISO[iso] || 0;
-                      const isPeak = iso === peakISO && val > 0;
-                      const isSelected = iso === selectedDay;
-                      const heightPct = val > 0 ? Math.max((val / dailyMax) * 80, 4) : 2;
                       const dayNum = i + 1;
-                      // Show label every day if <= 7, every 2 days if <= 14, else every 5
+                      const isSelected = iso === selectedDay;
                       const labelEvery = allDays.length <= 7 ? 1
                                       : allDays.length <= 14 ? 2
                                       : 5;
-                      const showLabel = dayNum === 1 || dayNum === allDays.length || dayNum % labelEvery === 0;
+                      const showLabel = dayNum === 1
+                        || dayNum === allDays.length
+                        || dayNum % labelEvery === 0;
                       return (
-                        <button key={iso}
-                          onClick={() => setSelectedDay((cur) => cur === iso ? null : iso)}
-                          aria-label={`Day ${dayNum}`}
-                          style={{
-                            all: 'unset', cursor: 'pointer',
-                            flex: '0 0 auto', width: barWidth, height: '100%',
-                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                          }}>
-                          <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-end' }}>
-                            <div style={{
-                              width: '100%', height: `${heightPct}%`,
-                              background: val === 0
-                                ? 'rgba(255,255,255,0.08)'
-                                : (isSelected ? '#fff' : (isPeak ? 'var(--clay)' : 'rgba(255,255,255,0.32)')),
-                              borderRadius: '3px 3px 0 0',
-                              outline: isSelected ? '1.5px solid var(--clay)' : 'none',
-                              transition: 'background 160ms',
-                            }} />
-                          </div>
-                          {showLabel && (
-                            <div style={{
-                              fontSize: 8.5, opacity: isSelected ? 1 : 0.65,
-                              fontFamily: 'var(--mono)', whiteSpace: 'nowrap',
-                              fontWeight: isSelected ? 700 : 500,
-                              color: isSelected ? 'var(--clay)' : undefined,
-                            }}>
-                              {dayNum}
-                            </div>
-                          )}
-                        </button>
+                        <div key={iso} style={{
+                          flex: '0 0 auto', width: barWidth,
+                          textAlign: 'center', height: 13,
+                          fontSize: 9, fontFamily: 'var(--mono)',
+                          whiteSpace: 'nowrap',
+                          color: isSelected ? 'var(--clay)' : 'rgba(255,255,255,0.65)',
+                          fontWeight: isSelected ? 700 : 500,
+                        }}>
+                          {showLabel ? dayNum : ''}
+                        </div>
                       );
                     })}
                   </div>
