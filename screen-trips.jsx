@@ -112,79 +112,57 @@ function ScreenTrips({ goTrip, go }) {
     <div data-screen-label="00 Trips Home" style={{
       background: 'var(--cream)', minHeight: '100%', paddingBottom: 100,
     }}>
-      {/* iOS Large Title — collapses to inline title on scroll */}
+      {/* Header — no duplicate Insights button. The bottom tab bar already
+         carries Insights as a labeled tab; the duplicate sparkle button
+         here was unlabeled and stole focus on a first-time visit. */}
       <LargeTitleHeader
         title={t('yourTravels')}
         subtitle={t('heySunday')}
-        action={
-          <button onClick={() => go('insights')} aria-label={t('insightsNav')} style={{
-            width: 36, height: 36, borderRadius: 999,
-            background: 'var(--ink)', display: 'grid', placeItems: 'center',
-            color: 'var(--cream)',
-          }}>
-            <IconSparkle size={17} stroke="currentColor" />
-          </button>
-        }
       />
 
-      {/* GLOBAL INSIGHTS PREVIEW CARD — overlapping stat tiles */}
-      <div style={{ padding: '0 14px' }}>
+      {/* Insights invite — one quiet line, no dark hero card.
+         Replaces the previous statement-card hero (hero-metric template +
+         3-tile mini KPI grid + uppercase mono eyebrow) the audit flagged.
+         Smart Track now owns the dark-card slot uncontested. */}
+      {stats && stats.totalTrips > 0 && (
         <button onClick={() => go('insights')} style={{
-          width: '100%', textAlign: 'start',
-          background: 'var(--statement)', color: 'var(--statement-fg)',
-          borderRadius: 28, padding: '20px 20px 26px',
-          position: 'relative', overflow: 'hidden',
-          boxShadow: 'var(--shadow-card)',
+          all: 'unset', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 8,
+          width: '100%', boxSizing: 'border-box',
+          padding: '4px 22px 0',
+          flexDirection: 'row',
         }}>
-          {/* aurora */}
           <div style={{
-            position: 'absolute', inset: 0,
-            background:
-              'radial-gradient(60% 50% at 10% 100%, oklch(0.45 0.10 35 / 0.55) 0%, transparent 60%),' +
-              'radial-gradient(50% 45% at 90% 0%, oklch(0.40 0.10 260 / 0.5) 0%, transparent 60%)',
-            pointerEvents: 'none',
-          }} />
-          <div style={{ position: 'relative' }}>
-            <div style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-              flexDirection: 'row',
-            }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.72 }}>
-                {t('lifetimeAllTrips')}
-              </div>
-              <div style={{ fontSize: 11, opacity: 0.7, display: 'flex', alignItems: 'center', gap: 4, flexDirection: 'row' }}>
-                {t('seeAll')} <IconChevron size={11} stroke="currentColor" />
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 8, flexDirection: 'row' }}>
-              <span className="serif" style={{ fontSize: 56, lineHeight: 0.9 }}>{stats?.countries || 0}</span>
-              <span style={{ fontSize: 14, opacity: 0.72, marginInlineStart: 6 }}>{t('countries')}</span>
-            </div>
-            <div style={{ fontSize: 12, opacity: 0.72, marginTop: 4 }}>
-              {stats?.totalDays || 0} {t('travelDays')} · {stats?.expenseCount || 0} {window.isRTL ? 'مصروف' : 'expenses'}
-            </div>
-
-            {/* Overlapping stat trio */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 18 }}>
-              {[
-                { l: t('trips'),    v: stats?.totalTrips || (window.TRIPS || []).length, s: t('logged') },
-                { l: t('lifetime'), v: stats?.totalSpentUSD > 0 ? window.fmtMoney(stats.totalSpentUSD, { in: 'home' }) : '—', s: t('spent') },
-                { l: t('longest'),  v: stats?.longestTrip ? `${stats.longestTrip.dur}d` : '—', s: stats?.longestTrip?.title || (window.isRTL ? '—' : '—') },
-              ].map((s, i) => (
-                <div key={i} style={{
-                  padding: '10px 12px', borderRadius: 14,
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '0.5px solid rgba(255,255,255,0.08)',
-                }}>
-                  <div style={{ fontSize: 9.5, opacity: 0.72, fontFamily: 'var(--mono)', letterSpacing: '0.1em' }}>{s.l.toUpperCase()}</div>
-                  <div className="serif" style={{ fontSize: 22, lineHeight: 1, marginTop: 2 }}>{s.v}</div>
-                  <div style={{ fontSize: 10, opacity: 0.72, marginTop: 1 }}>{s.s}</div>
-                </div>
-              ))}
-            </div>
+            flex: 1, minWidth: 0,
+            fontSize: 13, color: 'var(--ink-mute)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {window.isRTL ? (
+              <>
+                <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{stats.totalTrips}</span> {stats.totalTrips === 1 ? 'رحلة' : 'رحلات'}{' '}
+                · <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{stats.totalDays}</span> {window.isRTL ? 'يوم سفر' : 'days'}{' '}
+                · <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{stats.countries}</span> {stats.countries === 1 ? 'دولة' : 'دول'}
+              </>
+            ) : (
+              <>
+                <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{stats.totalTrips}</span> {stats.totalTrips === 1 ? 'trip' : 'trips'}
+                {' · '}
+                <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{stats.totalDays}</span> travel days
+                {' · '}
+                <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{stats.countries}</span> {stats.countries === 1 ? 'country' : 'countries'}
+              </>
+            )}
           </div>
+          <span style={{
+            fontSize: 12, color: 'var(--clay-deep)', fontWeight: 500,
+            display: 'inline-flex', alignItems: 'center', gap: 3, flexDirection: 'row',
+            flexShrink: 0,
+          }}>
+            {window.isRTL ? 'إحصائيات' : 'Insights'}
+            <span className="icon-flip"><IconChevron size={11} stroke="currentColor" /></span>
+          </span>
         </button>
-      </div>
+      )}
 
       {/* SCOPE FILTER — chips for private vs shared */}
       <div style={{ padding: '20px 22px 10px' }}>
