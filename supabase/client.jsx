@@ -642,7 +642,15 @@ window.redeemInvite = async (token) => {
   const { data, error } = await window.sb.rpc('redeem_trip_invite', { p_token: token });
   if (error) throw error;
   const row = Array.isArray(data) ? data[0] : data;
-  return row ? { tripId: row.trip_id, role: row.role } : null;
+  if (!row) return null;
+  // The function returns either { out_trip_id, out_role } (after the
+  // ambiguous-column hotfix in migration 012) or the legacy
+  // { trip_id, role } shape — accept both so older Supabase projects
+  // that haven't run the hotfix yet keep working.
+  return {
+    tripId: row.out_trip_id || row.trip_id,
+    role:   row.out_role    || row.role,
+  };
 };
 
 // Build a shareable link for a token using the current origin.
