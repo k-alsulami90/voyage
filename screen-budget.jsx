@@ -454,17 +454,26 @@ function ScreenBudget({ go, openSheet, loading }) {
                   flexDirection: 'row',
                   border: '0.5px solid var(--hairline)',
                 }}>
-                  <div style={{
-                    width: 6, alignSelf: 'stretch', borderRadius: 3,
-                    background: c.color, marginInlineEnd: window.isRTL ? 0 : -2,
-                    marginInlineStart: window.isRTL ? -2 : 0,
-                  }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink)' }}>{e.title}</div>
                     <div style={{
-                      fontSize: 11, color: 'var(--ink-mute)', marginTop: 3,
-                      display: 'flex', alignItems: 'center', gap: 6,
+                      display: 'flex', alignItems: 'center', gap: 8,
                       flexDirection: 'row',
+                    }}>
+                      {/* Category dot replaces the banned side-stripe.
+                         Same information, no decorative left-border. */}
+                      <span style={{
+                        width: 8, height: 8, borderRadius: 999,
+                        background: c.color, flexShrink: 0,
+                      }} />
+                      <span style={{
+                        fontSize: 13.5, fontWeight: 500, color: 'var(--ink)',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>{e.title}</span>
+                    </div>
+                    <div style={{
+                      fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 4,
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      flexDirection: 'row', paddingInlineStart: 16,
                     }}>
                       <Avatar m={m} size={15} />
                       <span>{m.name.split(' ')[0]} · {e.when}</span>

@@ -10,8 +10,8 @@
   --sand:       oklch(0.92  0.018 75);
   --sand-deep:  oklch(0.86  0.022 72);
   --ink:        oklch(0.22  0.025 250);
-  --ink-soft:   oklch(0.38  0.025 250);
-  --ink-mute:   oklch(0.55  0.020 248);
+  --ink-soft:   oklch(0.36  0.025 250);  /* darker, hits 7:1 on cream-2 */
+  --ink-mute:   oklch(0.46  0.020 248);  /* was 0.55 — bumped for WCAG AA on tinted bg */
 
   /* Accents — shared chroma family */
   --clay:       oklch(0.62  0.13 35);   /* terracotta */
@@ -102,6 +102,25 @@ button {
 }
 button:active { transform: scale(0.97); opacity: 0.92; }
 button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Keyboard focus ring — only when the user is actually navigating with the
+   keyboard, never on mouse / touch. iPad PWA + bluetooth keyboard, desktop
+   browser preview, anyone using a screen reader: they get a real signal. */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--clay);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--clay);
+  outline-offset: 2px;
+}
 
 /* iOS standalone (installed PWA) — hide the address bar's bottom safe inset
    from non-fixed content; let fixed nav handle env(safe-area-inset-bottom) */
