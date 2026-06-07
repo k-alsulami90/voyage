@@ -1,6 +1,14 @@
 // Doc Detail — structured per-category view + edit mode.
 // Fields come from window.DOC_SCHEMAS so this stays in sync with AddDoc.
 
+// One source for inline form labels (CATEGORY, COST). Was the same
+// uppercase mono pattern duplicated inline; centralising it both
+// removes the slop and means the next style nudge ships in one place.
+const editLabelStyle = {
+  fontSize: 12, fontWeight: 600,
+  color: 'var(--ink)', marginBottom: 6,
+};
+
 function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
   // Re-pull from window.DOCS_BY_CAT so edits show fresh data
   const allDocs = Object.values(window.DOCS_BY_CAT || {}).flat();
@@ -253,10 +261,15 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
         border: '0.5px solid var(--hairline)',
       }}>
         {editing ? (
-          <input value={title} onChange={(e) => setTitle(e.target.value)} autoFocus style={{
+          // Edit input shares the read-mode .serif class (Geist semibold via
+          // v63 tokens) instead of inline var(--serif) which mapped to the
+          // Cormorant wordmark font. Same visual field, same font in both
+          // modes -- "what I see is what I save."
+          <input value={title} onChange={(e) => setTitle(e.target.value)} autoFocus
+            className="serif" style={{
             width: '100%', boxSizing: 'border-box',
-            fontFamily: 'var(--serif)', fontSize: 22, lineHeight: 1.2,
-            color: 'var(--ink)', letterSpacing: '-0.01em',
+            fontSize: 22, lineHeight: 1.2,
+            color: 'var(--ink)',
             border: 0, outline: 'none', background: 'transparent',
             borderBottom: '1.5px dashed var(--clay)', padding: '2px 0',
           }} />
@@ -279,10 +292,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
           <div style={{ padding: '0 8px' }}>
             {/* Category switcher first */}
             <div style={{ marginBottom: 12 }}>
-              <div style={{
-                fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.10em',
-                color: 'var(--ink-mute)', textTransform: 'uppercase', marginBottom: 5,
-              }}>{window.isRTL ? 'الفئة' : 'Category'}</div>
+              <div style={editLabelStyle}>{window.isRTL ? 'الفئة' : 'Category'}</div>
               <select value={cat} onChange={(e) => setCat(e.target.value)} style={{
                 ...window.docFieldStyle, fontSize: 14, padding: '11px 13px',
               }}>
@@ -301,10 +311,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
             {/* Cost (only on cost-enabled categories) */}
             {schema.showCost && (
               <div style={{ marginTop: 14 }}>
-                <div style={{
-                  fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.10em',
-                  color: 'var(--ink-mute)', textTransform: 'uppercase', marginBottom: 5,
-                }}>{window.isRTL ? 'التكلفة' : 'Cost'}</div>
+                <div style={editLabelStyle}>{window.isRTL ? 'التكلفة' : 'Cost'}</div>
                 <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
                   <input type="number" inputMode="decimal" value={cost}
                     onChange={(e) => setCost(e.target.value)}
@@ -488,10 +495,14 @@ function DocInfoRow({ label, value, href, last }) {
       padding: '12px 16px', flexDirection: 'row',
       borderBottom: last ? 'none' : '0.5px solid var(--hairline)',
     }}>
+      {/* Was uppercase mono tracked 11px — the eyebrow pattern repeated
+         across every structured field row (flight docs show 6-8 of these
+         stacked). Now sentence-case sans, fixed-width to keep the
+         label/value columns aligned across rows. */}
       <div style={{
-        flex: '0 0 auto', minWidth: 100,
-        fontSize: 11, fontFamily: 'var(--mono)', letterSpacing: '0.06em',
-        color: 'var(--ink-mute)', textTransform: 'uppercase',
+        flex: '0 0 auto', minWidth: 110,
+        fontSize: 12.5, fontWeight: 500,
+        color: 'var(--ink-mute)',
         textAlign: 'start',
       }}>{label}</div>
       <div style={{ flex: 1, textAlign: 'end' }}>{content}</div>
