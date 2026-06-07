@@ -64,9 +64,18 @@ function ScreenSettleUp({ back }) {
     <div data-screen-label="Settle Up" style={{
       background: 'var(--cream)', minHeight: '100%', paddingBottom: 100,
     }}>
+      {/* Subtitle now does double duty: it shows the trip title AND the
+         pending transaction count when there are transfers. Folding the
+         count into the header replaces the previous dark statement-card
+         hero-metric (uppercase mono "TRANSACTIONS" + 30px serif headline)
+         and gives the actual list of transfers room to be the hero. */}
       <LargeTitleHeader
         title={t('settleUp')}
-        subtitle={trip.title}
+        subtitle={transfers.length > 0
+          ? `${trip.title} · ${window.isRTL
+              ? `${transfers.length} ${transfers.length === 1 ? 'تحويل' : 'تحويلات'}`
+              : `${transfers.length} ${transfers.length === 1 ? 'transaction' : 'transactions'}`}`
+          : trip.title}
         onBack={back}
       />
 
@@ -95,31 +104,6 @@ function ScreenSettleUp({ back }) {
         </div>
       ) : (
         <div style={{ padding: '4px 14px 0' }}>
-          {/* Summary card */}
-          <div style={{
-            background: 'var(--statement)', color: 'var(--statement-fg)',
-            borderRadius: 22, padding: '16px 18px',
-            marginBottom: 16, position: 'relative', overflow: 'hidden',
-            boxShadow: 'var(--shadow-card)',
-          }}>
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: 'radial-gradient(60% 50% at 90% 0%, oklch(0.45 0.10 35 / 0.4) 0%, transparent 60%)',
-              pointerEvents: 'none',
-            }} />
-            <div style={{ position: 'relative' }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.78 }}>
-                {t('settleTransactions').toUpperCase()}
-              </div>
-              <div className="serif" style={{ fontSize: 30, lineHeight: 1.1, marginTop: 4 }}>
-                {t('settleSummary').replace('{n}', transfers.length)
-                  .replace(/\{n,plural,one\{[^}]+\}other\{([^}]+)\}\}/, transfers.length === 1
-                    ? (window.isRTL ? 'تحويل' : 'transaction')
-                    : (window.isRTL ? 'تحويلات' : 'transactions'))}
-              </div>
-            </div>
-          </div>
-
           {/* Transfer list */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {transfers.map((tr, i) => {
@@ -159,7 +143,11 @@ function ScreenSettleUp({ back }) {
                     fontSize: 11.5, color: 'var(--ink-mute)',
                   }}>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {fromM.name.split(' ')[0]} {window.isRTL ? '→' : '→'} {toM.name.split(' ')[0]}
+                      {/* Arrow flips for RTL so it points to the leading
+                         edge in either language (matches the history row
+                         pattern below). Previously both branches showed
+                         the same character -- bug fixed. */}
+                      {fromM.name.split(' ')[0]} {window.isRTL ? '←' : '→'} {toM.name.split(' ')[0]}
                     </span>
                   </div>
                   {/* Action buttons */}
