@@ -156,13 +156,17 @@ function MonthlyChart({ stats }) {
   const monthShort = (m) => new Date(2000, m.month, 1).toLocaleDateString(window.isRTL ? 'ar' : 'en', { month: 'short' });
   return (
     <div style={{ padding: '22px 14px 0' }}>
+      {/* Was inline uppercase mono tracked. Now a custom header row that
+         mirrors SectionLabel's typography (13px sans semibold ink) but
+         keeps the "avg: $X" sub-line on the right where the user expects
+         a hint, not a link/button. */}
       <div style={{
         display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-        padding: '0 8px 8px', flexDirection: 'row',
+        padding: '0 22px', marginBottom: 10, flexDirection: 'row',
       }}>
         <div style={{
-          fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.14em',
-          color: 'var(--ink-mute)', textTransform: 'uppercase', fontWeight: 500,
+          fontSize: 13, fontWeight: 600,
+          color: 'var(--ink)', letterSpacing: '-0.01em',
         }}>
           {window.isRTL ? 'آخر 12 شهر' : 'Last 12 months'}
         </div>
@@ -247,8 +251,17 @@ function YearlyChart({ stats }) {
   const maxVal = Math.max(...stats.byYear.map((y) => y[metric] || 0), 1);
   return (
     <div style={{ padding: '22px 14px 0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px 8px' }}>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.14em', color: 'var(--ink-mute)', textTransform: 'uppercase', fontWeight: 500 }}>
+      {/* Same shape as the Monthly header: sentence-case sans semibold
+         section title, with the metric toggle on the right where the
+         user reaches for it. */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 22px', marginBottom: 10, flexDirection: 'row',
+      }}>
+        <div style={{
+          fontSize: 13, fontWeight: 600,
+          color: 'var(--ink)', letterSpacing: '-0.01em',
+        }}>
           {t('sectionByYear')}
         </div>
         <div style={{ display: 'inline-flex', padding: 2, gap: 2, background: 'var(--cream-2)', borderRadius: 999, border: '0.5px solid var(--hairline)' }}>
@@ -308,9 +321,7 @@ function CategoryBreakdown({ stats }) {
   const total = stats.byCategory.reduce((s, c) => s + c.value, 0);
   return (
     <div style={{ padding: '22px 14px 0' }}>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.14em', color: 'var(--ink-mute)', textTransform: 'uppercase', fontWeight: 500, padding: '0 22px 8px' }}>
-        {t('sectionByCategory')}
-      </div>
+      <SectionLabel>{t('sectionByCategory')}</SectionLabel>
       <div style={{ background: 'var(--cream-2)', borderRadius: 22, padding: '18px', margin: '0 8px', border: '0.5px solid var(--hairline)', display: 'flex', alignItems: 'center', gap: 18 }}>
         <DonutSVG data={stats.byCategory.map((c) => ({ value: c.value, color: CAT_COLOR[c.key] || 'var(--ink-mute)' }))} size={130} />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 9, minWidth: 0 }}>
@@ -323,8 +334,11 @@ function CategoryBreakdown({ stats }) {
               <span className="mono" style={{ fontSize: 11.5, color: 'var(--ink)', fontWeight: 600 }}>{Math.round(c.pct)}%</span>
             </div>
           ))}
+          {/* Footer was uppercase mono "TOTAL". Same pattern just cleaned
+             on the Analytics pie footer in v83. Sentence-case sans for
+             consistency with the rest of the app. */}
           <div style={{ paddingTop: 8, borderTop: '0.5px solid var(--hairline)', display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 11, color: 'var(--ink-mute)', fontFamily: 'var(--mono)' }}>{window.isRTL ? 'الإجمالي' : 'TOTAL'}</span>
+            <span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>{window.isRTL ? 'الإجمالي' : 'Total'}</span>
             <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>{window.fmtMoney(total, { in: 'home' })}</span>
           </div>
         </div>
@@ -365,9 +379,7 @@ function TripLeaderboard({ stats }) {
   const maxSpent = top[0].spent;
   return (
     <div style={{ padding: '22px 14px 0' }}>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.14em', color: 'var(--ink-mute)', textTransform: 'uppercase', fontWeight: 500, padding: '0 22px 8px' }}>
-        {t('sectionTopTrips')}
-      </div>
+      <SectionLabel>{t('sectionTopTrips')}</SectionLabel>
       <div style={{ background: 'var(--cream-2)', borderRadius: 22, margin: '0 8px', border: '0.5px solid var(--hairline)', overflow: 'hidden' }}>
         {top.map((tr, i) => (
           <div key={tr.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderTop: i ? '0.5px solid var(--hairline)' : 'none' }}>
@@ -391,28 +403,51 @@ function TripLeaderboard({ stats }) {
   );
 }
 
-// ── Highlight pace cards ────────────────────────────────────
+// ── Highlight pace summary ──────────────────────────────────
+// Was a 4-cell identical-card-grid with hero-metric template in each
+// cell (uppercase mono label via explicit .toUpperCase() + 22px serif
+// value + sub + decorative tinted circle). Double-banned pattern,
+// matched what Analytics Burn Rate looked like before v83. Now: one
+// editorial sentence with bolded inline numbers, in a single light
+// card. Same four datapoints; readable in one pass instead of four.
 function HighlightCards({ stats }) {
-  const items = [
-    stats.longestTrip && { label: t('statLongestTrip'),   value: `${stats.longestTrip.dur}d`, sub: stats.longestTrip.title, tint: 'var(--moss)' },
-    stats.mostExpensive && { label: t('statMostExpensive'), value: window.fmtMoney(stats.mostExpensive.spent, { in: 'home' }), sub: stats.mostExpensive.title, tint: 'var(--clay)' },
-    { label: t('statAvgTrip'),  value: window.fmtMoney(stats.avgTripCost, { in: 'home' }),            sub: `${stats.totalTrips} ${window.isRTL ? 'رحلة' : 'trips'}`, tint: 'var(--indigo)' },
-    { label: t('statDailyAvg'), value: window.fmtMoney(stats.avgDailyAcrossLifetime, { in: 'home' }), sub: `${stats.totalDays} ${window.isRTL ? 'يوم' : 'days'}`,  tint: 'var(--honey)' },
-  ].filter(Boolean);
+  const isAr = !!window.isRTL;
+  const fmt = (n) => window.fmtMoney(n, { in: 'home' });
+  const longest = stats.longestTrip;
+  const expensive = stats.mostExpensive;
+  const avgTrip = fmt(stats.avgTripCost);
+  const dailyAvg = fmt(stats.avgDailyAcrossLifetime);
   return (
     <div style={{ padding: '22px 14px 0' }}>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.14em', color: 'var(--ink-mute)', textTransform: 'uppercase', fontWeight: 500, padding: '0 22px 8px' }}>
-        {t('sectionPace')}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-        {items.map((it, i) => (
-          <div key={i} style={{ padding: '14px 16px', borderRadius: 18, background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: -8, insetInlineEnd: -8, width: 40, height: 40, borderRadius: '50%', background: it.tint, opacity: 0.14 }} />
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.12em', color: 'var(--ink-mute)' }}>{it.label.toUpperCase()}</div>
-            <div className="serif" style={{ fontSize: 22, lineHeight: 1, marginTop: 4, color: 'var(--ink)' }}>{it.value}</div>
-            <div style={{ fontSize: 10.5, color: 'var(--ink-mute)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.sub}</div>
-          </div>
-        ))}
+      <SectionLabel>{t('sectionPace')}</SectionLabel>
+      <div style={{
+        margin: '0 8px', padding: '16px 18px', borderRadius: 18,
+        background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+        fontSize: 15, lineHeight: 1.6, color: 'var(--ink-soft)',
+      }}>
+        {isAr ? (
+          <>
+            {longest && (
+              <>أطول رحلة: <InsNum>{longest.title}</InsNum>، {longest.dur} يوم.{' '}</>
+            )}
+            {expensive && (
+              <>الأغلى: <InsNum>{expensive.title}</InsNum>، <InsNum>{fmt(expensive.spent)}</InsNum>.{' '}</>
+            )}
+            متوسط الرحلة <InsNum>{avgTrip}</InsNum> ({stats.totalTrips} رحلة)،
+            بمعدل <InsNum>{dailyAvg}</InsNum> يومياً عبر {stats.totalDays} يوم سفر.
+          </>
+        ) : (
+          <>
+            {longest && (
+              <>Longest trip: <InsNum>{longest.title}</InsNum>, {longest.dur} days.{' '}</>
+            )}
+            {expensive && (
+              <>Most expensive: <InsNum>{expensive.title}</InsNum>, <InsNum>{fmt(expensive.spent)}</InsNum>.{' '}</>
+            )}
+            You average <InsNum>{avgTrip}</InsNum> per trip across {stats.totalTrips} trips,
+            and <InsNum>{dailyAvg}</InsNum> per day over {stats.totalDays} travel days.
+          </>
+        )}
       </div>
     </div>
   );
@@ -429,9 +464,7 @@ function TripStatusBreakdown({ stats }) {
   if (current + upcoming + past === 0) return null;
   return (
     <div style={{ padding: '22px 14px 0' }}>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.14em', color: 'var(--ink-mute)', textTransform: 'uppercase', fontWeight: 500, padding: '0 22px 8px' }}>
-        {t('sectionTripStatus')}
-      </div>
+      <SectionLabel>{t('sectionTripStatus')}</SectionLabel>
       <div style={{ background: 'var(--cream-2)', borderRadius: 22, padding: '14px 18px', margin: '0 8px', border: '0.5px solid var(--hairline)' }}>
         <div style={{ display: 'flex', height: 14, borderRadius: 8, overflow: 'hidden', boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,0.05)' }}>
           {items.map((it, i) => it.v > 0 && (
@@ -467,9 +500,7 @@ function MemberBreakdown({ stats }) {
   });
   return (
     <div style={{ padding: '22px 14px 0' }}>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.14em', color: 'var(--ink-mute)', textTransform: 'uppercase', fontWeight: 500, padding: '0 22px 8px' }}>
-        {t('sectionMembers')}
-      </div>
+      <SectionLabel>{t('sectionMembers')}</SectionLabel>
       <div style={{ background: 'var(--cream-2)', borderRadius: 22, padding: '14px 16px', margin: '0 8px', border: '0.5px solid var(--hairline)' }}>
         {top.map((m, i) => (
           <div key={m.userId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: i ? '0.5px solid var(--hairline)' : 'none' }}>
@@ -499,6 +530,20 @@ function MemberBreakdown({ stats }) {
         ))}
       </div>
     </div>
+  );
+}
+
+// Inline emphasis for the editorial sentences in HighlightCards.
+// Same shape as AnaNum on Analytics + BudgetNum on Budget: mono for
+// money, semibold for emphasis, ink-colored so the eye lands on the
+// numbers without size escalation. Plain titles (trip names) get the
+// same treatment so the proper nouns also stand out.
+function InsNum({ children }) {
+  return (
+    <span style={{
+      fontWeight: 700, color: 'var(--ink)',
+      letterSpacing: '-0.005em',
+    }}>{children}</span>
   );
 }
 
