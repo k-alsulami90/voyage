@@ -120,48 +120,88 @@ function ScreenTrips({ goTrip, go }) {
         subtitle={t('heySunday')}
       />
 
-      {/* Insights invite — one quiet line, no dark hero card.
-         Replaces the previous statement-card hero (hero-metric template +
-         3-tile mini KPI grid + uppercase mono eyebrow) the audit flagged.
-         Smart Track now owns the dark-card slot uncontested. */}
+      {/* GLOBAL INSIGHTS CARD — editorial composition.
+         Card surface stays (visual anchor for the page) but the structural
+         slop inside it is gone: no 56px hero-metric serif number, no
+         identical 3-tile mini KPI grid, no uppercase mono eyebrow. The
+         body reads as a sentence; numbers carry hierarchy via weight,
+         not via tile frames. */}
       {stats && stats.totalTrips > 0 && (
-        <button onClick={() => go('insights')} style={{
-          all: 'unset', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 8,
-          width: '100%', boxSizing: 'border-box',
-          padding: '4px 22px 0',
-          flexDirection: 'row',
-        }}>
-          <div style={{
-            flex: 1, minWidth: 0,
-            fontSize: 13, color: 'var(--ink-mute)',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        <div style={{ padding: '0 14px' }}>
+          <button onClick={() => go('insights')} style={{
+            all: 'unset', cursor: 'pointer',
+            width: '100%', boxSizing: 'border-box',
+            background: 'var(--statement)', color: 'var(--statement-fg)',
+            borderRadius: 26, padding: '20px 22px',
+            position: 'relative', overflow: 'hidden',
+            boxShadow: 'var(--shadow-card)',
+            display: 'block',
           }}>
-            {window.isRTL ? (
-              <>
-                <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{stats.totalTrips}</span> {stats.totalTrips === 1 ? 'رحلة' : 'رحلات'}{' '}
-                · <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{stats.totalDays}</span> {window.isRTL ? 'يوم سفر' : 'days'}{' '}
-                · <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{stats.countries}</span> {stats.countries === 1 ? 'دولة' : 'دول'}
-              </>
-            ) : (
-              <>
-                <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{stats.totalTrips}</span> {stats.totalTrips === 1 ? 'trip' : 'trips'}
-                {' · '}
-                <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{stats.totalDays}</span> travel days
-                {' · '}
-                <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{stats.countries}</span> {stats.countries === 1 ? 'country' : 'countries'}
-              </>
-            )}
-          </div>
-          <span style={{
-            fontSize: 12, color: 'var(--clay-deep)', fontWeight: 500,
-            display: 'inline-flex', alignItems: 'center', gap: 3, flexDirection: 'row',
-            flexShrink: 0,
-          }}>
-            {window.isRTL ? 'إحصائيات' : 'Insights'}
-            <span className="icon-flip"><IconChevron size={11} stroke="currentColor" /></span>
-          </span>
-        </button>
+            {/* Subtle single-direction glow — replaces the dual-aurora
+               SaaS-dashboard gradient. One warm wash, low chroma, off
+               to one corner. */}
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'radial-gradient(70% 60% at 100% 0%, oklch(0.45 0.10 35 / 0.42) 0%, transparent 65%)',
+              pointerEvents: 'none',
+            }} />
+
+            <div style={{ position: 'relative' }}>
+              {/* Editorial sentence. No eyebrow above it — the sentence
+                 IS the section label. */}
+              <div style={{
+                fontSize: 17, lineHeight: 1.45,
+                color: 'var(--statement-sub)',
+                fontWeight: 400,
+              }}>
+                {window.isRTL ? (
+                  <>
+                    <NumSpan>{stats.totalTrips}</NumSpan> {stats.totalTrips === 1 ? 'رحلة' : 'رحلات'}
+                    {' · '}
+                    <NumSpan>{stats.totalDays}</NumSpan> {window.isRTL ? 'يوم سفر' : 'days'}
+                    {' · '}
+                    <NumSpan>{stats.countries}</NumSpan> {stats.countries === 1 ? 'دولة' : 'دول'}
+                  </>
+                ) : (
+                  <>
+                    <NumSpan>{stats.totalTrips}</NumSpan> {stats.totalTrips === 1 ? 'trip' : 'trips'}
+                    {' · '}
+                    <NumSpan>{stats.totalDays}</NumSpan> travel days
+                    {' · '}
+                    <NumSpan>{stats.countries}</NumSpan> {stats.countries === 1 ? 'country' : 'countries'}
+                  </>
+                )}
+              </div>
+
+              {/* Headline number is the SPEND (money math is the load-
+                 bearing job per PRODUCT.md), not vanity country count.
+                 Larger weight, not larger size — keeps the typographic
+                 scale sane and doesn't shout. */}
+              {stats.totalSpentUSD > 0 && (
+                <div style={{
+                  marginTop: 10,
+                  display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+                  gap: 8, flexDirection: 'row',
+                }}>
+                  <div className="mono" style={{
+                    fontSize: 26, fontWeight: 600,
+                    color: 'var(--statement-fg)', letterSpacing: '-0.02em',
+                  }}>
+                    {window.fmtMoney(stats.totalSpentUSD, { in: 'home' })}
+                  </div>
+                  <div style={{
+                    fontSize: 12, color: 'var(--statement-sub)',
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    flexDirection: 'row',
+                  }}>
+                    {window.isRTL ? 'الإحصائيات' : 'See insights'}
+                    <span className="icon-flip"><IconChevron size={12} stroke="currentColor" /></span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </button>
+        </div>
       )}
 
       {/* SCOPE FILTER — chips for private vs shared */}
@@ -781,6 +821,16 @@ function ActionPill({ label, href, icon, primary }) {
       {icon}
       {label}
     </a>
+  );
+}
+
+// Inline emphasis for numbers inside an editorial sentence. The numbers
+// carry hierarchy via weight + colour, not via tile frames around them.
+function NumSpan({ children }) {
+  return (
+    <span style={{
+      color: 'var(--statement-fg)', fontWeight: 600,
+    }}>{children}</span>
   );
 }
 
