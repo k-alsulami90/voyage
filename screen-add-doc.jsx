@@ -333,11 +333,13 @@ function DocStep({ number, title, hint, optional, children }) {
           fontSize: 11, fontWeight: 600, fontFamily: 'var(--mono)',
         }}>{number}</div>
         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{title}</div>
+        {/* Was uppercase mono 0.08em tracked — even the badge for
+           "optional" was shouting. Now lowercase sans, no tracking,
+           same ink-mute colour. The "·" stays as the visual separator
+           so it reads as a parenthetical note to the title. */}
         {optional && (
           <span style={{
-            fontSize: 10.5, color: 'var(--ink-mute)',
-            fontFamily: 'var(--mono)', letterSpacing: '0.08em',
-            textTransform: 'uppercase',
+            fontSize: 11, color: 'var(--ink-mute)', fontWeight: 400,
           }}>· {window.isRTL ? 'اختياري' : 'optional'}</span>
         )}
       </div>
@@ -394,10 +396,14 @@ function DocField({ field, value, onChange }) {
     : value;
   return (
     <div>
+      {/* Was uppercase mono 0.10em tracked 10px — repeated for every
+         schema field (8 in a flight doc, 4 in lodging, etc.). Now
+         sentence-case sans semibold ink. Matches the DocInfoRow fix
+         that v79 shipped on the read side. */}
       <div style={{
-        fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.10em',
-        color: 'var(--ink-mute)', textTransform: 'uppercase',
-        marginBottom: 5,
+        fontSize: 12, fontWeight: 600,
+        color: 'var(--ink)',
+        marginBottom: 6,
       }}>{field.label()}</div>
       <input
         type={inputType}
