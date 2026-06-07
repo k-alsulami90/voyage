@@ -264,11 +264,14 @@ function ViewToggle({ view, onChange }) {
       border: '0.5px solid var(--hairline)',
     }}>
       {[
-        { v: 'grid', icon: <GridIcon /> },
-        { v: 'list', icon: <ListIcon /> },
-      ].map(({ v, icon }) => (
-        <button key={v} onClick={() => onChange(v)} style={{
-          width: 32, height: 28, borderRadius: 9,
+        { v: 'grid', icon: <GridIcon />, l: window.isRTL ? 'شبكة' : 'Grid' },
+        { v: 'list', icon: <ListIcon />, l: window.isRTL ? 'قائمة' : 'List' },
+      ].map(({ v, icon, l }) => (
+        // Was 32x28 — below iOS HIG thumb-zone floor. Now 36x32 for
+        // breathing room and aria-label for screen readers.
+        <button key={v} onClick={() => onChange(v)}
+          aria-label={l} style={{
+          width: 36, height: 32, borderRadius: 9,
           background: view === v ? 'var(--ink)' : 'transparent',
           color: view === v ? 'var(--cream)' : 'var(--ink-soft)',
           display: 'grid', placeItems: 'center',
@@ -309,14 +312,28 @@ function SortMenu({ sortBy, onChange }) {
   const current = opts.find((o) => o.k === sortBy);
   return (
     <div style={{ position: 'relative' }}>
-      <button onClick={() => setOpen(!open)} style={{
+      {/* Was prefixed with IconSwap, which is the currency-exchange icon
+         (semantic mismatch — sorting is not swapping). Now an explicit
+         "Sort:" label + a chevron showing the menu opens. The actual
+         glyph carries no meaning the text doesn't already convey. */}
+      <button onClick={() => setOpen(!open)}
+        aria-label={window.isRTL ? `الترتيب: ${current?.l}` : `Sort: ${current?.l}`} style={{
         padding: '6px 12px', borderRadius: 12, fontSize: 12, fontWeight: 500,
         background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
         color: 'var(--ink-soft)',
         display: 'inline-flex', alignItems: 'center', gap: 6,
       }}>
-        <IconSwap size={11} stroke="currentColor" />
-        {current?.l}
+        <span style={{ color: 'var(--ink-mute)' }}>{window.isRTL ? 'الترتيب' : 'Sort'}:</span>
+        <span style={{ color: 'var(--ink)' }}>{current?.l}</span>
+        <span style={{
+          display: 'inline-grid', placeItems: 'center',
+          transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+          transition: 'transform 180ms',
+        }}>
+          <svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" strokeWidth="1.6">
+            <path d="M1.5 3 L4.5 6 L7.5 3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
       </button>
       {open && (
         <>
@@ -362,9 +379,23 @@ function StatusDot({ status }) {
       display: 'inline-flex', alignItems: 'center', gap: 4,
     }}>
       <span style={{ width: 7, height: 7, borderRadius: 999, background: s.color, flexShrink: 0 }} />
-      <span style={{ fontSize: 10, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{s.label}</span>
+      {/* Was uppercase mono tracked — cascades across every tile + row.
+         Status meaning is carried by the colour dot; text is secondary
+         context. Lowercase sans, no tracking. */}
+      <span style={{ fontSize: 10.5, color: 'var(--ink-mute)' }}>{s.label}</span>
     </div>
   );
+}
+
+// Format a document's cost for the tile / row chips. Uses the local
+// currency + amount when present, else falls back to the USD amount.
+// Returns null when there's no cost (so callers can conditionally render).
+function fmtDocCost(doc) {
+  if (doc.costUSD == null) return null;
+  if (doc.costCurrency && doc.costLocal != null) {
+    return `${doc.costCurrency} ${Math.round(doc.costLocal).toLocaleString()}`;
+  }
+  return `$${Math.round(doc.costUSD).toLocaleString()}`;
 }
 
 // Tint → solid color helper (used for the file-kind icon background)
@@ -434,11 +465,9 @@ function DocTileGrid({ doc, onOpen }) {
           marginTop: 6, gap: 6,
         }}>
           <StatusDot status={status} />
-          {doc.costUSD != null && (
+          {fmtDocCost(doc) && (
             <span className="mono" style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-soft)' }}>
-              {doc.costCurrency && doc.costLocal != null
-                ? `${doc.costCurrency} ${Math.round(doc.costLocal).toLocaleString()}`
-                : `$${Math.round(doc.costUSD).toLocaleString()}`}
+              {fmtDocCost(doc)}
             </span>
           )}
         </div>
@@ -492,11 +521,9 @@ function DocRowList({ doc, last, onOpen }) {
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {(window.fmtDocSummary?.(doc)) || doc.categoryLabel}
           </span>
-          {doc.costUSD != null && (
+          {fmtDocCost(doc) && (
             <span className="mono" style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-soft)', flexShrink: 0 }}>
-              · {doc.costCurrency && doc.costLocal != null
-                  ? `${doc.costCurrency} ${Math.round(doc.costLocal).toLocaleString()}`
-                  : `$${Math.round(doc.costUSD).toLocaleString()}`}
+              · {fmtDocCost(doc)}
             </span>
           )}
         </div>
