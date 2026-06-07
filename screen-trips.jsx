@@ -217,11 +217,17 @@ function ScreenTrips({ goTrip, go }) {
             </Chip>
           ))}
           <div style={{ flex: 1 }} />
-          <button onClick={() => { setShowSearch(!showSearch); setSearch(''); }} style={{
-            width: 30, height: 30, borderRadius: 999,
+          {/* Was 30x30 which is below the iOS HIG thumb-zone floor.
+             38x38 keeps it close to the chip row visually but gives
+             distracted-mobile users (Casey) a target they can actually
+             hit one-handed without mis-tapping a chip. */}
+          <button onClick={() => { setShowSearch(!showSearch); setSearch(''); }}
+            aria-label={window.isRTL ? 'بحث' : 'Search trips'} style={{
+            width: 38, height: 38, borderRadius: 999,
             background: showSearch ? 'var(--ink)' : 'var(--cream-2)',
             border: '0.5px solid var(--hairline)', display: 'grid', placeItems: 'center',
-          }}><IconSearch size={14} stroke={showSearch ? 'var(--cream)' : 'var(--ink-soft)'} /></button>
+            flexShrink: 0,
+          }}><IconSearch size={15} stroke={showSearch ? 'var(--cream)' : 'var(--ink-soft)'} /></button>
         </div>
         {showSearch && (
           <div style={{ marginTop: 10 }}>
@@ -806,22 +812,29 @@ function SmartTrackRow({ event, last, onOpenTrip }) {
           {event.detail && <span>· {event.detail}</span>}
         </div>
       </div>
+      {/* Touch targets bumped per Casey persona red flag from the
+         critique. Padding 11 + 14px icons puts the effective hit area
+         around 36px instead of the previous 29px. Distracted thumb
+         users (taxi, airport line) hit them now. */}
       {event.locationUrl && (
         <a href={event.locationUrl} target="_blank" rel="noreferrer"
           onClick={(e) => e.stopPropagation()}
           aria-label={window.isRTL ? 'الموقع' : 'Location'} style={{
-          padding: 8, borderRadius: 10,
+          minWidth: 36, minHeight: 36, padding: 11, borderRadius: 10,
           background: 'var(--cream)', color: 'var(--ink-soft)',
           border: '0.5px solid var(--hairline)',
           display: 'grid', placeItems: 'center', textDecoration: 'none',
-        }}><window.IconPin size={13} stroke="currentColor" /></a>
+          boxSizing: 'border-box',
+        }}><window.IconPin size={14} stroke="currentColor" /></a>
       )}
-      <button onClick={onOpenTrip} aria-label="Open trip" style={{
-        padding: 8, borderRadius: 10,
+      <button onClick={onOpenTrip}
+        aria-label={window.isRTL ? 'افتح الرحلة' : 'Open trip'} style={{
+        minWidth: 36, minHeight: 36, padding: 11, borderRadius: 10,
         background: 'transparent', color: 'var(--ink-mute)',
         border: '0.5px solid var(--hairline)',
         display: 'grid', placeItems: 'center',
-      }}><span className="icon-flip"><window.IconChevron size={13} stroke="currentColor" /></span></button>
+        boxSizing: 'border-box',
+      }}><span className="icon-flip"><window.IconChevron size={14} stroke="currentColor" /></span></button>
     </div>
   );
 }
