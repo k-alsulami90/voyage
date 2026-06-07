@@ -107,14 +107,21 @@ function ScreenHub({ go, openSheet, loading }) {
             </div>
           )}
 
-          {/* Dates — top-right */}
+          {/* Dates — top-right. Was uppercase mono with wide tracking,
+             the saturated AI eyebrow shape sitting on top of a photo.
+             Now: sentence-case, mono kept (numbers are tabular), no
+             tracking, slightly larger so it's readable without shouting. */}
           <div style={{
             position: 'absolute', top: 18,
             insetInlineEnd: 18,
             color: '#fff', textAlign: 'end',
           }}>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, opacity: 0.9, letterSpacing: '0.1em' }}>
-              {trip.dates.toUpperCase()}
+            <div className="mono" style={{
+              fontSize: 11.5, fontWeight: 500,
+              color: 'rgba(255,255,255,0.92)',
+              textShadow: '0 1px 4px rgba(0,0,0,0.4)',
+            }}>
+              {trip.dates}
             </div>
           </div>
 
@@ -157,7 +164,11 @@ function ScreenHub({ go, openSheet, loading }) {
 
       </div>
 
-      {/* PERSONAL BALANCE CARD — only for shared trips with non-zero balance */}
+      {/* PERSONAL BALANCE CARD — only for shared trips with non-zero balance.
+         Gradient surface kept (moss / clay carries the direction meaning at
+         a glance). Hero-metric template gone: no uppercase mono eyebrow,
+         no 26px serif amount, no big "+"/"−" glyph. The body is an
+         editorial sentence with the amount as inline emphasis. */}
       {(window.MEMBERS || []).length > 1 && (() => {
         const balance = window.computeUserBalance?.(
           window.currentUserId,
@@ -166,11 +177,25 @@ function ScreenHub({ go, openSheet, loading }) {
         );
         if (!balance || Math.abs(balance.net) < 0.5) return null;  // hide near-zero
         const owed = balance.net > 0;
+        const amount = fmtC(Math.abs(balance.net));
         const otherCount = Object.entries(balance.byOther || {})
           .filter(([, v]) => Math.abs(v) > 0.5).length;
+        const peopleEN = otherCount === 1 ? 'person' : 'people';
+        const peopleAR = otherCount === 1 ? 'شخص' : 'أشخاص';
+        const sentence = window.isRTL
+          ? (owed
+              ? <>أنت دائن بـ <BalanceAmt>{amount}</BalanceAmt> من {otherCount} {peopleAR}.</>
+              : <>أنت مدين بـ <BalanceAmt>{amount}</BalanceAmt> لـ {otherCount} {peopleAR}.</>)
+          : (owed
+              ? <>You're owed <BalanceAmt>{amount}</BalanceAmt> from {otherCount} {peopleEN}.</>
+              : <>You owe <BalanceAmt>{amount}</BalanceAmt> to {otherCount} {peopleEN}.</>);
         return (
           <div style={{ padding: '20px 14px 0', position: 'relative', zIndex: 3 }}>
-            <button onClick={() => openSheet?.('settleUp')} style={{
+            <button onClick={() => openSheet?.('settleUp')}
+              aria-label={window.isRTL
+                ? (owed ? `أنت دائن بـ ${amount}` : `أنت مدين بـ ${amount}`)
+                : (owed ? `You are owed ${amount}` : `You owe ${amount}`)}
+              style={{
               width: '100%', textAlign: 'start',
               borderRadius: 22, padding: '16px 18px',
               background: owed
@@ -180,56 +205,51 @@ function ScreenHub({ go, openSheet, loading }) {
               display: 'flex', alignItems: 'center', gap: 14,
               flexDirection: 'row',
             }}>
-              <div style={{
-                width: 44, height: 44, borderRadius: 14, flexShrink: 0,
-                background: 'rgba(255,255,255,0.20)',
-                display: 'grid', placeItems: 'center',
-                fontFamily: 'var(--serif)', fontStyle: 'italic',
-                fontSize: 26, lineHeight: 1,
-              }}>{owed ? '+' : '−'}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
-                  fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em',
-                  opacity: 0.85,
+                  fontSize: 17, lineHeight: 1.4, color: '#fff', fontWeight: 400,
+                }}>{sentence}</div>
+                <div style={{
+                  marginTop: 6, fontSize: 12, color: 'rgba(255,255,255,0.85)',
+                  display: 'inline-flex', alignItems: 'center', gap: 4, flexDirection: 'row',
                 }}>
-                  {owed ? t('balanceOwed').toUpperCase() : t('balanceOwe').toUpperCase()}
-                </div>
-                <div className="serif" style={{ fontSize: 26, lineHeight: 1.05, marginTop: 2 }}>
-                  {fmtC(Math.abs(balance.net))}
-                </div>
-                <div style={{ fontSize: 11.5, opacity: 0.88, marginTop: 3 }}>
-                  {owed
-                    ? (window.isRTL ? `من ${otherCount} شخص · ${t('balanceTapToSettle')}` : `from ${otherCount} ${otherCount === 1 ? 'person' : 'people'} · ${t('balanceTapToSettle')}`)
-                    : (window.isRTL ? `لـ ${otherCount} شخص · ${t('balanceTapToSettle')}` : `to ${otherCount} ${otherCount === 1 ? 'person' : 'people'} · ${t('balanceTapToSettle')}`)}
+                  {t('balanceTapToSettle')}
+                  <span className="icon-flip" style={{ opacity: 0.85 }}>
+                    <IconChevron size={11} stroke="currentColor" />
+                  </span>
                 </div>
               </div>
-              <IconChevron size={14} stroke="#fff" />
             </button>
           </div>
         );
       })()}
 
-      {/* OVER-BUDGET BANNER — only when spent > planned */}
+      {/* OVER-BUDGET ALERT — when spent > planned.
+         Was a full clay gradient surface, which collided visually with
+         the Personal Balance "owe" gradient when both fired. Now: a
+         restrained card with a clay-tinted background wash, hairline,
+         clay-deep text, and inline icon. Still unmistakably "alert,"
+         no longer competing with the balance gradient for the same eye. */}
       {planned > 0 && spent > planned && (
         <div style={{ padding: '20px 14px 0', position: 'relative', zIndex: 3 }}>
           <div style={{
-            borderRadius: 18, padding: '12px 14px',
-            background: 'linear-gradient(135deg, var(--clay) 0%, var(--clay-deep) 100%)',
-            color: '#fff', boxShadow: 'var(--shadow-md)',
-            display: 'flex', alignItems: 'center', gap: 12,
+            borderRadius: 14, padding: '12px 14px',
+            background: 'oklch(0.62 0.13 35 / 0.10)',
+            border: '0.5px solid oklch(0.62 0.13 35 / 0.30)',
+            display: 'flex', alignItems: 'center', gap: 10,
             flexDirection: 'row',
           }}>
             <div style={{
-              width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-              background: 'rgba(255,255,255,0.18)', display: 'grid', placeItems: 'center', fontSize: 18,
+              width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+              background: 'var(--clay)', color: '#fff',
+              display: 'grid', placeItems: 'center', fontSize: 14, lineHeight: 1,
             }}>⚠</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>
-                {window.isRTL ? `تجاوزت الميزانية بنسبة ${Math.round(((spent - planned) / planned) * 100)}٪` : `Over budget by ${Math.round(((spent - planned) / planned) * 100)}%`}
-              </div>
-              <div style={{ fontSize: 11.5, opacity: 0.85, marginTop: 2 }}>
-                {fmtC(spent - planned)} {window.isRTL ? 'فوق الحد المخطط' : 'above your planned cap'}
-              </div>
+            <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--clay-deep)' }}>
+              {window.isRTL ? (
+                <>تجاوزت الميزانية بـ <strong>{fmtC(spent - planned)}</strong> ({Math.round(((spent - planned) / planned) * 100)}٪ فوق الخطة).</>
+              ) : (
+                <>Over budget by <strong>{fmtC(spent - planned)}</strong> ({Math.round(((spent - planned) / planned) * 100)}% above plan).</>
+              )}
             </div>
           </div>
         </div>
@@ -245,31 +265,45 @@ function ScreenHub({ go, openSheet, loading }) {
           overflow: 'visible',
           border: '0.5px solid var(--hairline)',
         }}>
+          {/* Editorial sentence replaces the previous uppercase-mono eyebrow
+             + 38px serif headline + supporting line (the hero-metric
+             template from the bans list). Numbers carry hierarchy via
+             weight; the inline pct + remaining hint live in the same
+             prose so the eye reads them in one pass. */}
           <div style={{
             display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-            flexDirection: 'row',
-            marginBottom: 14,
+            gap: 12, marginBottom: 14, flexDirection: 'row',
           }}>
-            <div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.14em', color: 'var(--ink-mute)' }}>
-                {t('sharedBudget')}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6, flexDirection: 'row' }}>
-                <span className="serif" style={{ fontSize: 38, lineHeight: 1, color: 'var(--ink)' }}>
-                  {fmtC(spent)}
-                </span>
-                <span style={{ fontSize: 13, color: 'var(--ink-mute)' }}>{t('ofPlanned')} {fmtC(planned)}</span>
-              </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
-                marginTop: 4, fontSize: 12, color: 'var(--moss)', fontWeight: 500,
-                display: 'flex', alignItems: 'center', gap: 4,
-                flexDirection: 'row',
+                fontSize: 17, lineHeight: 1.5, color: 'var(--ink-soft)', fontWeight: 400,
               }}>
-                <span style={{
-                  width: 6, height: 6, borderRadius: 999, background: 'var(--moss)',
-                }} />
-                {fmtC(remaining)} {t('leftOnPace')}
+                {window.isRTL ? (
+                  planned > 0 ? (
+                    <>صرفت <BudgetNum>{fmtC(spent)}</BudgetNum> من <BudgetNum dim>{fmtC(planned)}</BudgetNum>.</>
+                  ) : (
+                    <>صرفت <BudgetNum>{fmtC(spent)}</BudgetNum> حتى الآن.</>
+                  )
+                ) : (
+                  planned > 0 ? (
+                    <>Spent <BudgetNum>{fmtC(spent)}</BudgetNum> of <BudgetNum dim>{fmtC(planned)}</BudgetNum> planned.</>
+                  ) : (
+                    <>Spent <BudgetNum>{fmtC(spent)}</BudgetNum> so far.</>
+                  )
+                )}
               </div>
+              {planned > 0 && spent <= planned && (
+                <div style={{
+                  marginTop: 6, fontSize: 12.5, color: 'var(--moss)', fontWeight: 500,
+                  display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: 'row',
+                }}>
+                  <span style={{
+                    width: 6, height: 6, borderRadius: 999, background: 'var(--moss)',
+                  }} />
+                  {fmtC(remaining)} {t('leftOnPace')}
+                  <span style={{ color: 'var(--ink-mute)' }}>· {Math.round(pct)}%</span>
+                </div>
+              )}
             </div>
             <IconChevron size={16} stroke="var(--ink-mute)" />
           </div>
@@ -417,5 +451,31 @@ const miniCard = {
   padding: '10px 14px', boxShadow: 'var(--shadow-md)',
   border: '0.5px solid var(--hairline)',
 };
+
+// Inline emphasis for the balance amount inside the editorial sentence.
+// Mono for tabular alignment of money, slightly heavier weight, same
+// colour as body so the eye reads it as inline-bold rather than as a
+// separate headline.
+function BalanceAmt({ children }) {
+  return (
+    <span className="mono" style={{
+      fontWeight: 700, fontSize: '1.15em', letterSpacing: '-0.01em',
+    }}>{children}</span>
+  );
+}
+
+// Same idea for the Budget Workspace card sentence. `dim` softens the
+// "of $X planned" reference number so the spent number reads as the
+// primary one without size escalation.
+function BudgetNum({ children, dim }) {
+  return (
+    <span className="mono" style={{
+      fontWeight: dim ? 500 : 700,
+      fontSize: '1.15em',
+      color: dim ? 'var(--ink-mute)' : 'var(--ink)',
+      letterSpacing: '-0.01em',
+    }}>{children}</span>
+  );
+}
 
 window.ScreenHub = ScreenHub;
