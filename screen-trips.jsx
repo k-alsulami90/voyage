@@ -364,7 +364,7 @@ function CurrentTripCard({ trip, onOpen }) {
           position: 'absolute', top: 14, insetInlineEnd: 14,
           padding: '5px 11px', borderRadius: 999,
           background: 'rgba(0,0,0,0.40)', color: '#fff',
-          fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.06em',
+          fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: 0,
           fontWeight: 600,
         }}>{t('dayOfTotal', { n: dayN, total: totalDays })}</div>
         {/* Title overlay */}
@@ -441,9 +441,9 @@ function UpcomingTripCard({ trip, onOpen }) {
         {trip.country && (
           <div className="glass" style={{
             position: 'absolute', top: 12, insetInlineStart: 10,
-            padding: '4px 9px', borderRadius: 999, fontSize: 10,
+            padding: '4px 9px', borderRadius: 999, fontSize: 10.5,
             color: '#fff', background: 'rgba(0,0,0,0.40)',
-            fontFamily: 'var(--mono)', letterSpacing: '0.1em',
+            fontFamily: 'var(--mono)', letterSpacing: 0, fontWeight: 600,
           }}>{trip.country}</div>
         )}
         {trip.shared && (
@@ -518,19 +518,25 @@ function PastTripCard({ trip, onOpen }) {
         </div>
         <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <span style={{
-            padding: '1px 7px', borderRadius: 999,
-            background: 'oklch(0.50 0.08 155 / 0.15)',
+            padding: '2px 8px', borderRadius: 999,
+            background: 'oklch(0.50 0.08 155 / 0.14)',
             color: 'var(--moss)',
-            fontSize: 9.5, fontFamily: 'var(--mono)', letterSpacing: '0.08em',
-            fontWeight: 600, textTransform: 'uppercase', flexShrink: 0,
+            fontSize: 10.5, fontWeight: 500,
+            flexShrink: 0,
           }}>{t('completed')}</span>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {t('lastedDays', { n: totalDays })} · {trip.dates}
           </span>
         </div>
         {spent > 0 && (
-          <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 3, fontFamily: 'var(--mono)' }}>
-            {window.fmtMoney(spent, { in: 'home' })} · {t('spentTotal').toLowerCase()}
+          <div style={{
+            fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 3,
+            display: 'flex', alignItems: 'baseline', gap: 5, flexDirection: 'row',
+          }}>
+            <span className="mono" style={{ fontWeight: 600, color: 'var(--ink)' }}>
+              {window.fmtMoney(spent, { in: 'home' })}
+            </span>
+            <span style={{ color: 'var(--ink-mute)' }}>{t('spentTotal').toLowerCase()}</span>
           </div>
         )}
       </div>
@@ -672,8 +678,12 @@ function SmartTrackCard({ event, trip, onOpenTrip }) {
           padding: '4px 10px', borderRadius: 999,
           background: isNow ? accent : 'rgba(255,255,255,0.12)',
           border: '0.5px solid rgba(255,255,255,0.18)',
-          fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.08em',
-          textTransform: 'uppercase', fontWeight: 600,
+          // Was uppercase mono with 0.08em — that fought against the
+          // natural-case content the formatter returns ("Today · 14:30",
+          // "in 25m"). Mono kept for tabular alignment of numbers; the
+          // label keeps its real case.
+          fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 600,
+          letterSpacing: 0,
         }}>
           {isNow && <span style={{
             width: 6, height: 6, borderRadius: '50%', background: '#fff',
