@@ -128,7 +128,11 @@ function ScreenTrips({ goTrip, go }) {
          not via tile frames. */}
       {stats && stats.totalTrips > 0 && (
         <div style={{ padding: '0 14px' }}>
-          <button onClick={() => go('insights')} style={{
+          <button onClick={() => go('insights')}
+            aria-label={window.isRTL
+              ? `افتح الإحصائيات — ${stats.totalTrips} رحلات، ${stats.totalDays} يوم سفر`
+              : `Open insights — ${stats.totalTrips} trips, ${stats.totalDays} travel days`}
+            style={{
             all: 'unset', cursor: 'pointer',
             width: '100%', boxSizing: 'border-box',
             background: 'var(--statement)', color: 'var(--statement-fg)',
@@ -158,7 +162,7 @@ function ScreenTrips({ goTrip, go }) {
                   <>
                     <NumSpan>{stats.totalTrips}</NumSpan> {stats.totalTrips === 1 ? 'رحلة' : 'رحلات'}
                     {' · '}
-                    <NumSpan>{stats.totalDays}</NumSpan> {window.isRTL ? 'يوم سفر' : 'days'}
+                    <NumSpan>{stats.totalDays}</NumSpan> يوم سفر
                     {' · '}
                     <NumSpan>{stats.countries}</NumSpan> {stats.countries === 1 ? 'دولة' : 'دول'}
                   </>
@@ -173,32 +177,36 @@ function ScreenTrips({ goTrip, go }) {
                 )}
               </div>
 
-              {/* Headline number is the SPEND (money math is the load-
-                 bearing job per PRODUCT.md), not vanity country count.
-                 Larger weight, not larger size — keeps the typographic
-                 scale sane and doesn't shout. */}
-              {stats.totalSpentUSD > 0 && (
-                <div style={{
-                  marginTop: 10,
-                  display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-                  gap: 8, flexDirection: 'row',
-                }}>
+              {/* Headline row — spend on the left, "See insights" on the
+                 right. The chevron affordance ships even when spend is
+                 $0 (new trip with no expenses logged yet) so the card
+                 doesn't *look* untappable in that state. */}
+              <div style={{
+                marginTop: 10,
+                display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+                gap: 8, flexDirection: 'row',
+              }}>
+                {stats.totalSpentUSD > 0 ? (
                   <div className="mono" style={{
                     fontSize: 26, fontWeight: 600,
                     color: 'var(--statement-fg)', letterSpacing: '-0.02em',
                   }}>
                     {window.fmtMoney(stats.totalSpentUSD, { in: 'home' })}
                   </div>
-                  <div style={{
-                    fontSize: 12, color: 'var(--statement-sub)',
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    flexDirection: 'row',
-                  }}>
-                    {window.isRTL ? 'الإحصائيات' : 'See insights'}
-                    <span className="icon-flip"><IconChevron size={12} stroke="currentColor" /></span>
-                  </div>
+                ) : (
+                  // Keep the row anchored even with no spend yet — empty
+                  // span pushes the affordance to the trailing edge.
+                  <span />
+                )}
+                <div style={{
+                  fontSize: 12, color: 'var(--statement-sub)',
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  flexDirection: 'row',
+                }}>
+                  {window.isRTL ? 'الإحصائيات' : 'See insights'}
+                  <span className="icon-flip"><IconChevron size={12} stroke="currentColor" /></span>
                 </div>
-              )}
+              </div>
             </div>
           </button>
         </div>
@@ -419,7 +427,6 @@ function CurrentTripCard({ trip, onOpen }) {
         <span className="icon-flip"><IconChevron size={14} stroke="var(--ink-mute)" /></span>
       </div>
       <div style={{ height: 12 }} />
-      <style>{`@keyframes pulse { 0%,100% { opacity:1; transform:scale(1) } 50% { opacity:0.5; transform:scale(0.85) } }`}</style>
     </button>
   );
 }
@@ -702,7 +709,7 @@ function SmartTrackCard({ event, trip, onOpenTrip }) {
         }}>
           {isNow && <span style={{
             width: 6, height: 6, borderRadius: '50%', background: '#fff',
-            boxShadow: '0 0 8px #fff', animation: 'pulse 1.6s ease-in-out infinite',
+            boxShadow: '0 0 8px #fff', animation: 'pulse-fade 1.6s ease-in-out infinite',
           }} />}
           {when}
         </div>
@@ -772,10 +779,6 @@ function SmartTrackCard({ event, trip, onOpenTrip }) {
           </div>
         )}
       </div>
-      <style>{`@keyframes pulse {
-        0%, 100% { opacity: 1 }
-        50% { opacity: 0.35 }
-      }`}</style>
     </div>
   );
 }

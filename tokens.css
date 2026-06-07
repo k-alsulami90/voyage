@@ -343,6 +343,24 @@ textarea:focus-visible,
   animation: sectionIn 360ms cubic-bezier(.32,.72,0,1) both;
 }
 
+/* Pulsing dot — two variants. Both use the name "pulse" historically
+   so we keep that alias and ALSO publish distinct names. Used by:
+   - The "LIVE" pill on the active trip card (opacity + scale)
+   - The "Now" pill dot on the Smart Track card (opacity only) */
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(0.85); }
+}
+@keyframes pulse-fade {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+/* Respect reduced motion — kill both pulses for users who asked. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes pulse      { 0%, 100% { opacity: 1; transform: none; } }
+  @keyframes pulse-fade { 0%, 100% { opacity: 1; } }
+}
+
 /* Pull-to-refresh indicator */
 .ptr-indicator {
   position: absolute; top: 0; left: 0; right: 0;

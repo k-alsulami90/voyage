@@ -238,77 +238,8 @@ function MonthlyChart({ stats }) {
   );
 }
 
-// ── Weekday spending pattern (Mon..Sun avg per active day) ──
-function WeekdayPattern({ stats }) {
-  const NAMES_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const NAMES_AR = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
-  const names = window.isRTL ? NAMES_AR : NAMES_EN;
-  const maxAvg = Math.max(...stats.byWeekday.map((w) => w.avg), 1);
-  const topDay = [...stats.byWeekday].sort((a, b) => b.avg - a.avg)[0];
-  return (
-    <div style={{ padding: '22px 14px 0' }}>
-      <div style={{
-        fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.14em',
-        color: 'var(--ink-mute)', textTransform: 'uppercase', fontWeight: 500,
-        padding: '0 22px 8px',
-      }}>
-        {window.isRTL ? 'حسب يوم الأسبوع' : 'By day of week'}
-      </div>
-      <div style={{
-        background: 'var(--cream-2)', borderRadius: 22, padding: '16px 14px 14px',
-        margin: '0 8px', border: '0.5px solid var(--hairline)',
-      }}>
-        <div style={{
-          display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-          gap: 6, height: 90,
-        }}>
-          {stats.byWeekday.map((w) => {
-            const pct = (w.avg / maxAvg) * 100;
-            const isTop = w.day === topDay.day && w.avg > 0;
-            return (
-              <div key={w.day} style={{
-                flex: 1, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', gap: 4,
-              }}>
-                <div className="mono" style={{
-                  fontSize: 9.5, color: isTop ? 'var(--clay-deep)' : 'var(--ink-mute)',
-                  fontWeight: isTop ? 600 : 500,
-                }}>
-                  {w.avg > 0 ? window.fmtMoney(w.avg, { in: 'home' }) : '—'}
-                </div>
-                <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-end' }}>
-                  <div style={{
-                    width: '100%', height: `${Math.max(pct, 3)}%`,
-                    background: isTop
-                      ? 'linear-gradient(180deg, var(--clay) 0%, var(--clay-deep) 100%)'
-                      : 'var(--ink-soft)',
-                    borderRadius: '4px 4px 0 0',
-                    transition: 'height 380ms cubic-bezier(.32,.72,0,1)',
-                    opacity: w.avg === 0 ? 0.2 : 1,
-                  }} />
-                </div>
-                <div style={{
-                  fontSize: 10, color: isTop ? 'var(--clay-deep)' : 'var(--ink-mute)',
-                  fontFamily: 'var(--mono)', fontWeight: isTop ? 600 : 400,
-                }}>{names[w.day]}</div>
-              </div>
-            );
-          })}
-        </div>
-        {topDay.avg > 0 && (
-          <div style={{
-            marginTop: 12, fontSize: 11.5, color: 'var(--ink-mute)',
-            textAlign: 'center', padding: '0 8px',
-          }}>
-            {window.isRTL
-              ? `أعلى صرف يوم ${names[topDay.day]} — ${window.fmtMoney(topDay.avg, { in: 'home' })} في المتوسط`
-              : `${names[topDay.day]}s are your biggest — ${window.fmtMoney(topDay.avg, { in: 'home' })} avg`}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+// WeekdayPattern was removed from the render tree in v57 ("drop weekday
+// card"). The function lived on as dead code until v70. Removed entirely.
 
 // ── Yearly bar chart with metric toggle ─────────────────────
 function YearlyChart({ stats }) {
