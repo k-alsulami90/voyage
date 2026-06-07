@@ -158,21 +158,35 @@ function ScreenAnalytics({ go, loading }) {
             justifyContent: 'space-between', alignItems: 'flex-start',
             flexDirection: 'row',
           }}>
-            <div>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.72 }}>
-                {window.isRTL ? 'المعدل اليومي' : 'DAILY AVERAGE'}
-              </div>
-              <div className="serif" style={{ fontSize: 44, lineHeight: 1, marginTop: 4 }}>
-                {fmtC(dailyAvg)}
-              </div>
-              <div style={{ fontSize: 12, opacity: 0.62, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-                {dailyPlan > 0 && (
-                  <>
-                    vs {fmtC(dailyPlan)} {window.isRTL ? 'مخطط' : 'planned'} ·{' '}
-                    <span style={{ color: burnPct > 0 ? 'oklch(0.78 0.13 30)' : 'oklch(0.78 0.13 145)' }}>
-                      {burnPct > 0 ? '+' : ''}{burnPct.toFixed(0)}%
-                    </span>
-                  </>
+            {/* Editorial sentence replaces the previous hero-metric template
+               (uppercase mono "DAILY AVERAGE" eyebrow + 44px Cormorant serif
+               headline + small "vs $X planned" sub-line). Same dark card
+               surface, same information density, different shape: numbers
+               carry hierarchy via inline weight, not via size escalation. */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 17, lineHeight: 1.5, color: 'var(--statement-sub)', fontWeight: 400,
+              }}>
+                {window.isRTL ? (
+                  dailyPlan > 0 ? (
+                    <>تصرف <AnaNum>{fmtC(dailyAvg)}</AnaNum> يومياً، الخطة <AnaNum dim>{fmtC(dailyPlan)}</AnaNum>.{' '}
+                    <span style={{
+                      color: burnPct > 0 ? 'oklch(0.78 0.13 30)' : 'oklch(0.78 0.13 145)',
+                      fontWeight: 600,
+                    }}>{burnPct > 0 ? '+' : ''}{burnPct.toFixed(0)}%</span></>
+                  ) : (
+                    <>تصرف <AnaNum>{fmtC(dailyAvg)}</AnaNum> يومياً.</>
+                  )
+                ) : (
+                  dailyPlan > 0 ? (
+                    <>You're spending <AnaNum>{fmtC(dailyAvg)}</AnaNum> a day, <AnaNum dim>{fmtC(dailyPlan)}</AnaNum> planned.{' '}
+                    <span style={{
+                      color: burnPct > 0 ? 'oklch(0.78 0.13 30)' : 'oklch(0.78 0.13 145)',
+                      fontWeight: 600,
+                    }}>{burnPct > 0 ? '+' : ''}{burnPct.toFixed(0)}%</span></>
+                  ) : (
+                    <>You're spending <AnaNum>{fmtC(dailyAvg)}</AnaNum> a day.</>
+                  )
                 )}
               </div>
             </div>
@@ -298,11 +312,15 @@ function ScreenAnalytics({ go, loading }) {
                     })}
                   </div>
                 </div>
-                {/* Legend */}
+                {/* Legend + inline peak/lowest annotation. Was uppercase mono
+                   tracked. Now sentence-case. The peak/lowest values used to
+                   live in two separate cards below the chart that duplicated
+                   the chart's own peak-bar highlight; folded them inline here
+                   so the data sits next to the visual it describes. */}
                 <div style={{
                   marginTop: 8, display: 'flex', gap: 12, flexDirection: 'row',
-                  fontSize: 9, fontFamily: 'var(--mono)', letterSpacing: '0.06em',
-                  color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase',
+                  flexWrap: 'wrap',
+                  fontSize: 10.5, color: 'rgba(255,255,255,0.65)',
                 }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                     <span style={{ width: 8, height: 8, borderRadius: 2, background: 'rgba(255,255,255,0.32)' }} />
@@ -310,12 +328,22 @@ function ScreenAnalytics({ go, loading }) {
                   </span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                     <span style={{ width: 12, height: 2, background: 'var(--clay)' }} />
-                    {window.isRTL ? 'إجمالي تراكمي' : 'running total'}
+                    {window.isRTL ? 'تراكمي' : 'running total'}
                   </span>
                   {plannedY !== null && (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                       <span style={{ width: 12, height: 1, borderTop: '1px dashed rgba(255,255,255,0.45)' }} />
                       {window.isRTL ? 'الميزانية' : 'budget'}
+                    </span>
+                  )}
+                  {maxDay.val > 0 && (
+                    <span style={{
+                      marginInlineStart: 'auto',
+                      color: 'rgba(255,255,255,0.85)', fontWeight: 500,
+                    }}>
+                      {window.isRTL
+                        ? `أعلى يوم: ${fmtC(maxDay.val)}`
+                        : `Peak: ${fmtC(maxDay.val)}`}
                     </span>
                   )}
                 </div>
@@ -389,43 +417,19 @@ function ScreenAnalytics({ go, loading }) {
         </div>
       </div>
 
-      {/* PEAK / LOWEST / TOP TX cards */}
-      <div style={{ padding: '12px 14px 0' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 }}>
-          <div style={{
-            padding: '14px', borderRadius: 18, background: 'var(--cream-2)',
-            border: '0.5px solid var(--hairline)', position: 'relative', overflow: 'hidden',
-          }}>
-            <div style={{
-              position: 'absolute', top: -12, insetInlineEnd: -12, width: 48, height: 48,
-              borderRadius: '50%', background: 'var(--clay)', opacity: 0.12,
-            }} />
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 4 }}>
-              {window.isRTL ? 'أعلى يوم' : 'PEAK DAY'}
-            </div>
-            <div className="serif" style={{ fontSize: 22 }}>{fmtC(maxDay.val)}</div>
-            <div style={{ fontSize: 10.5, color: 'var(--ink-mute)', marginTop: 2 }}>{maxDay.date}</div>
-          </div>
-          <div style={{
-            padding: '14px', borderRadius: 18, background: 'var(--cream-2)',
-            border: '0.5px solid var(--hairline)', position: 'relative', overflow: 'hidden',
-          }}>
-            <div style={{
-              position: 'absolute', top: -12, insetInlineEnd: -12, width: 48, height: 48,
-              borderRadius: '50%', background: 'var(--moss)', opacity: 0.12,
-            }} />
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 4 }}>
-              {window.isRTL ? 'أقل يوم' : 'LOWEST DAY'}
-            </div>
-            <div className="serif" style={{ fontSize: 22 }}>{fmtC(minDay.val === Infinity ? 0 : minDay.val)}</div>
-            <div style={{ fontSize: 10.5, color: 'var(--ink-mute)', marginTop: 2 }}>{minDay.date}</div>
-          </div>
-        </div>
-      </div>
+      {/* Peak/Lowest cards lived here as a 2-up identical-card-grid with
+         hero-metric chrome on each. Removed: the peak value now annotates
+         the chart inline (above) where it belongs, and "lowest day" was
+         rarely actionable (a zero-spend day isn't useful information).
+         The screen reads more as data + interpretation, less as dashboard. */}
 
-      {/* TOP TRANSACTION */}
+      {/* TOP TRANSACTION. Was wrapped in the hero-metric template
+         (uppercase mono "TOP TRANSACTION" eyebrow above title and date).
+         Now: sentence-case "Biggest expense" sits as a quiet label
+         inside the row itself. The row reads like the expense rows the
+         user already knows from Budget, just with a label of context. */}
       {topTx && (
-        <div style={{ padding: '9px 14px 0' }}>
+        <div style={{ padding: '14px 14px 0' }}>
           <div style={{
             padding: '14px 16px', borderRadius: 18, background: 'var(--cream-2)',
             border: '0.5px solid var(--hairline)',
@@ -438,11 +442,11 @@ function ScreenAnalytics({ go, loading }) {
               display: 'grid', placeItems: 'center', fontSize: 18,
             }}>💸</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.12em', color: 'var(--ink-mute)' }}>
-                {window.isRTL ? 'أعلى معاملة' : 'TOP TRANSACTION'}
+              <div style={{ fontSize: 11, color: 'var(--ink-mute)' }}>
+                {window.isRTL ? 'أكبر مصروف' : 'Biggest expense'}
               </div>
               <div style={{
-                fontSize: 13.5, fontWeight: 500, marginTop: 2,
+                fontSize: 14, fontWeight: 500, marginTop: 1,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>{topTx.title}</div>
               <div style={{ fontSize: 11, color: 'var(--ink-mute)' }}>{topTx.when}</div>
@@ -478,13 +482,16 @@ function ScreenAnalytics({ go, loading }) {
                   </span>
                 </div>
               ))}
+              {/* Footer was uppercase mono "TOTAL". Same eyebrow shape as
+                 elsewhere. Now sentence-case sans with the same hairline
+                 divider above; total still reads as the closer. */}
               <div style={{
                 paddingTop: 8, borderTop: '0.5px solid var(--hairline)',
                 display: 'flex', justifyContent: 'space-between',
                 flexDirection: 'row',
               }}>
-                <span style={{ fontSize: 11.5, color: 'var(--ink-mute)', fontFamily: 'var(--mono)' }}>
-                  {window.isRTL ? 'المجموع' : 'TOTAL'}
+                <span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>
+                  {window.isRTL ? 'المجموع' : 'Total'}
                 </span>
                 <span className="mono" style={{ fontSize: 13, fontWeight: 600 }}>{fmtC(totalUSD)}</span>
               </div>
@@ -623,35 +630,73 @@ function ScreenAnalytics({ go, loading }) {
         </div>
       )}
 
-      {/* BURN RATE summary */}
-      <div style={{ padding: '22px 14px 0' }}>
-        <div style={{
-          background: 'var(--statement)', color: 'var(--statement-fg)',
-          borderRadius: 22, padding: '18px 20px',
-          margin: '0 8px', position: 'relative', overflow: 'hidden',
-        }}>
+      {/* BURN RATE summary. Was a second dark statement card with a 4-cell
+         identical-card-grid inside, each cell its own mini hero-metric
+         (uppercase mono eyebrow + 26px Cormorant serif headline). Doubly
+         banned: identical-card-grid AND repeated hero-metric template.
+         Now: an editorial sentence with bolded inline numbers, on the
+         lighter card-bg the rest of the screen uses. Same four numbers,
+         same information, conversational shape -- and only ONE dark
+         statement card on the screen (the hero at top) instead of two. */}
+      {totalUSD > 0 && (
+        <div style={{ padding: '22px 14px 0' }}>
+          <SectionLabel>{window.isRTL ? 'الإيقاع' : 'Pace'}</SectionLabel>
           <div style={{
-            position: 'absolute', inset: 0,
-            background: 'radial-gradient(50% 60% at 10% 80%, oklch(0.45 0.10 35 / 0.4) 0%, transparent 60%)',
-          }} />
-          <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            {[
-              { l: window.isRTL ? 'المنفق' : 'Spent', v: fmtC(totalUSD) },
-              { l: window.isRTL ? 'المتبقي' : 'Remaining', v: trip?.budget?.plannedUSD ? fmtC(Math.max(0, trip.budget.plannedUSD - totalUSD)) : '--' },
-              { l: window.isRTL ? 'المعدل اليومي' : 'Daily avg', v: fmtC(dailyAvg) },
-              { l: window.isRTL ? 'التوقع' : 'Projected', v: fmtC(dailyAvg * daysTotal) },
-            ].map((s, i) => (
-              <div key={i}>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, opacity: 0.72, letterSpacing: '0.1em' }}>
-                  {s.l.toUpperCase()}
-                </div>
-                <div className="serif" style={{ fontSize: 26, lineHeight: 1.1, marginTop: 3 }}>{s.v}</div>
-              </div>
-            ))}
+            margin: '0 8px', padding: '14px 16px', borderRadius: 18,
+            background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+            fontSize: 15, lineHeight: 1.55, color: 'var(--ink-soft)',
+          }}>
+            {window.isRTL ? (
+              trip?.budget?.plannedUSD ? (
+                <>
+                  صرفت <AnaNum solid>{fmtC(totalUSD)}</AnaNum> من <AnaNum solid dim>{fmtC(trip.budget.plannedUSD)}</AnaNum>،
+                  بمعدل <AnaNum solid>{fmtC(dailyAvg)}</AnaNum> يومياً.
+                  بهذا الإيقاع ستنهي الرحلة على <AnaNum solid>{fmtC(dailyAvg * daysTotal)}</AnaNum>.
+                </>
+              ) : (
+                <>
+                  صرفت <AnaNum solid>{fmtC(totalUSD)}</AnaNum> بمعدل <AnaNum solid>{fmtC(dailyAvg)}</AnaNum> يومياً.
+                  بهذا الإيقاع ستنهي الرحلة على <AnaNum solid>{fmtC(dailyAvg * daysTotal)}</AnaNum>.
+                </>
+              )
+            ) : (
+              trip?.budget?.plannedUSD ? (
+                <>
+                  Spent <AnaNum solid>{fmtC(totalUSD)}</AnaNum> of <AnaNum solid dim>{fmtC(trip.budget.plannedUSD)}</AnaNum> planned,
+                  averaging <AnaNum solid>{fmtC(dailyAvg)}</AnaNum> a day.
+                  At this pace you'll end on <AnaNum solid>{fmtC(dailyAvg * daysTotal)}</AnaNum>.
+                </>
+              ) : (
+                <>
+                  Spent <AnaNum solid>{fmtC(totalUSD)}</AnaNum>, averaging <AnaNum solid>{fmtC(dailyAvg)}</AnaNum> a day.
+                  At this pace you'll end on <AnaNum solid>{fmtC(dailyAvg * daysTotal)}</AnaNum>.
+                </>
+              )
+            )}
           </div>
         </div>
-      </div>
+      )}
     </div>
+  );
+}
+
+// Inline emphasis for money numbers inside the editorial sentences on the
+// hero card (dark, on-statement) and the pace summary (light card). The
+// `solid` flag picks the ink-colored variant for the light card; without
+// it the helper uses statement-fg for legibility on the dark hero. `dim`
+// softens reference numbers (e.g. "of $X planned") so the spent number
+// reads as primary without size escalation.
+function AnaNum({ children, solid, dim }) {
+  const color = solid
+    ? (dim ? 'var(--ink-mute)' : 'var(--ink)')
+    : (dim ? 'rgba(255,251,244,0.55)' : 'var(--statement-fg)');
+  return (
+    <span className="mono" style={{
+      fontWeight: dim ? 500 : 700,
+      fontSize: '1.15em',
+      color,
+      letterSpacing: '-0.01em',
+    }}>{children}</span>
   );
 }
 
