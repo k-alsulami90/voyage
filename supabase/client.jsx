@@ -64,14 +64,26 @@ window.sbResendConfirmation = async (email) => {
   if (error) throw error;
 };
 
-// ── Load the user's profile-level preferences (right now: their
-// default_currency). Runs once at app boot after auth. fmtMoney /
-// fxRate fall back to this when no trip is open, so global views
-// (Trips home, Insights, App Settings) display in the user's chosen
-// currency instead of USD. Without this, money showed as USD until
-// the user opened any trip -- which set window.TRIP.homeCurrency --
-// and then "stuck" to the last opened trip's currency on subsequent
-// global views. ────────────────────────────────────────────
+// ── Load the user's effective display currency. Runs once at app
+// boot after auth, BEFORE loadTrips populates window.TRIPS -- but
+// we also re-run it AFTER loadTrips because the inference below
+// depends on having the user's trips loaded.
+//
+// Resolution order (the user's profile-level field alone is not
+// enough: every new account is created with default_currency = 'USD'
+// hardcoded, so legacy / never-changed profiles all say USD even
+// when the user lives in SAR/AED/EUR/etc territory):
+//   1. profiles.default_currency, IF the user explicitly set it
+//      to anything other than 'USD'. This is the strongest signal
+//      because it represents an explicit user choice.
+//   2. The MOST COMMON non-USD homeCurrency across the user's trips.
+//      A user with 5 SAR trips and 1 USD trip clearly thinks in SAR,
+//      regardless of what their profile says.
+//   3. Plain 'USD'. Final defensive fallback.
+//
+// This way Trips home + Insights + App Settings render in the
+// currency the user actually thinks in, instead of the hardcoded
+// USD their profile was seeded with. ─────────────────────
 window.loadUserPreferences = async (userId) => {
   if (!userId) return;
   try {
@@ -81,11 +93,37 @@ window.loadUserPreferences = async (userId) => {
       .eq('id', userId)
       .maybeSingle();
     if (error) throw error;
-    const cur = (data?.default_currency || 'USD').trim().toUpperCase();
-    window.USER_DEFAULT_CURRENCY = cur;
+
+    const profileCur = (data?.default_currency || '').trim().toUpperCase();
+
+    // 1. Explicit non-USD profile choice wins outright.
+    if (profileCur && profileCur !== 'USD') {
+      window.USER_DEFAULT_CURRENCY = profileCur;
+      return;
+    }
+
+    // 2. Otherwise infer from the user's trips. window.TRIPS may or
+    //    may not be populated yet (we run before loadTrips on the
+    //    boot path, but the second call from app.jsx runs after).
+    const trips = window.TRIPS || [];
+    if (trips.length > 0) {
+      const counts = {};
+      trips.forEach((tr) => {
+        const c = (tr.homeCurrency || '').trim().toUpperCase();
+        if (c && c !== 'USD') counts[c] = (counts[c] || 0) + 1;
+      });
+      const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+      if (top) {
+        window.USER_DEFAULT_CURRENCY = top[0];
+        return;
+      }
+    }
+
+    // 3. Final fallback. Either the user genuinely lives in USD or
+    //    we don't have enough data yet to infer better.
+    window.USER_DEFAULT_CURRENCY = profileCur || 'USD';
   } catch (err) {
     console.warn('loadUserPreferences failed', err);
-    // Defensive: at least set USD so the global default is well-defined
     window.USER_DEFAULT_CURRENCY = 'USD';
   }
 };
@@ -152,35 +190,18 @@ window.loadTrips = async (userId) => {
     status:       r.status,
   }));
 
-  // Also set the single-trip detail for the active trip
-  const active = data?.find((r) => r.status === 'active') || data?.[0];
-  if (active) {
-    window.TRIP = {
-      id:             active.id,
-      title:          active.title,
-      subtitle:       active.subtitle || '',
-      dates:          window.fmtDateRange(active.start_date, active.end_date),
-      startDate:      active.start_date,
-      endDate:        active.end_date,
-      country:        active.country_code || '',
-      countries:      Array.isArray(active.countries) && active.countries.length > 0
-                        ? active.countries.filter(Boolean)
-                        : (active.country_code ? [active.country_code] : []),
-      daysIn:         1,
-      daysTotal:      Math.ceil(
-        (new Date(active.end_date) - new Date(active.start_date)) / 86400000
-      ),
-      homeCurrency:   active.home_currency,
-      localCurrency:  active.local_currency || 'USD',
-      fx:             parseFloat(active.fx_rate) || 1,
-      budget:         { plannedUSD: parseFloat(active.budget_planned_usd) || 0, spentUSD: 0 },
-      cover:          active.cover_style || 'kyoto',
-      coverUrl:       active.cover_url || null,
-      coverPath:      active.cover_path || null,
-      weather:        { temp: '--', cond: '' },
-      next:           { label: '', when: '' },
-    };
-  }
+  // NOTE: previously this function ALSO auto-set window.TRIP to the
+  // active-or-most-recent trip. That was the real cause of the
+  // "Trips home shows USD even though my history is in SAR" bug --
+  // if the user's most recent trip happened to be a USD one, the
+  // global views (Trips home, Insights) got tagged with that single
+  // trip's currency instead of the user's overall preference.
+  //
+  // Now window.TRIP is only set when the user explicitly opens a
+  // trip (via loadTripDetail). On fresh boot it stays null, fmtMoney
+  // falls through to window.USER_DEFAULT_CURRENCY (which loadUser-
+  // Preferences infers from the most-common non-USD trip currency),
+  // and the global views display the user's effective currency.
 };
 
 // ── Settlements (Phase 2) ────────────────────────────────────

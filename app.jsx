@@ -132,11 +132,14 @@ function App() {
       }
       try {
         // Load profile-level preferences FIRST so fmtMoney has a sane
-        // fallback currency before any trip-list rendering kicks off.
-        // Without this, the Trips home + Insights briefly render in USD
-        // until the user opens a trip (which sets window.TRIP.homeCurrency).
+        // fallback currency for the first render. The profile field is
+        // hardcoded 'USD' on signup though, so trip-inference is the
+        // signal that actually matters for most users -- we re-run
+        // loadUserPreferences AFTER loadTrips so it can fall back to
+        // the most-common trip currency when the profile says USD.
         await window.loadUserPreferences?.(userId);
         await window.loadTrips(userId);
+        await window.loadUserPreferences?.(userId);
         // If we were inside a trip, reload its data too (auth refresh recovery)
         if (activeTripRef.current) {
           await loadTripData(activeTripRef.current);
