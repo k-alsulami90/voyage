@@ -38,7 +38,7 @@ function ScreenSettleUp({ back }) {
           setRecording(transfer.from + '>' + transfer.to);
           try {
             await window.recordSettlement(trip.id, transfer.from, transfer.to, transfer.amount);
-            window.toast?.(window.isRTL ? 'تم تسجيل الدفع' : 'Payment recorded', 'success');
+            window.toast?.(window.isRTL ? 'تمت تسوية الفاتورة' : 'Invoice settled.', 'success');
             setTick((n) => n + 1);
           } catch (err) {
             window.toast?.(err.message || 'Could not record', 'error');
@@ -73,8 +73,8 @@ function ScreenSettleUp({ back }) {
         title={t('settleUp')}
         subtitle={transfers.length > 0
           ? `${trip.title} · ${window.isRTL
-              ? `${transfers.length} ${transfers.length === 1 ? 'تحويل' : 'تحويلات'}`
-              : `${transfers.length} ${transfers.length === 1 ? 'transaction' : 'transactions'}`}`
+              ? `${transfers.length} ${transfers.length === 1 ? 'فاتورة' : 'فواتير'}`
+              : `${transfers.length} ${transfers.length === 1 ? 'invoice' : 'invoices'}`}`
           : trip.title}
         onBack={back}
       />
@@ -199,10 +199,10 @@ function ScreenSettleUp({ back }) {
                   ] : []}
                   onAction={async (key) => {
                     if (key !== 'delete') return;
-                    if (!confirm(window.isRTL ? 'حذف هذا التحويل؟' : 'Undo this transfer?')) return;
+                    if (!confirm(window.isRTL ? 'إلغاء تسوية هذه الفاتورة؟' : 'Undo this settled invoice?')) return;
                     try {
                       await window.deleteSettlement(s.id, trip?.id);
-                      window.toast?.(window.isRTL ? 'تم الحذف' : 'Deleted', 'success');
+                      window.toast?.(window.isRTL ? 'تم إلغاء التسوية' : 'Settlement undone', 'success');
                     }
                     catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
                   }}>

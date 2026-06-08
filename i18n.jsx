@@ -71,20 +71,25 @@ const TRANSLATIONS = {
     receiptHint:'Optional · take a photo or pick from library',
     receiptOpenFull:'Open full size',
 
-    // Settle up (Phase 2)
+    // Settle up — keep the language about INVOICES and SETTLING, not
+    // transfers or transactions. "Invoice" reads concretely in both
+    // English and Arabic and avoids the bookkeeping connotation of
+    // "transaction." Each line in Settle Up is one outstanding
+    // invoice between two people; marking it paid clears it.
     settleUp:'Settle up',
-    settleAllSettled:'All balances are zero. Nice trip.',
-    settleTransactions:'Transactions to settle',
-    settleSummary:'{n} {n,plural,one{transaction}other{transactions}} to balance everyone',
-    settleMarkPaid:'I paid this',
+    settleAllSettled:'No invoices to settle.',
+    settleTransactions:'Open invoices',
+    settleSummary:'{n} {n,plural,one{invoice}other{invoices}} to settle',
+    settleMarkPaid:'Mark as settled',
     settleShare:'Share',
-    settleHistory:'Already settled',
-    settleNoActivity:'No expenses yet — add some to get started.',
-    settleConfirmTitle:'Mark as paid?',
-    settleConfirmMsg:'{from} paid {to} {amount}. This will appear in everyone\'s balance.',
-    settleConfirmYes:'Yes, paid',
-    settleWhatsappCopy:'Hey {to}, I owe you {amount} from our trip — settled via Voyage.',
-    settleHistoryTitle:'Settlements so far',
+    settleHistory:'Settled',
+    settleNoActivity:'No expenses yet — add some to start tracking.',
+    settleConfirmTitle:'Mark invoice as settled?',
+    settleConfirmMsg:'{from} paid {to} {amount}. The invoice will move to Settled.',
+    settleConfirmYes:'Yes, settled',
+    settleWhatsappCopy:'Hey {to}, I owe you {amount} from our trip — settling via Voyage.',
+    settleHistoryTitle:'Past settlements',
+    settleInvoiceSettled:'Invoice settled.',
 
     // Splits & shared trips
     splitWithLabel:'Split with',
@@ -94,12 +99,17 @@ const TRANSLATIONS = {
     splitWithCount:'split {n} ways',
     splitYourShare:'your share',
     splitCovered:"I'm covering this",
-    balanceOwed:"You're owed",
-    balanceOwe:'You owe',
+    // Direction-aware balance phrasing -- "{name} owes you" reads
+    // clearer than the previous abstract "You're owed". The {amount}
+    // placeholder is inserted by the caller for both variants. When
+    // there's more than one counterparty the caller uses balanceFromN /
+    // balanceToN forms instead.
+    balanceOwedFrom:'{name} owes you {amount}',
+    balanceOweTo:'You owe {name} {amount}',
+    balanceOwedFromN:'{n} people owe you {amount}',
+    balanceOweToN:'You owe {n} people {amount}',
     balanceSettled:'All settled',
-    balanceFrom:'from {n} {n,plural,one{person}other{people}}',
-    balanceTo:'to {n} {n,plural,one{person}other{people}}',
-    balanceTapToSettle:'Tap to settle up',
+    balanceTapToSettle:'Tap to settle',
 
     // Insights dashboard
     insightsTitle:'Lifetime insights',
@@ -253,16 +263,20 @@ const TRANSLATIONS = {
 
     // Settle up
     settleUp:'تسوية الحسابات',
-    settleAllSettled:'كل الحسابات متسوية. رحلة موفقة.',
-    settleTransactions:'تحويلات لتسوية الحسابات',
-    settleSummary:'{n} {n,plural,one{تحويل}other{تحويلات}} لتسوية الجميع',
-    settleMarkPaid:'تم الدفع',
+    // Arabic copy uses "فاتورة" (invoice) throughout for clarity, per
+    // the user's request. "لا توجد فواتير للتسوية" reads as a clean
+    // empty state. "تمت تسوية الفاتورة" confirms an individual line
+    // was cleared.
+    settleAllSettled:'لا توجد فواتير للتسوية.',
+    settleTransactions:'فواتير مفتوحة',
+    settleSummary:'{n} {n,plural,one{فاتورة}other{فواتير}} للتسوية',
+    settleMarkPaid:'تأكيد التسوية',
     settleShare:'مشاركة',
-    settleHistory:'تمت التسوية',
+    settleHistory:'مُسوّاة',
     settleNoActivity:'لا توجد مصاريف بعد — أضف بعضاً للبدء.',
-    settleConfirmTitle:'تأكيد الدفع؟',
-    settleConfirmMsg:'{from} دفع {to} مبلغ {amount}. سيظهر في رصيد الجميع.',
-    settleConfirmYes:'نعم، تم الدفع',
+    settleConfirmTitle:'تأكيد تسوية الفاتورة؟',
+    settleConfirmMsg:'{from} دفع {to} مبلغ {amount}. ستنتقل الفاتورة إلى المُسوّاة.',
+    settleConfirmYes:'نعم، تمت التسوية',
     settleWhatsappCopy:'مرحباً {to}، أدين لك بـ {amount} من رحلتنا — تمت التسوية عبر Voyage.',
     settleHistoryTitle:'التسويات السابقة',
 
@@ -274,11 +288,13 @@ const TRANSLATIONS = {
     splitWithCount:'مقسوم بين {n}',
     splitYourShare:'حصتك',
     splitCovered:'تكفّلت بها',
-    balanceOwed:'مدين لك',
-    balanceOwe:'تدين بـ',
+    // Direction-aware balance phrasing — matches the user's preferred
+    // shape: "يدين B لك بمبلغ 115" / "أنت مدين لـ A بمبلغ 115".
+    balanceOwedFrom:'يدين {name} لك بمبلغ {amount}',
+    balanceOweTo:'أنت مدين لـ {name} بمبلغ {amount}',
+    balanceOwedFromN:'يدين لك {n} {n,plural,one{شخص}other{أشخاص}} بإجمالي {amount}',
+    balanceOweToN:'أنت مدين لـ {n} {n,plural,one{شخص}other{أشخاص}} بإجمالي {amount}',
     balanceSettled:'كل الحسابات متسوية',
-    balanceFrom:'من {n} {n,plural,one{شخص}other{أشخاص}}',
-    balanceTo:'إلى {n} {n,plural,one{شخص}other{أشخاص}}',
     balanceTapToSettle:'اضغط للتسوية',
 
     // Insights dashboard

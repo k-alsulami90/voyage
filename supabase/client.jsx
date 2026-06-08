@@ -376,7 +376,24 @@ window.computeUserBalance = function(userId, expenses, settlements) {
       owes += amt;
     }
   });
-  return { paid, owes, net: paid - owes, byOther };
+  // Net balance = sum of pairwise nets across all other members. This
+  // is the correct number for "who-owes-whom" display + the settlement
+  // algorithm. The previous `paid - owes` formula included the user's
+  // OWN share of every bill they fronted, so a user who paid 230 for
+  // a 50/50 split with one other person showed +230 net instead of
+  // the correct +115 (the share they advanced for the other party).
+  //
+  // Worked example (the one the user walked through):
+  //   Inv 1: A pays 230, split with B  -> A.byOther[B] = +115
+  //   Inv 2: B pays 180, split with A  -> A.byOther[B] = +115 - 90 = +25
+  //   Inv 3: B pays 50,  split with A  -> A.byOther[B] = +25 - 25 = 0
+  // After all three, net = 0 and Settle Up correctly shows no
+  // transactions to balance. Without this fix the Settle Up algorithm
+  // saw A.net = paid - owes = 460 - 115 = 345, B.net = 230 - 115 = 115,
+  // both positive, and produced no transfers at all -- which the user
+  // experienced as "the math feels wrong."
+  const net = Object.values(byOther).reduce((s, v) => s + v, 0);
+  return { paid, owes, net, byOther };
 };
 
 // ── Settle-up algorithm ──────────────────────────────────────

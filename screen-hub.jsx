@@ -178,23 +178,47 @@ function ScreenHub({ go, openSheet, loading }) {
         if (!balance || Math.abs(balance.net) < 0.5) return null;  // hide near-zero
         const owed = balance.net > 0;
         const amount = fmtC(Math.abs(balance.net));
-        const otherCount = Object.entries(balance.byOther || {})
-          .filter(([, v]) => Math.abs(v) > 0.5).length;
-        const peopleEN = otherCount === 1 ? 'person' : 'people';
-        const peopleAR = otherCount === 1 ? 'شخص' : 'أشخاص';
-        const sentence = window.isRTL
+        // Show "X owes you" / "you owe X" with the other party's name
+        // when there's only ONE counterparty (the common case for two-
+        // person trips, and the most natural sentence). Fall back to
+        // "N people owe you" only when there's more than one.
+        const pairs = Object.entries(balance.byOther || {})
+          .filter(([, v]) => Math.abs(v) > 0.5);
+        const otherCount = pairs.length;
+        // For the single-party case, pluck the counterparty's first name
+        // off window.MEMBERS. The balance direction (owed vs owe) tells
+        // us which side they're on; we just need the name.
+        let singleName = null;
+        if (otherCount === 1) {
+          const otherId = pairs[0][0];
+          const member = (window.MEMBERS || []).find((m) => m.id === otherId);
+          singleName = (member?.name || '').split(' ')[0] || member?.name || '';
+        }
+        const sentence = otherCount === 1 && singleName
           ? (owed
-              ? <>أنت دائن بـ <BalanceAmt>{amount}</BalanceAmt> من {otherCount} {peopleAR}.</>
-              : <>أنت مدين بـ <BalanceAmt>{amount}</BalanceAmt> لـ {otherCount} {peopleAR}.</>)
+              ? <>{window.isRTL
+                  ? <>يدين <BalanceAmt>{singleName}</BalanceAmt> لك بمبلغ <BalanceAmt>{amount}</BalanceAmt>.</>
+                  : <><BalanceAmt>{singleName}</BalanceAmt> owes you <BalanceAmt>{amount}</BalanceAmt>.</>}</>
+              : <>{window.isRTL
+                  ? <>أنت مدين لـ <BalanceAmt>{singleName}</BalanceAmt> بمبلغ <BalanceAmt>{amount}</BalanceAmt>.</>
+                  : <>You owe <BalanceAmt>{singleName}</BalanceAmt> <BalanceAmt>{amount}</BalanceAmt>.</>}</>)
           : (owed
-              ? <>You're owed <BalanceAmt>{amount}</BalanceAmt> from {otherCount} {peopleEN}.</>
-              : <>You owe <BalanceAmt>{amount}</BalanceAmt> to {otherCount} {peopleEN}.</>);
+              ? <>{window.isRTL
+                  ? <>يدين لك <BalanceAmt>{otherCount}</BalanceAmt> {otherCount === 1 ? 'شخص' : 'أشخاص'} بإجمالي <BalanceAmt>{amount}</BalanceAmt>.</>
+                  : <><BalanceAmt>{otherCount}</BalanceAmt> {otherCount === 1 ? 'person owes' : 'people owe'} you <BalanceAmt>{amount}</BalanceAmt> total.</>}</>
+              : <>{window.isRTL
+                  ? <>أنت مدين لـ <BalanceAmt>{otherCount}</BalanceAmt> {otherCount === 1 ? 'شخص' : 'أشخاص'} بإجمالي <BalanceAmt>{amount}</BalanceAmt>.</>
+                  : <>You owe <BalanceAmt>{otherCount}</BalanceAmt> {otherCount === 1 ? 'person' : 'people'} <BalanceAmt>{amount}</BalanceAmt> total.</>}</>);
         return (
           <div style={{ padding: '24px 14px 0', position: 'relative', zIndex: 3 }}>
             <button onClick={() => openSheet?.('settleUp')}
               aria-label={window.isRTL
-                ? (owed ? `أنت دائن بـ ${amount}` : `أنت مدين بـ ${amount}`)
-                : (owed ? `You are owed ${amount}` : `You owe ${amount}`)}
+                ? (owed
+                    ? (singleName ? `يدين ${singleName} لك بمبلغ ${amount}` : `يدين لك ${otherCount} أشخاص بإجمالي ${amount}`)
+                    : (singleName ? `أنت مدين لـ ${singleName} بمبلغ ${amount}` : `أنت مدين لـ ${otherCount} أشخاص بإجمالي ${amount}`))
+                : (owed
+                    ? (singleName ? `${singleName} owes you ${amount}` : `${otherCount} people owe you ${amount}`)
+                    : (singleName ? `You owe ${singleName} ${amount}` : `You owe ${otherCount} people ${amount}`))}
               style={{
               width: '100%', textAlign: 'start',
               borderRadius: 22, padding: '16px 18px',
