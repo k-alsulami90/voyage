@@ -71,16 +71,38 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
             border: '4px solid var(--cream)',
           }}>{me.initials}</div>
 
+          {/* Profile card content. Was a hero-metric template -- uppercase
+             mono "PRO TRAVELER" eyebrow (marketing-tier phrase implying a
+             non-pro tier that doesn't exist) + 22px serif name + 3 mono
+             uppercase stat pills ("5 TRIPS", "28 DAYS", "3 CTRY"). Same
+             eyebrow pattern as the rest of the chain. The dark card
+             surface stays -- it's a justified single profile anchor --
+             but the content is now: name as the headline, email below,
+             and ONE inline sentence with the lifetime totals in
+             sentence-case sans with mono numbers for tabular alignment. */}
           <div style={{ position: 'relative' }}>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.72 }}>
-              {t('proTraveler')}
-            </div>
-            <div className="serif" style={{ fontSize: 22, lineHeight: 1.05, marginTop: 2 }}>{me.name}</div>
-            <div style={{ fontSize: 11, opacity: 0.78, marginTop: 1 }}>{email || (window.isRTL ? 'جاري التحميل…' : 'Loading…')}</div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 10, flexDirection: 'row', flexWrap: 'wrap' }}>
-              <span style={statPill}>{stat.totalTrips} {window.isRTL ? 'رحلة' : 'TRIPS'}</span>
-              <span style={statPill}>{stat.totalDays} {window.isRTL ? 'يوم' : 'DAYS'}</span>
-              <span style={statPill}>{stat.countries} {window.isRTL ? 'دولة' : 'CTRY'}</span>
+            <div className="serif" style={{ fontSize: 22, lineHeight: 1.05 }}>{me.name}</div>
+            <div style={{ fontSize: 11.5, opacity: 0.78, marginTop: 2 }}>{email || (window.isRTL ? 'جاري التحميل…' : 'Loading…')}</div>
+            <div style={{
+              marginTop: 10, fontSize: 12, color: 'rgba(255,251,244,0.78)',
+            }}>
+              {window.isRTL ? (
+                <>
+                  <ProfileNum>{stat.totalTrips}</ProfileNum> {stat.totalTrips === 1 ? 'رحلة' : 'رحلات'}
+                  {' · '}
+                  <ProfileNum>{stat.totalDays}</ProfileNum> {stat.totalDays === 1 ? 'يوم' : 'يوم'}
+                  {' · '}
+                  <ProfileNum>{stat.countries}</ProfileNum> {stat.countries === 1 ? 'دولة' : 'دول'}
+                </>
+              ) : (
+                <>
+                  <ProfileNum>{stat.totalTrips}</ProfileNum> {stat.totalTrips === 1 ? 'trip' : 'trips'}
+                  {' · '}
+                  <ProfileNum>{stat.totalDays}</ProfileNum> {stat.totalDays === 1 ? 'day' : 'days'}
+                  {' · '}
+                  <ProfileNum>{stat.countries}</ProfileNum> {stat.countries === 1 ? 'country' : 'countries'}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -215,10 +237,15 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
         </div>
       </div>
 
+      {/* Footer imprint. The "Built in Makkah" sentiment is a real
+         brand moment for a Gulf-region app and stays. What goes is the
+         uppercase mono 0.16em tracking that rendered it as a barcode;
+         now plain mono (matches the v-number naturally), sentence-case,
+         no tracking. */}
       <div style={{ textAlign: 'center', padding: '32px 0 20px', color: 'var(--ink-mute)' }}>
         <div className="serif-italic" style={{ fontSize: 18 }}>voyage</div>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.16em', marginTop: 4 }}>
-          v 1.0.0 · {window.isRTL ? 'صُنع في مكة' : 'BUILT IN MAKKAH'}
+        <div className="mono" style={{ fontSize: 10.5, marginTop: 6 }}>
+          v 1.0.0 · {window.isRTL ? 'صُنع في مكة' : 'Built in Makkah'}
         </div>
       </div>
     </div>
@@ -301,11 +328,18 @@ function InstallCard() {
   );
 }
 
-const statPill = {
-  padding: '3px 9px', borderRadius: 999,
-  background: 'rgba(255,255,255,0.10)', fontSize: 10.5, fontWeight: 500,
-  fontFamily: 'var(--mono)', letterSpacing: '0.08em',
-};
+// Inline emphasis for the lifetime-totals sentence inside the dark
+// profile card. Mono for tabular alignment, slightly heavier weight,
+// cream so the numbers carry weight without size escalation against
+// the dark card surface.
+function ProfileNum({ children }) {
+  return (
+    <span className="mono" style={{
+      fontWeight: 700, color: '#fff',
+      letterSpacing: '-0.005em',
+    }}>{children}</span>
+  );
+}
 
 // Editable profile preferences — default currency + home city.
 // Saves to public.profiles. Component lives at module scope so inputs don't
