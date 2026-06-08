@@ -341,7 +341,7 @@ function App() {
         }}
       />;
     }
-    else if (route.name === 'insights') screenNode = <window.ScreenInsights go={go} />;
+    else if (route.name === 'insights') screenNode = <window.ScreenInsights go={go} goTrip={goTrip} />;
     else if (route.name === 'appSettings') screenNode = <window.ScreenAppSettings go={go} onSignOut={async () => { await window.sbSignOut(); }} dark={tw.dark} lang={tw.lang} onDarkToggle={(v) => setTweak('dark', v)} onLangChange={(v) => setTweak('lang', v)} />;
     else screenNode = <window.ScreenTrips go={go} goTrip={goTrip} />;
   } else {

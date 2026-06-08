@@ -8,7 +8,7 @@
 // No card grid. Each chapter is plain typography on cream, separated
 // by 0.5px hairlines with generous vertical rhythm.
 
-function ScreenInsights({ go }) {
+function ScreenInsights({ go, goTrip }) {
   const [stats, setStats] = React.useState(window.LIFETIME_STATS || null);
   const [loading, setLoading] = React.useState(!window.LIFETIME_STATS);
 
@@ -123,7 +123,7 @@ function ScreenInsights({ go }) {
       {yearTrips.length > 0 && (
         <>
           <LedgerDivider />
-          <TripList trips={yearTrips} year={heroYear} go={go} />
+          <TripList trips={yearTrips} year={heroYear} goTrip={goTrip} />
         </>
       )}
 
@@ -229,6 +229,35 @@ function NotableTrips({ stats }) {
   const isAr = !!window.isRTL;
   const fmt = (n) => window.fmtMoney(n, { in: 'home' });
   if (!longest && !expensive) return null;
+
+  // If the longest trip IS also the most expensive (common for big
+  // international trips), collapse to a single centered entry showing
+  // both stats. Rendering the same trip name twice in adjacent columns
+  // looks broken; a combined entry reads as "this one trip carried
+  // both records," which is actually the real insight.
+  const sameTrip = longest && expensive && longest.id === expensive.id;
+  if (sameTrip) {
+    return (
+      <ChapterFrame title={isAr ? 'الأبرز عبر الرحلات' : 'Notable trip'}
+                    subtitle={isAr ? 'الأطول والأغلى في رحلاتك' : 'longest and biggest of all your travel'}>
+        <div style={{ padding: '0 22px', textAlign: 'center' }}>
+          <div className="serif-italic" style={{
+            fontSize: 26, lineHeight: 1.2, color: 'var(--ink)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>{longest.title}</div>
+          <div className="mono" style={{
+            marginTop: 6, fontSize: 13.5, fontWeight: 600, color: 'var(--ink-soft)',
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            {longest.dur} {isAr ? 'يوم' : (longest.dur === 1 ? 'day' : 'days')}
+            <span style={{ color: 'var(--ink-mute)' }}> · </span>
+            {fmt(expensive.spent)}
+          </div>
+        </div>
+      </ChapterFrame>
+    );
+  }
+
   return (
     <ChapterFrame title={isAr ? 'الأبرز عبر الرحلات' : 'Notable trips'}
                   subtitle={isAr ? 'عبر كل رحلاتك' : 'across all your travel'}>
@@ -438,7 +467,7 @@ function MonthSparkline({ byMonth }) {
 // ── Trip list ─────────────────────────────────────────────────
 // Chronological list of the current year's trips. Each row is a
 // button → opens that trip's analytics. Title + dates + duration + spend.
-function TripList({ trips, year, go }) {
+function TripList({ trips, year, goTrip }) {
   const isAr = !!window.isRTL;
   const fmt = (n) => window.fmtMoney(n, { in: 'home' });
   const monthDay = (iso) => {
@@ -461,10 +490,7 @@ function TripList({ trips, year, go }) {
             : '—';
           return (
             <button key={tr.id}
-              onClick={() => {
-                window.openTrip?.(tr.id);
-                go?.('hub');
-              }}
+              onClick={() => goTrip?.(tr.id)}
               aria-label={isAr ? `افتح ${tr.title}` : `Open ${tr.title}`}
               style={{
                 all: 'unset', cursor: 'pointer', width: '100%',
