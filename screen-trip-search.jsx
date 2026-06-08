@@ -94,10 +94,12 @@ function ScreenTripSearch({ back, openSheet, openDoc, go }) {
           }}>{window.isRTL ? 'إلغاء' : 'Cancel'}</button>
         </div>
         {hasQ && (
+          // Was uppercase mono 0.06em tracked. Now sentence-case sans
+          // ink-mute -- reads as the natural "3 results" sub-label, not
+          // a barcode under the search input.
           <div style={{
             marginTop: 8, padding: '0 4px',
-            fontSize: 11, color: 'var(--ink-mute)', fontFamily: 'var(--mono)',
-            letterSpacing: '0.06em', textTransform: 'uppercase',
+            fontSize: 12, color: 'var(--ink-mute)',
           }}>
             {total === 0
               ? (window.isRTL ? 'لا توجد نتائج' : 'No results')
@@ -239,15 +241,19 @@ function ScreenTripSearch({ back, openSheet, openDoc, go }) {
 function ResultSection({ title, count, children }) {
   return (
     <div style={{ marginBottom: 18 }}>
+      {/* Section header was uppercase mono 0.10em tracked -- cascades
+         3x per search (Expenses / Documents / Plan). Now sans semibold
+         sentence-case matching SectionLabel's typography, with the
+         count on the right where it was. */}
       <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
         flexDirection: 'row', padding: '0 4px', marginBottom: 8,
       }}>
         <div style={{
-          fontSize: 11, fontFamily: 'var(--mono)', letterSpacing: '0.10em',
-          color: 'var(--ink-mute)', textTransform: 'uppercase', fontWeight: 600,
+          fontSize: 13, fontWeight: 600,
+          color: 'var(--ink)', letterSpacing: '-0.01em',
         }}>{title}</div>
-        <div style={{ fontSize: 11, color: 'var(--ink-mute)' }}>{count}</div>
+        <div style={{ fontSize: 11.5, color: 'var(--ink-mute)' }}>{count}</div>
       </div>
       <div style={{
         background: 'var(--cream-2)', borderRadius: 18, overflow: 'hidden',
