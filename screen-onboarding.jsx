@@ -66,12 +66,16 @@ function ScreenOnboarding({ onComplete, onCreateTrip }) {
       background: 'var(--cream)',
       display: 'flex', flexDirection: 'column',
     }}>
-      {/* Aurora-tinted top half for visual richness without animation cost */}
+      {/* Atmospheric warm wash for the onboarding entrance. Was a dual-
+         radial (clay + indigo) -- the "dual-aurora SaaS gradient" PRODUCT.md
+         flags. Now a single, slightly larger clay-toned radial centered
+         high-right, keeping the brand-moment richness without the
+         saturated AI shape. The first impression of the app deserves
+         atmosphere; it doesn't need two competing chromas. */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, height: 360,
         background:
-          'radial-gradient(ellipse 70% 60% at 25% 30%, rgba(255,138,92,0.18) 0%, transparent 60%),' +
-          'radial-gradient(ellipse 50% 40% at 80% 10%, rgba(107,123,255,0.15) 0%, transparent 55%)',
+          'radial-gradient(ellipse 85% 70% at 50% 18%, rgba(255,138,92,0.20) 0%, transparent 65%)',
         pointerEvents: 'none',
       }} />
 
@@ -81,9 +85,12 @@ function ScreenOnboarding({ onComplete, onCreateTrip }) {
         padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 22px 14px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
+        {/* Step indicator was uppercase mono 0.14em tracked. The numbers
+           are load-bearing for the flow but the eyebrow shape isn't —
+           now sans semibold sentence-case. */}
         <div style={{
-          fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.14em',
-          color: 'var(--ink-mute)', textTransform: 'uppercase', fontWeight: 500,
+          fontSize: 12, fontWeight: 600,
+          color: 'var(--ink-soft)',
         }}>
           {t('obStep').replace('{a}', step).replace('{b}', TOTAL)}
         </div>
@@ -220,9 +227,13 @@ function StepBasics({ name, setName, home, setHome, currency, setCurrency, curre
     color: 'var(--ink)', fontSize: 16, outline: 'none',
     textAlign: 'start',
   };
+  // One labelStyle drives the three field labels (Name, Home, Currency).
+  // Was uppercase mono tracked 0.12em — same eyebrow shape as the
+  // labelStyle const cleaned on Plan (v78), Doc Detail (v79), and
+  // App Settings (v89). Now sentence-case sans semibold ink.
   const labelStyle = {
-    fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em',
-    color: 'var(--ink-mute)', marginBottom: 6, display: 'block',
+    fontSize: 12, fontWeight: 600,
+    color: 'var(--ink)', marginBottom: 6, display: 'block',
   };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18, paddingTop: 16 }}>
@@ -298,9 +309,11 @@ function StepDone({ name, home, currency }) {
             borderTop: i ? '0.5px solid var(--hairline)' : 'none',
             paddingTop: i ? 10 : 0,
           }}>
+            {/* Recap row labels were uppercase mono 0.1em — now
+               sentence-case sans, smaller weight than the value
+               beside it so the value reads as primary. */}
             <span style={{
-              fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em',
-              color: 'var(--ink-mute)', textTransform: 'uppercase',
+              fontSize: 12, color: 'var(--ink-mute)',
             }}>{row.label}</span>
             <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 500 }}>{row.value}</span>
           </div>
