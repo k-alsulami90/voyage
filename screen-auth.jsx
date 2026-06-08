@@ -127,7 +127,11 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
         </div>
 
         <div style={{ marginTop: 64 }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.18em', opacity: 0.75 }}>
+          {/* Tagline was uppercase mono 0.18em tracked. Now sans semibold
+             sentence-case at the same opacity. The serif-italic 54px
+             headline below carries the actual brand weight; the tagline
+             is just context. */}
+          <div style={{ fontSize: 12, fontWeight: 500, opacity: 0.78 }}>
             {t('tagline')}
           </div>
           <div className="serif-italic" style={{ fontSize: 54, lineHeight: 0.95, marginTop: 8, letterSpacing: '-0.02em' }}>
@@ -201,7 +205,7 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
             <Field label={mode === 'reset' ? (window.isRTL ? 'كلمة مرور جديدة' : 'New password') : t('password')}
               placeholder="••••••••" type="password"
               value={password} onChange={setPass}
-              icon={<IconGear size={14} stroke="var(--ink-mute)" />}
+              icon={<IconLock size={14} stroke="var(--ink-mute)" />}
               action={mode === 'signin' && t('forgotPassword')}
               onAction={mode === 'signin' ? () => { setMode('forgot'); setError(null); } : null} />
           )}
@@ -209,7 +213,7 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
             <Field label={window.isRTL ? 'تأكيد كلمة المرور' : 'Confirm password'}
               placeholder="••••••••" type="password"
               value={confirmPw} onChange={setConfirmPw}
-              icon={<IconGear size={14} stroke="var(--ink-mute)" />} />
+              icon={<IconLock size={14} stroke="var(--ink-mute)" />} />
           )}
 
           {/* Check email notice for signup */}
@@ -311,16 +315,18 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
 
       </div>
 
-      {/* Footer */}
+      {/* Footer mode-switch was uppercase mono 0.16em -- same eyebrow
+         shape repeated. Now: plain sans 12.5px sentence-case with the
+         "Create one" / "Sign in" verb in clay-deep semibold. Reads as
+         an inline sentence, not a barcode. */}
       {(mode === 'signin' || mode === 'signup') && (
       <div style={{
         textAlign: 'center', padding: '20px 0 28px',
-        fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.16em',
-        color: 'var(--ink-mute)',
+        fontSize: 12.5, color: 'var(--ink-mute)',
       }}>
         {mode === 'signup' ? t('alreadyHaveAccount') : t('newToVoyage')}
         <button onClick={() => setMode(mode === 'signup' ? 'signin' : 'signup')} style={{
-          marginInlineStart: 6, color: 'var(--clay-deep)', fontWeight: 600, letterSpacing: '0.16em',
+          marginInlineStart: 6, color: 'var(--clay-deep)', fontWeight: 600,
         }}>{mode === 'signup' ? t('signinLink') : t('createOne')}</button>
       </div>
       )}
@@ -331,14 +337,19 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
 function Field({ label, placeholder, type = 'text', icon, action, onAction, value, onChange }) {
   return (
     <div>
+      {/* Field label was uppercase mono 0.14em tracked — this Field
+         renders 4x in signup mode (Full name / Email / Password /
+         Confirm), so the eyebrow shape cascaded. Now sentence-case
+         sans semibold; the right-side action ("Forgot password?")
+         stays clay-deep but loses its inherited tracking. */}
       <div style={{
         display: 'flex', justifyContent: 'space-between',
         flexDirection: 'row',
-        fontSize: 10.5, fontFamily: 'var(--mono)', letterSpacing: '0.14em',
-        color: 'var(--ink-mute)', textTransform: 'uppercase', marginBottom: 5, padding: '0 4px',
+        fontSize: 12, fontWeight: 600,
+        color: 'var(--ink-soft)', marginBottom: 5, padding: '0 4px',
       }}>
         <span>{label}</span>
-        {action && <button onClick={onAction || undefined} style={{ color: 'var(--clay-deep)' }}>{action}</button>}
+        {action && <button onClick={onAction || undefined} style={{ color: 'var(--clay-deep)', fontWeight: 500 }}>{action}</button>}
       </div>
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,

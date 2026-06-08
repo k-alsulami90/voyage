@@ -39,6 +39,8 @@ const IconCompass  = (p) => <Ico {...p} d={<><circle cx="12" cy="12" r="9"/><pat
 const IconSparkle  = (p) => <Ico {...p} d={<><path d="M12 4l1.5 4.5L18 10l-4.5 1.5L12 16l-1.5-4.5L6 10l4.5-1.5z"/></>} />;
 const IconCamera   = (p) => <Ico {...p} d={<><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z"/><circle cx="12" cy="13" r="3.5"/></>} />;
 const IconClose    = (p) => <Ico {...p} sw={2} d={<><path d="M6 6l12 12M18 6L6 18"/></>} />;
+// Padlock — body rect + shackle arc. For password / secure-field inputs.
+const IconLock     = (p) => <Ico {...p} d={<><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></>} />;
 
 Object.assign(window, {
   IconHome, IconWallet, IconDoc, IconUsers, IconGear,
@@ -46,5 +48,5 @@ Object.assign(window, {
   IconPin, IconClock, IconCloud, IconUpload, IconImg, IconPdf,
   IconSearch, IconFilter, IconSwap, IconEdit, IconTrash, IconCheck,
   IconLink, IconBell, IconArchive, IconSun, IconCompass, IconSparkle,
-  IconCamera, IconClose,
+  IconCamera, IconClose, IconLock,
 });
