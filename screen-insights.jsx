@@ -1,5 +1,12 @@
-// Global Insights — full lifetime analytics dashboard.
+// Insights — Year Ledger.
+// Reads top-to-bottom like a personal travel annual report, not a
+// dashboard. Hero year + editorial sentence + a few quiet chapters
+// (notable trips, category stack, sparkline, this year's trip list),
+// then a previous-years footer and lifetime imprint at the bottom.
+//
 // Aggregates every trip + every expense via window.loadLifetimeStats().
+// No card grid. Each chapter is plain typography on cream, separated
+// by 0.5px hairlines with generous vertical rhythm.
 
 function ScreenInsights({ go }) {
   const [stats, setStats] = React.useState(window.LIFETIME_STATS || null);
@@ -42,508 +49,576 @@ function ScreenInsights({ go }) {
     return (
       <div style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>
         {HeaderEl}
-        <div style={{ padding: '60px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 12 }}>
-          <div style={{ width: 72, height: 72, borderRadius: 20, background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', display: 'grid', placeItems: 'center' }}><IconSparkle size={32} stroke="var(--ink-mute)" /></div>
+        <div style={{
+          padding: '60px 24px',
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          textAlign: 'center', gap: 12,
+        }}>
+          <div style={{
+            width: 72, height: 72, borderRadius: 20,
+            background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+            display: 'grid', placeItems: 'center',
+          }}><IconSparkle size={32} stroke="var(--ink-mute)" /></div>
           <div className="serif" style={{ fontSize: 22, color: 'var(--ink)' }}>{t('noInsightsYet')}</div>
           <div style={{ fontSize: 13, color: 'var(--ink-mute)', maxWidth: 260, lineHeight: 1.5 }}>{t('noInsightsSub')}</div>
-          <button onClick={() => go('trips')} style={{ marginTop: 4, padding: '12px 22px', borderRadius: 14, background: 'var(--ink)', color: 'var(--cream)', fontSize: 13.5, fontWeight: 600 }}>{window.isRTL ? '← الرحلات' : 'Go to trips →'}</button>
+          <button onClick={() => go('trips')} style={{
+            marginTop: 4, padding: '12px 22px', borderRadius: 14,
+            background: 'var(--ink)', color: 'var(--cream)',
+            fontSize: 13.5, fontWeight: 600,
+          }}>{window.isRTL ? '← الرحلات' : 'Go to trips →'}</button>
         </div>
       </div>
     );
   }
 
+  // ── Hero year: most recent year with activity. byYear is sorted
+  // ascending; the last entry with spent > 0 is the year the user
+  // most recently traveled in. Falls back to last entry if none have
+  // positive spend (defensive — shouldn't happen if totalTrips > 0). */
+  const yearsWithActivity = stats.byYear.filter((y) => (y.trips || 0) > 0);
+  const heroYearRow = yearsWithActivity.length > 0
+    ? yearsWithActivity[yearsWithActivity.length - 1]
+    : stats.byYear[stats.byYear.length - 1];
+  const heroYear = heroYearRow.year;
+
+  // Current-year trips. tripSpend carries startDate; filter to the hero
+  // year using the trip's start. Sorted by start ascending so the list
+  // reads chronologically (Jan first, Dec last).
+  const yearTrips = stats.tripSpend
+    .filter((tr) => tr.startDate && new Date(tr.startDate).getFullYear() === heroYear)
+    .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+
+  // Previous years footer — every year EXCEPT the hero year, most
+  // recent first (descending), only ones with at least one trip.
+  const previousYears = stats.byYear
+    .filter((y) => y.year !== heroYear && (y.trips || 0) > 0)
+    .sort((a, b) => b.year - a.year);
+
   return (
-    <div data-screen-label="Lifetime Insights" style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>
+    <div data-screen-label="Lifetime Insights · Year Ledger" style={{
+      background: 'var(--cream)', minHeight: '100%', paddingBottom: 100,
+    }}>
       {HeaderEl}
-      <LifetimeOverview stats={stats} />
-      {stats.byMonth && stats.byMonth.some((m) => m.spent > 0) && <MonthlyChart stats={stats} />}
-      {stats.byYear.length > 0 && <YearlyChart stats={stats} />}
-      {stats.byCategory.length > 0 && <CategoryBreakdown stats={stats} />}
-      {stats.tripSpend.length > 0 && <TripLeaderboard stats={stats} go={go} />}
-      <HighlightCards stats={stats} />
-      <TripStatusBreakdown stats={stats} />
-      {stats.byMember.length > 1 && <MemberBreakdown stats={stats} />}
-      <div style={{ padding: '40px 22px 24px', textAlign: 'center' }}>
-        <div className="wordmark" style={{ fontSize: 22, color: 'var(--ink-soft)' }}>voyage</div>
-        <div style={{ fontSize: 12, marginTop: 6, color: 'var(--ink-mute)' }}>
-          {stats.expenseCount} {window.isRTL ? 'مصروف' : (stats.expenseCount === 1 ? 'expense' : 'expenses')}
-          {' · '}
-          {stats.totalTrips} {window.isRTL ? 'رحلة' : (stats.totalTrips === 1 ? 'trip' : 'trips')}
-        </div>
-      </div>
+
+      <YearHero year={heroYear} />
+      <LedgerSentence row={heroYearRow} />
+
+      <LedgerDivider />
+      <NotableTrips stats={stats} />
+
+      {stats.byCategory.length > 0 && (
+        <>
+          <LedgerDivider />
+          <CategoryStack stats={stats} />
+        </>
+      )}
+
+      {stats.byMonth.some((m) => m.spent > 0) && (
+        <>
+          <LedgerDivider />
+          <MonthSparkline byMonth={stats.byMonth} />
+        </>
+      )}
+
+      {yearTrips.length > 0 && (
+        <>
+          <LedgerDivider />
+          <TripList trips={yearTrips} year={heroYear} go={go} />
+        </>
+      )}
+
+      {previousYears.length > 0 && (
+        <>
+          <LedgerDivider />
+          <PreviousYears years={previousYears} />
+        </>
+      )}
+
+      <LedgerFooter stats={stats} />
     </div>
   );
 }
 
-// ── Overview ─────────────────────────────────────────────────
-// Dark statement card as the page anchor — same pattern as the Trips
-// home Insights card. The structural slop the audit caught is gone:
-// no 56px hero-metric serif number, no identical 3-tile KPI grid,
-// no uppercase mono eyebrow. The body reads as a sentence; the spend
-// gets a dedicated mono row below it as the headline number.
-function LifetimeOverview({ stats }) {
-  const isAr = !!window.isRTL;
-  const spent     = window.fmtMoney(stats.totalSpentUSD, { in: 'home' });
-  const avg       = window.fmtMoney(stats.avgDailyAcrossLifetime, { in: 'home' });
-  const trips     = stats.totalTrips;
-  const days      = stats.totalDays;
-  const countries = stats.countries;
-
-  const num = {
-    color: 'var(--statement-fg)', fontWeight: 600,
-  };
-
+// ── Hero ──────────────────────────────────────────────────────
+// Tiny label + very large year number. The year is the page anchor
+// (and someday the year selector — for now read-only). Type chosen:
+// Geist 600 large; size carries authority, not the font itself.
+function YearHero({ year }) {
   return (
-    <div style={{ padding: '4px 14px 0' }}>
+    <div style={{
+      padding: '20px 22px 18px', textAlign: 'center',
+    }}>
       <div style={{
-        background: 'var(--statement)', color: 'var(--statement-fg)',
-        borderRadius: 26, padding: '22px 22px 20px',
-        position: 'relative', overflow: 'hidden',
-        boxShadow: 'var(--shadow-card)',
-      }}>
-        {/* Single one-corner warm wash, not the dual-aurora SaaS
-           gradient. Subtle, no chroma competition. */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'radial-gradient(70% 60% at 100% 0%, oklch(0.45 0.10 35 / 0.40) 0%, transparent 65%)',
-          pointerEvents: 'none',
-        }} />
-
-        <div style={{ position: 'relative' }}>
-          {/* Editorial sentence — no eyebrow above it. The sentence IS
-             the section. */}
-          <div style={{
-            fontSize: 16, lineHeight: 1.5,
-            color: 'var(--statement-sub)', fontWeight: 400,
-            maxWidth: 460,
-          }}>
-            {isAr ? (
-              <>
-                صرفت عبر <span style={num}>{trips}</span> {trips === 1 ? 'رحلة' : 'رحلات'}،{' '}
-                في <span style={num}>{countries}</span> {countries === 1 ? 'دولة' : 'دول'}،{' '}
-                على مدى <span style={num}>{days}</span> يوم سفر،{' '}
-                بمعدل <span style={num}>{avg}</span> في اليوم.
-              </>
-            ) : (
-              <>
-                Across <span style={num}>{trips}</span> {trips === 1 ? 'trip' : 'trips'},
-                in <span style={num}>{countries}</span> {countries === 1 ? 'country' : 'countries'},
-                over <span style={num}>{days}</span> travel days,
-                at <span style={num}>{avg}</span> a day.
-              </>
-            )}
-          </div>
-
-          {/* Headline money number — earns the size because PRODUCT.md
-             principle #1 says money math is the load-bearing job. */}
-          <div className="mono" style={{
-            marginTop: 14, fontSize: 36, fontWeight: 600,
-            color: 'var(--statement-fg)', letterSpacing: '-0.025em',
-            lineHeight: 1,
-          }}>{spent}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Monthly bar chart (last 12 months, day-by-day style) ────
-function MonthlyChart({ stats }) {
-  const maxVal = Math.max(...stats.byMonth.map((m) => m.spent || 0), 1);
-  const totalThisRange = stats.byMonth.reduce((s, m) => s + m.spent, 0);
-  const activeMonths   = stats.byMonth.filter((m) => m.spent > 0).length;
-  const avgPerMonth    = activeMonths > 0 ? totalThisRange / activeMonths : 0;
-  const monthShort = (m) => new Date(2000, m.month, 1).toLocaleDateString(window.isRTL ? 'ar' : 'en', { month: 'short' });
-  return (
-    <div style={{ padding: '22px 14px 0' }}>
-      {/* Was inline uppercase mono tracked. Now a custom header row that
-         mirrors SectionLabel's typography (13px sans semibold ink) but
-         keeps the "avg: $X" sub-line on the right where the user expects
-         a hint, not a link/button. */}
+        fontSize: 12, fontWeight: 500, color: 'var(--ink-mute)',
+        marginBottom: 6, letterSpacing: 0,
+      }}>{window.isRTL ? 'سنة السفر' : 'Travel year'}</div>
       <div style={{
-        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-        padding: '0 22px', marginBottom: 10, flexDirection: 'row',
-      }}>
-        <div style={{
-          fontSize: 13, fontWeight: 600,
-          color: 'var(--ink)', letterSpacing: '-0.01em',
-        }}>
-          {window.isRTL ? 'آخر 12 شهر' : 'Last 12 months'}
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--ink-mute)' }}>
-          {window.isRTL ? 'متوسط' : 'avg'}: <span className="mono" style={{ color: 'var(--ink)', fontWeight: 600 }}>
-            {window.fmtMoney(avgPerMonth, { in: 'home' })}</span>
-        </div>
-      </div>
-      <div style={{
-        background: 'var(--cream-2)', borderRadius: 22, padding: '18px 14px 14px',
-        margin: '0 8px', border: '0.5px solid var(--hairline)',
-      }}>
-        <div style={{
-          display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-          gap: 5, height: 150,
-          // Baseline so empty months still anchor to the bottom visibly
-          borderBottom: '0.5px solid var(--hairline)',
-        }}>
-          {stats.byMonth.map((m) => {
-            // Use square-root scaling so smaller months are still distinguishable
-            // when there's one big outlier month
-            const ratio = m.spent > 0 ? Math.sqrt(m.spent / maxVal) : 0;
-            const heightPct = ratio * 92; // leave a little room at top for label
-            const isCurrent = m.year === new Date().getFullYear() && m.month === new Date().getMonth();
-            const showLabel = m.spent > 0 && (ratio > 0.35 || isCurrent);
-            return (
-              <div key={m.key} style={{
-                flex: 1, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', gap: 0, minWidth: 0,
-                position: 'relative',
-              }}>
-                <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-end', position: 'relative' }}>
-                  {/* Value label, only on bars that are tall enough not to clip */}
-                  {showLabel && (
-                    <div className="mono" style={{
-                      position: 'absolute',
-                      bottom: `${heightPct}%`, left: 0, right: 0, textAlign: 'center',
-                      fontSize: 8.5, color: isCurrent ? 'var(--clay-deep)' : 'var(--ink-soft)',
-                      fontWeight: 600, transform: 'translateY(-2px)',
-                      whiteSpace: 'nowrap', pointerEvents: 'none',
-                    }}>
-                      {m.spent >= 1000
-                        ? `${Math.round(m.spent / 1000)}k`
-                        : `${Math.round(m.spent)}`}
-                    </div>
-                  )}
-                  {m.spent > 0 ? (
-                    <div style={{
-                      width: '100%', height: '100%',
-                      background: isCurrent
-                        ? 'linear-gradient(180deg, var(--clay) 0%, var(--clay-deep) 100%)'
-                        : 'linear-gradient(180deg, var(--ink-soft) 0%, var(--ink) 100%)',
-                      borderRadius: '4px 4px 0 0',
-                      transform: `scaleY(${Math.max(heightPct, 6) / 100})`,
-                      transformOrigin: 'bottom',
-                      transition: 'transform 380ms cubic-bezier(.32,.72,0,1)',
-                      willChange: 'transform',
-                    }} />
-                  ) : null}
-                </div>
-                <div style={{
-                  marginTop: 6,
-                  fontSize: 9.5, color: isCurrent ? 'var(--clay-deep)' : 'var(--ink-mute)',
-                  fontFamily: 'var(--mono)', fontWeight: isCurrent ? 600 : 400,
-                  whiteSpace: 'nowrap',
-                }}>{monthShort(m)}</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+        fontFamily: 'var(--sans)',
+        fontSize: 'clamp(80px, 22vw, 128px)',
+        fontWeight: 600, lineHeight: 1,
+        color: 'var(--ink)',
+        letterSpacing: '-0.05em',
+        fontVariantNumeric: 'tabular-nums',
+      }}>{year}</div>
     </div>
   );
 }
 
-// WeekdayPattern was removed from the render tree in v57 ("drop weekday
-// card"). The function lived on as dead code until v70. Removed entirely.
-
-// ── Yearly bar chart with metric toggle ─────────────────────
-function YearlyChart({ stats }) {
-  const [metric, setMetric] = React.useState('spent');
-  const maxVal = Math.max(...stats.byYear.map((y) => y[metric] || 0), 1);
-  return (
-    <div style={{ padding: '22px 14px 0' }}>
-      {/* Same shape as the Monthly header: sentence-case sans semibold
-         section title, with the metric toggle on the right where the
-         user reaches for it. */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 22px', marginBottom: 10, flexDirection: 'row',
-      }}>
-        <div style={{
-          fontSize: 13, fontWeight: 600,
-          color: 'var(--ink)', letterSpacing: '-0.01em',
-        }}>
-          {t('sectionByYear')}
-        </div>
-        <div style={{ display: 'inline-flex', padding: 2, gap: 2, background: 'var(--cream-2)', borderRadius: 999, border: '0.5px solid var(--hairline)' }}>
-          {[
-            { k: 'spent',     l: window.isRTL ? 'صرف' : 'Spent' },
-            { k: 'days',      l: window.isRTL ? 'أيام' : 'Days' },
-            { k: 'countries', l: window.isRTL ? 'دول' : 'Ctry' },
-          ].map((m) => (
-            <button key={m.k} onClick={() => setMetric(m.k)} style={{
-              padding: '4px 12px', borderRadius: 999, fontSize: 11, fontWeight: 600,
-              background: metric === m.k ? 'var(--ink)' : 'transparent',
-              color: metric === m.k ? 'var(--cream)' : 'var(--ink-soft)',
-            }}>{m.l}</button>
-          ))}
-        </div>
-      </div>
-      <div style={{ background: 'var(--cream-2)', borderRadius: 22, padding: '18px', margin: '0 8px', border: '0.5px solid var(--hairline)' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', gap: 8, height: 130, padding: '0 4px' }}>
-          {stats.byYear.map((y) => {
-            const v = y[metric] || 0;
-            const pct = (v / maxVal) * 100;
-            return (
-              <div key={y.year} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'flex-end' }}>
-                  <div style={{
-                    width: '100%', height: '100%',
-                    background: 'linear-gradient(180deg, var(--clay) 0%, var(--clay-deep) 100%)',
-                    borderRadius: '6px 6px 0 0',
-                    transform: `scaleY(${Math.max(pct, 4) / 100})`,
-                    transformOrigin: 'bottom',
-                    transition: 'transform 380ms cubic-bezier(.32,.72,0,1)',
-                    willChange: 'transform',
-                  }} />
-                </div>
-                <div style={{ fontSize: 10, color: 'var(--ink-mute)', fontFamily: 'var(--mono)' }}>'{String(y.year).slice(2)}</div>
-                <div className="mono" style={{ fontSize: 10.5, color: 'var(--ink)', fontWeight: 600 }}>
-                  {metric === 'spent'     ? window.fmtMoney(v, { in: 'home' })
-                 : metric === 'days'      ? `${v}d`
-                 : metric === 'countries' ? `${v}`
-                 : `${v}`}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Category donut ──────────────────────────────────────────
-function CategoryBreakdown({ stats }) {
-  const CAT_COLOR = {
-    lodging: 'var(--clay)', food: 'var(--honey)', transit: 'var(--moss)',
-    culture: 'var(--indigo)', misc: 'var(--ink-mute)',
-  };
-  const total = stats.byCategory.reduce((s, c) => s + c.value, 0);
-  return (
-    <div style={{ padding: '22px 14px 0' }}>
-      <SectionLabel>{t('sectionByCategory')}</SectionLabel>
-      <div style={{ background: 'var(--cream-2)', borderRadius: 22, padding: '18px', margin: '0 8px', border: '0.5px solid var(--hairline)', display: 'flex', alignItems: 'center', gap: 18 }}>
-        <DonutSVG data={stats.byCategory.map((c) => ({ value: c.value, color: CAT_COLOR[c.key] || 'var(--ink-mute)' }))} size={130} />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 9, minWidth: 0 }}>
-          {stats.byCategory.slice(0, 5).map((c) => (
-            <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, background: CAT_COLOR[c.key] || 'var(--ink-mute)', flexShrink: 0 }} />
-              <span style={{ flex: 1, fontSize: 12.5, color: 'var(--ink-soft)', textAlign: 'start', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {t(c.key) || c.key}
-              </span>
-              <span className="mono" style={{ fontSize: 11.5, color: 'var(--ink)', fontWeight: 600 }}>{Math.round(c.pct)}%</span>
-            </div>
-          ))}
-          {/* Footer was uppercase mono "TOTAL". Same pattern just cleaned
-             on the Analytics pie footer in v83. Sentence-case sans for
-             consistency with the rest of the app. */}
-          <div style={{ paddingTop: 8, borderTop: '0.5px solid var(--hairline)', display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>{window.isRTL ? 'الإجمالي' : 'Total'}</span>
-            <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>{window.fmtMoney(total, { in: 'home' })}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DonutSVG({ data, size = 130 }) {
-  const total = data.reduce((s, d) => s + d.value, 0);
-  if (total === 0) return null;
-  const cx = size / 2, cy = size / 2, r = size / 2 - 8, ir = r * 0.58;
-  let angle = -Math.PI / 2;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
-      {data.map((d, i) => {
-        const slice = (d.value / total) * 2 * Math.PI;
-        const x1 = cx + r * Math.cos(angle), y1 = cy + r * Math.sin(angle);
-        angle += slice;
-        const x2 = cx + r * Math.cos(angle), y2 = cy + r * Math.sin(angle);
-        const xi1 = cx + ir * Math.cos(angle - slice), yi1 = cy + ir * Math.sin(angle - slice);
-        const xi2 = cx + ir * Math.cos(angle), yi2 = cy + ir * Math.sin(angle);
-        const large = slice > Math.PI ? 1 : 0;
-        return (
-          <path key={i}
-            d={`M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${xi2} ${yi2} A ${ir} ${ir} 0 ${large} 0 ${xi1} ${yi1} Z`}
-            fill={d.color} stroke="var(--cream-2)" strokeWidth="1.5" />
-        );
-      })}
-    </svg>
-  );
-}
-
-// ── Trip leaderboard ────────────────────────────────────────
-function TripLeaderboard({ stats }) {
-  const top = stats.tripSpend.filter((tr) => tr.spent > 0).slice(0, 5);
-  if (top.length === 0) return null;
-  const maxSpent = top[0].spent;
-  return (
-    <div style={{ padding: '22px 14px 0' }}>
-      <SectionLabel>{t('sectionTopTrips')}</SectionLabel>
-      <div style={{ background: 'var(--cream-2)', borderRadius: 22, margin: '0 8px', border: '0.5px solid var(--hairline)', overflow: 'hidden' }}>
-        {top.map((tr, i) => (
-          <div key={tr.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderTop: i ? '0.5px solid var(--hairline)' : 'none' }}>
-            <div className="mono" style={{ width: 22, fontSize: 11, color: 'var(--ink-mute)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', textAlign: 'center' }}>{i + 1}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tr.title}</div>
-              <div style={{ height: 4, marginTop: 5, borderRadius: 2, background: 'var(--sand)', overflow: 'hidden' }}>
-                <div style={{ width: `${(tr.spent / maxSpent) * 100}%`, height: '100%', background: 'linear-gradient(90deg, var(--clay) 0%, var(--clay-deep) 100%)' }} />
-              </div>
-              <div style={{ fontSize: 10.5, color: 'var(--ink-mute)', marginTop: 3 }}>
-                {tr.dur} {window.isRTL ? 'يوم' : 'days'} · {window.fmtMoney(tr.dailyAvg, { in: 'home' })} {window.isRTL ? '/ يوم' : '/ day'}
-              </div>
-            </div>
-            <div className="mono" style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
-              {window.fmtMoney(tr.spent, { in: 'home' })}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Highlight pace summary ──────────────────────────────────
-// Was a 4-cell identical-card-grid with hero-metric template in each
-// cell (uppercase mono label via explicit .toUpperCase() + 22px serif
-// value + sub + decorative tinted circle). Double-banned pattern,
-// matched what Analytics Burn Rate looked like before v83. Now: one
-// editorial sentence with bolded inline numbers, in a single light
-// card. Same four datapoints; readable in one pass instead of four.
-function HighlightCards({ stats }) {
+// ── Editorial sentence ────────────────────────────────────────
+// Composed natural-language paragraph with bolded inline counts.
+// Max ~42ch so it doesn't sprawl on wider phones. Centered to match
+// the hero, ink-soft so the numbers (ink, semibold) carry emphasis.
+function LedgerSentence({ row }) {
   const isAr = !!window.isRTL;
   const fmt = (n) => window.fmtMoney(n, { in: 'home' });
-  const longest = stats.longestTrip;
-  const expensive = stats.mostExpensive;
-  const avgTrip = fmt(stats.avgTripCost);
-  const dailyAvg = fmt(stats.avgDailyAcrossLifetime);
+  const trips     = row.trips || 0;
+  const countries = row.countries || 0;
+  const days      = row.days || 0;
+  const spent     = row.spent || 0;
+  const dailyAvg  = days > 0 ? spent / days : 0;
   return (
-    <div style={{ padding: '22px 14px 0' }}>
-      <SectionLabel>{t('sectionPace')}</SectionLabel>
-      <div style={{
-        margin: '0 8px', padding: '16px 18px', borderRadius: 18,
-        background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
-        fontSize: 15, lineHeight: 1.6, color: 'var(--ink-soft)',
+    <div style={{
+      padding: '0 22px',
+      display: 'flex', justifyContent: 'center',
+    }}>
+      <p style={{
+        margin: 0, maxWidth: '42ch', textAlign: 'center',
+        fontSize: 17, lineHeight: 1.55, color: 'var(--ink-soft)',
+        fontWeight: 400,
       }}>
         {isAr ? (
           <>
-            {longest && (
-              <>أطول رحلة: <InsNum>{longest.title}</InsNum>، {longest.dur} يوم.{' '}</>
-            )}
-            {expensive && (
-              <>الأغلى: <InsNum>{expensive.title}</InsNum>، <InsNum>{fmt(expensive.spent)}</InsNum>.{' '}</>
-            )}
-            متوسط الرحلة <InsNum>{avgTrip}</InsNum> ({stats.totalTrips} رحلة)،
-            بمعدل <InsNum>{dailyAvg}</InsNum> يومياً عبر {stats.totalDays} يوم سفر.
+            <LN>{trips}</LN> {trips === 1 ? 'رحلة' : 'رحلات'}،{' '}
+            في <LN>{countries}</LN> {countries === 1 ? 'دولة' : 'دول'}،{' '}
+            خلال <LN>{days}</LN> يوم سفر. صرفت{' '}
+            <LN>{fmt(spent)}</LN>{days > 0 && <> بمعدل <LN>{fmt(dailyAvg)}</LN> يومياً</>}.
           </>
         ) : (
           <>
-            {longest && (
-              <>Longest trip: <InsNum>{longest.title}</InsNum>, {longest.dur} days.{' '}</>
-            )}
-            {expensive && (
-              <>Most expensive: <InsNum>{expensive.title}</InsNum>, <InsNum>{fmt(expensive.spent)}</InsNum>.{' '}</>
-            )}
-            You average <InsNum>{avgTrip}</InsNum> per trip across {stats.totalTrips} trips,
-            and <InsNum>{dailyAvg}</InsNum> per day over {stats.totalDays} travel days.
+            <LN>{trips}</LN> {trips === 1 ? 'trip' : 'trips'},
+            in <LN>{countries}</LN> {countries === 1 ? 'country' : 'countries'},
+            across <LN>{days}</LN> {days === 1 ? 'day' : 'days'} of travel.
+            You spent <LN>{fmt(spent)}</LN>
+            {days > 0 && <>, averaging <LN>{fmt(dailyAvg)}</LN> a day</>}.
           </>
         )}
-      </div>
+      </p>
     </div>
   );
 }
 
-// ── Trip status horizontal stacked bar ──────────────────────
-function TripStatusBreakdown({ stats }) {
-  const { current, upcoming, past } = stats.statusCounts;
-  const items = [
-    { label: t('statusCurrent'),  v: current,  c: 'var(--moss)'   },
-    { label: t('statusUpcoming'), v: upcoming, c: 'var(--honey)'  },
-    { label: t('statusPast'),     v: past,     c: 'var(--ink-mute)' },
-  ];
-  if (current + upcoming + past === 0) return null;
-  return (
-    <div style={{ padding: '22px 14px 0' }}>
-      <SectionLabel>{t('sectionTripStatus')}</SectionLabel>
-      <div style={{ background: 'var(--cream-2)', borderRadius: 22, padding: '14px 18px', margin: '0 8px', border: '0.5px solid var(--hairline)' }}>
-        <div style={{ display: 'flex', height: 14, borderRadius: 8, overflow: 'hidden', boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,0.05)' }}>
-          {items.map((it, i) => it.v > 0 && (
-            <div key={it.label} style={{ flex: it.v, background: it.c, boxShadow: i > 0 ? 'inset 2px 0 0 var(--cream-2)' : 'none' }} />
-          ))}
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginTop: 12 }}>
-          {items.map((it) => (
-            <div key={it.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: it.c }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="mono" style={{ fontSize: 15, color: 'var(--ink)', fontWeight: 600 }}>{it.v}</div>
-                <div style={{ fontSize: 10, color: 'var(--ink-mute)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.label}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Per-member contributors ─────────────────────────────────
-function MemberBreakdown({ stats }) {
-  const top = stats.byMember.slice(0, 5).map((m) => {
-    const member = (window.MEMBERS || []).find((x) => x.id === m.userId);
-    return {
-      ...m,
-      name: member?.name || (m.userId === window.currentUserId ? (window.isRTL ? 'أنت' : 'You') : (m.userId?.slice(0, 6) || 'Unknown')),
-      hue: member?.hue || 200,
-      initials: member?.initials || '?',
-    };
-  });
-  return (
-    <div style={{ padding: '22px 14px 0' }}>
-      <SectionLabel>{t('sectionMembers')}</SectionLabel>
-      <div style={{ background: 'var(--cream-2)', borderRadius: 22, padding: '14px 16px', margin: '0 8px', border: '0.5px solid var(--hairline)' }}>
-        {top.map((m, i) => (
-          <div key={m.userId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: i ? '0.5px solid var(--hairline)' : 'none' }}>
-            <Avatar m={m} size={30} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>{m.name}</span>
-                <span className="mono" style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>
-                  {window.fmtMoney(m.value, { in: 'home' })}
-                </span>
-              </div>
-              <div style={{ height: 5, marginTop: 5, borderRadius: 3, background: 'var(--sand)', overflow: 'hidden' }}>
-                <div style={{
-                  width: '100%', height: '100%',
-                  background: `linear-gradient(90deg, oklch(0.62 0.13 ${m.hue}) 0%, oklch(0.48 0.13 ${m.hue}) 100%)`,
-                  transform: `scaleX(${m.pct / 100})`,
-                  transformOrigin: window.isRTL ? 'right center' : 'left center',
-                  transition: 'transform 380ms cubic-bezier(.32,.72,0,1)',
-                  willChange: 'transform',
-                }} />
-              </div>
-              <div style={{ fontSize: 10, color: 'var(--ink-mute)', marginTop: 3 }}>
-                {Math.round(m.pct)}% {window.isRTL ? 'من الإجمالي' : 'of lifetime spend'}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Inline emphasis for the editorial sentences in HighlightCards.
-// Same shape as AnaNum on Analytics + BudgetNum on Budget: mono for
-// money, semibold for emphasis, ink-colored so the eye lands on the
-// numbers without size escalation. Plain titles (trip names) get the
-// same treatment so the proper nouns also stand out.
-function InsNum({ children }) {
+// Inline number/proper-noun emphasis used throughout the ledger.
+// Geist 700, ink-colored, no size change so it reads as inline bold
+// rather than as a separate headline.
+function LN({ children }) {
   return (
     <span style={{
       fontWeight: 700, color: 'var(--ink)',
       letterSpacing: '-0.005em',
     }}>{children}</span>
+  );
+}
+
+// ── Notable trips ─────────────────────────────────────────────
+// Two-column inline facts: Longest + Biggest. Lifetime scope (the
+// trip name appears in Cormorant italic, the one earned brand
+// moment in this chapter). Stats below in sans semibold. No card.
+function NotableTrips({ stats }) {
+  const longest = stats.longestTrip;
+  const expensive = stats.mostExpensive;
+  const isAr = !!window.isRTL;
+  const fmt = (n) => window.fmtMoney(n, { in: 'home' });
+  if (!longest && !expensive) return null;
+  return (
+    <ChapterFrame title={isAr ? 'الأبرز عبر الرحلات' : 'Notable trips'}
+                  subtitle={isAr ? 'عبر كل رحلاتك' : 'across all your travel'}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: longest && expensive ? '1fr 1fr' : '1fr',
+        gap: 24, padding: '0 22px',
+      }}>
+        {longest && (
+          <NotableEntry
+            label={isAr ? 'الأطول' : 'Longest'}
+            name={longest.title}
+            stat={`${longest.dur} ${isAr ? 'يوم' : (longest.dur === 1 ? 'day' : 'days')}`}
+          />
+        )}
+        {expensive && (
+          <NotableEntry
+            label={isAr ? 'الأكثر إنفاقاً' : 'Biggest'}
+            name={expensive.title}
+            stat={fmt(expensive.spent)}
+          />
+        )}
+      </div>
+    </ChapterFrame>
+  );
+}
+
+function NotableEntry({ label, name, stat }) {
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div style={{
+        fontSize: 11, fontWeight: 500, color: 'var(--ink-mute)',
+        marginBottom: 6,
+      }}>{label}</div>
+      <div className="serif-italic" style={{
+        fontSize: 22, lineHeight: 1.2, color: 'var(--ink)',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        padding: '0 4px',
+      }}>{name}</div>
+      <div className="mono" style={{
+        marginTop: 4, fontSize: 13.5, fontWeight: 600, color: 'var(--ink-soft)',
+        fontVariantNumeric: 'tabular-nums',
+      }}>{stat}</div>
+    </div>
+  );
+}
+
+// ── Category stack ────────────────────────────────────────────
+// Single thin stacked bar showing lifetime category proportions, then
+// a legend with amount + percent per row. Replaces the donut + legend
+// card. Labeled clearly as lifetime so it isn't misread as per-year.
+function CategoryStack({ stats }) {
+  const isAr = !!window.isRTL;
+  const fmt = (n) => window.fmtMoney(n, { in: 'home' });
+  const CAT_COLOR = {
+    lodging: 'var(--clay)', food: 'var(--honey)', transit: 'var(--moss)',
+    culture: 'var(--indigo)', misc: 'var(--ink-mute)',
+  };
+  const cats = stats.byCategory.slice(0, 5);
+  const total = cats.reduce((s, c) => s + c.value, 0);
+  if (total === 0) return null;
+  return (
+    <ChapterFrame title={isAr ? 'كيف تصرف' : 'How you spend'}
+                  subtitle={isAr ? 'لكل الرحلات' : 'across all your travel'}>
+      <div style={{ padding: '0 28px' }}>
+        {/* Stacked bar — flex strip with each category as a flex-grown
+           segment. White hairline between segments for definition. */}
+        <div style={{
+          display: 'flex', height: 14, borderRadius: 8, overflow: 'hidden',
+          boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,0.05)',
+        }}>
+          {cats.map((c, i) => (
+            <div key={c.key} style={{
+              flex: c.value,
+              background: CAT_COLOR[c.key] || 'var(--ink-mute)',
+              boxShadow: i > 0
+                ? `inset ${window.isRTL ? '-' : ''}2px 0 0 var(--cream)`
+                : 'none',
+            }} />
+          ))}
+        </div>
+
+        {/* Legend rows — dot + label + amount + percent. */}
+        <div style={{
+          marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8,
+        }}>
+          {cats.map((c) => (
+            <div key={c.key} style={{
+              display: 'flex', alignItems: 'baseline', gap: 10,
+              flexDirection: 'row',
+            }}>
+              <span style={{
+                width: 9, height: 9, borderRadius: 3,
+                background: CAT_COLOR[c.key] || 'var(--ink-mute)',
+                flexShrink: 0, transform: 'translateY(1px)',
+              }} />
+              <span style={{
+                flex: 1, fontSize: 13.5, color: 'var(--ink)',
+                textAlign: 'start',
+              }}>{t(c.key) || c.key}</span>
+              <span className="mono" style={{
+                fontSize: 13, fontWeight: 600, color: 'var(--ink)',
+                fontVariantNumeric: 'tabular-nums',
+              }}>{fmt(c.value)}</span>
+              <span className="mono" style={{
+                fontSize: 12, color: 'var(--ink-mute)',
+                minWidth: 32, textAlign: 'end',
+                fontVariantNumeric: 'tabular-nums',
+              }}>{Math.round(c.pct)}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </ChapterFrame>
+  );
+}
+
+// ── Month sparkline ───────────────────────────────────────────
+// Tiny 12-month sparkline — 36px tall bars, hairline baseline, current
+// month gets a clay tint. Replaces the 150px-tall monthly chart card.
+// Below: a single line of micro-context (busiest month + days).
+function MonthSparkline({ byMonth }) {
+  const isAr = !!window.isRTL;
+  const maxVal = Math.max(...byMonth.map((m) => m.spent || 0), 1);
+  const now = new Date();
+  const isCurrent = (m) => m.year === now.getFullYear() && m.month === now.getMonth();
+  // sqrt scaling so smaller months stay distinguishable when one big
+  // outlier pushes the linear max.
+  const heightOf = (m) => m.spent > 0
+    ? Math.max(Math.sqrt(m.spent / maxVal) * 100, 8)
+    : 4;
+  const monthShort = (m) => new Date(2000, m.month, 1)
+    .toLocaleDateString(isAr ? 'ar' : 'en', { month: 'short' });
+  // Busiest month for the micro-context line
+  const busiest = byMonth.reduce((m, x) => (x.spent || 0) > (m?.spent || 0) ? x : m, null);
+  return (
+    <ChapterFrame title={isAr ? 'متى سافرت' : 'When you travel'}
+                  subtitle={isAr ? 'آخر 12 شهر' : 'last 12 months'}>
+      <div style={{ padding: '0 26px' }}>
+        {/* Bars — fixed 40px row, hairline baseline */}
+        <div style={{ position: 'relative', height: 40 }}>
+          <div style={{
+            display: 'flex', alignItems: 'flex-end',
+            gap: 4, height: '100%',
+          }}>
+            {byMonth.map((m) => {
+              const h = heightOf(m);
+              const cur = isCurrent(m);
+              return (
+                <div key={m.key} style={{
+                  flex: 1, height: '100%',
+                  display: 'flex', alignItems: 'flex-end', minWidth: 0,
+                }}>
+                  <div style={{
+                    width: '100%', height: `${h}%`,
+                    background: m.spent === 0
+                      ? 'var(--hairline-2)'
+                      : (cur ? 'var(--clay)' : 'var(--ink-soft)'),
+                    borderRadius: '2px 2px 0 0',
+                    transition: 'background 200ms',
+                  }} />
+                </div>
+              );
+            })}
+          </div>
+          {/* Baseline */}
+          <div style={{
+            position: 'absolute', left: 0, right: 0, bottom: 0,
+            height: 0.5, background: 'var(--hairline)',
+          }} />
+        </div>
+        {/* Month labels — separate row, aligned to the columns */}
+        <div style={{
+          display: 'flex', gap: 4, marginTop: 6,
+        }}>
+          {byMonth.map((m) => (
+            <div key={m.key} style={{
+              flex: 1, textAlign: 'center', minWidth: 0,
+              fontSize: 9.5, fontFamily: 'var(--mono)',
+              color: isCurrent(m) ? 'var(--clay-deep)' : 'var(--ink-mute)',
+              fontWeight: isCurrent(m) ? 600 : 500,
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>{monthShort(m)}</div>
+          ))}
+        </div>
+        {/* Micro-context */}
+        {busiest && busiest.spent > 0 && (
+          <div style={{
+            marginTop: 14, fontSize: 12.5, color: 'var(--ink-soft)',
+            textAlign: 'center',
+          }}>
+            {isAr ? 'الأنشط' : 'Busiest'}:{' '}
+            <span style={{ color: 'var(--ink)', fontWeight: 600 }}>
+              {monthShort(busiest)} {busiest.year}
+            </span>
+            {' · '}
+            <span className="mono" style={{ color: 'var(--ink-soft)', fontWeight: 500 }}>
+              {window.fmtMoney(busiest.spent, { in: 'home' })}
+            </span>
+          </div>
+        )}
+      </div>
+    </ChapterFrame>
+  );
+}
+
+// ── Trip list ─────────────────────────────────────────────────
+// Chronological list of the current year's trips. Each row is a
+// button → opens that trip's analytics. Title + dates + duration + spend.
+function TripList({ trips, year, go }) {
+  const isAr = !!window.isRTL;
+  const fmt = (n) => window.fmtMoney(n, { in: 'home' });
+  const monthDay = (iso) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString(isAr ? 'ar' : 'en', { month: 'short', day: 'numeric' });
+  };
+  return (
+    <ChapterFrame title={isAr ? `رحلات ${year}` : `Trips in ${year}`}
+                  subtitle={`${trips.length} ${isAr
+                    ? (trips.length === 1 ? 'رحلة' : 'رحلات')
+                    : (trips.length === 1 ? 'trip' : 'trips')}`}>
+      <div style={{
+        padding: '0 22px',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        {trips.map((tr, i) => {
+          const dateRange = tr.startDate && tr.endDate
+            ? `${monthDay(tr.startDate)} – ${monthDay(tr.endDate)}`
+            : '—';
+          return (
+            <button key={tr.id}
+              onClick={() => {
+                window.openTrip?.(tr.id);
+                go?.('hub');
+              }}
+              aria-label={isAr ? `افتح ${tr.title}` : `Open ${tr.title}`}
+              style={{
+                all: 'unset', cursor: 'pointer', width: '100%',
+                boxSizing: 'border-box',
+                display: 'grid',
+                gridTemplateColumns: '1fr auto',
+                gap: 12, alignItems: 'baseline',
+                padding: '14px 0',
+                borderTop: i > 0 ? '0.5px solid var(--hairline)' : 'none',
+              }}>
+              {/* Title + dates */}
+              <div style={{ minWidth: 0 }}>
+                <div className="serif-italic" style={{
+                  fontSize: 18, color: 'var(--ink)', lineHeight: 1.2,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>{tr.title}</div>
+                <div style={{
+                  marginTop: 3, fontSize: 12, color: 'var(--ink-mute)',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  flexDirection: 'row',
+                }}>
+                  <span>{dateRange}</span>
+                  <span>·</span>
+                  <span className="mono" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {tr.dur} {isAr ? 'يوم' : (tr.dur === 1 ? 'day' : 'days')}
+                  </span>
+                </div>
+              </div>
+              {/* Amount */}
+              <div className="mono" style={{
+                fontSize: 15, fontWeight: 600, color: 'var(--ink)',
+                fontVariantNumeric: 'tabular-nums',
+                textAlign: 'end',
+              }}>{fmt(tr.spent)}</div>
+            </button>
+          );
+        })}
+      </div>
+    </ChapterFrame>
+  );
+}
+
+// ── Previous years footer ─────────────────────────────────────
+// Quiet rows, year + small totals. v1 is read-only; v2 will make rows
+// tappable to switch the whole ledger to that year (needs per-year
+// breakdown in data layer first).
+function PreviousYears({ years }) {
+  const isAr = !!window.isRTL;
+  const fmt = (n) => window.fmtMoney(n, { in: 'home' });
+  return (
+    <ChapterFrame title={isAr ? 'السنوات السابقة' : 'Previous years'}>
+      <div style={{
+        padding: '0 22px',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        {years.map((y, i) => (
+          <div key={y.year} style={{
+            display: 'flex', alignItems: 'baseline',
+            justifyContent: 'space-between', gap: 12,
+            padding: '12px 0',
+            borderTop: i > 0 ? '0.5px solid var(--hairline)' : 'none',
+            flexDirection: 'row',
+          }}>
+            <div style={{
+              fontSize: 16, fontWeight: 600, color: 'var(--ink)',
+              fontVariantNumeric: 'tabular-nums',
+              letterSpacing: '-0.01em',
+            }}>{y.year}</div>
+            <div style={{
+              flex: 1, textAlign: 'end',
+              fontSize: 12.5, color: 'var(--ink-mute)',
+            }}>
+              {y.trips || 0} {isAr
+                ? ((y.trips || 0) === 1 ? 'رحلة' : 'رحلات')
+                : ((y.trips || 0) === 1 ? 'trip' : 'trips')}
+              {' · '}
+              <span className="mono" style={{
+                color: 'var(--ink-soft)', fontWeight: 600,
+                fontVariantNumeric: 'tabular-nums',
+              }}>{fmt(y.spent)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </ChapterFrame>
+  );
+}
+
+// ── Footer / imprint ──────────────────────────────────────────
+// Wordmark + tiny lifetime totals — closes the page like a magazine
+// imprint. The wordmark serif is the brand moment the page earns.
+function LedgerFooter({ stats }) {
+  const isAr = !!window.isRTL;
+  const fmt = (n) => window.fmtMoney(n, { in: 'home' });
+  return (
+    <div style={{
+      padding: '48px 22px 24px', textAlign: 'center',
+    }}>
+      <div className="wordmark" style={{
+        fontSize: 28, color: 'var(--ink-soft)', lineHeight: 1,
+      }}>voyage</div>
+      <div style={{
+        marginTop: 10, fontSize: 11.5, color: 'var(--ink-mute)',
+        lineHeight: 1.6,
+      }}>
+        {isAr
+          ? <>الإجمالي: {stats.totalTrips} رحلة · {stats.countries} {stats.countries === 1 ? 'دولة' : 'دول'}<br />
+              {stats.totalDays} يوم سفر · <span className="mono">{fmt(stats.totalSpentUSD)}</span></>
+          : <>Lifetime: {stats.totalTrips} {stats.totalTrips === 1 ? 'trip' : 'trips'} · {stats.countries} {stats.countries === 1 ? 'country' : 'countries'}<br />
+              {stats.totalDays} {stats.totalDays === 1 ? 'day' : 'days'} of travel · <span className="mono">{fmt(stats.totalSpentUSD)}</span></>}
+      </div>
+    </div>
+  );
+}
+
+// ── Shared chapter chrome ─────────────────────────────────────
+// Centered title + optional smaller subtitle, with the standard
+// generous top padding the ledger uses for vertical rhythm. Children
+// render below.
+function ChapterFrame({ title, subtitle, children }) {
+  return (
+    <div style={{ padding: '32px 0 0' }}>
+      <div style={{
+        padding: '0 22px 16px', textAlign: 'center',
+      }}>
+        <div style={{
+          fontSize: 13, fontWeight: 600, color: 'var(--ink)',
+          letterSpacing: '-0.01em',
+        }}>{title}</div>
+        {subtitle && (
+          <div style={{
+            marginTop: 3, fontSize: 11, color: 'var(--ink-mute)',
+          }}>{subtitle}</div>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// Hairline rule between chapters. Centered, with breathing room. The
+// rule itself is short (~120px max) so it reads as a punctuation mark,
+// not a visual barrier.
+function LedgerDivider() {
+  return (
+    <div style={{
+      display: 'flex', justifyContent: 'center',
+      padding: '0 22px', marginTop: 32,
+    }}>
+      <div style={{
+        width: 'min(120px, 30%)', height: 0.5,
+        background: 'var(--ink-mute)', opacity: 0.4,
+      }} />
+    </div>
   );
 }
 
