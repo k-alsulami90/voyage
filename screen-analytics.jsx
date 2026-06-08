@@ -311,7 +311,11 @@ function ScreenAnalytics({ go, loading }) {
                                 : (isSelected ? '#fff' : (isPeak ? 'var(--clay)' : 'rgba(255,255,255,0.45)')),
                               borderRadius: '3px 3px 0 0',
                               outline: isSelected ? '1.5px solid var(--clay)' : 'none',
-                              transition: 'background 160ms, height 160ms ease-out',
+                              // Background animates on tap-select. Height
+                              // is data-driven (changes only on re-render,
+                              // not via CSS transition) so animating it
+                              // would just trigger layout reflow per frame.
+                              transition: 'background 160ms',
                             }} />
                           </button>
                         );
