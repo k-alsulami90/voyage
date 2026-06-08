@@ -1,5 +1,15 @@
 // Trip-level Settings — now includes Crew (Members) inline.
 
+// One source for sub-labels inside EditableTripParams' expanded edit
+// drawers (Currency / Amount / Home currency / Local currency / FX rate).
+// Was the same uppercase-mono-tracked pattern duplicated inline 5 times;
+// centralising it kills the eyebrow shape and makes future tweaks land
+// in one place.
+const paramLabelStyle = {
+  fontSize: 12, fontWeight: 600,
+  color: 'var(--ink)', marginBottom: 2,
+};
+
 function ScreenSettings({ go, openSheet }) {
   const trip    = window.TRIP;
   const [members,    setMembers]    = React.useState(window.MEMBERS || []);
@@ -77,55 +87,44 @@ function ScreenSettings({ go, openSheet }) {
       <div style={{ padding: '24px 14px 0' }}>
         <SectionLabel action={t('invite')} onAction={() => openSheet('share')}>{t('crewSection')} · {members.length}</SectionLabel>
 
-        {/* Stacked-avatars + role tally — overlapping pill */}
+        {/* Crew header strip. Was a dark statement card with uppercase
+           mono eyebrow + 20px serif "{N} travelers" hero-metric + a
+           3-cell identical-tile role tally grid. Same pattern removed
+           from 6+ other screens. Now: avatars + invite-plus, with the
+           role counts as one inline sentence in cream-2 below. The
+           per-member role is already visible on every member row, so
+           the tally is just orientation, not a hero metric. */}
         <div style={{ padding: '0 8px' }}>
           <div style={{
-            background: 'var(--statement)', color: 'var(--statement-fg)',
-            borderRadius: 24, padding: '16px 18px',
-            position: 'relative', overflow: 'hidden',
-            boxShadow: 'var(--shadow-card)',
+            background: 'var(--cream-2)', borderRadius: 16,
+            border: '0.5px solid var(--hairline)',
+            padding: '14px 16px',
+            display: 'flex', alignItems: 'center', gap: 14,
+            flexDirection: 'row',
           }}>
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: 'radial-gradient(70% 60% at 90% 0%, oklch(0.42 0.10 260 / 0.45) 0%, transparent 60%)',
-            }} />
-            <div style={{
-              position: 'relative',
-              display: 'flex', alignItems: 'center', gap: 14,
-              flexDirection: 'row',
-            }}>
-              <AvatarStack members={members} size={36} />
-              <button onClick={() => openSheet('share')} style={{
-                width: 36, height: 36, borderRadius: '50%',
-                background: 'var(--cream)', color: 'var(--ink)',
-                marginInlineStart: -14, zIndex: 5,
-                display: 'grid', placeItems: 'center',
-                boxShadow: '0 0 0 2px var(--ink), 0 4px 8px rgba(0,0,0,0.3)',
-              }}><IconPlus size={18} /></button>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.14em', opacity: 0.72 }}>
-                  {t('tripScopedNote')}
-                </div>
-                <div className="serif" style={{ fontSize: 20, lineHeight: 1.05, marginTop: 1 }}>
-                  {members.length} {t('travelers')}
-                </div>
+            <AvatarStack members={members} size={36} />
+            <button onClick={() => openSheet('share')}
+              aria-label={t('invite')} style={{
+              width: 36, height: 36, borderRadius: '50%',
+              background: 'var(--ink)', color: 'var(--cream)',
+              marginInlineStart: -14, zIndex: 5,
+              display: 'grid', placeItems: 'center',
+              boxShadow: '0 0 0 2px var(--cream-2), 0 4px 8px rgba(34,28,22,0.18)',
+              flexShrink: 0,
+            }}><IconPlus size={18} stroke="currentColor" /></button>
+            <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: 'var(--ink)' }}>
+              <div style={{ fontWeight: 600 }}>
+                {members.length} {t('travelers')}
               </div>
-            </div>
-            <div style={{ display: 'flex', gap: 6, marginTop: 14, position: 'relative', flexDirection: 'row' }}>
-              {['Admin', 'Editor', 'Viewer'].map((r) => (
-                <div key={r} style={{
-                  flex: 1, padding: '8px 10px', borderRadius: 12,
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '0.5px solid rgba(255,255,255,0.08)',
-                }}>
-                  <div style={{ fontSize: 9.5, opacity: 0.72, fontFamily: 'var(--mono)', letterSpacing: '0.1em' }}>
-                    {r === 'Admin' ? t('admin') : r === 'Editor' ? t('editor') : t('viewer')}
-                  </div>
-                  <div className="serif" style={{ fontSize: 22, lineHeight: 1, marginTop: 2 }}>
-                    {counts[r] || 0}
-                  </div>
-                </div>
-              ))}
+              <div style={{
+                fontSize: 12, color: 'var(--ink-mute)', marginTop: 2,
+              }}>
+                {[
+                  counts.Admin > 0 && `${counts.Admin} ${counts.Admin === 1 ? t('admin') : (window.isRTL ? 'مديرون' : 'admins')}`,
+                  counts.Editor > 0 && `${counts.Editor} ${counts.Editor === 1 ? t('editor') : (window.isRTL ? 'محررون' : 'editors')}`,
+                  counts.Viewer > 0 && `${counts.Viewer} ${counts.Viewer === 1 ? t('viewer') : (window.isRTL ? 'مشاهدون' : 'viewers')}`,
+                ].filter(Boolean).join(' · ')}
+              </div>
             </div>
           </div>
         </div>
@@ -216,14 +215,18 @@ function ScreenSettings({ go, openSheet }) {
                 ))}
               </div>
             ))}
+            {/* Column labels were uppercase mono 0.1em. Now sentence-case
+               sans, smaller weight, same column width. The grid above
+               still reads as a permission matrix. */}
             <div style={{
               display: 'grid', gridTemplateColumns: '1fr 30px 30px 30px',
-              padding: '7px 0 4px', borderTop: '0.5px solid var(--hairline)',
-              fontSize: 9.5, fontFamily: 'var(--mono)', letterSpacing: '0.1em',
-              color: 'var(--ink-mute)', textTransform: 'uppercase',
+              padding: '8px 0 4px', borderTop: '0.5px solid var(--hairline)',
+              fontSize: 10.5, color: 'var(--ink-mute)', fontWeight: 500,
             }}>
-              <div></div><div style={{ textAlign: 'center' }}>Adm</div>
-              <div style={{ textAlign: 'center' }}>Edit</div><div style={{ textAlign: 'center' }}>View</div>
+              <div></div>
+              <div style={{ textAlign: 'center' }}>{window.isRTL ? 'مدير' : 'Adm'}</div>
+              <div style={{ textAlign: 'center' }}>{window.isRTL ? 'محرر' : 'Edit'}</div>
+              <div style={{ textAlign: 'center' }}>{window.isRTL ? 'مشاهد' : 'View'}</div>
             </div>
           </div>
         </details>
@@ -241,10 +244,15 @@ function ScreenSettings({ go, openSheet }) {
       {/* Lifecycle */}
       <LifecycleActions />
 
+      {/* Footer imprint. Trip ID was full UUID rendered as uppercase
+         mono with 0.16em tracking -- spanned the footer like a barcode.
+         Now: short last-8 of the UUID (still uniquely identifies in
+         practice for support reference) in plain mono without tracking
+         or explicit uppercase. */}
       <div style={{ textAlign: 'center', padding: '32px 0 20px', color: 'var(--ink-mute)' }}>
         <div className="serif-italic" style={{ fontSize: 18 }}>voyage</div>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.16em', marginTop: 4 }}>
-          TRIP ID · {(trip.id || '').toUpperCase()}
+        <div className="mono" style={{ fontSize: 10.5, marginTop: 6 }}>
+          {window.isRTL ? 'معرف الرحلة' : 'Trip ID'} · {(trip.id || '—').slice(-8)}
         </div>
       </div>
     </div>
@@ -288,9 +296,13 @@ function InvitesList({ tripId }) {
 
   return (
     <div style={{ marginTop: 18, padding: '0 8px' }}>
+      {/* Was uppercase mono tracked 0.14em — same eyebrow pattern as
+         elsewhere. Now sentence-case sans semibold ink-soft, matching
+         the SectionLabel feel without using the component (we're nested
+         under Crew's SectionLabel already, so this is sub-level). */}
       <div style={{
-        fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em',
-        color: 'var(--ink-mute)', textTransform: 'uppercase', margin: '0 6px 8px',
+        fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)',
+        margin: '0 6px 8px',
       }}>{t('activeInvites') || 'Active invites'}</div>
       <div style={{
         background: 'var(--cream-2)', borderRadius: 16,
@@ -638,7 +650,7 @@ function EditableTripParams({ trip: tripProp }) {
       <EditRow editing={editing} setEditing={setEditing} icon={<IconWallet size={16} stroke="var(--ink)" />} label={t('budgetCap')}
            value={trip.budget?.plannedUSD ? window.fmtMoney(trip.budget.plannedUSD, { in: 'home' }) : '—'}
            fieldKey="budget">
-        <div style={{ fontSize: 11, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <div style={paramLabelStyle}>
           {window.isRTL ? 'العملة' : 'Currency'}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -660,7 +672,7 @@ function EditableTripParams({ trip: tripProp }) {
             }}>{c}</button>
           ))}
         </div>
-        <div style={{ fontSize: 11, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 4 }}>
+        <div style={{ ...paramLabelStyle, marginTop: 6 }}>
           {window.isRTL ? `المبلغ (${budgetCur})` : `Amount (${budgetCur})`}
         </div>
         <input type="number" inputMode="decimal" value={budgetAmt}
@@ -682,7 +694,7 @@ function EditableTripParams({ trip: tripProp }) {
       <EditRow editing={editing} setEditing={setEditing} icon={<IconSwap size={16} stroke="var(--ink)" />} label={t('currencies')}
            value={`${trip.homeCurrency || 'USD'}${trip.localCurrency && trip.localCurrency !== trip.homeCurrency ? ' ↔ ' + trip.localCurrency : ''}`}
            fieldKey="currency">
-        <div style={{ fontSize: 11, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <div style={paramLabelStyle}>
           {window.isRTL ? 'العملة الرئيسية' : 'Home currency'}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -695,7 +707,7 @@ function EditableTripParams({ trip: tripProp }) {
             }}>{c}</button>
           ))}
         </div>
-        <div style={{ fontSize: 11, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 6 }}>
+        <div style={{ ...paramLabelStyle, marginTop: 8 }}>
           {window.isRTL ? 'العملة المحلية' : 'Local currency'}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -708,7 +720,7 @@ function EditableTripParams({ trip: tripProp }) {
             }}>{c}</button>
           ))}
         </div>
-        <div style={{ fontSize: 11, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 6 }}>
+        <div style={{ ...paramLabelStyle, marginTop: 8 }}>
           {window.isRTL ? `سعر USD → ${homeCur} (افتراضي ${window.FX_RATES[homeCur] || 1})` : `USD → ${homeCur} rate (default ${window.FX_RATES[homeCur] || 1})`}
         </div>
         <input type="number" inputMode="decimal" value={fx} onChange={(e) => setFx(e.target.value)} placeholder={String(window.FX_RATES[homeCur] || 1)} style={inputStyle} />
