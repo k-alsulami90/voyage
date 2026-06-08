@@ -325,6 +325,22 @@ function App() {
       loadTripData(route.tripId);
     }
   }, [route.scope, route.tripId, loadTripData]);
+
+  // When the user leaves a trip back to a global route (Trips home,
+  // Insights, App Settings), wipe window.TRIP. Otherwise fmtMoney's
+  // "what currency is home?" lookup keeps reading the LAST opened
+  // trip's homeCurrency + fx, and the global views display amounts
+  // in that trip's context instead of the user's own default. (This
+  // was the same bug the user kept hitting: trips on the Trips home
+  // showed different totals depending on which trip they'd just
+  // tapped.) Per-trip cards format via fmtTripMoney(trip), so they're
+  // not affected by clearing window.TRIP here.
+  React.useEffect(() => {
+    if (route.scope === 'app') {
+      window.TRIP = null;
+      setDataVersion((v) => v + 1);
+    }
+  }, [route.scope]);
   const openSheet = (s, payload) => {
     if (s === 'editExpense' && payload) setEditingExpense(payload);
     if (s === 'addExpense' && payload) setPrefillExpense(payload);

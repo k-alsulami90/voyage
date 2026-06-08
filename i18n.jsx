@@ -464,6 +464,40 @@ window.fmtMoney = function(usdAmount, opts) {
   return `${sym}${formatted}`;
 };
 
+// Format a USD-based amount in the CURRENCY OF A SPECIFIC TRIP, using
+// that trip's own home_currency + fx_rate from the DB. Use this for any
+// per-trip value displayed on a global view (Trips home cards, Insights
+// trip list, etc.) so each trip's number is rendered in its own currency
+// regardless of which trip is currently open in window.TRIP.
+//
+// Without this, every trip card was formatted using whichever trip was
+// last opened -- if you opened a USD trip, your SAR trips' cards
+// suddenly displayed at the USD rate. That bug is what made the same
+// trip appear to show different amounts depending on what you'd just
+// tapped.
+//
+// Expects a trip object with shape { homeCurrency, fx } -- both already
+// present on every item in window.TRIPS via loadTrips. Falls back to
+// window.fmtMoney's default behavior if either is missing.
+window.fmtTripMoney = function(usdAmount, trip) {
+  if (!trip || !trip.homeCurrency) return window.fmtMoney(usdAmount);
+  const code = String(trip.homeCurrency).toUpperCase();
+  // Trip's own fx wins (it's the rate the user committed to at trip
+  // setup). If absent or non-positive, fall back to the global table
+  // for this currency.
+  const fx = (trip.fx && trip.fx > 0)
+    ? trip.fx
+    : (code === 'USD' ? 1 : (window.FX_RATES[code] || 1));
+  const v = (usdAmount || 0) * fx;
+  const sym = window.CUR_SYM[code] || (code + ' ');
+  const whole = window.CUR_WHOLE.has(code);
+  const formatted = v.toLocaleString('en', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: whole ? 0 : 2,
+  });
+  return `${sym}${formatted}`;
+};
+
 // Reverse: take an amount entered in any currency code, return USD value.
 window.toUSD = function(amount, fromCode) {
   const n = parseFloat(amount) || 0;

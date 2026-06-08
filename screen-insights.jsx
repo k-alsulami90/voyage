@@ -251,7 +251,7 @@ function NotableTrips({ stats }) {
           }}>
             {longest.dur} {isAr ? 'يوم' : (longest.dur === 1 ? 'day' : 'days')}
             <span style={{ color: 'var(--ink-mute)' }}> · </span>
-            {fmt(expensive.spent)}
+            {window.fmtTripMoney(expensive.spent, expensive)}
           </div>
         </div>
       </ChapterFrame>
@@ -277,7 +277,7 @@ function NotableTrips({ stats }) {
           <NotableEntry
             label={isAr ? 'الأكثر إنفاقاً' : 'Biggest'}
             name={expensive.title}
-            stat={fmt(expensive.spent)}
+            stat={window.fmtTripMoney(expensive.spent, expensive)}
           />
         )}
       </div>
@@ -469,6 +469,13 @@ function MonthSparkline({ byMonth }) {
 // button → opens that trip's analytics. Title + dates + duration + spend.
 function TripList({ trips, year, goTrip }) {
   const isAr = !!window.isRTL;
+  // Each trip row formats in ITS OWN currency via fmtTripMoney. The
+  // tripSpend objects now carry homeCurrency + fx (enriched in
+  // loadLifetimeStats) so the displayed amount matches what the user
+  // sees inside that specific trip, regardless of which trip they
+  // last opened. Without this, all trip rows here rendered at
+  // window.TRIP's current rate and the same trip showed different
+  // numbers across navigation states.
   const fmt = (n) => window.fmtMoney(n, { in: 'home' });
   const monthDay = (iso) => {
     if (!iso) return '—';
@@ -524,7 +531,7 @@ function TripList({ trips, year, goTrip }) {
                 fontSize: 15, fontWeight: 600, color: 'var(--ink)',
                 fontVariantNumeric: 'tabular-nums',
                 textAlign: 'end',
-              }}>{fmt(tr.spent)}</div>
+              }}>{window.fmtTripMoney(tr.spent, tr)}</div>
             </button>
           );
         })}

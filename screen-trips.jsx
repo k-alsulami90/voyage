@@ -488,10 +488,16 @@ function UpcomingTripCard({ trip, onOpen }) {
   );
 }
 
-// Personal balance pill — shows owed/owe for a shared trip
+// Personal balance pill — shows owed/owe for a shared trip.
+// Formats using the SPECIFIC TRIP's currency + fx (via fmtTripMoney)
+// so the displayed amount doesn't shift when the user opens / exits a
+// different trip. Previously this used fmtMoney({in:'home'}) which
+// reads window.TRIP -- the last-opened trip's currency was leaking
+// into every trip card.
 function BalancePill({ tripId, big = false }) {
   const balance = window.LIFETIME_STATS?.balanceByTrip?.[tripId];
   if (!balance || Math.abs(balance) < 0.5) return null;
+  const trip = (window.TRIPS || []).find((t) => t.id === tripId);
   const owed = balance > 0;
   return (
     <span style={{
@@ -503,7 +509,7 @@ function BalancePill({ tripId, big = false }) {
       fontFamily: 'var(--mono)', letterSpacing: '0.04em',
       flexShrink: 0,
     }}>
-      {owed ? '+' : '−'} {window.fmtMoney(Math.abs(balance), { in: 'home' })}
+      {owed ? '+' : '−'} {window.fmtTripMoney(Math.abs(balance), trip)}
     </span>
   );
 }
@@ -511,7 +517,16 @@ function BalancePill({ tripId, big = false }) {
 // ── PAST trip card — completed badge + total spend ──
 function PastTripCard({ trip, onOpen }) {
   const { totalDays } = trip.state;
-  const spent = trip.budgetPlannedUSD * (trip.budgetPct / 100); // estimate; real value comes when trip is loaded
+  // Real spent for this trip comes from LIFETIME_STATS.tripSpend (sum
+  // of amount_usd across this trip's expenses). The old formula
+  // `budgetPlannedUSD * budgetPct/100` was a stub estimate -- budgetPct
+  // never gets populated on real data (only set in mock data.jsx), so
+  // the displayed value was always 0 until a fluke side-effect of
+  // opening another trip set it. Now we look up the authoritative
+  // per-trip total directly.
+  const tripStat = (window.LIFETIME_STATS?.tripSpend || [])
+    .find((t) => t.id === trip.id);
+  const spent = tripStat?.spent || 0;
   return (
     <button onClick={onOpen} style={{
       display: 'flex', alignItems: 'center', gap: 12,
@@ -556,7 +571,7 @@ function PastTripCard({ trip, onOpen }) {
             display: 'flex', alignItems: 'baseline', gap: 5, flexDirection: 'row',
           }}>
             <span className="mono" style={{ fontWeight: 600, color: 'var(--ink)' }}>
-              {window.fmtMoney(spent, { in: 'home' })}
+              {window.fmtTripMoney(spent, trip)}
             </span>
             <span style={{ color: 'var(--ink-mute)' }}>{t('spentTotal').toLowerCase()}</span>
           </div>

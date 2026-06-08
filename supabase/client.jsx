@@ -968,6 +968,12 @@ window.loadLifetimeStats = async () => {
       budgetPlanned: t.budgetPlannedUSD || 0,
       startDate: t.startDate, endDate: t.endDate,
       personalBalance: balanceByTrip[t.id] || 0,
+      // Per-trip currency context -- needed so Insights' TripList and any
+      // other per-trip display surface can format each row in its OWN
+      // currency via fmtTripMoney, instead of inheriting whatever
+      // currency the user-last-opened trip happens to have.
+      homeCurrency: t.homeCurrency || 'USD',
+      fx: t.fx || 1,
     };
   }).sort((a, b) => b.spent - a.spent);
 
