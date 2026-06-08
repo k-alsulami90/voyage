@@ -345,8 +345,22 @@ window.computeUserBalance = function(userId, expenses, settlements) {
   let owes = 0;
   const byOther = {};  // userId → net (positive: they owe you; negative: you owe them)
   (expenses || []).forEach((e) => {
-    const splitters = (e.splitWith || []).filter(Boolean);
+    // Defensive: strip the payer from splitters even if the row's
+    // split_with array accidentally includes them. Otherwise total
+    // sharers double-counts the payer and shares come out too small,
+    // and the payer ends up in their own byOther map. New data via
+    // app.jsx already filters this out at save time; this guards
+    // legacy rows + any other path that might write split_with.
+    const splitters = (e.splitWith || [])
+      .filter(Boolean)
+      .filter((uid) => uid !== e.who);
     const isShared = splitters.length > 0;
+    // Total people sharing the cost = the payer (1) + each splitter.
+    // In a two-person trip with one expense, totalSharers = 2; the
+    // payer's own share is (amount / 2) and the OTHER party owes the
+    // payer (amount / 2). The user said it best: "if we are two only
+    // and I pay for us then only 1 owed me not 2, I'm not considered
+    // in this." That's the math implemented here.
     const totalSharers = isShared ? (splitters.length + 1) : 1;
     const shareAmount = (e.usd || 0) / totalSharers;
     if (e.who === userId) {
@@ -376,22 +390,33 @@ window.computeUserBalance = function(userId, expenses, settlements) {
       owes += amt;
     }
   });
+  // Defensive: remove the user's own id from byOther if it ever leaked
+  // in (legacy split_with that included the payer, or any other path).
+  // The map is meant to record what OTHERS owe the user, not anything
+  // about the user themselves.
+  delete byOther[userId];
+
   // Net balance = sum of pairwise nets across all other members. This
-  // is the correct number for "who-owes-whom" display + the settlement
-  // algorithm. The previous `paid - owes` formula included the user's
-  // OWN share of every bill they fronted, so a user who paid 230 for
-  // a 50/50 split with one other person showed +230 net instead of
-  // the correct +115 (the share they advanced for the other party).
+  // is what the user calls "owed minus owe":
   //
-  // Worked example (the one the user walked through):
-  //   Inv 1: A pays 230, split with B  -> A.byOther[B] = +115
-  //   Inv 2: B pays 180, split with A  -> A.byOther[B] = +115 - 90 = +25
-  //   Inv 3: B pays 50,  split with A  -> A.byOther[B] = +25 - 25 = 0
-  // After all three, net = 0 and Settle Up correctly shows no
-  // transactions to balance. Without this fix the Settle Up algorithm
-  // saw A.net = paid - owes = 460 - 115 = 345, B.net = 230 - 115 = 115,
-  // both positive, and produced no transfers at all -- which the user
-  // experienced as "the math feels wrong."
+  //   - I pay 300, split with him  -> he owes me 150
+  //   - He pays 200, split with me -> I owe him 100
+  //   - net = 150 - 100 = +50      -> he owes me 50
+  //
+  //   - He pays 200 more, split with me -> I owe him another 100
+  //   - net = 50 - 100 = -50            -> I owe him 50
+  //
+  // Tokyo trip the user mentioned:
+  //   - I pay 30  -> he owes me 15
+  //   - He pays 27 -> I owe him 13.5
+  //   - net = 15 - 13.5 = +1.5         -> he owes me 1.5
+  //
+  // The previous formula was `paid - owes`, which included the user's
+  // OWN share of every bill they fronted. So in the very first example
+  // it gave +300 - 100 = +200 instead of +50, and Settle Up produced
+  // wrong (or zero) transfers. Summing byOther gives the right answer
+  // every time because each pairwise entry already nets the user's
+  // share off (only the OTHER party's share lands in byOther).
   const net = Object.values(byOther).reduce((s, v) => s + v, 0);
   return { paid, owes, net, byOther };
 };
