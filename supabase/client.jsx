@@ -64,6 +64,32 @@ window.sbResendConfirmation = async (email) => {
   if (error) throw error;
 };
 
+// ── Load the user's profile-level preferences (right now: their
+// default_currency). Runs once at app boot after auth. fmtMoney /
+// fxRate fall back to this when no trip is open, so global views
+// (Trips home, Insights, App Settings) display in the user's chosen
+// currency instead of USD. Without this, money showed as USD until
+// the user opened any trip -- which set window.TRIP.homeCurrency --
+// and then "stuck" to the last opened trip's currency on subsequent
+// global views. ────────────────────────────────────────────
+window.loadUserPreferences = async (userId) => {
+  if (!userId) return;
+  try {
+    const { data, error } = await window.sb
+      .from('profiles')
+      .select('default_currency')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error) throw error;
+    const cur = (data?.default_currency || 'USD').trim().toUpperCase();
+    window.USER_DEFAULT_CURRENCY = cur;
+  } catch (err) {
+    console.warn('loadUserPreferences failed', err);
+    // Defensive: at least set USD so the global default is well-defined
+    window.USER_DEFAULT_CURRENCY = 'USD';
+  }
+};
+
 // ── Clear ALL mock data — call immediately on sign-in ────────
 window.clearAllMockData = () => {
   window.TRIPS         = [];
@@ -73,6 +99,7 @@ window.clearAllMockData = () => {
   window.DOCS          = [];
   window.AUDIT         = [];
   window.LIFETIME_STATS = null;
+  window.USER_DEFAULT_CURRENCY = null;
   window.DOCS_BY_CAT   = { flights: [], lodging: [], visas: [], transport: [] };
   window.DOC_CATEGORIES = window.DOC_CATEGORIES?.map((c) => ({ ...c, count: 0 })) || [];
   window.CATEGORIES    = window.CATEGORIES?.map((c) => ({ ...c, amt: 0, pct: 0 })) || [];

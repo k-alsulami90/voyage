@@ -47,6 +47,11 @@ function ScreenOnboarding({ onComplete, onCreateTrip }) {
         }
         if (home.trim()) updates.home_base = home.trim();
         await window.sb.from('profiles').update(updates).eq('id', window.currentUserId);
+        // Prime the global preference cache so the very next render of
+        // Trips home / Insights formats money in the chosen currency
+        // instead of USD. Onboarding hands the user off to those views
+        // directly via onComplete.
+        window.USER_DEFAULT_CURRENCY = (updates.default_currency || 'USD').trim().toUpperCase();
       }
       try { localStorage.setItem('voyage:onboarded', '1'); } catch (_) {}
       window.toast?.(window.isRTL ? 'مرحباً بك' : 'Welcome aboard', 'success');

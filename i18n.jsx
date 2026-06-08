@@ -431,9 +431,20 @@ window.fxRate = function(code) {
 
 // Format a USD-based amount in the trip's chosen display currency.
 // Pass { in: 'home' | 'local' | 'USD' | <ISO> } to override which currency to show.
+//
+// "home" resolves to:
+//   1. The current trip's homeCurrency, if a trip is open.
+//   2. Else the signed-in user's profile default_currency
+//      (window.USER_DEFAULT_CURRENCY -- loaded at app boot).
+//   3. Else USD (defensive).
+// This means the Trips home, Insights, App Settings -- all the views
+// rendered when no trip is open -- show money in the user's chosen
+// currency from the start, instead of silently falling back to USD
+// until the user opens a trip and "primes" window.TRIP.
 window.fmtMoney = function(usdAmount, opts) {
   const trip = window.TRIP || {};
-  const home  = trip.homeCurrency  || 'USD';
+  const userDefault = window.USER_DEFAULT_CURRENCY || 'USD';
+  const home  = trip.homeCurrency  || userDefault;
   const local = trip.localCurrency || home;
   const in_   = (opts && opts.in) || 'home';
 

@@ -367,6 +367,14 @@ function ProfileEditRows({ me }) {
     try {
       const { error } = await window.sb.from('profiles').update(fields).eq('id', window.currentUserId);
       if (error) throw error;
+      // Mirror the change into the global preference cache so fmtMoney
+      // picks up the new default_currency without waiting for a reload.
+      // (Without this, the user changes their default currency and the
+      // Trips home / Insights keep formatting in the old currency until
+      // they reload the app.)
+      if (fields.default_currency) {
+        window.USER_DEFAULT_CURRENCY = fields.default_currency.trim().toUpperCase();
+      }
       window.toast?.(window.isRTL ? 'تم الحفظ' : 'Saved', 'success');
       setEditing(null);
     } catch (err) {
