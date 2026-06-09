@@ -73,7 +73,7 @@ function ScreenTripSearch({ back, openSheet, openDoc, go }) {
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder={window.isRTL ? 'ابحث في المصروفات، المستندات، الخطة…' : 'Search expenses, docs, plan…'}
+            placeholder={window.isRTL ? 'ابحث عن مصروفات، مستندات، تفاصيل في الخطة…' : 'Search expenses, docs, plan…'}
             style={{
               flex: 1, border: 0, outline: 'none', background: 'transparent',
               fontSize: 15, fontFamily: 'var(--sans)', color: 'var(--ink)',
@@ -91,7 +91,7 @@ function ScreenTripSearch({ back, openSheet, openDoc, go }) {
           <button onClick={back} style={{
             padding: '4px 10px', borderRadius: 999, fontSize: 13, fontWeight: 500,
             background: 'transparent', color: 'var(--ink-soft)',
-          }}>{window.isRTL ? 'إلغاء' : 'Cancel'}</button>
+          }}>{window.isRTL ? 'إلغاء البحث' : 'Cancel'}</button>
         </div>
         {hasQ && (
           // Was uppercase mono 0.06em tracked. Now sentence-case sans
@@ -102,8 +102,10 @@ function ScreenTripSearch({ back, openSheet, openDoc, go }) {
             fontSize: 12, color: 'var(--ink-mute)',
           }}>
             {total === 0
-              ? (window.isRTL ? 'لا توجد نتائج' : 'No results')
-              : `${total} ${window.isRTL ? 'نتيجة' : 'result' + (total === 1 ? '' : 's')}`}
+              ? (window.isRTL ? 'لم نجد أي نتائج تطابق كلمة البحث' : 'No results')
+              : (window.isRTL
+                  ? `وجدنا ${window.arPlural(total, { one: 'نتيجة واحدة', two: 'نتيجتين', few: `${total} نتائج`, many: `${total} نتيجة`, other: `${total} نتيجة` })}`
+                  : `${total} result${total === 1 ? '' : 's'}`)}
           </div>
         )}
       </div>
@@ -120,11 +122,11 @@ function ScreenTripSearch({ back, openSheet, openDoc, go }) {
               display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
             }}><window.IconSearch size={24} stroke="var(--ink-mute)" /></div>
             <div className="serif" style={{ fontSize: 18, color: 'var(--ink)' }}>
-              {window.isRTL ? 'ابحث في الرحلة' : 'Search this trip'}
+              {window.isRTL ? 'ابحث في تفاصيل ومحتوى الرحلة' : 'Search this trip'}
             </div>
             <div style={{ fontSize: 12.5, color: 'var(--ink-mute)', maxWidth: 280, lineHeight: 1.5 }}>
               {window.isRTL
-                ? 'مصروفات، مستندات (تذاكر، فنادق، تأشيرات)، وعناصر الخطة — كلها في مكان واحد'
+                ? 'تتبع وابحث في كل مكان: قائمة مصروفاتك، ححوزاتك ومستنداتك (تذاكر وفنادق وتأشيرات)، وجداول أنشطة الأيام — كل شيء متاح هنا فوراً.'
                 : 'Expenses, docs (tickets, hotels, visas), plan items — all in one place.'}
             </div>
           </div>
@@ -133,7 +135,7 @@ function ScreenTripSearch({ back, openSheet, openDoc, go }) {
         {/* ── Expenses section ── */}
         {expenses.length > 0 && (
           <ResultSection
-            title={window.isRTL ? 'مصروفات' : 'Expenses'}
+            title={window.isRTL ? 'مصروفات الرحلة' : 'Expenses'}
             count={expenses.length}>
             {expenses.slice(0, 30).map((e) => {
               const c = eCats.find((x) => x.key === e.cat);
@@ -160,7 +162,7 @@ function ScreenTripSearch({ back, openSheet, openDoc, go }) {
         {/* ── Docs section ── */}
         {docs.length > 0 && (
           <ResultSection
-            title={window.isRTL ? 'مستندات' : 'Documents'}
+            title={window.isRTL ? 'مستندات وحجوزات' : 'Documents'}
             count={docs.length}>
             {docs.slice(0, 30).map((d) => {
               const cat = cats.find((c) => c.key === d.category);
@@ -192,7 +194,7 @@ function ScreenTripSearch({ back, openSheet, openDoc, go }) {
         {/* ── Plan items ── */}
         {planItems.length > 0 && (
           <ResultSection
-            title={window.isRTL ? 'الخطة' : 'Plan'}
+            title={window.isRTL ? 'أنشطة الخطة' : 'Plan'}
             count={planItems.length}>
             {planItems.slice(0, 30).map((it) => {
               const PLAN_EMOJI = { food: '🍜', sight: '🎌', transport: '🚅', lodging: '🏨', misc: '📌' };
@@ -226,10 +228,10 @@ function ScreenTripSearch({ back, openSheet, openDoc, go }) {
               display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
             }}><window.IconSearch size={20} stroke="var(--ink-mute)" /></div>
             <div className="serif" style={{ fontSize: 16, color: 'var(--ink)' }}>
-              {window.isRTL ? `لا توجد نتائج لـ "${q}"` : `No results for "${q}"`}
+              {window.isRTL ? `لم نجد نتائج لـ "${q}"` : `No results for "${q}"`}
             </div>
             <div style={{ fontSize: 12, color: 'var(--ink-mute)' }}>
-              {window.isRTL ? 'جرّب كلمة أخرى' : 'Try a different keyword'}
+              {window.isRTL ? 'جرّب كلمة بحث أخرى' : 'Try a different keyword'}
             </div>
           </div>
         )}

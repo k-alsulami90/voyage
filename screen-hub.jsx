@@ -22,12 +22,12 @@ function ScreenHub({ go, openSheet, loading }) {
       <div style={{ background: 'var(--cream)', minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingBottom: 100 }}>
         <div style={{ textAlign: 'center', padding: 32 }}>
           <div className="serif" style={{ fontSize: 20, color: 'var(--ink-mute)' }}>
-            {window.isRTL ? 'لا توجد رحلة نشطة' : 'No active trip'}
+            {window.isRTL ? 'لا توجد رحلة نشطة حالياً' : 'No active trip'}
           </div>
           <button onClick={() => go('trips')} style={{
             marginTop: 14, padding: '10px 20px', borderRadius: 12,
             background: 'var(--ink)', color: 'var(--cream)', fontSize: 13.5,
-          }}>{window.isRTL ? '← رحلاتي' : 'My Trips →'}</button>
+          }}>{window.isRTL ? '← قائمة رحلاتي' : 'My Trips →'}</button>
         </div>
       </div>
     );
@@ -64,7 +64,7 @@ function ScreenHub({ go, openSheet, loading }) {
         </div>
         <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
           <button className="glass" style={btnGlass} onClick={() => openSheet('search')}
-                  aria-label={window.isRTL ? 'بحث' : 'Search'}><IconSearch size={18} /></button>
+                  aria-label={window.isRTL ? 'بحث في الرحلة' : 'Search'}><IconSearch size={18} /></button>
           <button className="glass" style={btnGlass} onClick={() => openSheet('share')}
                   aria-label={t('inviteTheCrew')}><IconShare size={18} /></button>
         </div>
@@ -194,28 +194,40 @@ function ScreenHub({ go, openSheet, loading }) {
           const member = (window.MEMBERS || []).find((m) => m.id === otherId);
           singleName = (member?.name || '').split(' ')[0] || member?.name || '';
         }
+        // Arabic count noun follows the dual/paucal/many rules via arPlural.
+        // For "people who owe you": one = شخص واحد, two = شخصان, few = N أشخاص,
+        // many = N شخصاً, other = N شخص (genitive singular).
+        const arPeopleNoun = window.isRTL
+          ? window.arPlural(otherCount, {
+              one: 'شخص واحد',
+              two: 'شخصان',
+              few: `${otherCount} أشخاص`,
+              many: `${otherCount} شخصاً`,
+              other: `${otherCount} شخص`,
+            })
+          : null;
         const sentence = otherCount === 1 && singleName
           ? (owed
               ? <>{window.isRTL
-                  ? <>يدين <BalanceAmt>{singleName}</BalanceAmt> لك بمبلغ <BalanceAmt>{amount}</BalanceAmt>.</>
+                  ? <>يترتب على <BalanceAmt>{singleName}</BalanceAmt> لك مبلغ <BalanceAmt>{amount}</BalanceAmt>.</>
                   : <><BalanceAmt>{singleName}</BalanceAmt> owes you <BalanceAmt>{amount}</BalanceAmt>.</>}</>
               : <>{window.isRTL
                   ? <>أنت مدين لـ <BalanceAmt>{singleName}</BalanceAmt> بمبلغ <BalanceAmt>{amount}</BalanceAmt>.</>
                   : <>You owe <BalanceAmt>{singleName}</BalanceAmt> <BalanceAmt>{amount}</BalanceAmt>.</>}</>)
           : (owed
               ? <>{window.isRTL
-                  ? <>يدين لك <BalanceAmt>{otherCount}</BalanceAmt> {otherCount === 1 ? 'شخص' : 'أشخاص'} بإجمالي <BalanceAmt>{amount}</BalanceAmt>.</>
+                  ? <>يترتب لك بذمة <BalanceAmt>{arPeopleNoun}</BalanceAmt> إجمالي <BalanceAmt>{amount}</BalanceAmt>.</>
                   : <><BalanceAmt>{otherCount}</BalanceAmt> {otherCount === 1 ? 'person owes' : 'people owe'} you <BalanceAmt>{amount}</BalanceAmt> total.</>}</>
               : <>{window.isRTL
-                  ? <>أنت مدين لـ <BalanceAmt>{otherCount}</BalanceAmt> {otherCount === 1 ? 'شخص' : 'أشخاص'} بإجمالي <BalanceAmt>{amount}</BalanceAmt>.</>
+                  ? <>أنت مدين لـ <BalanceAmt>{arPeopleNoun}</BalanceAmt> بإجمالي <BalanceAmt>{amount}</BalanceAmt>.</>
                   : <>You owe <BalanceAmt>{otherCount}</BalanceAmt> {otherCount === 1 ? 'person' : 'people'} <BalanceAmt>{amount}</BalanceAmt> total.</>}</>);
         return (
           <div style={{ padding: '24px 14px 0', position: 'relative', zIndex: 3 }}>
             <button onClick={() => openSheet?.('settleUp')}
               aria-label={window.isRTL
                 ? (owed
-                    ? (singleName ? `يدين ${singleName} لك بمبلغ ${amount}` : `يدين لك ${otherCount} أشخاص بإجمالي ${amount}`)
-                    : (singleName ? `أنت مدين لـ ${singleName} بمبلغ ${amount}` : `أنت مدين لـ ${otherCount} أشخاص بإجمالي ${amount}`))
+                    ? (singleName ? `يترتب على ${singleName} لك مبلغ ${amount}` : `يترتب لك بذمة ${arPeopleNoun} إجمالي ${amount}`)
+                    : (singleName ? `أنت مدين لـ ${singleName} بمبلغ ${amount}` : `أنت مدين لـ ${arPeopleNoun} بإجمالي ${amount}`))
                 : (owed
                     ? (singleName ? `${singleName} owes you ${amount}` : `${otherCount} people owe you ${amount}`)
                     : (singleName ? `You owe ${singleName} ${amount}` : `You owe ${otherCount} people ${amount}`))}
@@ -270,7 +282,7 @@ function ScreenHub({ go, openSheet, loading }) {
             }}>⚠</div>
             <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--clay-deep)' }}>
               {window.isRTL ? (
-                <>تجاوزت الميزانية بـ <strong>{fmtC(spent - planned)}</strong> ({Math.round(((spent - planned) / planned) * 100)}٪ فوق الخطة).</>
+                <>تجاوزت الميزانية بمقدار <strong>{fmtC(spent - planned)}</strong> (أي بنسبة {Math.round(((spent - planned) / planned) * 100)}٪ فوق الخطة المحددة).</>
               ) : (
                 <>Over budget by <strong>{fmtC(spent - planned)}</strong> ({Math.round(((spent - planned) / planned) * 100)}% above plan).</>
               )}
@@ -304,9 +316,9 @@ function ScreenHub({ go, openSheet, loading }) {
               }}>
                 {window.isRTL ? (
                   planned > 0 ? (
-                    <>صرفت <BudgetNum>{fmtC(spent)}</BudgetNum> من <BudgetNum dim>{fmtC(planned)}</BudgetNum>.</>
+                    <>أنفقت <BudgetNum>{fmtC(spent)}</BudgetNum> من أصل <BudgetNum dim>{fmtC(planned)}</BudgetNum>.</>
                   ) : (
-                    <>صرفت <BudgetNum>{fmtC(spent)}</BudgetNum> حتى الآن.</>
+                    <>إجمالي ما أنفقته حتى الآن: <BudgetNum>{fmtC(spent)}</BudgetNum>.</>
                   )
                 ) : (
                   planned > 0 ? (

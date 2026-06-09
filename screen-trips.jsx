@@ -160,11 +160,11 @@ function ScreenTrips({ goTrip, go }) {
               }}>
                 {window.isRTL ? (
                   <>
-                    <NumSpan>{stats.totalTrips}</NumSpan> {stats.totalTrips === 1 ? 'رحلة' : 'رحلات'}
+                    خضت <NumSpan>{window.arPlural(stats.totalTrips, { one: 'رحلة واحدة', two: 'رحلتين', few: `${stats.totalTrips} رحلات`, many: `${stats.totalTrips} رحلة`, other: `${stats.totalTrips} رحلة` })}</NumSpan>
                     {' · '}
-                    <NumSpan>{stats.totalDays}</NumSpan> يوم سفر
+                    على مدار <NumSpan>{window.arPlural(stats.totalDays, { one: 'يوم واحد', two: 'يومين', few: `${stats.totalDays} أيام`, many: `${stats.totalDays} يوماً`, other: `${stats.totalDays} يوماً` })}</NumSpan> من السفر
                     {' · '}
-                    <NumSpan>{stats.countries}</NumSpan> {stats.countries === 1 ? 'دولة' : 'دول'}
+                    شملت <NumSpan>{window.arPlural(stats.countries, { one: 'دولة واحدة', two: 'دولتين', few: `${stats.countries} دول`, many: `${stats.countries} دولة`, other: `${stats.countries} دولة` })}</NumSpan>
                   </>
                 ) : (
                   <>
@@ -203,7 +203,7 @@ function ScreenTrips({ goTrip, go }) {
                   display: 'inline-flex', alignItems: 'center', gap: 4,
                   flexDirection: 'row',
                 }}>
-                  {window.isRTL ? 'الإحصائيات' : 'See insights'}
+                  {window.isRTL ? 'عرض الإحصائيات' : 'See insights'}
                   <span className="icon-flip"><IconChevron size={12} stroke="currentColor" /></span>
                 </div>
               </div>
@@ -230,7 +230,7 @@ function ScreenTrips({ goTrip, go }) {
              distracted-mobile users (Casey) a target they can actually
              hit one-handed without mis-tapping a chip. */}
           <button onClick={() => { setShowSearch(!showSearch); setSearch(''); }}
-            aria-label={window.isRTL ? 'بحث' : 'Search trips'} style={{
+            aria-label={window.isRTL ? 'بحث عن رحلة' : 'Search trips'} style={{
             width: 38, height: 38, borderRadius: 999,
             background: showSearch ? 'var(--ink)' : 'var(--cream-2)',
             border: '0.5px solid var(--hairline)', display: 'grid', placeItems: 'center',
@@ -254,7 +254,7 @@ function ScreenTrips({ goTrip, go }) {
       {/* SMART TRACK — next time-anchored event (flight, check-in, pickup) */}
       {nextEvent && scope === 'all' && (
         <div style={{ padding: '4px 14px 0' }}>
-          <SectionLabel>{window.isRTL ? 'القادم' : 'Up next'}</SectionLabel>
+          <SectionLabel>{window.isRTL ? 'الحدث القادم' : 'Up next'}</SectionLabel>
           <SmartTrackCard event={nextEvent} trip={smartTripCandidate} onOpenTrip={() => goTrip(smartTripCandidate.id)} />
           {followups.length > 0 && (
             <div style={{
@@ -316,7 +316,7 @@ function ScreenTrips({ goTrip, go }) {
             {window.isRTL ? 'لا توجد رحلات بعد' : 'No trips yet'}
           </div>
           <div style={{ fontSize: 13.5, color: 'var(--ink-mute)', lineHeight: 1.5, maxWidth: 220 }}>
-            {window.isRTL ? 'ستظهر رحلاتك هنا بمجرد إنشائها' : 'Your trips will appear here once created'}
+            {window.isRTL ? 'ستظهر تفاصيل رحلاتك هنا بمجرد إنشائها' : 'Your trips will appear here once created'}
           </div>
         </div>
       )}
@@ -371,7 +371,7 @@ function CurrentTripCard({ trip, onOpen }) {
             boxShadow: '0 0 8px oklch(0.78 0.18 145)',
             animation: 'pulse 1.6s ease-in-out infinite',
           }} />
-          <span>{window.isRTL ? 'مباشر' : 'LIVE'}</span>
+          <span>{window.isRTL ? 'الآن' : 'LIVE'}</span>
         </div>
         {/* Day N of M */}
         <div className="glass" style={{
@@ -388,7 +388,7 @@ function CurrentTripCard({ trip, onOpen }) {
         }}>
           <div className="serif-italic" style={{ fontSize: 36, lineHeight: 1 }}>{trip.title}</div>
           <div style={{ fontSize: 12, opacity: 0.9, marginTop: 2 }}>
-            {trip.sub || `${daysRemaining} ${window.isRTL ? 'أيام متبقية' : 'days remaining'}`}
+            {trip.sub || (window.isRTL ? window.arPlural?.(daysRemaining, { zero: 'لا توجد أيام متبقية', one: 'يوم واحد متبقٍ', two: 'يومان متبقيان', few: `${daysRemaining} أيام متبقية`, many: `${daysRemaining} يوماً متبقياً`, other: `${daysRemaining} يوم متبقٍ` }) || `${daysRemaining} أيام متبقية` : `${daysRemaining} days remaining`)}
           </div>
         </div>
       </div>
@@ -404,7 +404,7 @@ function CurrentTripCard({ trip, onOpen }) {
         {trip.members > 0 && <AvatarStack members={window.MEMBERS.slice(0, trip.members)} size={26} />}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 11.5, color: 'var(--ink-mute)' }}>
-            {window.isRTL ? 'الميزانية' : 'Budget used'}
+            {window.isRTL ? 'الميزانية المستهلكة' : 'Budget used'}
           </div>
           <div style={{
             height: 5, marginTop: 4, borderRadius: 3,
@@ -861,7 +861,7 @@ function SmartTrackRow({ event, last, onOpenTrip }) {
         }}><window.IconPin size={14} stroke="currentColor" /></a>
       )}
       <button onClick={onOpenTrip}
-        aria-label={window.isRTL ? 'افتح الرحلة' : 'Open trip'} style={{
+        aria-label={window.isRTL ? 'فتح تفاصيل الرحلة' : 'Open trip'} style={{
         minWidth: 36, minHeight: 36, padding: 11, borderRadius: 10,
         background: 'transparent', color: 'var(--ink-mute)',
         border: '0.5px solid var(--hairline)',

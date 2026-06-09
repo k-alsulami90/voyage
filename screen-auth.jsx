@@ -33,11 +33,11 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
       // instead of a cryptic "is not a function".
       if (typeof window.sbSignIn !== 'function' || typeof window.sbSignUp !== 'function') {
         throw new Error(window.isRTL
-          ? 'لم تكتمل تحميل صفحة تسجيل الدخول — أعد تحميل التطبيق'
+          ? 'تعذر تحميل صفحة تسجيل الدخول بالكامل — يرجى إعادة تحميل التطبيق'
           : "Sign-in didn't finish loading. Reload the app.");
       }
       if (mode === 'signup') {
-        if (!email || !password) throw new Error(window.isRTL ? 'أكمل الحقول' : 'Fill all fields');
+        if (!email || !password) throw new Error(window.isRTL ? 'يرجى ملء جميع الحقول المطلوبة' : 'Fill all fields');
         const { data } = await window.sbSignUp(email, password, name || email.split('@')[0]);
         if (!data?.session) {
           setCheckEmail(true);
@@ -45,20 +45,20 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
           return;
         }
       } else if (mode === 'signin') {
-        if (!email || !password) throw new Error(window.isRTL ? 'أكمل الحقول' : 'Fill all fields');
+        if (!email || !password) throw new Error(window.isRTL ? 'يرجى ملء جميع الحقول المطلوبة' : 'Fill all fields');
         await window.sbSignIn(email, password);
       } else if (mode === 'forgot') {
-        if (!email) throw new Error(window.isRTL ? 'أدخل بريدك' : 'Enter your email');
+        if (!email) throw new Error(window.isRTL ? 'يرجى إدخل بريدك الإلكتروني' : 'Enter your email');
         await window.sbResetPassword(email);
         setResetSent(true);
-        window.toast?.(window.isRTL ? 'تم إرسال رابط التعيين' : 'Reset link sent', 'success');
+        window.toast?.(window.isRTL ? 'تم إرسال رابط إعادة التعيين بنجاح' : 'Reset link sent', 'success');
         setLoading(false);
         return;
       } else if (mode === 'reset') {
-        if (!password || password.length < 6) throw new Error(window.isRTL ? '٦ أحرف على الأقل' : 'Min 6 characters');
+        if (!password || password.length < 6) throw new Error(window.isRTL ? 'يجب أن تتكون كلمة المرور من 6 أحرف على الأقل' : 'Min 6 characters');
         if (password !== confirmPw) throw new Error(window.isRTL ? 'كلمتا المرور غير متطابقتين' : "Passwords don't match");
         await window.sbUpdatePassword(password);
-        window.toast?.(window.isRTL ? 'تم تحديث كلمة المرور' : 'Password updated', 'success');
+        window.toast?.(window.isRTL ? 'تم تحديث كلمة المرور بنجاح' : 'Password updated', 'success');
         window._authRecoveryActive = false;
         window.location.hash = '';
         setPass(''); setConfirmPw('');
@@ -78,7 +78,7 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
   const handleResendConfirmation = async () => {
     try {
       await window.sbResendConfirmation(email);
-      window.toast?.(window.isRTL ? 'تم إعادة الإرسال' : 'Confirmation resent', 'success');
+      window.toast?.(window.isRTL ? 'تم إعادة إرسال رابط التأكيد' : 'Confirmation resent', 'success');
     } catch (err) { window.toast?.(err.message, 'error'); }
   };
   return (
@@ -177,14 +177,14 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
               {window.isRTL ? 'استعادة كلمة المرور' : 'Reset your password'}
             </div>
             <div style={{ fontSize: 12.5, color: 'var(--ink-mute)', marginTop: 4 }}>
-              {window.isRTL ? 'سنرسل رابطاً لبريدك' : "We'll email you a reset link"}
+              {window.isRTL ? 'سنرسل لك رابطاً لإعادة تعيين كلمة المرور' : "We'll email you a reset link"}
             </div>
           </div>
         )}
         {mode === 'reset' && (
           <div style={{ marginBottom: 14 }}>
             <div className="serif" style={{ fontSize: 22, lineHeight: 1.1 }}>
-              {window.isRTL ? 'كلمة مرور جديدة' : 'Choose a new password'}
+              {window.isRTL ? 'تعيين كلمة المرور الجديدة' : 'Choose a new password'}
             </div>
           </div>
         )}
@@ -192,7 +192,7 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
         {/* Form */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {mode === 'signup' && (
-            <Field label={t('fullName')} placeholder={window.isRTL ? 'الاسم الكامل' : 'Your full name'}
+            <Field label={t('fullName')} placeholder={window.isRTL ? 'اكتب اسمك الكامل' : 'Your full name'}
               value={name} onChange={setName}
               icon={<IconUsers size={14} stroke="var(--ink-mute)" />} />
           )}
@@ -224,11 +224,11 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
               border: '0.5px solid oklch(0.50 0.08 155 / 0.35)',
               fontSize: 12.5, color: 'var(--moss)', lineHeight: 1.5,
             }}>
-              ✉️ {window.isRTL ? 'تحقق من بريدك الإلكتروني واضغط على رابط التأكيد، ثم عُد وسجّل الدخول' : 'Check your email and click the confirmation link, then come back and sign in.'}
+              ✉️ {window.isRTL ? 'يرجى التحقق من بريدك الإلكتروني والضغط على رابط التأكيد، ثم عُد إلى هنا لتسجيل الدخول' : 'Check your email and click the confirmation link, then come back and sign in.'}
               <button onClick={handleResendConfirmation} style={{
                 display: 'block', marginTop: 8, color: 'var(--moss)', fontWeight: 600, fontSize: 12,
                 textDecoration: 'underline',
-              }}>{window.isRTL ? 'إعادة الإرسال' : 'Resend confirmation'}</button>
+              }}>{window.isRTL ? 'إعادة إرسال الرابط' : 'Resend confirmation'}</button>
             </div>
           )}
 
@@ -240,7 +240,7 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
               border: '0.5px solid oklch(0.50 0.08 155 / 0.35)',
               fontSize: 12.5, color: 'var(--moss)', lineHeight: 1.5,
             }}>
-              ✉️ {window.isRTL ? 'تحقق من بريدك واضغط على رابط التعيين' : 'Check your inbox and click the reset link.'}
+              ✉️ {window.isRTL ? 'تفقد بريدك الإلكتروني واضغط على رابط إعادة التعيين المرسل' : 'Check your inbox and click the reset link.'}
             </div>
           )}
 
@@ -294,7 +294,7 @@ function ScreenAuth({ go, mode: initMode = 'signin' }) {
           ) : (
             <>
               {mode === 'signup' ? t('createLedger')
-                : mode === 'forgot' ? (window.isRTL ? 'إرسال رابط التعيين' : 'Send reset link')
+                : mode === 'forgot' ? (window.isRTL ? 'إرسال رابط إعادة التعيين' : 'Send reset link')
                 : mode === 'reset' ? (window.isRTL ? 'تحديث كلمة المرور' : 'Update password')
                 : t('continue')}
               <IconChevron size={14} stroke="currentColor" />

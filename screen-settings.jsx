@@ -34,7 +34,7 @@ function ScreenSettings({ go, openSheet }) {
         <Header title={t('settings')} onBack={() => go('hub')} />
         <div style={{ padding: '48px 32px', textAlign: 'center', color: 'var(--ink-mute)' }}>
           <div className="serif" style={{ fontSize: 18 }}>
-            {window.isRTL ? 'الرجاء فتح رحلة أولاً' : 'Open a trip first'}
+            {window.isRTL ? 'يرجى تحديد وفتح رحلة أولاً' : 'Open a trip first'}
           </div>
         </div>
       </div>
@@ -78,7 +78,7 @@ function ScreenSettings({ go, openSheet }) {
             {uploading ? (
               <span style={{ width: 12, height: 12, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', display: 'inline-block', animation: 'expspin 0.7s linear infinite' }} />
             ) : <IconUpload size={12} stroke="#fff" />}
-            {uploading ? (window.isRTL ? 'جاري الرفع...' : 'Uploading...') : t('editCover')}
+            {uploading ? (window.isRTL ? 'جاري رفع الصورة الآن...' : 'Uploading...') : t('editCover')}
           </button>
         </div>
       </div>
@@ -120,9 +120,15 @@ function ScreenSettings({ go, openSheet }) {
                 fontSize: 12, color: 'var(--ink-mute)', marginTop: 2,
               }}>
                 {[
-                  counts.Admin > 0 && `${counts.Admin} ${counts.Admin === 1 ? t('admin') : (window.isRTL ? 'مديرون' : 'admins')}`,
-                  counts.Editor > 0 && `${counts.Editor} ${counts.Editor === 1 ? t('editor') : (window.isRTL ? 'محررون' : 'editors')}`,
-                  counts.Viewer > 0 && `${counts.Viewer} ${counts.Viewer === 1 ? t('viewer') : (window.isRTL ? 'مشاهدون' : 'viewers')}`,
+                  counts.Admin > 0 && (window.isRTL
+                    ? window.arPlural(counts.Admin, { one: 'مشرف واحد', two: 'مشرفان', few: `${counts.Admin} مشرفين`, many: `${counts.Admin} مشرفاً`, other: `${counts.Admin} مشرف` })
+                    : `${counts.Admin} ${counts.Admin === 1 ? t('admin') : 'admins'}`),
+                  counts.Editor > 0 && (window.isRTL
+                    ? window.arPlural(counts.Editor, { one: 'محرر واحد', two: 'محرران', few: `${counts.Editor} محررين`, many: `${counts.Editor} محرراً`, other: `${counts.Editor} محرر` })
+                    : `${counts.Editor} ${counts.Editor === 1 ? t('editor') : 'editors'}`),
+                  counts.Viewer > 0 && (window.isRTL
+                    ? window.arPlural(counts.Viewer, { one: 'قارئ واحد', two: 'قارئان', few: `${counts.Viewer} قراء ومستكشفون`, many: `${counts.Viewer} قارئاً`, other: `${counts.Viewer} قارئ` })
+                    : `${counts.Viewer} ${counts.Viewer === 1 ? t('viewer') : 'viewers'}`),
                 ].filter(Boolean).join(' · ')}
               </div>
             </div>
@@ -138,11 +144,11 @@ function ScreenSettings({ go, openSheet }) {
               ]}
               onAction={async (key) => {
                 if (key !== 'remove' || m.id === window.currentUserId) return;
-                if (!confirm(window.isRTL ? `إزالة ${m.name} من الرحلة؟` : `Remove ${m.name} from the trip?`)) return;
+                if (!confirm(window.isRTL ? `هل تريد إزالة ${m.name} واستبعاده من هذه الرحلة؟` : `Remove ${m.name} from the trip?`)) return;
                 try {
                   await window.removeMember(trip.id, m.id);
                   setMembers(members.filter((x) => x.id !== m.id));
-                  window.toast?.(window.isRTL ? 'تمت الإزالة' : 'Removed', 'success');
+                  window.toast?.(window.isRTL ? 'تم استبعاد العضو بنجاح' : 'Removed', 'success');
                 } catch (err) { window.toast?.(err.message || 'Action failed', 'error'); }
               }}>
               <div style={{
@@ -155,7 +161,7 @@ function ScreenSettings({ go, openSheet }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink)' }}>{m.name}</div>
                   <div style={{ fontSize: 10.5, color: 'var(--ink-mute)' }}>
-                    {m.id === window.currentUserId ? (window.isRTL ? 'أنت · المالك' : 'you · owner') : (window.isRTL ? 'عضو في الرحلة' : 'trip member')}
+                    {m.id === window.currentUserId ? (window.isRTL ? 'أنت · مالك السجل' : 'you · owner') : (window.isRTL ? 'صديق في الرحلة' : 'trip member')}
                   </div>
                 </div>
                 <RoleSelect role={m.role} onChange={async (r) => {
@@ -186,11 +192,11 @@ function ScreenSettings({ go, openSheet }) {
             border: '0.5px solid var(--hairline)',
           }}>
             {[
-              { perm: window.isRTL ? 'عرض الرحلة والمستندات' : 'View trip & docs',    a: true,  e: true,  v: true  },
-              { perm: window.isRTL ? 'إضافة مصروفات ومستندات' : 'Add expenses & docs', a: true,  e: true,  v: false },
-              { perm: window.isRTL ? 'دعوة أعضاء' : 'Invite members',                  a: true,  e: false, v: false },
-              { perm: window.isRTL ? 'تعديل إعدادات الرحلة' : 'Edit trip settings',    a: true,  e: false, v: false },
-              { perm: window.isRTL ? 'أرشفة أو حذف' : 'Archive or delete',             a: true,  e: false, v: false },
+              { perm: window.isRTL ? 'استعراض وتصفح تفاصيل الرحلة ومستنداتها' : 'View trip & docs',    a: true,  e: true,  v: true  },
+              { perm: window.isRTL ? 'إضافة بنود مصروفات أو مستندات جديدة' : 'Add expenses & docs', a: true,  e: true,  v: false },
+              { perm: window.isRTL ? 'إرسال روابط دعوة لأصدقاء جدد' : 'Invite members',                  a: true,  e: false, v: false },
+              { perm: window.isRTL ? 'تعديل المعطيات والإعدادات العامة للرحلة' : 'Edit trip settings',    a: true,  e: false, v: false },
+              { perm: window.isRTL ? 'أرشفة الرحلة أو حذف سجلها بالكامل' : 'Archive or delete',             a: true,  e: false, v: false },
             ].map((row, i) => (
               <div key={row.perm} style={{
                 display: 'grid', gridTemplateColumns: '1fr 30px 30px 30px',
@@ -280,7 +286,7 @@ function InvitesList({ tripId }) {
   };
 
   const handleRevoke = async (token) => {
-    if (!confirm(window.isRTL ? 'إلغاء هذا الرابط؟' : 'Revoke this invite link?')) return;
+    if (!confirm(window.isRTL ? 'هل تريد إلغاء صلاحية هذا الرابط نهائياً؟' : 'Revoke this invite link?')) return;
     try {
       await window.revokeInvite(token);
       await refresh();
@@ -326,7 +332,9 @@ function InvitesList({ tripId }) {
                 }}>{inv.token}</div>
                 {days !== null && (
                   <div style={{ fontSize: 10.5, color: 'var(--ink-mute)', marginTop: 2 }}>
-                    {window.isRTL ? `ينتهي خلال ${days} يوم` : `expires in ${days}d`}
+                    {window.isRTL
+                      ? `تنتهي صلاحية الرابط خلال ${window.arPlural(days, { one: 'يوم واحد', two: 'يومين', few: `${days} أيام`, many: `${days} يوماً`, other: `${days} يوماً` })}`
+                      : `expires in ${days}d`}
                   </div>
                 )}
               </div>
@@ -348,7 +356,7 @@ function InvitesList({ tripId }) {
         {active.length === 0 && (
           <div style={{
             padding: '14px', fontSize: 12, color: 'var(--ink-mute)', textAlign: 'center',
-          }}>{window.isRTL ? 'لا توجد روابط نشطة' : 'No active invites'}</div>
+          }}>{window.isRTL ? 'لا توجد روابط دعوة نشطة حالياً' : 'No active invites'}</div>
         )}
       </div>
       {inactive.length > 0 && (
@@ -356,7 +364,9 @@ function InvitesList({ tripId }) {
           marginTop: 8, padding: '0 6px',
           fontSize: 10.5, color: 'var(--ink-mute)',
         }}>
-          {inactive.length} {window.isRTL ? 'رابط منتهي أو ملغى' : 'expired or revoked'}
+          {window.isRTL
+            ? `${window.arPlural(inactive.length, { one: 'رابط واحد', two: 'رابطان', few: `${inactive.length} روابط`, many: `${inactive.length} رابطاً`, other: `${inactive.length} رابط` })} منتهية الصلاحية أو الملغاة`
+            : `${inactive.length} expired or revoked`}
         </div>
       )}
     </div>
@@ -475,7 +485,7 @@ function LifecycleActions() {
     if (!tripId) return;
     try {
       await window.sb.from('trips').delete().eq('id', tripId);
-      window.toast?.(window.isRTL ? 'تم حذف الرحلة' : 'Trip deleted', 'success');
+      window.toast?.(window.isRTL ? 'تم حذف الرحلة وسجلها بالكامل' : 'Trip deleted', 'success');
       window.clearAllMockData();
       window.location.reload();
     } catch (err) {
@@ -568,7 +578,7 @@ function EditableTripParams({ trip: tripProp }) {
       await window.loadTripDetail(trip.id);
       setEditing(null);
       setTick((n) => n + 1);
-      window.toast?.(window.isRTL ? 'تم الحفظ' : 'Saved', 'success');
+      window.toast?.(window.isRTL ? 'تم حفظ التعديلات بنجاح' : 'Saved', 'success');
     } catch (e) {
       setErr(e.message);
       window.toast?.(e.message || 'Save failed', 'error');
@@ -603,15 +613,15 @@ function EditableTripParams({ trip: tripProp }) {
       {/* Destination (title + subtitle) */}
       <EditRow editing={editing} setEditing={setEditing} icon={<IconCompass size={16} stroke="var(--ink)" />} label={t('destination')}
            value={trip.subtitle || trip.title || '—'} fieldKey="title">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={window.isRTL ? 'اسم الرحلة' : 'Trip title'} style={inputStyle} />
-        <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder={window.isRTL ? 'وصف' : 'Subtitle'} style={inputStyle} />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={window.isRTL ? 'اكتب اسماً مميزاً للرحلة' : 'Trip title'} style={inputStyle} />
+        <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder={window.isRTL ? 'اكتب وصفاً مختصراً للرحلة' : 'Subtitle'} style={inputStyle} />
         <SaveCancelBar saving={saving} onSave={() => save({ title: title.trim(), subtitle: subtitle.trim() || null })} onCancel={() => setEditing(null)} />
       </EditRow>
 
       {/* Countries (comma-separated list — supports multi-country trips) */}
       <EditRow editing={editing} setEditing={setEditing} icon={<IconPin size={16} stroke="var(--ink)" />}
-           label={window.isRTL ? 'الدول' : 'Countries'}
-           value={(trip.countries || []).length > 0 ? trip.countries.join(' · ') : (window.isRTL ? 'لم تُحدد' : 'Not set')}
+           label={window.isRTL ? 'الدول المشمولة' : 'Countries'}
+           value={(trip.countries || []).length > 0 ? trip.countries.join(' · ') : (window.isRTL ? 'لم تُحدد دول بعد' : 'Not set')}
            fieldKey="countries">
         <div style={{ fontSize: 11, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', letterSpacing: '0.08em' }}>
           {window.isRTL ? 'افصل بفاصلة — مثال: سويسرا, البرتغال, اسكتلندا' : 'Comma-separated — e.g. Switzerland, Portugal, Scotland'}
@@ -651,7 +661,7 @@ function EditableTripParams({ trip: tripProp }) {
            value={trip.budget?.plannedUSD ? window.fmtMoney(trip.budget.plannedUSD, { in: 'home' }) : '—'}
            fieldKey="budget">
         <div style={paramLabelStyle}>
-          {window.isRTL ? 'العملة' : 'Currency'}
+          {window.isRTL ? 'عملة الحساب' : 'Currency'}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {CURRENCIES.map((c) => (
@@ -673,7 +683,7 @@ function EditableTripParams({ trip: tripProp }) {
           ))}
         </div>
         <div style={{ ...paramLabelStyle, marginTop: 6 }}>
-          {window.isRTL ? `المبلغ (${budgetCur})` : `Amount (${budgetCur})`}
+          {window.isRTL ? `المبلغ الإجمالي (${budgetCur})` : `Amount (${budgetCur})`}
         </div>
         <input type="number" inputMode="decimal" value={budgetAmt}
           onChange={(e) => setBudgetAmt(e.target.value)}
@@ -695,7 +705,7 @@ function EditableTripParams({ trip: tripProp }) {
            value={`${trip.homeCurrency || 'USD'}${trip.localCurrency && trip.localCurrency !== trip.homeCurrency ? ' ↔ ' + trip.localCurrency : ''}`}
            fieldKey="currency">
         <div style={paramLabelStyle}>
-          {window.isRTL ? 'العملة الرئيسية' : 'Home currency'}
+          {window.isRTL ? 'عملتك الرئيسية (في بلدك)' : 'Home currency'}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {CURRENCIES.map((c) => (
@@ -708,7 +718,7 @@ function EditableTripParams({ trip: tripProp }) {
           ))}
         </div>
         <div style={{ ...paramLabelStyle, marginTop: 8 }}>
-          {window.isRTL ? 'العملة المحلية' : 'Local currency'}
+          {window.isRTL ? 'العملة المحلية لوجهة السفر' : 'Local currency'}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {CURRENCIES.map((c) => (
@@ -768,7 +778,7 @@ function SaveCancelBar({ saving, onSave, onCancel }) {
       <button disabled={saving} onClick={onSave} style={{
         flex: 1, padding: '10px', borderRadius: 10, fontSize: 12.5, fontWeight: 600,
         background: saving ? 'var(--ink-mute)' : 'var(--ink)', color: 'var(--cream)',
-      }}>{saving ? '…' : (window.isRTL ? 'حفظ' : 'Save')}</button>
+      }}>{saving ? '…' : (window.isRTL ? 'حفظ التغييرات' : 'Save')}</button>
       <button disabled={saving} onClick={onCancel} style={{
         padding: '10px 16px', borderRadius: 10, fontSize: 12.5,
         background: 'var(--cream)', border: '0.5px solid var(--hairline-2)', color: 'var(--ink-soft)',

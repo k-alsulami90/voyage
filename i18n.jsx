@@ -193,134 +193,132 @@ const TRANSLATIONS = {
     daily:'daily', planned:'planned',
   },
   ar: {
-    signIn:'تسجيل الدخول', signUp:'إنشاء حساب', email:'البريد الإلكتروني',
+    // ── Auth ──
+    signIn:'تسجيل الدخول', signUp:'حساب جديد', email:'البريد الإلكتروني',
     password:'كلمة المرور', fullName:'الاسم الكامل', continue:'متابعة',
-    createLedger:'إنشاء سجلي', forgotPassword:'نسيت؟', orContinueWith:'أو تابع بـ',
-    alreadyHaveAccount:'لديك حساب؟', newToVoyage:'جديد في Voyage؟',
-    createOne:'إنشاء حساب', signinLink:'دخول',
-    agreeTerms:'أوافق على شروط وخصوصية Voyage. الرحلات خاصة افتراضياً.',
-    welcomeBack:'أهلاً\nبعودتك.', startLedger:'ابدأ\nسجل رحلاتك.',
-    tagline:'لمن يحب التجوال',
+    createLedger:'إنشاء السجل', forgotPassword:'نسيتها؟', orContinueWith:'أو تابع بـ',
+    alreadyHaveAccount:'لديك حساب بالفعل؟', newToVoyage:'جديد في Voyage؟',
+    createOne:'أنشئ حسابك الآن', signinLink:'تسجيل الدخول',
+    agreeTerms:'بالتسجيل، أنت توافق على شروط الخدمة وسياسة خصوصية Voyage. رحلاتك ستبقى خاصة افتراضياً.',
+    welcomeBack:'أهلاً بك\nمن جديد.', startLedger:'ابدأ\nتدوين رحلاتك.',
+    tagline:'لعشاق الترحال والاستكشاف',
     apple:'آبل', google:'جوجل', passkey:'مفتاح',
-    yourTravels:'رحلاتك', all:'الكل', private:'خاصة', shared:'مشتركة',
-    currentlyTraveling:'في رحلة الآن', upcoming:'القادمة', pastTrips:'الرحلات السابقة',
-    seeAll:'عرض الكل', lifetimeAllTrips:'المجموع الكلي',
+    // ── Trips home ──
+    yourTravels:'رحلاتي', all:'الكل', private:'خاصة', shared:'مشتركة',
+    currentlyTraveling:'في رحلة الآن', upcoming:'الرحلات القادمة', pastTrips:'الرحلات السابقة',
+    seeAll:'عرض الكل', lifetimeAllTrips:'سجل الإنفاق الكلي',
     countries:'دولة', continents:'قارات', travelDays:'يوم سفر',
     trips:'رحلات', lifetime:'المجموع', longest:'الأطول', logged:'مسجلة', spent:'أُنفق',
     crewPrivacy:'الطاقم يعيش داخل كل رحلة',
     crewPrivacySub:'الضيوف يرون فقط ما شاركته معهم.',
-    sharedBudget:'الميزانية المشتركة', leftOnPace:'متبقي · في المسار',
-    upNext:'القادم', quickActions:'إجراءات سريعة',
-    add:'إضافة', upload:'رفع', invite:'دعوة', plan:'تخطيط',
-    recentActivity:'النشاط الأخير', splitting:'مشاركة', daysLeft:'أيام متبقية',
-    budget:'الميزانية', totalSpent:'الإجمالي المنفق', ofPlanned:'من',
-    expenses:'المصروفات', auditLog:'سجل المراجعة',
-    lodging:'الإقامة', food:'الطعام', transit:'المواصلات', culture:'الثقافة', misc:'متنوع',
-    // Document categories — premium phrasing for Gulf users
-    docFlights:'الرحلات', docLodging:'الفنادق', docVisas:'التأشيرات', docTransport:'الإيجارات',
+    sharedBudget:'الميزانية المشتركة للرحلة', leftOnPace:'المتبقي حسب وتيرة الصرف',
+    upNext:'الحدث القادم', quickActions:'إجراءات سريعة',
+    add:'إضافة مصروف', upload:'رفع', invite:'دعوة عضو جديد', plan:'تخطيط',
+    recentActivity:'أحدث العمليات', splitting:'مشاركة', daysLeft:'أيام متبقية',
+    budget:'الميزانية', totalSpent:'إجمالي الإنفاق', ofPlanned:'من',
+    expenses:'قائمة المصروفات', auditLog:'سجل التعديلات والمراجعة',
+    lodging:'السكن والإقامة', food:'المطاعم والمقاهي', transit:'المواصلات والتنقل', culture:'الأنشطة والثقافة', misc:'مصروفات متنوعة',
+    // Document categories
+    docFlights:'تذاكر الطيران', docLodging:'ححوزات السكن', docVisas:'التأشيرات', docTransport:'وسائل النقل والمسارات',
     // Dynamic trip card states
     daysAway:'بعد {n} أيام',    dayAway:'غداً',
     startingToday:'تبدأ اليوم',
-    inProgress:'جارية',          dayOfTotal:'اليوم {n} من {total}',
-    completed:'مكتملة',          lastedDays:'{n} أيام',
-    spentTotal:'الإجمالي المنفق', budgetOf:'من {b}',
+    inProgress:'جارية الآن',          dayOfTotal:'اليوم {n} من {total}',
+    completed:'مكتملة',          lastedDays:'استغرقت {n} أيام',
+    spentTotal:'إجمالي الإنفاق', budgetOf:'من أصل {b}',
     today:'اليوم',
 
-    // Onboarding
+    // ── Onboarding ──
     obStep:'الخطوة {a} من {b}',
     obSkip:'تخطٍ',
     obContinue:'متابعة',
     obBack:'رجوع',
     obGetStarted:'لنبدأ',
     obWelcomeTitle:'مرحباً بك في\nVoyage',
-    obWelcomeSub:'خطط لرحلاتك، تتبع مصروفاتك، وشارك التجربة مع فريقك.',
-    obFeature1Title:'متعدد العملات والدول',
-    obFeature1Sub:'رحلة واحدة عبر السعودية، أوروبا أو اليابان — كل العملات.',
-    obFeature2Title:'مشاركة مع الطاقم',
-    obFeature2Sub:'محدود بالرحلة: الضيوف يرون فقط ما تدعوهم إليه.',
-    obFeature3Title:'إحصائيات شاملة',
-    obFeature3Sub:'كل مصروف، كل دولة، في لوحة واحدة.',
-    obBasicsTitle:'بعض المعلومات',
-    obBasicsSub:'نستخدمها لاختيار الإعدادات المناسبة لك.',
-    obNameLabel:'اسمك',
-    obNamePlaceholder:'كريم',
-    obHomeLabel:'مدينتك',
+    obWelcomeSub:'وجهتك الواحدة للتخطيط لرحلاتك، تتبع مصروفاتك، ومشاركة تفاصيل السفر مع أصدقائك.',
+    obFeature1Title:'دعم كامل لجميع العملات والدول',
+    obFeature1Sub:'ترحال سلس بين مختلف الدول بالعملة المحلية لكل وجهة.',
+    obFeature2Title:'مشاركة ذكية مع أصدقائك في السفر',
+    obFeature2Sub:'تحكم كامل بالخصوصية: يرى ضيوفك فقط الرحلات التي تدعوهم إليها.',
+    obFeature3Title:'إحصائيات وتحليلات شاملة',
+    obFeature3Sub:'تتبع كل مصروفاتك ووزّع الميزانية بوضوح في لوحة تحكم واحدة.',
+    obBasicsTitle:'لنتعرف عليك أكثر',
+    obBasicsSub:'نستخدم هذه التفاصيل لتهيئة إعدادات التطبيق بما يناسبك.',
+    obNameLabel:'الاسم الأول',
+    obNamePlaceholder:'مثلاً: كريم',
+    obHomeLabel:'مدينتك الحالية',
     obHomePlaceholder:'مكة، الرياض، دبي…',
     obCurrencyLabel:'العملة الافتراضية',
-    obDoneTitle:'كل شيء جاهز',
-    obDoneSub:'أنشئ أول رحلة لك أو ابدأ بالاستكشاف.',
+    obDoneTitle:'كل شيء جاهز!',
+    obDoneSub:'يمكنك الآن إنشاء رحلتك الأولى أو البدء باستكشاف التطبيق.',
     obCreateTrip:'إنشاء أول رحلة',
-    obExplore:'استكشاف فقط',
+    obExplore:'استكشاف التطبيق',
 
-    // Receipts
-    receiptLabel:'الإيصال',
-    receiptAdd:'إضافة إيصال',
+    // ── Receipts ──
+    receiptLabel:'إيصال وفاتورة الدفع',
+    receiptAdd:'إرفاق إيصال الدفع',
     receiptReplace:'استبدال',
     receiptRemove:'حذف',
     receiptUploading:'جاري الرفع…',
     receiptHint:'اختياري · صورة من الكاميرا أو المعرض',
     receiptOpenFull:'فتح بالحجم الكامل',
 
-    // Settle up
-    settleUp:'تسوية الحسابات',
-    // Arabic copy uses "فاتورة" (invoice) throughout for clarity, per
-    // the user's request. "لا توجد فواتير للتسوية" reads as a clean
-    // empty state. "تمت تسوية الفاتورة" confirms an individual line
-    // was cleared.
-    settleAllSettled:'لا توجد فواتير للتسوية.',
+    // ── Settle up ──
+    settleUp:'تسوية العبء المالي والحسابات',
+    settleAllSettled:'رائع! جميع الحسابات والفواتير مُسوّاة بالكامل.',
     settleTransactions:'فواتير مفتوحة',
     settleSummary:'{n} {n,plural,one{فاتورة}other{فواتير}} للتسوية',
-    settleMarkPaid:'تأكيد التسوية',
-    settleShare:'مشاركة',
+    settleMarkPaid:'تأكيد السداد والتسوية',
+    settleShare:'مشاركة التفاصيل',
     settleHistory:'مُسوّاة',
-    settleNoActivity:'لا توجد مصاريف بعد — أضف بعضاً للبدء.',
-    settleConfirmTitle:'تأكيد تسوية الفاتورة؟',
-    settleConfirmMsg:'{from} دفع {to} مبلغ {amount}. ستنتقل الفاتورة إلى المُسوّاة.',
-    settleConfirmYes:'نعم، تمت التسوية',
-    settleWhatsappCopy:'مرحباً {to}، أدين لك بـ {amount} من رحلتنا — تمت التسوية عبر Voyage.',
-    settleHistoryTitle:'التسويات السابقة',
+    settleNoActivity:'لا توجد مصاريف مشتركة مسجلة لهذه الرحلة حتى الآن للبدء في تسويتها.',
+    settleConfirmTitle:'هل تود تأكيد تسوية هذه الفاتورة؟',
+    settleConfirmMsg:'قام {from} بسداد مبلغ {amount} إلى {to}. سيتم نقل هذه العملية مباشرة إلى قائمة المعاملات المُسوّاة والمكتملة.',
+    settleConfirmYes:'نعم، تمت التسوية والسداد',
+    settleWhatsappCopy:'مرحباً {to}، لقد قمت بتسوية وسداد مبلغ {amount} المترتب عليّ من رحلتنا الأخيرة — دُوّنت التسوية عبر تطبيق Voyage.',
+    settleHistoryTitle:'سجل التسويات المكتملة',
 
-    // Splits & shared trips
-    splitWithLabel:'تقسيم مع',
-    splitEveryone:'الجميع',
-    splitJustMe:'أنا فقط',
-    splitCustom:'اختر أشخاصاً',
-    splitWithCount:'مقسوم بين {n}',
-    splitYourShare:'حصتك',
-    splitCovered:'تكفّلت بها',
-    // Direction-aware balance phrasing — matches the user's preferred
-    // shape: "يدين B لك بمبلغ 115" / "أنت مدين لـ A بمبلغ 115".
-    balanceOwedFrom:'يدين {name} لك بمبلغ {amount}',
+    // ── Splits & shared trips ──
+    splitWithLabel:'آلية تقسيم التكلفة',
+    splitEveryone:'تقسيم بالتساوي على الجميع',
+    splitJustMe:'أتحمل التكلفة بمفردي فقط',
+    splitCustom:'تقسيم على أشخاص محددين',
+    splitWithCount:'مقسوم بالتساوي بين {n} أشخاص',
+    splitYourShare:'حصتك الصافية من التكلفة',
+    splitCovered:'تكفلت بسدادها بالكامل',
+    // Direction-aware balance phrasing
+    balanceOwedFrom:'يترتب على {name} لك مبلغ {amount}',
     balanceOweTo:'أنت مدين لـ {name} بمبلغ {amount}',
-    balanceOwedFromN:'يدين لك {n} {n,plural,one{شخص}other{أشخاص}} بإجمالي {amount}',
+    balanceOwedFromN:'يترتب لك بذمة {n} {n,plural,one{شخص}other{أشخاص}} إجمالي {amount}',
     balanceOweToN:'أنت مدين لـ {n} {n,plural,one{شخص}other{أشخاص}} بإجمالي {amount}',
     balanceSettled:'كل الحسابات متسوية',
-    balanceTapToSettle:'اضغط للتسوية',
+    balanceTapToSettle:'اضغط لتسوية الحسابات',
 
-    // Insights dashboard
-    insightsTitle:'إحصائيات شاملة',
-    insightsSub:'كل رحلة، كل مصروف — في لمحة',
-    kpiTotalTrips:'إجمالي الرحلات',  kpiCountries:'الدول',
-    kpiTravelDays:'أيام السفر',      kpiLifetimeSpent:'الإجمالي المنفق',
-    sectionByYear:'سنة بسنة',
-    sectionByCategory:'أين يذهب المال',
-    sectionTopTrips:'أعلى الرحلات إنفاقاً',
-    sectionTripStatus:'حالة الرحلات',
-    sectionMembers:'أكبر المساهمين',
-    sectionPace:'وتيرة الإنفاق',
-    statAvgTrip:'متوسط الرحلة',      statLongestTrip:'الأطول',
-    statDailyAvg:'المعدل اليومي',     statTopTransaction:'أكبر مصروف',
-    statMostExpensive:'الأغلى',
-    statTotalExpenses:'مصاريف مسجلة',
+    // ── Insights dashboard ──
+    insightsTitle:'الإحصائيات الشاملة',
+    insightsSub:'نظرة عامة وتحليلات مفصلة لكل رحلاتك ومصروفاتك',
+    kpiTotalTrips:'إجمالي الرحلات',  kpiCountries:'الدول والوجهات',
+    kpiTravelDays:'أيام السفر الكلية',      kpiLifetimeSpent:'إجمالي الإنفاق العام',
+    sectionByYear:'تفصيل السنوات',
+    sectionByCategory:'تحليل المصروفات',
+    sectionTopTrips:'الرحلات الأعلى إنفاقاً',
+    sectionTripStatus:'حالة الرحلات الحالية',
+    sectionMembers:'الأصدقاء الرئيسيون',
+    sectionPace:'متوسط وتيرة الإنفاق',
+    statAvgTrip:'متوسط تكلفة الرحلة',      statLongestTrip:'الرحلة الأطول',
+    statDailyAvg:'المعدل اليومي العام',     statTopTransaction:'أكبر مصروف فردي',
+    statMostExpensive:'الوجهة الأغلى تكلفة',
+    statTotalExpenses:'المصروفات المسجلة',
     statCurrencies:'العملات المستخدمة',
-    yearTrips:'{n} رحلة',           yearDays:'{n} يوم',
-    statusCurrent:'جارية',           statusUpcoming:'قادمة',
+    yearTrips:'{n} رحلة',           yearDays:'{n} يوماً',
+    statusCurrent:'جارية الآن',           statusUpcoming:'قادمة',
     statusPast:'سابقة',
-    noInsightsYet:'لا توجد بيانات بعد',
-    noInsightsSub:'أضف رحلات ومصاريف لترى الإحصائيات الشاملة',
+    noInsightsYet:'لا توجد بيانات كافية حالياً',
+    noInsightsSub:'ابدأ بإضافة رحلات ومصروفات جديدة لتظهر لك الإحصاءات العامة هنا',
     added:'أضاف', edited:'عدّل', uploaded:'رفع', invited:'دعا',
-    ofTotal:'٪ من الإجمالي', used:'مستخدم',
-    vault:'المستندات', piles:'المجلدات', recentlyShared:'مشاركة مؤخراً',
+    ofTotal:'٪ من الإجمالي العام', used:'مستخدم',
+    // ── Vault ──
+    vault:'مستودع المستندات', piles:'المجلدات', recentlyShared:'مشاركة مؤخراً',
     addDocument:'إضافة مستند', uploadHint:'اسحب تذكرة أو تأشيرة',
     autoSort:'سيتم ترتيبه تلقائياً', browse:'استعراض',
     details:'التفاصيل', link:'الرابط', photos:'الصور', activity:'النشاط',
@@ -328,46 +326,48 @@ const TRANSLATIONS = {
     addLink:'إضافة رابط', linkHint:'خرائط، تأكيد الحجز، موقع إلكتروني…',
     linkPlaceholder:'https://maps.google.com/...', save:'حفظ', open:'فتح',
     addPhoto:'إضافة صورة', sizeLbl:'الحجم', pagesLbl:'الصفحات', syncedLbl:'تزامن',
-    settings:'الإعدادات', crewSection:'الطاقم', travelers:'مسافرون',
-    viewPermissions:'عرض الصلاحيات', tripParameters:'معطيات الرحلة',
-    notifications:'الإشعارات', tripLifecycle:'دورة الرحلة',
-    archiveTrip:'أرشفة الرحلة', archiveSub:'تخفيها مع حفظ البيانات',
+    // ── Trip Settings ──
+    settings:'إعدادات الرحلة', crewSection:'الأصدقاء والمسافرون معي', travelers:'مسافرون معي',
+    viewPermissions:'استعراض وفهم صلاحيات الأدوار', tripParameters:'معطيات ومحددات الرحلة',
+    notifications:'الإشعارات', tripLifecycle:'إدارة حالة وسجل الرحلة',
+    archiveTrip:'أرشفة الرحلة الحالية', archiveSub:'إخفاء الرحلة من القائمة النشطة مع الاحتفاظ بكافة بياناتها',
     exportPDF:'تصدير PDF', exportSub:'الإيصالات، السجل، الملخص',
-    deleteTrip:'حذف الرحلة', deleteSub:'دائم، لا يمكن التراجع',
-    archived:'مؤرشفة', archivedSub:'تمت إزالتها من القائمة', pdfReady:'PDF جاهز',
-    areYouSure:'متأكد؟ لا يمكن التراجع.', cancel:'إلغاء', delete:'حذف',
-    destination:'الوجهة', dates:'التواريخ', budgetCap:'حد الميزانية',
-    currencies:'العملات', coverStyle:'نمط الغلاف',
+    deleteTrip:'حذف سجل الرحلة نهائياً', deleteSub:'إجراء دائم يترتب عليه مسح كافة المصروفات والمستندات ولا يمكن التراجع عنه',
+    archived:'تمت أرشفتها بنجاح', archivedSub:'الرحلة مخفية الآن وموجودة في الأرشيف', pdfReady:'PDF جاهز',
+    areYouSure:'متأكد؟ لا يمكن التراجع.', cancel:'إلغاء', delete:'نعم، احذف الرحلة',
+    destination:'وجهة السفر الرئيسية', dates:'فترة وتواريخ السفر', budgetCap:'سقف الميزانية الكلية',
+    currencies:'قائمة العملات المفعلة', coverStyle:'نمط وتصميم الغلاف',
     newExpenses:'مصروفات جديدة', memberJoins:'انضمام أعضاء', docUploads:'رفع مستندات',
-    hub:'الرئيسية', planNav:'الخطة', budgetNav:'الميزانية', vaultNav:'المستندات', statsNav:'إحصائيات',
-    planAddTitle:'إضافة للخطة', planEditTitle:'تعديل النشاط', planAddBtn:'إضافة',
-    planEmptyDay:'لا يوجد شيء مخطط — اضغط للإضافة',
-    planFieldTitle:'النشاط', planFieldCategory:'الفئة',
-    planFieldTime:'الوقت (اختياري)', planFieldLocation:'الموقع (اختياري)',
-    planTitleReq:'أدخل عنواناً', planLogExpense:'تسجيل مصروف',
+    hub:'الرئيسية', planNav:'خطة الأيام', budgetNav:'الميزانية', vaultNav:'المستندات', statsNav:'الإحصائيات',
+    planAddTitle:'إضافة نشاط جديد', planEditTitle:'تعديل النشاط', planAddBtn:'إضافة نشاط',
+    planEmptyDay:'جدول هذا اليوم فارغ — اضغط لإضافة الأنشطة',
+    planFieldTitle:'عنوان النشاط', planFieldCategory:'فئة النشاط',
+    planFieldTime:'الوقت (اختياري)', planFieldLocation:'المكان أو العنوان (اختياري)',
+    planTitleReq:'يرجى إدخال عنوان النشاط', planLogExpense:'تسجيل كمصروف',
     exitTrip:'خروج', myTrips:'رحلاتي', insightsNav:'إحصائيات', accountNav:'الحساب',
     since2020:'منذ 2020', travelDaysByYear:'أيام السفر · بالسنة',
     daysByContinent:'الأيام بالقارة', whereMoneyGoes:'أين يذهب المال',
     topCategoryLifetime:'أعلى فئة · مدى الحياة', acrossAllTrips:'عبر كل الرحلات',
-    proTraveler:'مسافر محترف', preferences:'التفضيلات',
-    defaultCurrency:'العملة الافتراضية', homeBase:'المدينة الرئيسية',
-    appearance:'المظهر', units:'الوحدات', privacy:'الخصوصية',
-    tripScopedCollab:'تعاون محدود بالرحلة',
-    tripScopedSub:'المدعوون لرحلة لا يرون رحلاتك الأخرى أو بياناتك الشخصية.',
+    // ── App Settings ──
+    proTraveler:'مسافر محترف', preferences:'التفضيلات العامة للتطبيق',
+    defaultCurrency:'العملة الافتراضية للحساب', homeBase:'مدينتك الرئيسية المقيم بها',
+    appearance:'مظهر التطبيق (داكن/فاتح)', units:'الوحدات', privacy:'معايير وسياسة الخصوصية',
+    tripScopedCollab:'تعاون آمن ومحدود بالرحلة',
+    tripScopedSub:'الأصدقاء والضيوف الذين تدعوهم لرحلة معينة لن يتمكنوا أبداً من رؤية بقية رحلاتك أو تفاصيل بياناتك الشخصية الأخرى.',
     dataExport:'تصدير البيانات', connectedAccounts:'الحسابات المرتبطة',
-    archivedTrips:'الرحلات المؤرشفة', account:'الحساب',
+    archivedTrips:'الرحلات المؤرشفة', account:'إدارة الحساب والبيانات',
     referFriend:'دعوة صديق', referSub:'كلاكما يحصل على 30 يوماً مجاناً',
-    signOut:'تسجيل الخروج', deleteAccount:'حذف الحساب',
+    signOut:'تسجيل الخروج', deleteAccount:'إغلاق وحذف الحساب نهائياً',
     deleteAccountSub:'يحذف كل الرحلات والتاريخ',
     scanToJoin:'امسح للانضمام إلى', guestsSeeOnly:'الضيوف يرون هذه الرحلة فقط · تنتهي خلال 7 أيام',
-    copy:'نسخ', inviteWithRole:'دعوة بصلاحية · نطاق: هذه الرحلة فقط',
+    copy:'نسخ الرابط', inviteWithRole:'دعوة بصلاحية · نطاق: هذه الرحلة فقط',
     fullControl:'تحكم كامل', addExpenses:'إضافة مصروفات', readOnly:'قراءة فقط',
     inviteTheCrew:'دعوة الطاقم',
     inviteHeadline:'دعوة إلى', inviteSubline:'أي شخص لديه الرابط يمكنه الانضمام إلى الرحلة بالصلاحية التي تختارها.',
     inviteShareBtn:'مشاركة الرابط', inviteLoading:'جارٍ إنشاء الرابط…',
     inviteExpiryHint:'ينتهي الرابط خلال 30 يوماً. يمكنك إلغاؤه في أي وقت.',
     joinJoining:'جارٍ الانضمام للرحلة…', joinSuccess:'انضممت إلى الرحلة',
-    activeInvites:'الروابط النشطة', inviteRevoked:'تم إلغاء الرابط',
+    activeInvites:'روابط الدعوة النشطة', inviteRevoked:'تم إلغاء رابط الدعوة بنجاح',
     addExpenseTitle:'إضافة مصروف', amountJPY:'المبلغ · ين',
     category:'الفئة', splitBetween:'توزيع بين', people:'أشخاص', each:'لكل',
     addToKyoto:'إضافة إلى رحلة كيوتو',
@@ -375,13 +375,41 @@ const TRANSLATIONS = {
     pdfJpgPng:'PDF، JPG، PNG · حتى 25 ميغابايت', dropHere:'أفلت هنا',
     dayLbl:'اليوم', ofLbl:'من', heySunday:'مرحباً · الأحد',
     uploadedBy:'رُفع بواسطة', admin:'مشرف', editor:'محرر', viewer:'قارئ',
-    onPace:'في المسار', editCover:'تعديل الغلاف', tripScopedNote:'محدود بالرحلة',
+    onPace:'في المسار', editCover:'تعديل غلاف الرحلة', tripScopedNote:'محدود بالرحلة',
     daily:'يومي', planned:'مخطط',
   },
 };
 
 window.LANG = 'en';
 window.isRTL = false;
+
+// ── Arabic pluralization helper ─────────────────────────────
+// Arabic has six count categories, far richer than English's two. Using
+// `${n} يوم` for every count reads broken to a native speaker. This
+// helper takes a count and a forms object with up to six branches and
+// returns the grammatically-correct phrase per the rules below.
+//
+// Forms object: { zero, one, two, few, many, other }
+//   zero  → n = 0          → "no days" (avoid showing the digit 0)
+//   one   → n = 1          → "يوم واحد" / singular absolute form
+//   two   → n = 2          → "يومان" / dual; never show the digit 2
+//   few   → 3 ≤ n ≤ 10     → "3 أيام" / paucal plural; noun in genitive plural
+//   many  → 11 ≤ n ≤ 99    → "11 يوماً" / noun singular accusative w/ tanween
+//   other → n ≥ 100        → "100 يوم" / singular genitive (also fallback)
+//
+// All branches except `other` are optional; missing branches fall back
+// to `other`. Pass null to skip the helper entirely.
+window.arPlural = function(n, forms) {
+  if (!forms) return String(n);
+  const abs = Math.abs(n);
+  if (abs === 0 && forms.zero != null) return forms.zero;
+  if (abs === 1 && forms.one != null) return forms.one;
+  if (abs === 2 && forms.two != null) return forms.two;
+  if (abs >= 3 && abs <= 10 && forms.few != null) return forms.few;
+  if (abs >= 11 && abs <= 99 && forms.many != null) return forms.many;
+  return forms.other != null ? forms.other : String(n);
+};
+
 window.t = function(key, vars) {
   let s = (TRANSLATIONS[window.LANG] && TRANSLATIONS[window.LANG][key])
     || TRANSLATIONS.en[key] || key;

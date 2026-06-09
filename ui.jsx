@@ -535,7 +535,7 @@ function ActionSheetHost() {
           color: 'var(--ink)',
           fontSize: 17, fontWeight: 600,
           fontFamily: 'var(--sans)',
-        }}>{item.cancelLabel || (window.isRTL ? 'إلغاء' : 'Cancel')}</button>
+        }}>{item.cancelLabel || (window.isRTL ? 'إلغاء الإجراء' : 'Cancel')}</button>
       </div>
       <style>{`
         @keyframes as-fade { from { opacity: 0 } to { opacity: 1 } }
@@ -708,7 +708,7 @@ function OfflineBanner() {
   if (online) return null;
   return (
     <div className="offline-banner">
-      {window.isRTL ? '⚠ غير متصل · بياناتك محفوظة محلياً' : '⚠ Offline · changes will sync when you reconnect'}
+      {window.isRTL ? '⚠ أنت تعمل بدون اتصال بالإنترنت حالياً · سيتم حفظ كافة مدخلاتك محلياً ومزامنتها لاحقاً' : '⚠ Offline · changes will sync when you reconnect'}
     </div>
   );
 }

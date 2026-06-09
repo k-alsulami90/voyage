@@ -122,15 +122,15 @@ function ScreenAnalytics({ go, loading }) {
             display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
           }}><IconSparkle size={28} stroke="var(--ink-mute)" /></div>
           <div className="serif" style={{ fontSize: 22, color: 'var(--ink)' }}>
-            {window.isRTL ? 'لا توجد بيانات بعد' : 'No data yet'}
+            {window.isRTL ? 'لا توجد بيانات كافية حالياً' : 'No data yet'}
           </div>
           <div style={{ fontSize: 13.5, color: 'var(--ink-mute)', lineHeight: 1.5, maxWidth: 240 }}>
-            {window.isRTL ? 'أضف مصروفات لرؤية الإحصائيات هنا' : 'Add expenses to see analytics here'}
+            {window.isRTL ? 'ابدأ بإضافة مصروفاتك لتظهر لك الرسوم البيانية والإحصاءات هنا' : 'Add expenses to see analytics here'}
           </div>
           <button onClick={() => go('budget')} style={{
             marginTop: 6, padding: '12px 22px', borderRadius: 14,
             background: 'var(--statement)', color: 'var(--statement-fg)', fontSize: 13.5, fontWeight: 500,
-          }}>{window.isRTL ? '← الميزانية' : 'Go to Budget →'}</button>
+          }}>{window.isRTL ? '← سجل المصروفات' : 'Go to Budget →'}</button>
         </div>
       </div>
     );
@@ -169,13 +169,13 @@ function ScreenAnalytics({ go, loading }) {
               }}>
                 {window.isRTL ? (
                   dailyPlan > 0 ? (
-                    <>تصرف <AnaNum>{fmtC(dailyAvg)}</AnaNum> يومياً، الخطة <AnaNum dim>{fmtC(dailyPlan)}</AnaNum>.{' '}
+                    <>معدل إنفاقك اليومي <AnaNum>{fmtC(dailyAvg)}</AnaNum>، بينما المخطط له <AnaNum dim>{fmtC(dailyPlan)}</AnaNum> (أي بنسبة إنجاز{' '}
                     <span style={{
                       color: burnPct > 0 ? 'oklch(0.78 0.13 30)' : 'oklch(0.78 0.13 145)',
                       fontWeight: 600,
-                    }}>{burnPct > 0 ? '+' : ''}{burnPct.toFixed(0)}%</span></>
+                    }}>{burnPct > 0 ? '+' : ''}{burnPct.toFixed(0)}%</span>).</>
                   ) : (
-                    <>تصرف <AnaNum>{fmtC(dailyAvg)}</AnaNum> يومياً.</>
+                    <>معدل إنفاقك اليومي حالياً: <AnaNum>{fmtC(dailyAvg)}</AnaNum>.</>
                   )
                 ) : (
                   dailyPlan > 0 ? (
@@ -195,7 +195,7 @@ function ScreenAnalytics({ go, loading }) {
               background: 'rgba(255,255,255,0.08)',
               border: '0.5px solid rgba(255,255,255,0.1)',
               fontSize: 11, fontWeight: 500,
-            }}>{daysElapsed} / {daysTotal} {window.isRTL ? 'يوم' : 'days'}</div>
+            }}>{daysElapsed} / {daysTotal} {window.isRTL ? 'أيام الرحلة' : 'days'}</div>
           </div>
 
           {/* Full-trip daily bar chart with cumulative-spend overlay line.
@@ -252,7 +252,7 @@ function ScreenAnalytics({ go, loading }) {
                           transform: 'translateY(-110%)',
                           fontSize: 9, color: 'rgba(255,255,255,0.7)', padding: '0 2px',
                           zIndex: 3,
-                        }}>{window.isRTL ? 'الميزانية' : 'budget'}</div>
+                        }}>{window.isRTL ? 'الميزانية المحددة' : 'budget'}</div>
                       </>
                     )}
 
@@ -394,7 +394,7 @@ function ScreenAnalytics({ go, loading }) {
                       color: 'rgba(255,255,255,0.85)', fontWeight: 500,
                     }}>
                       {window.isRTL
-                        ? `أعلى يوم: ${fmtC(maxDay.val)}`
+                        ? `أعلى ذروة إنفاق: ${fmtC(maxDay.val)}`
                         : `Peak: ${fmtC(maxDay.val)}`}
                     </span>
                   )}
@@ -421,7 +421,7 @@ function ScreenAnalytics({ go, loading }) {
                       }}>
                         <div>
                           <div className="serif" style={{ fontSize: 18, lineHeight: 1.1 }}>
-                            {window.isRTL ? `اليوم ${dayNum}` : `Day ${dayNum}`}
+                            {window.isRTL ? `تفاصيل اليوم ${dayNum}` : `Day ${dayNum}`}
                           </div>
                           <div style={{ fontSize: 11, opacity: 0.72, marginTop: 2, fontFamily: 'var(--mono)' }}>
                             {dateStr}
@@ -457,7 +457,7 @@ function ScreenAnalytics({ go, loading }) {
                         </div>
                       ) : (
                         <div style={{ marginTop: 8, fontSize: 11.5, opacity: 0.6 }}>
-                          {window.isRTL ? 'لا مصروفات في هذا اليوم' : 'No spending on this day'}
+                          {window.isRTL ? 'لم تُسجل أي مصروفات في هذا اليوم' : 'No spending on this day'}
                         </div>
                       )}
                     </div>
@@ -495,7 +495,7 @@ function ScreenAnalytics({ go, loading }) {
             }}>💸</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 11, color: 'var(--ink-mute)' }}>
-                {window.isRTL ? 'أكبر مصروف' : 'Biggest expense'}
+                {window.isRTL ? 'العملية الأعلى إنفاقاً' : 'Biggest expense'}
               </div>
               <div style={{
                 fontSize: 14, fontWeight: 500, marginTop: 1,
@@ -513,7 +513,7 @@ function ScreenAnalytics({ go, loading }) {
       {/* CATEGORY PIE + LEGEND */}
       {catTotals.length > 0 && (
         <div style={{ padding: '22px 14px 0' }}>
-          <SectionLabel>{window.isRTL ? 'حسب الفئة' : 'By category'}</SectionLabel>
+          <SectionLabel>{window.isRTL ? 'توزيع المصروفات حسب الفئة' : 'By category'}</SectionLabel>
           <div style={{
             background: 'var(--cream-2)', borderRadius: 22, padding: '18px',
             margin: '0 8px', border: '0.5px solid var(--hairline)',
@@ -543,7 +543,7 @@ function ScreenAnalytics({ go, loading }) {
                 flexDirection: 'row',
               }}>
                 <span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>
-                  {window.isRTL ? 'المجموع' : 'Total'}
+                  {window.isRTL ? 'المجموع الكلي' : 'Total'}
                 </span>
                 <span className="mono" style={{ fontSize: 13, fontWeight: 600 }}>{fmtC(totalUSD)}</span>
               </div>
@@ -555,7 +555,7 @@ function ScreenAnalytics({ go, loading }) {
       {/* CONTRIBUTOR BREAKDOWN */}
       {contribs.length > 0 && (
         <div style={{ padding: '22px 14px 0' }}>
-          <SectionLabel>{window.isRTL ? 'من يدفع' : "Who's paying"}</SectionLabel>
+          <SectionLabel>{window.isRTL ? 'نسب وتحليلات الدفع' : "Who's paying"}</SectionLabel>
           <div style={{
             background: 'var(--cream-2)', borderRadius: 22, padding: '14px 16px',
             margin: '0 8px', border: '0.5px solid var(--hairline)',
@@ -586,7 +586,7 @@ function ScreenAnalytics({ go, loading }) {
                     display: 'flex', justifyContent: 'space-between',
                     flexDirection: 'row',
                   }}>
-                    <span>{m.pct}% {window.isRTL ? 'من الإجمالي' : 'of total'}</span>
+                    <span>{m.pct}% {window.isRTL ? 'من إجمالي المدفوعات' : 'of total'}</span>
                   </div>
                 </div>
               </div>
@@ -598,7 +598,7 @@ function ScreenAnalytics({ go, loading }) {
       {/* DAY-BY-DAY list with category mix */}
       {allDays.length > 0 && (
         <div style={{ padding: '22px 14px 0' }}>
-          <SectionLabel>{window.isRTL ? 'يوم بيوم' : 'Day by day'}</SectionLabel>
+          <SectionLabel>{window.isRTL ? 'التفاصيل يوماً بيوم' : 'Day by day'}</SectionLabel>
           <div style={{
             background: 'var(--cream-2)', borderRadius: 22,
             margin: '0 8px', overflow: 'hidden',
@@ -660,7 +660,7 @@ function ScreenAnalytics({ go, loading }) {
                     )}
                     <div style={{ fontSize: 9.5, color: 'var(--ink-mute)', fontFamily: 'var(--mono)' }}>
                       {Object.keys(catMix).length === 0
-                        ? (window.isRTL ? 'لا مصروفات' : 'no spend')
+                        ? (window.isRTL ? 'لا توجد مصروفات' : 'no spend')
                         : Object.entries(catMix)
                             .sort((a, b) => b[1] - a[1])
                             .slice(0, 3)
@@ -692,7 +692,7 @@ function ScreenAnalytics({ go, loading }) {
          statement card on the screen (the hero at top) instead of two. */}
       {totalUSD > 0 && (
         <div style={{ padding: '22px 14px 0' }}>
-          <SectionLabel>{window.isRTL ? 'الإيقاع' : 'Pace'}</SectionLabel>
+          <SectionLabel>{window.isRTL ? 'وتيرة الإنفاق والتوقعات' : 'Pace'}</SectionLabel>
           <div style={{
             margin: '0 8px', padding: '14px 16px', borderRadius: 18,
             background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
@@ -701,14 +701,14 @@ function ScreenAnalytics({ go, loading }) {
             {window.isRTL ? (
               trip?.budget?.plannedUSD ? (
                 <>
-                  صرفت <AnaNum solid>{fmtC(totalUSD)}</AnaNum> من <AnaNum solid dim>{fmtC(trip.budget.plannedUSD)}</AnaNum>،
+                  أنفقت حتى الآن <AnaNum solid>{fmtC(totalUSD)}</AnaNum> من أصل <AnaNum solid dim>{fmtC(trip.budget.plannedUSD)}</AnaNum>
                   بمعدل <AnaNum solid>{fmtC(dailyAvg)}</AnaNum> يومياً.
-                  بهذا الإيقاع ستنهي الرحلة على <AnaNum solid>{fmtC(dailyAvg * daysTotal)}</AnaNum>.
+                  وبهذه الوتيرة، يُتوقع أن تنهي رحلتك بإجمالي إنفاق <AnaNum solid>{fmtC(dailyAvg * daysTotal)}</AnaNum>.
                 </>
               ) : (
                 <>
-                  صرفت <AnaNum solid>{fmtC(totalUSD)}</AnaNum> بمعدل <AnaNum solid>{fmtC(dailyAvg)}</AnaNum> يومياً.
-                  بهذا الإيقاع ستنهي الرحلة على <AnaNum solid>{fmtC(dailyAvg * daysTotal)}</AnaNum>.
+                  أنفقت حتى الآن <AnaNum solid>{fmtC(totalUSD)}</AnaNum> بمعدل <AnaNum solid>{fmtC(dailyAvg)}</AnaNum> يومياً.
+                  وبهذه الوتيرة، يُتوقع أن تنهي رحلتك بإجمالي إنفاق <AnaNum solid>{fmtC(dailyAvg * daysTotal)}</AnaNum>.
                 </>
               )
             ) : (

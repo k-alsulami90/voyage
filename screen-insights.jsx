@@ -65,7 +65,7 @@ function ScreenInsights({ go, goTrip }) {
             marginTop: 4, padding: '12px 22px', borderRadius: 14,
             background: 'var(--ink)', color: 'var(--cream)',
             fontSize: 13.5, fontWeight: 600,
-          }}>{window.isRTL ? '← الرحلات' : 'Go to trips →'}</button>
+          }}>{window.isRTL ? '← قائمة الرحلات' : 'Go to trips →'}</button>
         </div>
       </div>
     );
@@ -151,7 +151,7 @@ function YearHero({ year }) {
       <div style={{
         fontSize: 12, fontWeight: 500, color: 'var(--ink-mute)',
         marginBottom: 6, letterSpacing: 0,
-      }}>{window.isRTL ? 'سنة السفر' : 'Travel year'}</div>
+      }}>{window.isRTL ? 'سنة السفر والترحال' : 'Travel year'}</div>
       <div style={{
         fontFamily: 'var(--sans)',
         fontSize: 'clamp(80px, 22vw, 128px)',
@@ -188,10 +188,11 @@ function LedgerSentence({ row }) {
       }}>
         {isAr ? (
           <>
-            <LN>{trips}</LN> {trips === 1 ? 'رحلة' : 'رحلات'}،{' '}
-            في <LN>{countries}</LN> {countries === 1 ? 'دولة' : 'دول'}،{' '}
-            خلال <LN>{days}</LN> يوم سفر. صرفت{' '}
-            <LN>{fmt(spent)}</LN>{days > 0 && <> بمعدل <LN>{fmt(dailyAvg)}</LN> يومياً</>}.
+            خضت <LN>{window.arPlural(trips, { one: 'رحلة واحدة', two: 'رحلتين', few: `${trips} رحلات`, many: `${trips} رحلة`, other: `${trips} رحلة` })}</LN>{' '}
+            شملت <LN>{window.arPlural(countries, { one: 'وجهة دولية واحدة', two: 'وجهتين دوليتين', few: `${countries} وجهات دولية`, many: `${countries} وجهة دولية`, other: `${countries} وجهة دولية` })}</LN>{' '}
+            عبر <LN>{window.arPlural(days, { one: 'يوم سفر واحد', two: 'يومي سفر', few: `${days} أيام سفر`, many: `${days} يوماً من السفر`, other: `${days} يوم سفر` })}</LN>.{' '}
+            بلغ إجمالي إنفاقك <LN>{fmt(spent)}</LN>
+            {days > 0 && <> بمعدل يومي قدره <LN>{fmt(dailyAvg)}</LN></>}.
           </>
         ) : (
           <>
@@ -238,8 +239,8 @@ function NotableTrips({ stats }) {
   const sameTrip = longest && expensive && longest.id === expensive.id;
   if (sameTrip) {
     return (
-      <ChapterFrame title={isAr ? 'الأبرز عبر الرحلات' : 'Notable trip'}
-                    subtitle={isAr ? 'الأطول والأغلى في رحلاتك' : 'longest and biggest of all your travel'}>
+      <ChapterFrame title={isAr ? 'المحطة الأبرز في رحلاتك' : 'Notable trip'}
+                    subtitle={isAr ? 'الرحلة الأطول والأكثر إنفاقاً بين أسفارك' : 'longest and biggest of all your travel'}>
         <div style={{ padding: '0 22px', textAlign: 'center' }}>
           <div className="serif-italic" style={{
             fontSize: 26, lineHeight: 1.2, color: 'var(--ink)',
@@ -249,8 +250,10 @@ function NotableTrips({ stats }) {
             marginTop: 6, fontSize: 13.5, fontWeight: 600, color: 'var(--ink-soft)',
             fontVariantNumeric: 'tabular-nums',
           }}>
-            {longest.dur} {isAr ? 'يوم' : (longest.dur === 1 ? 'day' : 'days')}
-            <span style={{ color: 'var(--ink-mute)' }}> · </span>
+            {isAr
+              ? `استغرقت ${window.arPlural(longest.dur, { one: 'يوماً واحداً', two: 'يومين', few: `${longest.dur} أيام`, many: `${longest.dur} يوماً`, other: `${longest.dur} يوماً` })}`
+              : `${longest.dur} ${longest.dur === 1 ? 'day' : 'days'}`}
+            <span style={{ color: 'var(--ink-mute)' }}> · {isAr ? 'بإجمالي' : ''} </span>
             {window.fmtTripMoney(expensive.spent, expensive)}
           </div>
         </div>
@@ -259,8 +262,8 @@ function NotableTrips({ stats }) {
   }
 
   return (
-    <ChapterFrame title={isAr ? 'الأبرز عبر الرحلات' : 'Notable trips'}
-                  subtitle={isAr ? 'عبر كل رحلاتك' : 'across all your travel'}>
+    <ChapterFrame title={isAr ? 'محطات بارزة في رحلاتك' : 'Notable trips'}
+                  subtitle={isAr ? 'مقتطفات متميزة من كافة أسفارك' : 'across all your travel'}>
       <div style={{
         display: 'grid',
         gridTemplateColumns: longest && expensive ? '1fr 1fr' : '1fr',
@@ -268,14 +271,16 @@ function NotableTrips({ stats }) {
       }}>
         {longest && (
           <NotableEntry
-            label={isAr ? 'الأطول' : 'Longest'}
+            label={isAr ? 'الرحلة الأطول' : 'Longest'}
             name={longest.title}
-            stat={`${longest.dur} ${isAr ? 'يوم' : (longest.dur === 1 ? 'day' : 'days')}`}
+            stat={isAr
+              ? window.arPlural(longest.dur, { one: 'يوم واحد', two: 'يومان', few: `${longest.dur} أيام`, many: `${longest.dur} يوماً`, other: `${longest.dur} يوم` })
+              : `${longest.dur} ${longest.dur === 1 ? 'day' : 'days'}`}
           />
         )}
         {expensive && (
           <NotableEntry
-            label={isAr ? 'الأكثر إنفاقاً' : 'Biggest'}
+            label={isAr ? 'الرحلة الأعلى إنفاقاً' : 'Biggest'}
             name={expensive.title}
             stat={window.fmtTripMoney(expensive.spent, expensive)}
           />
@@ -320,8 +325,8 @@ function CategoryStack({ stats }) {
   const total = cats.reduce((s, c) => s + c.value, 0);
   if (total === 0) return null;
   return (
-    <ChapterFrame title={isAr ? 'كيف تصرف' : 'How you spend'}
-                  subtitle={isAr ? 'لكل الرحلات' : 'across all your travel'}>
+    <ChapterFrame title={isAr ? 'أين تذهب ميزانيتك؟' : 'How you spend'}
+                  subtitle={isAr ? 'تحليل المصروفات لكافة الرحلات' : 'across all your travel'}>
       <div style={{ padding: '0 28px' }}>
         {/* Stacked bar — flex strip with each category as a flex-grown
            segment. White hairline between segments for definition. */}
@@ -394,8 +399,8 @@ function MonthSparkline({ byMonth }) {
   // Busiest month for the micro-context line
   const busiest = byMonth.reduce((m, x) => (x.spent || 0) > (m?.spent || 0) ? x : m, null);
   return (
-    <ChapterFrame title={isAr ? 'متى سافرت' : 'When you travel'}
-                  subtitle={isAr ? 'آخر 12 شهر' : 'last 12 months'}>
+    <ChapterFrame title={isAr ? 'مواسم السفر والترحال' : 'When you travel'}
+                  subtitle={isAr ? 'تفاصيل النشاط خلال آخر 12 شهراً' : 'last 12 months'}>
       <div style={{ padding: '0 26px' }}>
         {/* Bars — fixed 40px row, hairline baseline */}
         <div style={{ position: 'relative', height: 40 }}>
@@ -449,7 +454,7 @@ function MonthSparkline({ byMonth }) {
             marginTop: 14, fontSize: 12.5, color: 'var(--ink-soft)',
             textAlign: 'center',
           }}>
-            {isAr ? 'الأنشط' : 'Busiest'}:{' '}
+            {isAr ? 'الشهر الأنشط' : 'Busiest'}:{' '}
             <span style={{ color: 'var(--ink)', fontWeight: 600 }}>
               {monthShort(busiest)} {busiest.year}
             </span>
@@ -483,10 +488,10 @@ function TripList({ trips, year, goTrip }) {
     return d.toLocaleDateString(isAr ? 'ar' : 'en', { month: 'short', day: 'numeric' });
   };
   return (
-    <ChapterFrame title={isAr ? `رحلات ${year}` : `Trips in ${year}`}
-                  subtitle={`${trips.length} ${isAr
-                    ? (trips.length === 1 ? 'رحلة' : 'رحلات')
-                    : (trips.length === 1 ? 'trip' : 'trips')}`}>
+    <ChapterFrame title={isAr ? `حصاد رحلات عام ${year}` : `Trips in ${year}`}
+                  subtitle={isAr
+                    ? `خضت فيها ${window.arPlural(trips.length, { one: 'رحلة واحدة', two: 'رحلتين', few: `${trips.length} رحلات`, many: `${trips.length} رحلة`, other: `${trips.length} رحلة` })}`
+                    : `${trips.length} ${trips.length === 1 ? 'trip' : 'trips'}`}>
       <div style={{
         padding: '0 22px',
         display: 'flex', flexDirection: 'column',
@@ -498,7 +503,7 @@ function TripList({ trips, year, goTrip }) {
           return (
             <button key={tr.id}
               onClick={() => goTrip?.(tr.id)}
-              aria-label={isAr ? `افتح ${tr.title}` : `Open ${tr.title}`}
+              aria-label={isAr ? `فتح تفاصيل ${tr.title}` : `Open ${tr.title}`}
               style={{
                 all: 'unset', cursor: 'pointer', width: '100%',
                 boxSizing: 'border-box',
@@ -522,7 +527,9 @@ function TripList({ trips, year, goTrip }) {
                   <span>{dateRange}</span>
                   <span>·</span>
                   <span className="mono" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                    {tr.dur} {isAr ? 'يوم' : (tr.dur === 1 ? 'day' : 'days')}
+                    {isAr
+                      ? window.arPlural(tr.dur, { one: 'يوم واحد', two: 'يومان', few: `${tr.dur} أيام`, many: `${tr.dur} يوماً`, other: `${tr.dur} يوماً` })
+                      : `${tr.dur} ${tr.dur === 1 ? 'day' : 'days'}`}
                   </span>
                 </div>
               </div>
@@ -548,7 +555,7 @@ function PreviousYears({ years }) {
   const isAr = !!window.isRTL;
   const fmt = (n) => window.fmtMoney(n, { in: 'home' });
   return (
-    <ChapterFrame title={isAr ? 'السنوات السابقة' : 'Previous years'}>
+    <ChapterFrame title={isAr ? 'أرشيف السنوات السابقة' : 'Previous years'}>
       <div style={{
         padding: '0 22px',
         display: 'flex', flexDirection: 'column',
@@ -570,10 +577,11 @@ function PreviousYears({ years }) {
               flex: 1, textAlign: 'end',
               fontSize: 12.5, color: 'var(--ink-mute)',
             }}>
-              {y.trips || 0} {isAr
-                ? ((y.trips || 0) === 1 ? 'رحلة' : 'رحلات')
-                : ((y.trips || 0) === 1 ? 'trip' : 'trips')}
+              {isAr
+                ? `شملت ${window.arPlural(y.trips || 0, { zero: 'لا توجد رحلات', one: 'رحلة واحدة', two: 'رحلتين', few: `${y.trips} رحلات`, many: `${y.trips} رحلة`, other: `${y.trips} رحلة` })}`
+                : `${y.trips || 0} ${(y.trips || 0) === 1 ? 'trip' : 'trips'}`}
               {' · '}
+              {isAr ? 'بإجمالي ' : ''}
               <span className="mono" style={{
                 color: 'var(--ink-soft)', fontWeight: 600,
                 fontVariantNumeric: 'tabular-nums',
@@ -604,8 +612,8 @@ function LedgerFooter({ stats }) {
         lineHeight: 1.6,
       }}>
         {isAr
-          ? <>الإجمالي: {stats.totalTrips} رحلة · {stats.countries} {stats.countries === 1 ? 'دولة' : 'دول'}<br />
-              {stats.totalDays} يوم سفر · <span className="mono">{fmt(stats.totalSpentUSD)}</span></>
+          ? <>السجل الكلي للترحال: {window.arPlural(stats.totalTrips, { one: 'رحلة واحدة', two: 'رحلتان', few: `${stats.totalTrips} رحلات`, many: `${stats.totalTrips} رحلة`, other: `${stats.totalTrips} رحلة` })} · شملت {window.arPlural(stats.countries, { one: 'وجهة دولية واحدة', two: 'وجهتين دوليتين', few: `${stats.countries} وجهات دولية`, many: `${stats.countries} وجهة دولية`, other: `${stats.countries} وجهة دولية` })}<br />
+              على مدار {window.arPlural(stats.totalDays, { one: 'يوم واحد', two: 'يومين', few: `${stats.totalDays} أيام`, many: `${stats.totalDays} يوماً`, other: `${stats.totalDays} يوماً` })} من السفر · بإجمالي إنفاق <span className="mono">{fmt(stats.totalSpentUSD)}</span></>
           : <>Lifetime: {stats.totalTrips} {stats.totalTrips === 1 ? 'trip' : 'trips'} · {stats.countries} {stats.countries === 1 ? 'country' : 'countries'}<br />
               {stats.totalDays} {stats.totalDays === 1 ? 'day' : 'days'} of travel · <span className="mono">{fmt(stats.totalSpentUSD)}</span></>}
       </div>

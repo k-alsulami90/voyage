@@ -436,7 +436,7 @@ function App() {
         <TripNav active={route.name} onChange={go} />
       )}
 
-      <Sheet open={sheet === 'addTrip'} onClose={() => setSheet(null)} title={window.isRTL ? 'رحلة جديدة' : 'New trip'} height={0.88}>
+      <Sheet open={sheet === 'addTrip'} onClose={() => setSheet(null)} title={window.isRTL ? 'التخطيط لرحلة جديدة' : 'New trip'} height={0.88}>
         <AddTripSheet onDone={() => setSheet(null)} onCreated={(tripId) => {
           setSheet(null);
           window.loadTrips(window.currentUserId).then(() => setDataVersion((v) => v + 1));
@@ -451,7 +451,7 @@ function App() {
         <AddExpenseSheet prefill={prefillExpense} onDone={() => { setSheet(null); setPrefillExpense(null); }} />
       </Sheet>
       <Sheet open={sheet === 'editExpense'} onClose={() => { setSheet(null); setEditingExpense(null); }}
-             title={window.isRTL ? 'تعديل المصروف' : 'Edit expense'} height={0.82}>
+             title={window.isRTL ? 'تعديل بيانات المصروف' : 'Edit expense'} height={0.82}>
         <AddExpenseSheet existing={editingExpense} onDone={() => { setSheet(null); setEditingExpense(null); }} />
       </Sheet>
       {/* Full-screen Add Document page */}
@@ -1030,7 +1030,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
           flexDirection: 'row',
         }}>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', opacity: 0.72 }}>
-            {inputCur} {window.isRTL ? 'المبلغ' : 'AMOUNT'}
+            {window.isRTL ? `قيمة المبلغ (${inputCur})` : `${inputCur} AMOUNT`}
           </div>
           {!sameHomeLocal && (
             <button onClick={() => setInputCur(inputCur === home ? local : home)} style={{
@@ -1065,11 +1065,11 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
       {/* Title / Vendor */}
       <div style={{ marginBottom: 10 }}>
         <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase' }}>
-          {window.isRTL ? 'الاسم / المكان' : 'Vendor / Description'}
+          {window.isRTL ? 'المسمى / المكان' : 'Vendor / Description'}
         </div>
         <input
           type="text" value={title} onChange={(e) => setTitle(e.target.value)}
-          placeholder={window.isRTL ? 'مطعم، فندق، وسيلة نقل...' : 'Restaurant, hotel, transport...'}
+          placeholder={window.isRTL ? 'مثلاً: مطعم، فندق، وسيلة نقل...' : 'Restaurant, hotel, transport...'}
           style={fieldStyle}
         />
       </div>
@@ -1077,7 +1077,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
       {/* Category */}
       <div style={{ marginBottom: 10 }}>
         <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase' }}>
-          {window.isRTL ? 'الفئة' : 'Category'}
+          {window.isRTL ? 'فئة المصروف' : 'Category'}
         </div>
         <div style={{ display: 'flex', gap: 7, overflowX: 'auto', flexDirection: 'row' }} className="no-scrollbar">
           {cats.map((c) => {
@@ -1106,7 +1106,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
       {members.length > 0 && (
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase' }}>
-            {window.isRTL ? 'دفع بواسطة' : 'Paid by'}
+            {window.isRTL ? 'جرى الدفع بواسطة' : 'Paid by'}
           </div>
           <div className="no-scrollbar" style={{ display: 'flex', gap: 7, overflowX: 'auto', flexDirection: 'row', paddingBottom: 2 }}>
             {members.map((m) => {
@@ -1211,11 +1211,11 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
       {/* Note (optional) */}
       <div style={{ marginBottom: 14 }}>
         <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase' }}>
-          {window.isRTL ? 'ملاحظة (اختياري)' : 'Note (optional)'}
+          {window.isRTL ? 'ملاحظة إضافية (اختياري)' : 'Note (optional)'}
         </div>
         <input
           type="text" value={note} onChange={(e) => setNote(e.target.value)}
-          placeholder={window.isRTL ? 'تفاصيل إضافية...' : 'Extra details...'}
+          placeholder={window.isRTL ? 'اكتب أي تفاصيل إضافية...' : 'Extra details...'}
           style={fieldStyle}
         />
       </div>
@@ -1253,7 +1253,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
             />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--ink)' }}>
-                {receiptFile ? receiptFile.name : (window.isRTL ? 'الإيصال الحالي' : 'Current receipt')}
+                {receiptFile ? receiptFile.name : (window.isRTL ? 'الإيصال المرفق حالياً' : 'Current receipt')}
               </div>
               <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 2 }}>
                 {t('receiptHint')}
@@ -1298,7 +1298,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
       <div style={{ display: 'flex', gap: 10, flexDirection: 'row' }}>
         {isEdit && (
           <button onClick={async () => {
-            if (!confirm(window.isRTL ? 'حذف هذا المصروف؟' : 'Delete this expense?')) return;
+            if (!confirm(window.isRTL ? 'هل تريد حذف هذا المصروف؟' : 'Delete this expense?')) return;
             setLoading(true);
             try {
               await window.deleteExpense(existing.id, trip?.id);
@@ -1313,7 +1313,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
             fontSize: 14, fontWeight: 600,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           }}>
-            <IconTrash size={14} stroke="currentColor" /> {window.isRTL ? 'حذف' : 'Delete'}
+            <IconTrash size={14} stroke="currentColor" /> {window.isRTL ? 'حذف المصروف' : 'Delete'}
           </button>
         )}
         <button onClick={handleSave} disabled={loading} style={{
@@ -1331,8 +1331,8 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
               display: 'inline-block', animation: 'expspin 0.7s linear infinite',
             }} />
           ) : (isEdit
-              ? (window.isRTL ? 'حفظ التعديلات' : 'Save changes')
-              : (window.isRTL ? `إضافة — ${trip?.title || ''}` : `Add to ${trip?.title || 'trip'}`))}
+              ? (window.isRTL ? 'حفظ التغييرات الحالية' : 'Save changes')
+              : (window.isRTL ? `تأكيد وإضافة المصروف — ${trip?.title || ''}` : `Add to ${trip?.title || 'trip'}`))}
         </button>
       </div>
       <style>{`@keyframes expspin { to { transform: rotate(360deg) } }`}</style>
@@ -1353,7 +1353,7 @@ function AddDocSheet({ onDone }) {
   const tintFills = { indigo:'var(--indigo)', moss:'var(--moss)', clay:'var(--clay)', honey:'var(--honey)' };
 
   const handleSave = async () => {
-    if (!title.trim()) { setError(window.isRTL ? 'أدخل عنواناً' : 'Enter a title'); return; }
+    if (!title.trim()) { setError(window.isRTL ? 'يرجى إدخال عنوان للمستند' : 'Enter a title'); return; }
     setLoading(true); setError(null);
     try {
       const tripId = window.TRIP?.id;
@@ -1377,10 +1377,10 @@ function AddDocSheet({ onDone }) {
       {/* Title */}
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase' }}>
-          {window.isRTL ? 'العنوان' : 'Title'}
+          {window.isRTL ? 'عنوان ومسمى المستند' : 'Title'}
         </div>
         <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
-          placeholder={window.isRTL ? 'اسم المستند...' : 'Document name...'}
+          placeholder={window.isRTL ? 'اكتب عنواناً مميزاً للمستند...' : 'Document name...'}
           style={{ width: '100%', padding: '12px 14px', borderRadius: 14, border: '0.5px solid var(--hairline)', background: 'var(--cream)', color: 'var(--ink)', fontSize: 14, outline: 'none', textAlign: 'start' }} />
       </div>
 
@@ -1415,7 +1415,7 @@ function AddDocSheet({ onDone }) {
       {/* Optional link */}
       <div style={{ margin: '12px 0' }}>
         <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase' }}>
-          {window.isRTL ? 'رابط (اختياري)' : 'Link (optional)'}
+          {window.isRTL ? 'الرابط المرفق (اختياري)' : 'Link (optional)'}
         </div>
         <input type="url" value={link} onChange={(e) => setLink(e.target.value)}
           placeholder="https://maps.google.com/..."
@@ -1441,7 +1441,7 @@ function AddDocSheet({ onDone }) {
         background: loading ? 'var(--ink-soft)' : 'var(--ink)', color: 'var(--cream)',
         fontSize: 13.5, fontWeight: 600,
       }}>
-        {loading ? '...' : `${window.isRTL ? 'إضافة إلى' : 'Add to'} ${(window.DOC_CATEGORIES || []).find((c) => c.key === cat)?.label || cat}`}
+        {loading ? '...' : `${window.isRTL ? 'إضافة مباشرة إلى' : 'Add to'} ${(window.DOC_CATEGORIES || []).find((c) => c.key === cat)?.label || cat}`}
       </button>
     </div>
   );
@@ -1477,9 +1477,9 @@ function AddTripSheet({ onDone, onCreated }) {
   };
 
   const handleSave = async () => {
-    if (!title.trim()) { setError(window.isRTL ? 'أدخل اسم الرحلة' : 'Enter a trip name'); return; }
-    if (!startDate || !endDate) { setError(window.isRTL ? 'أدخل التواريخ' : 'Enter dates'); return; }
-    if (endDate < startDate) { setError(window.isRTL ? 'تاريخ النهاية قبل البداية' : 'End date must be after start'); return; }
+    if (!title.trim()) { setError(window.isRTL ? 'يرجى إدخال مسمى للرحلة' : 'Enter a trip name'); return; }
+    if (!startDate || !endDate) { setError(window.isRTL ? 'يرجى تحديد تواريخ بداية ونهاية الرحلة' : 'Enter dates'); return; }
+    if (endDate < startDate) { setError(window.isRTL ? 'تاريخ النهاية يجب أن يكون بعد تاريخ البداية' : 'End date must be after start'); return; }
     setLoading(true); setError(null);
     try {
       const trip = await window.createTrip({
@@ -1500,29 +1500,29 @@ function AddTripSheet({ onDone, onCreated }) {
 
       {/* Title */}
       <div>
-        <label style={labelStyle}>{window.isRTL ? 'اسم الرحلة *' : 'Trip name *'}</label>
+        <label style={labelStyle}>{window.isRTL ? 'مسمى الرحلة *' : 'Trip name *'}</label>
         <input value={title} onChange={(e) => setTitle(e.target.value)}
-          placeholder={window.isRTL ? 'مثال: طوكيو · الربيع' : 'e.g. Tokyo · Spring'}
+          placeholder={window.isRTL ? 'مثلاً: طوكيو · الربيع' : 'e.g. Tokyo · Spring'}
           style={fieldStyle} />
       </div>
 
       {/* Subtitle */}
       <div>
-        <label style={labelStyle}>{window.isRTL ? 'وصف مختصر' : 'Subtitle'}</label>
+        <label style={labelStyle}>{window.isRTL ? 'وصف مختصر للرحلة' : 'Subtitle'}</label>
         <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)}
-          placeholder={window.isRTL ? 'مثال: رحلة شهر العسل' : 'e.g. Honeymoon trip'}
+          placeholder={window.isRTL ? 'مثلاً: رحلة شهر العسل' : 'e.g. Honeymoon trip'}
           style={fieldStyle} />
       </div>
 
       {/* Dates */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div>
-          <label style={labelStyle}>{window.isRTL ? 'تاريخ البداية *' : 'Start date *'}</label>
+          <label style={labelStyle}>{window.isRTL ? 'تاريخ بداية الرحلة *' : 'Start date *'}</label>
           <input type="date" value={startDate} onChange={(e) => setStart(e.target.value)}
             style={{ ...fieldStyle, fontSize: 13 }} />
         </div>
         <div>
-          <label style={labelStyle}>{window.isRTL ? 'تاريخ النهاية *' : 'End date *'}</label>
+          <label style={labelStyle}>{window.isRTL ? 'تاريخ نهاية الرحلة *' : 'End date *'}</label>
           <input type="date" value={endDate} onChange={(e) => setEnd(e.target.value)}
             style={{ ...fieldStyle, fontSize: 13 }} />
         </div>

@@ -54,7 +54,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
     try {
       await window.uploadDocumentFile(doc.id, window.TRIP.id, file);
       await window.loadDocuments(window.TRIP.id);
-      window.toast?.(window.isRTL ? 'تم الاستبدال' : 'File replaced', 'success');
+      window.toast?.(window.isRTL ? 'تم استبدال الملف المرفق بنجاح' : 'File replaced', 'success');
     } catch (err) {
       window.toast?.(err.message || 'Upload failed', 'error');
     } finally { setUploading(false); }
@@ -65,7 +65,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
     try {
       await window.uploadDocumentSecondaryFile(doc.id, window.TRIP.id, file);
       await window.loadDocuments(window.TRIP.id);
-      window.toast?.(window.isRTL ? 'تم الاستبدال' : 'File replaced', 'success');
+      window.toast?.(window.isRTL ? 'تم استبدال الملف المرفق بنجاح' : 'File replaced', 'success');
     } catch (err) {
       window.toast?.(err.message || 'Upload failed', 'error');
     } finally { setUploadingSec(false); }
@@ -82,7 +82,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
   };
   const removeCover = async () => {
     if (!doc.coverPath) return;
-    if (!confirm(window.isRTL ? 'إزالة صورة الغلاف؟' : 'Remove cover photo?')) return;
+    if (!confirm(window.isRTL ? 'هل تريد إزالة صورة الغلاف؟' : 'Remove cover photo?')) return;
     try {
       await window.deleteDocCover(doc.id, doc.coverPath);
       await window.loadDocuments(window.TRIP?.id);
@@ -90,7 +90,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
   };
   const removePrimary = async () => {
     if (!doc.filePath) return;
-    if (!confirm(window.isRTL ? 'إزالة الملف؟' : 'Remove file?')) return;
+    if (!confirm(window.isRTL ? 'هل تريد إزالة هذا الملف المرفق؟' : 'Remove file?')) return;
     try {
       await window.removeDocumentFile(doc.id, doc.filePath);
       await window.loadDocuments(window.TRIP?.id);
@@ -98,7 +98,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
   };
   const removeSecondary = async () => {
     if (!doc.secondaryFilePath) return;
-    if (!confirm(window.isRTL ? 'إزالة الملف؟' : 'Remove file?')) return;
+    if (!confirm(window.isRTL ? 'هل تريد إزالة الملف الإضافي؟' : 'Remove file?')) return;
     try {
       await window.removeDocumentSecondaryFile(doc.id, doc.secondaryFilePath);
       await window.loadDocuments(window.TRIP?.id);
@@ -107,7 +107,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
 
   // ── Save edits ─────────────────────────────────────────────
   const saveEdits = async () => {
-    if (!title.trim()) { window.toast?.(window.isRTL ? 'العنوان مطلوب' : 'Title is required', 'error'); return; }
+    if (!title.trim()) { window.toast?.(window.isRTL ? 'يرجى إدخال عنوان للمستند' : 'Title is required', 'error'); return; }
     setSaving(true);
     try {
       const costNum = cost ? parseFloat(cost) : null;
@@ -117,11 +117,11 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
         costLocal: costNum, costCurrency: cost ? costCur : null,
         costUSD,
         linkUrl: details.location_url || null,
-        linkLabel: details.location_url ? (window.isRTL ? 'الموقع' : 'Location') : null,
+        linkLabel: details.location_url ? (window.isRTL ? 'الرابط المرجعي' : 'Location') : null,
       });
       await window.loadDocuments(window.TRIP?.id);
       setEditing(false);
-      window.toast?.(window.isRTL ? 'تم الحفظ' : 'Saved', 'success');
+      window.toast?.(window.isRTL ? 'تم حفظ جميع التعديلات بنجاح' : 'Saved', 'success');
     } catch (err) {
       window.toast?.(err.message || 'Save failed', 'error');
     } finally { setSaving(false); }
@@ -133,17 +133,17 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
     try {
       if (doc.linkedExpenseId) {
         await window.unlinkDocExpense(doc.id, window.TRIP?.id);
-        window.toast?.(window.isRTL ? 'أُزيل من المصروفات' : 'Removed from expenses', 'success');
+        window.toast?.(window.isRTL ? 'تم استبعاد التكلفة من سجل المصروفات' : 'Removed from expenses', 'success');
       } else {
         await window.linkDocExpense(doc.id, window.TRIP?.id);
-        window.toast?.(window.isRTL ? 'أُضيف للمصروفات' : 'Added to expenses', 'success');
+        window.toast?.(window.isRTL ? 'تم إدراج التكلفة في سجل المصروفات' : 'Added to expenses', 'success');
       }
     } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
     finally { setLinking(false); }
   };
 
   const deleteDoc = async () => {
-    if (!confirm(window.isRTL ? 'حذف هذا المستند؟' : 'Delete this document?')) return;
+    if (!confirm(window.isRTL ? 'هل أنت متأكد من حذف هذا المستند نهائياً؟' : 'Delete this document?')) return;
     try {
       // If linked to an expense, drop the expense too so we don't orphan it.
       if (doc.linkedExpenseId) {
@@ -216,7 +216,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
               {saving
                 ? <span style={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', display: 'inline-block', animation: 'expspin 0.7s linear infinite' }} />
                 : <IconCheck size={13} stroke="#fff" />}
-              {window.isRTL ? 'حفظ' : 'Save'}
+              {window.isRTL ? 'حفظ التعديلات' : 'Save'}
             </button>
           ) : (
             <button onClick={() => setEditing(true)} className="glass" style={{
@@ -240,7 +240,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
               display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row',
             }}>
               <window.IconCamera size={12} stroke="#fff" />
-              {uploadingCov ? '…' : (hasCover ? (window.isRTL ? 'تغيير' : 'Change') : (window.isRTL ? 'إضافة' : 'Add cover'))}
+              {uploadingCov ? '…' : (hasCover ? (window.isRTL ? 'تغيير الصورة' : 'Change') : (window.isRTL ? 'إضافة غلاف' : 'Add cover'))}
             </button>
             {hasCover && (
               <button onClick={removeCover} className="glass" style={{
@@ -288,7 +288,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
       {/* ── EDIT MODE: structured fields ─────────────────────── */}
       {editing && (
         <div style={{ padding: '18px 14px 0' }}>
-          <SectionLabel>{window.isRTL ? 'التفاصيل' : 'Details'}</SectionLabel>
+          <SectionLabel>{window.isRTL ? 'البيانات والتفاصيل' : 'Details'}</SectionLabel>
           <div style={{ padding: '0 8px' }}>
             {/* Category switcher first */}
             <div style={{ marginBottom: 12 }}>
@@ -311,7 +311,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
             {/* Cost (only on cost-enabled categories) */}
             {schema.showCost && (
               <div style={{ marginTop: 14 }}>
-                <div style={editLabelStyle}>{window.isRTL ? 'التكلفة' : 'Cost'}</div>
+                <div style={editLabelStyle}>{window.isRTL ? 'تفاصيل التكلفة' : 'Cost'}</div>
                 <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
                   <input type="number" inputMode="decimal" value={cost}
                     onChange={(e) => setCost(e.target.value)}
@@ -335,7 +335,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
       {/* ── READ MODE: structured field list + cost/expense ─── */}
       {!editing && schema.fields.length > 0 && (
         <div style={{ padding: '18px 14px 0' }}>
-          <SectionLabel>{window.isRTL ? 'التفاصيل' : 'Details'}</SectionLabel>
+          <SectionLabel>{window.isRTL ? 'البيانات والتفاصيل' : 'Details'}</SectionLabel>
           <div style={{
             background: 'var(--cream-2)', borderRadius: 18,
             margin: '0 8px', overflow: 'hidden',
@@ -365,7 +365,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
       {/* ── COST + EXPENSE TOGGLE (read mode) ─────────────────── */}
       {!editing && schema.showCost && doc.costUSD != null && (
         <div style={{ padding: '16px 14px 0' }}>
-          <SectionLabel>{window.isRTL ? 'التكلفة' : 'Cost'}</SectionLabel>
+          <SectionLabel>{window.isRTL ? 'تفاصيل التكلفة' : 'Cost'}</SectionLabel>
           <div style={{
             margin: '0 8px', padding: '14px 16px',
             background: 'var(--cream-2)', borderRadius: 18,
@@ -384,11 +384,11 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
                   display: 'flex', alignItems: 'center', gap: 4, flexDirection: 'row',
                 }}>
                   <IconCheck size={11} stroke="currentColor" />
-                  {window.isRTL ? 'مُسجَّل في المصروفات' : 'Logged in expenses'}
+                  {window.isRTL ? 'مُدرج في قائمة المصروفات' : 'Logged in expenses'}
                 </div>
               ) : (
                 <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 3 }}>
-                  {window.isRTL ? 'غير مُسجَّل في الميزانية' : 'Not in the trip budget'}
+                  {window.isRTL ? 'غير مدرج في ميزانية الرحلة' : 'Not in the trip budget'}
                 </div>
               )}
             </div>
@@ -402,8 +402,8 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
             }}>
               {linking ? '…'
                 : (doc.linkedExpenseId
-                    ? (window.isRTL ? 'إزالة' : 'Remove')
-                    : (window.isRTL ? 'أضف' : 'Add to expenses'))}
+                    ? (window.isRTL ? 'استبعاد من المصروفات' : 'Remove')
+                    : (window.isRTL ? 'إدراج في المصروفات' : 'Add to expenses'))}
             </button>
           </div>
         </div>
@@ -413,14 +413,14 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
          Primary + (if category has it) secondary file. Each shows
          open/replace/remove inline. */}
       <div style={{ padding: '18px 14px 0' }}>
-        <SectionLabel>{window.isRTL ? 'الملفات' : 'Files'}</SectionLabel>
+        <SectionLabel>{window.isRTL ? 'الملفات المرفقة' : 'Files'}</SectionLabel>
         <div style={{
           margin: '0 8px',
           display: 'flex', flexDirection: 'column', gap: 8,
         }}>
           <FileRow
             label={schema.primaryFileLabel()}
-            file={hasFile ? { name: window.isRTL ? 'مرفوع' : 'Uploaded', size: doc.size, url: doc.link } : null}
+            file={hasFile ? { name: window.isRTL ? 'ملف مرفوع' : 'Uploaded', size: doc.size, url: doc.link } : null}
             tint={tintFill}
             uploading={uploading}
             onPick={() => fileRef.current?.click()}
@@ -433,7 +433,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
             <>
               <FileRow
                 label={schema.secondaryFile.label()}
-                file={hasSec ? { name: window.isRTL ? 'مرفوع' : 'Uploaded', size: null, url: doc.secondaryLink } : null}
+                file={hasSec ? { name: window.isRTL ? 'ملف مرفوع' : 'Uploaded', size: null, url: doc.secondaryLink } : null}
                 tint={tintFill}
                 uploading={uploadingSec}
                 onPick={() => secondaryRef.current?.click()}
@@ -459,7 +459,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
             flexDirection: 'row',
           }}>
             <IconTrash size={14} stroke="currentColor" />
-            {window.isRTL ? 'حذف المستند' : 'Delete document'}
+            {window.isRTL ? 'حذف المستند بالكامل' : 'Delete document'}
           </button>
         </div>
       )}
@@ -484,7 +484,7 @@ function DocInfoRow({ label, value, href, last }) {
       display: 'inline-flex', alignItems: 'center', gap: 4, flexDirection: 'row',
     }}>
       <IconLink size={12} stroke="currentColor" />
-      {window.isRTL ? 'افتح' : 'Open'}
+      {window.isRTL ? 'الانتقال للرابط' : 'Open'}
     </a>
   ) : (
     <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>{value}</div>
@@ -531,7 +531,7 @@ function FileRow({ label, file, tint, uploading, onPick, onRemove }) {
           fontSize: 13, fontWeight: 500, color: 'var(--ink)', marginTop: 2,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
-          {file ? (file.size ? `${file.name} · ${file.size}` : file.name) : (window.isRTL ? 'لا يوجد ملف' : 'No file yet')}
+          {file ? (file.size ? `${file.name} · ${file.size}` : file.name) : (window.isRTL ? 'لا يوجد ملف مرفق حتى الآن' : 'No file yet')}
         </div>
       </div>
       <div style={{ display: 'flex', gap: 6, flexDirection: 'row', flexShrink: 0 }}>
@@ -544,7 +544,7 @@ function FileRow({ label, file, tint, uploading, onPick, onRemove }) {
             textDecoration: 'none',
           }}>
             <IconDoc size={11} stroke="currentColor" />
-            {window.isRTL ? 'فتح' : 'Open'}
+            {window.isRTL ? 'فتح الملف' : 'Open'}
           </a>
         )}
         <button onClick={onPick} disabled={uploading} style={{
@@ -553,7 +553,7 @@ function FileRow({ label, file, tint, uploading, onPick, onRemove }) {
           border: '0.5px solid var(--hairline)',
           fontSize: 11.5, fontWeight: 500,
         }}>
-          {uploading ? '…' : (file ? (window.isRTL ? 'استبدال' : 'Replace') : (window.isRTL ? 'رفع' : 'Upload'))}
+          {uploading ? '…' : (file ? (window.isRTL ? 'استبدال الملف' : 'Replace') : (window.isRTL ? 'رفع ملف جديد' : 'Upload'))}
         </button>
         {file && (
           <button onClick={onRemove} aria-label={window.isRTL ? 'إزالة' : 'Remove'} style={{

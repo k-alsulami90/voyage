@@ -54,7 +54,7 @@ function ScreenOnboarding({ onComplete, onCreateTrip }) {
         window.USER_DEFAULT_CURRENCY = (updates.default_currency || 'USD').trim().toUpperCase();
       }
       try { localStorage.setItem('voyage:onboarded', '1'); } catch (_) {}
-      window.toast?.(window.isRTL ? 'مرحباً بك' : 'Welcome aboard', 'success');
+      window.toast?.(window.isRTL ? 'أهلاً بك في Voyage!' : 'Welcome aboard', 'success');
       onComplete?.(alsoCreateTrip);
     } catch (err) {
       window.toast?.(err.message || 'Could not save', 'error');
@@ -305,7 +305,7 @@ function StepDone({ name, home, currency }) {
         display: 'flex', flexDirection: 'column', gap: 10,
       }}>
         {[
-          { label: window.isRTL ? 'الاسم' : 'Name',     value: name || '—' },
+          { label: window.isRTL ? 'الاسم الأول' : 'Name',     value: name || '—' },
           { label: t('homeBase'),                       value: home || '—' },
           { label: t('defaultCurrency'),                value: currency },
         ].map((row, i) => (

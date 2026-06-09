@@ -82,17 +82,17 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
              sentence-case sans with mono numbers for tabular alignment. */}
           <div style={{ position: 'relative' }}>
             <div className="serif" style={{ fontSize: 22, lineHeight: 1.05 }}>{me.name}</div>
-            <div style={{ fontSize: 11.5, opacity: 0.78, marginTop: 2 }}>{email || (window.isRTL ? 'جاري التحميل…' : 'Loading…')}</div>
+            <div style={{ fontSize: 11.5, opacity: 0.78, marginTop: 2 }}>{email || (window.isRTL ? 'جارٍ تحميل البيانات…' : 'Loading…')}</div>
             <div style={{
               marginTop: 10, fontSize: 12, color: 'rgba(255,251,244,0.78)',
             }}>
               {window.isRTL ? (
                 <>
-                  <ProfileNum>{stat.totalTrips}</ProfileNum> {stat.totalTrips === 1 ? 'رحلة' : 'رحلات'}
+                  سجل الترحال: خضت <ProfileNum>{window.arPlural(stat.totalTrips, { one: 'رحلة واحدة', two: 'رحلتين', few: `${stat.totalTrips} رحلات`, many: `${stat.totalTrips} رحلة`, other: `${stat.totalTrips} رحلة` })}</ProfileNum>
                   {' · '}
-                  <ProfileNum>{stat.totalDays}</ProfileNum> {stat.totalDays === 1 ? 'يوم' : 'يوم'}
+                  على مدار <ProfileNum>{window.arPlural(stat.totalDays, { one: 'يوم واحد', two: 'يومين', few: `${stat.totalDays} أيام`, many: `${stat.totalDays} يوماً`, other: `${stat.totalDays} يوماً` })}</ProfileNum>
                   {' · '}
-                  <ProfileNum>{stat.countries}</ProfileNum> {stat.countries === 1 ? 'دولة' : 'دول'}
+                  شملت <ProfileNum>{window.arPlural(stat.countries, { one: 'دولة واحدة', two: 'دولتين', few: `${stat.countries} دول ووجهات`, many: `${stat.countries} دولة`, other: `${stat.countries} دولة` })}</ProfileNum>
                 </>
               ) : (
                 <>
@@ -148,7 +148,7 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
               fontSize: 13, fontWeight: 600, color: 'var(--ink)',
             }}>Aع</div>
             <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)', textAlign: 'start' }}>
-              {window.isRTL ? 'اللغة' : 'Language'}
+              {window.isRTL ? 'لغة الواجهة' : 'Language'}
             </div>
             <div style={{
               display: 'inline-flex', padding: 3, background: 'var(--sand)', borderRadius: 999,
@@ -205,10 +205,10 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
         }}>
           <ActionRow onClick={() => {
             window.actionSheet?.({
-              title: window.isRTL ? 'إعادة تعيين التطبيق' : 'Reset app cache',
-              message: window.isRTL ? 'بياناتك في السحابة آمنة. سيُعاد تحميل التطبيق.' : 'Your cloud data is safe. The app will reload.',
+              title: window.isRTL ? 'إعادة تعيين وإصلاح التطبيق' : 'Reset app cache',
+              message: window.isRTL ? 'بياناتك المخزنة في السحابة بأمان تام. سيُعاد تحميل التطبيق فقط لإصلاح أي مشاكل ظاهرية.' : 'Your cloud data is safe. The app will reload.',
               actions: [
-                { label: window.isRTL ? 'إعادة تعيين' : 'Reset', destructive: true, onPress: async () => {
+                { label: window.isRTL ? 'متابعة وإعادة التعيين' : 'Reset', destructive: true, onPress: async () => {
                   try {
                     if ('caches' in window) {
                       const names = await caches.keys();
@@ -223,11 +223,11 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
                 }},
               ],
             });
-          }} icon={<IconGear size={17} stroke="var(--ink)" />} label={window.isRTL ? 'إعادة تعيين التطبيق' : 'Reset app cache'} sub={window.isRTL ? 'مسح والتحميل من جديد إذا حدث خلل' : 'Clear cache & reload if something looks broken'} />
+          }} icon={<IconGear size={17} stroke="var(--ink)" />} label={window.isRTL ? 'إعادة تعيين وإصلاح التطبيق' : 'Reset app cache'} sub={window.isRTL ? 'استخدم هذا الإجراء إذا واجهت أي مشاكل في الواجهة أو الأداء' : 'Clear cache & reload if something looks broken'} />
           <ActionRow onClick={() => {
             window.actionSheet?.({
               title: t('signOut'),
-              message: window.isRTL ? 'سيتم تسجيل خروجك. يمكنك العودة في أي وقت.' : "You'll be signed out. You can sign back in anytime.",
+              message: window.isRTL ? 'سيتم تسجيل خروجك من الحساب. يمكنك العودة وتسجيل الدخول في أي وقت.' : "You'll be signed out. You can sign back in anytime.",
               actions: [
                 { label: t('signOut'), destructive: true, onPress: () => onSignOut?.() },
               ],
@@ -245,7 +245,7 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
       <div style={{ textAlign: 'center', padding: '32px 0 20px', color: 'var(--ink-mute)' }}>
         <div className="serif-italic" style={{ fontSize: 18 }}>voyage</div>
         <div className="mono" style={{ fontSize: 10.5, marginTop: 6 }}>
-          v 1.0.0 · {window.isRTL ? 'صُنع في مكة' : 'Built in Makkah'}
+          {window.isRTL ? 'الإصدار 1.0.0 · صُنع بكل حب في مكة' : 'v 1.0.0 · Built in Makkah'}
         </div>
       </div>
     </div>
@@ -297,16 +297,16 @@ function InstallCard() {
         }}>✦</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13.5, fontWeight: 600 }}>
-            {window.isRTL ? 'ثبّت Voyage على شاشتك الرئيسية' : 'Install Voyage on your home screen'}
+            {window.isRTL ? 'ثبّت تطبيق Voyage على شاشتك الرئيسية' : 'Install Voyage on your home screen'}
           </div>
           <div style={{ fontSize: 11.5, opacity: 0.88, marginTop: 2 }}>
-            {window.isRTL ? 'وصول أسرع وعمل بدون إنترنت' : 'Faster access · works offline'}
+            {window.isRTL ? 'وصول أسرع وعمل كامل بدون اتصال بالإنترنت' : 'Faster access · works offline'}
           </div>
         </div>
         <button onClick={handleInstall} style={{
           padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600,
           background: '#fff', color: 'var(--clay-deep)', flexShrink: 0,
-        }}>{window.isRTL ? 'تثبيت' : 'Install'}</button>
+        }}>{window.isRTL ? 'تثبيت التطبيق الآن' : 'Install'}</button>
       </div>
 
       {/* iOS Safari instructions */}
@@ -321,7 +321,7 @@ function InstallCard() {
             : <>On iOS: tap the Share button <b>⎙</b> in Safari, then choose <b>"Add to Home Screen"</b>.</>}
           <button onClick={() => setShowIOSHelp(false)} style={{
             display: 'block', marginTop: 8, color: 'var(--clay-deep)', fontWeight: 600, fontSize: 11.5,
-          }}>{window.isRTL ? 'تم' : 'Got it'}</button>
+          }}>{window.isRTL ? 'حسناً، فهمت' : 'Got it'}</button>
         </div>
       )}
     </div>
@@ -375,7 +375,7 @@ function ProfileEditRows({ me }) {
       if (fields.default_currency) {
         window.USER_DEFAULT_CURRENCY = fields.default_currency.trim().toUpperCase();
       }
-      window.toast?.(window.isRTL ? 'تم الحفظ' : 'Saved', 'success');
+      window.toast?.(window.isRTL ? 'تم حفظ التعديلات بنجاح' : 'Saved', 'success');
       setEditing(null);
     } catch (err) {
       window.toast?.(err.message || 'Save failed', 'error');
@@ -444,7 +444,7 @@ function ProfileEditRows({ me }) {
           <div style={iconBox}><IconCompass size={16} stroke="var(--ink)" /></div>
           <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)' }}>{t('homeBase')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row' }}>
-            <span style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>{home || (window.isRTL ? 'لم تُحدد' : 'Not set')}</span>
+            <span style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>{home || (window.isRTL ? 'لم تُحدد بعد' : 'Not set')}</span>
             <span style={{ transform: editing === 'home' ? 'rotate(90deg)' : 'none', transition: 'transform 200ms', display: 'inline-block' }}>
               <IconChevron size={13} stroke="var(--ink-mute)" />
             </span>
@@ -453,7 +453,7 @@ function ProfileEditRows({ me }) {
         {editing === 'home' && (
           <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             <input value={home} onChange={(e) => setHome(e.target.value)}
-              placeholder={window.isRTL ? 'مثال: مكة، الرياض، جدة' : 'e.g. Makkah, Riyadh, Dubai'}
+              placeholder={window.isRTL ? 'مثلاً: مكة، الرياض، جدة' : 'e.g. Makkah, Riyadh, Dubai'}
               style={inputStyle} />
             <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
               <button disabled={saving} onClick={() => save({ home_base: home.trim() || null })} style={{

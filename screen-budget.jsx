@@ -39,7 +39,7 @@ function ScreenBudget({ go, openSheet, loading }) {
         {!trip && !loading ? (
           <div style={{ padding: '48px 32px', textAlign: 'center', color: 'var(--ink-mute)' }}>
             <div className="serif" style={{ fontSize: 18 }}>
-              {window.isRTL ? 'الرجاء فتح رحلة أولاً' : 'Open a trip first'}
+              {window.isRTL ? 'يرجى تحديد وفتح رحلة أولاً' : 'Open a trip first'}
             </div>
           </div>
         ) : <TripSkeleton />}
@@ -109,7 +109,7 @@ function ScreenBudget({ go, openSheet, loading }) {
             }}>⚠</div>
             <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--clay-deep)' }}>
               {window.isRTL ? (
-                <>تجاوزت الميزانية بـ <strong>{conv(realSpent - planned)}</strong> ({overPct}٪ فوق الخطة).</>
+                <>تجاوزت الميزانية بمقدار <strong>{conv(realSpent - planned)}</strong> (أي بنسبة {overPct}٪ فوق الخطة المحددة).</>
               ) : (
                 <>Over budget by <strong>{conv(realSpent - planned)}</strong> ({overPct}% above plan).</>
               )}
@@ -150,9 +150,9 @@ function ScreenBudget({ go, openSheet, loading }) {
               }}>
                 {window.isRTL ? (
                   planned > 0 ? (
-                    <>صرفت <BudgetNum>{conv(realSpent)}</BudgetNum> من <BudgetNum dim>{conv(planned)}</BudgetNum>.</>
+                    <>أنفقت <BudgetNum>{conv(realSpent)}</BudgetNum> من أصل <BudgetNum dim>{conv(planned)}</BudgetNum>.</>
                   ) : (
-                    <>صرفت <BudgetNum>{conv(realSpent)}</BudgetNum> حتى الآن.</>
+                    <>إجمالي ما أنفقته حتى الآن: <BudgetNum>{conv(realSpent)}</BudgetNum>.</>
                   )
                 ) : (
                   planned > 0 ? (
@@ -300,7 +300,7 @@ function ScreenBudget({ go, openSheet, loading }) {
             display: 'inline-flex', alignItems: 'center', gap: 5,
           }}>
             <IconFilter size={12} stroke="currentColor" />
-            {window.isRTL ? 'فلاتر' : 'Filters'}
+            {window.isRTL ? 'تصفية' : 'Filters'}
             {(paidBy !== 'all' || dayFilter !== 'all') && (
               <span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--clay)' }} />
             )}
@@ -317,7 +317,7 @@ function ScreenBudget({ go, openSheet, loading }) {
             {/* Paid by row */}
             <div>
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
-                {window.isRTL ? 'دفع بواسطة' : 'Paid by'}
+                {window.isRTL ? 'دُفع بواسطة' : 'Paid by'}
               </div>
               <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', flexDirection: 'row' }}>
                 <Chip active={paidBy === 'all'} onClick={() => setPaidBy('all')}>{t('all')}</Chip>
@@ -333,7 +333,7 @@ function ScreenBudget({ go, openSheet, loading }) {
             {daysAvailable.length > 0 && (
               <div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
-                  {window.isRTL ? 'اليوم' : 'Day'}
+                  {window.isRTL ? 'اليوم المحدد' : 'Day'}
                 </div>
                 <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto', flexDirection: 'row' }}>
                   <Chip active={dayFilter === 'all'} onClick={() => setDayFilter('all')}>{t('all')}</Chip>
@@ -352,7 +352,7 @@ function ScreenBudget({ go, openSheet, loading }) {
                 alignSelf: 'flex-start', padding: '6px 12px', borderRadius: 999, fontSize: 11.5,
                 background: 'var(--cream)', border: '0.5px solid var(--hairline-2)', color: 'var(--ink-soft)',
               }}>
-                {window.isRTL ? 'مسح الفلاتر' : 'Clear filters'}
+                {window.isRTL ? 'مسح التصفية' : 'Clear filters'}
               </button>
             )}
           </div>
@@ -369,7 +369,7 @@ function ScreenBudget({ go, openSheet, loading }) {
           }
           if (paidBy !== 'all') {
             const m = (window.MEMBERS || []).find((x) => x.id === paidBy);
-            if (m) labels.push(`${window.isRTL ? 'دفعها' : 'paid by'} ${m.name.split(' ')[0]}`);
+            if (m) labels.push(`${window.isRTL ? 'دُفعت بواسطة' : 'paid by'} ${m.name.split(' ')[0]}`);
           }
           if (dayFilter !== 'all') {
             labels.push(`${window.isRTL ? 'يوم' : 'Day'} ${dayFilter}`);
@@ -388,7 +388,14 @@ function ScreenBudget({ go, openSheet, loading }) {
                   fontSize: 13, fontWeight: 600,
                   color: 'var(--statement-fg)',
                 }}>
-                  {filteredExpenses.length} {window.isRTL ? 'مصروف' : (filteredExpenses.length === 1 ? 'expense' : 'expenses')}
+                  {window.isRTL
+                    ? window.arPlural(filteredExpenses.length, {
+                        zero: 'لا توجد مصروفات', one: 'مصروف واحد', two: 'مصروفان',
+                        few: `${filteredExpenses.length} مصروفات`,
+                        many: `${filteredExpenses.length} مصروفاً`,
+                        other: `${filteredExpenses.length} مصروف`,
+                      })
+                    : `${filteredExpenses.length} ${filteredExpenses.length === 1 ? 'expense' : 'expenses'}`}
                 </div>
                 <div style={{
                   fontSize: 12, marginTop: 3, opacity: 0.78,
@@ -414,7 +421,7 @@ function ScreenBudget({ go, openSheet, loading }) {
               display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
             }}><IconWallet size={28} stroke="var(--ink-mute)" /></div>
             <div className="serif" style={{ fontSize: 20, color: 'var(--ink)' }}>
-              {window.isRTL ? 'لا توجد مصروفات بعد' : 'No expenses yet'}
+              {window.isRTL ? 'لا توجد مصروفات مسجلة لهذه الرحلة بعد' : 'No expenses yet'}
             </div>
             <div style={{
               fontSize: 13, color: 'var(--ink-mute)',
@@ -448,12 +455,12 @@ function ScreenBudget({ go, openSheet, loading }) {
               display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
             }}><IconSearch size={18} stroke="var(--ink-mute)" /></div>
             <div className="serif" style={{ fontSize: 16, color: 'var(--ink)' }}>
-              {window.isRTL ? 'لا توجد نتائج' : 'No matching expenses'}
+              {window.isRTL ? 'لا توجد نتائج تطابق خيارات التصفية' : 'No matching expenses'}
             </div>
             <button onClick={() => { setFilter('all'); setPaidBy('all'); setDayFilter('all'); setSearch(''); }} style={{
               padding: '6px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 500,
               background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', color: 'var(--ink-soft)',
-            }}>{window.isRTL ? 'مسح الفلاتر' : 'Clear filters'}</button>
+            }}>{window.isRTL ? 'إعادة تعيين الفلاتر' : 'Show all'}</button>
           </div>
         )}
 
@@ -470,11 +477,11 @@ function ScreenBudget({ go, openSheet, loading }) {
                 ]}
                 onAction={async (key) => {
                   if (key !== 'delete') return;
-                  if (!confirm(window.isRTL ? `حذف "${e.title}"؟` : `Delete "${e.title}"?`)) return;
+                  if (!confirm(window.isRTL ? `هل تريد حذف "${e.title}"؟` : `Delete "${e.title}"?`)) return;
                   try {
                     await window.deleteExpense(e.id, trip.id);
                     await window.loadExpenses(trip.id);
-                    window.toast?.(window.isRTL ? 'تم الحذف' : 'Deleted', 'success');
+                    window.toast?.(window.isRTL ? 'تم الحذف بنجاح' : 'Deleted', 'success');
                   } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
                 }}>
                 <div onClick={() => openSheet?.('editExpense', e)} style={{
@@ -609,7 +616,14 @@ function AuditLogPanel({ entries }) {
                 <span style={{ fontWeight: 500 }}>{latest.target}</span>
               </div>
               <div style={{ fontSize: 10.5, color: 'var(--ink-mute)', marginTop: 1 }}>
-                {list.length} {window.isRTL ? 'إجراء' : (list.length === 1 ? 'entry' : 'entries')}
+                {window.isRTL
+                  ? window.arPlural(list.length, {
+                      zero: 'لا توجد عمليات', one: 'عملية واحدة', two: 'عمليتان',
+                      few: `${list.length} عمليات`,
+                      many: `${list.length} عملية`,
+                      other: `${list.length} من العمليات`,
+                    })
+                  : `${list.length} ${list.length === 1 ? 'entry' : 'entries'}`}
               </div>
             </>
           ) : (

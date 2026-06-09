@@ -14,19 +14,19 @@
 const DOC_SCHEMAS = {
   flights: {
     emoji: '✈️',
-    titleLabel:       () => window.isRTL ? 'الرحلة' : 'Flight',
-    titlePlaceholder: () => window.isRTL ? 'مثال: السعودية SV777 · طوكيو - الرياض' : 'e.g. Saudia SV777 · Tokyo → Riyadh',
+    titleLabel:       () => window.isRTL ? 'مسار خط الطيران' : 'Flight',
+    titlePlaceholder: () => window.isRTL ? 'مثال: الخطوط السعودية SV777 · طوكيو - الرياض' : 'e.g. Saudia SV777 · Tokyo → Riyadh',
     fields: [
-      { key: 'airline',      type: 'text',     label: () => window.isRTL ? 'الناقل' : 'Airline',           placeholder: () => 'Saudia · Emirates · JAL' },
-      { key: 'dep_airport',  type: 'text',     label: () => window.isRTL ? 'مطار المغادرة' : 'From airport', placeholder: () => 'HND' },
+      { key: 'airline',      type: 'text',     label: () => window.isRTL ? 'خطوط / ناقل الطيران' : 'Airline',           placeholder: () => 'Saudia · Emirates · JAL' },
+      { key: 'dep_airport',  type: 'text',     label: () => window.isRTL ? 'مطار المغادرة' : 'From airport', placeholder: () => window.isRTL ? 'اكتب رمز المطار (مثل HND)' : 'HND' },
       { key: 'dep_terminal', type: 'text',     label: () => window.isRTL ? 'الصالة' : 'Terminal',           placeholder: () => '3', col: 2 },
       { key: 'dep_at',       type: 'datetime', label: () => window.isRTL ? 'موعد الإقلاع' : 'Departure' },
-      { key: 'arr_airport',  type: 'text',     label: () => window.isRTL ? 'مطار الوصول' : 'To airport',   placeholder: () => 'RUH' },
+      { key: 'arr_airport',  type: 'text',     label: () => window.isRTL ? 'مطار الوصول' : 'To airport',   placeholder: () => window.isRTL ? 'اكتب رمز مطار الهبوط (مثل RUH)' : 'RUH' },
       { key: 'arr_terminal', type: 'text',     label: () => window.isRTL ? 'الصالة' : 'Terminal',           placeholder: () => '1', col: 2 },
       { key: 'arr_at',       type: 'datetime', label: () => window.isRTL ? 'موعد الهبوط' : 'Arrival' },
       { key: 'location_url', type: 'url',      label: () => window.isRTL ? 'رابط المطار' : 'Airport map link', placeholder: () => 'https://maps.google.com/...' },
     ],
-    primaryFileLabel: () => window.isRTL ? 'التذكرة الإلكترونية' : 'E-ticket',
+    primaryFileLabel: () => window.isRTL ? 'التذكرة الإلكترونية الرسمية (PDF)' : 'E-ticket',
     secondaryFile: {
       key: 'boarding_pass',
       label: () => window.isRTL ? 'بطاقة الصعود' : 'Boarding pass',
@@ -35,11 +35,11 @@ const DOC_SCHEMAS = {
   },
   lodging: {
     emoji: '🏨',
-    titleLabel:       () => window.isRTL ? 'اسم الفندق' : 'Hotel / Stay',
+    titleLabel:       () => window.isRTL ? 'اسم المنشأة / الفندق' : 'Hotel / Stay',
     titlePlaceholder: () => window.isRTL ? 'مثال: فندق نيكو طوكيو' : 'e.g. Park Hyatt Tokyo',
     fields: [
-      { key: 'check_in_at',  type: 'datetime', label: () => window.isRTL ? 'تسجيل الدخول' : 'Check-in' },
-      { key: 'check_out_at', type: 'datetime', label: () => window.isRTL ? 'تسجيل الخروج' : 'Check-out' },
+      { key: 'check_in_at',  type: 'datetime', label: () => window.isRTL ? 'موعد تسجيل الدخول (Check-in)' : 'Check-in' },
+      { key: 'check_out_at', type: 'datetime', label: () => window.isRTL ? 'موعد مغادرة السكن (Check-out)' : 'Check-out' },
       { key: 'address',      type: 'text',     label: () => window.isRTL ? 'العنوان' : 'Address',         placeholder: () => 'Street, city' },
       { key: 'location_url', type: 'url',      label: () => window.isRTL ? 'رابط الموقع' : 'Location link', placeholder: () => 'https://maps.google.com/...' },
     ],
@@ -48,8 +48,8 @@ const DOC_SCHEMAS = {
   },
   transport: {
     emoji: '🚆',
-    titleLabel:       () => window.isRTL ? 'المزود / الخدمة' : 'Vendor / Service',
-    titlePlaceholder: () => window.isRTL ? 'مثال: Hertz · إيجار سيارة' : 'e.g. Hertz · Car rental',
+    titleLabel:       () => window.isRTL ? 'مسمى شركة / خدمة التنقل' : 'Vendor / Service',
+    titlePlaceholder: () => window.isRTL ? 'مثال: Hertz · إيجار سيارة عائلية' : 'e.g. Hertz · Car rental',
     fields: [
       { key: 'vendor',       type: 'text',     label: () => window.isRTL ? 'المزود' : 'Vendor',            placeholder: () => 'Hertz · Avis · JR' },
       { key: 'pickup_at',    type: 'datetime', label: () => window.isRTL ? 'الاستلام' : 'Pick-up' },
@@ -61,8 +61,8 @@ const DOC_SCHEMAS = {
   },
   visas: {
     emoji: '📘',
-    titleLabel:       () => window.isRTL ? 'الاسم' : 'Title',
-    titlePlaceholder: () => window.isRTL ? 'مثال: تأشيرة اليابان' : 'e.g. Japan eVisa',
+    titleLabel:       () => window.isRTL ? 'مسمى التأشيرة والوثيقة' : 'Title',
+    titlePlaceholder: () => window.isRTL ? 'مثال: تأشيرة اليابان السياحية' : 'e.g. Japan eVisa',
     fields: [
       { key: 'visa_type',  type: 'text', label: () => window.isRTL ? 'نوع التأشيرة' : 'Visa type', placeholder: () => 'Tourist · Business' },
       { key: 'issued_on',  type: 'date', label: () => window.isRTL ? 'تاريخ الإصدار' : 'Issued' },

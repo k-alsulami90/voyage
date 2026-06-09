@@ -15,7 +15,7 @@ function ScreenPlan({ go, openSheet, loading }) {
         {!trip && !loading ? (
           <div style={{ padding: '48px 32px', textAlign: 'center', color: 'var(--ink-mute)' }}>
             <div className="serif" style={{ fontSize: 18 }}>
-              {window.isRTL ? 'الرجاء فتح رحلة أولاً' : 'Open a trip first'}
+              {window.isRTL ? 'يرجى تحديد وفتح رحلة أولاً' : 'Open a trip first'}
             </div>
           </div>
         ) : <TripSkeleton />}
@@ -62,7 +62,7 @@ function ScreenPlan({ go, openSheet, loading }) {
               display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
             }}><window.IconCompass size={24} stroke="var(--ink-mute)" /></div>
             <div className="serif" style={{ fontSize: 18, color: 'var(--ink)' }}>
-              {window.isRTL ? 'لا توجد أيام للتخطيط بعد' : 'Pick your trip dates first'}
+              {window.isRTL ? 'لم تُحدد تواريخ لهذه الرحلة بعد' : 'Pick your trip dates first'}
             </div>
             <div style={{ fontSize: 12.5, color: 'var(--ink-mute)', maxWidth: 260, lineHeight: 1.5 }}>
               {window.isRTL
@@ -76,7 +76,7 @@ function ScreenPlan({ go, openSheet, loading }) {
               display: 'inline-flex', alignItems: 'center', gap: 6, flexDirection: 'row',
             }}>
               <window.IconGear size={13} stroke="currentColor" />
-              {window.isRTL ? 'إعدادات الرحلة' : 'Open trip settings'}
+              {window.isRTL ? 'الانتقال إلى إعدادات الرحلة' : 'Open trip settings'}
             </button>
           </div>
         ) : days.map((d, idx) => {
@@ -128,11 +128,11 @@ function ScreenPlan({ go, openSheet, loading }) {
 }
 
 const PLAN_CAT_META = {
-  food:      { emoji: '🍜', label_en: 'Food',      label_ar: 'طعام',     color: 'var(--clay)' },
-  sight:     { emoji: '🎌', label_en: 'Sight',     label_ar: 'معلم',     color: 'var(--moss)' },
-  transport: { emoji: '🚅', label_en: 'Transit',   label_ar: 'تنقل',     color: 'var(--indigo)' },
-  lodging:   { emoji: '🏨', label_en: 'Lodging',   label_ar: 'إقامة',    color: 'var(--honey)' },
-  misc:      { emoji: '📌', label_en: 'Misc',      label_ar: 'متنوع',    color: 'var(--ink-soft)' },
+  food:      { emoji: '🍜', label_en: 'Food',      label_ar: 'مطاعم ومقاهي',  color: 'var(--clay)' },
+  sight:     { emoji: '🎌', label_en: 'Sight',     label_ar: 'معالم سياحية',  color: 'var(--moss)' },
+  transport: { emoji: '🚅', label_en: 'Transit',   label_ar: 'تنقل ومواصلات', color: 'var(--indigo)' },
+  lodging:   { emoji: '🏨', label_en: 'Lodging',   label_ar: 'سكن وإقامة',    color: 'var(--honey)' },
+  misc:      { emoji: '📌', label_en: 'Misc',      label_ar: 'أنشطة أخرى',    color: 'var(--ink-soft)' },
 };
 
 function fmtDayLabel(d, dayNumber) {
@@ -212,11 +212,11 @@ function PlanDay({ date, dayNumber, items, onAdd, onTapItem, openSheet }) {
             actions={[{ key: 'delete', bg: 'var(--clay)', icon: <window.IconTrash size={18} stroke="#fff" /> }]}
             onAction={async (key) => {
               if (key !== 'delete') return;
-              if (!confirm(window.isRTL ? `حذف "${it.title}"؟` : `Delete "${it.title}"?`)) return;
+              if (!confirm(window.isRTL ? `هل تريد حذف "${it.title}"؟` : `Delete "${it.title}"?`)) return;
               try {
                 await window.deleteItineraryItem(it.id, window.TRIP?.id);
                 await window.loadItinerary(window.TRIP?.id);
-                window.toast?.(window.isRTL ? 'تم الحذف' : 'Deleted', 'success');
+                window.toast?.(window.isRTL ? 'تم حذف النشاط' : 'Deleted', 'success');
               } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
             }}>
             <div style={{ background: 'var(--cream-2)' }}>
@@ -351,7 +351,7 @@ function AddPlanItemSheet({ dayDate, existing, onDone }) {
   };
 
   const handleDelete = async () => {
-    if (!confirm(window.isRTL ? 'حذف هذا النشاط؟' : 'Delete this activity?')) return;
+    if (!confirm(window.isRTL ? 'هل تريد حذف هذا النشاط من الخطة؟' : 'Delete this activity?')) return;
     setLoading(true);
     try {
       await window.deleteItineraryItem(existing.id, trip?.id);
@@ -380,7 +380,7 @@ function AddPlanItemSheet({ dayDate, existing, onDone }) {
       <div style={{ marginBottom: 10 }}>
         <div style={labelStyle}>{t('planFieldTitle') || 'Activity'}</div>
         <input value={title} onChange={(e) => setTitle(e.target.value)}
-          placeholder={window.isRTL ? 'مثلاً: زيارة المتحف' : 'e.g. Visit museum'}
+          placeholder={window.isRTL ? 'مثلاً: زيارة المتاحف والحدائق' : 'e.g. Visit museum'}
           style={fieldStyle} />
       </div>
 
@@ -415,7 +415,7 @@ function AddPlanItemSheet({ dayDate, existing, onDone }) {
       <div style={{ marginBottom: 14 }}>
         <div style={labelStyle}>{t('planFieldLocation') || 'Location (optional)'}</div>
         <input value={location} onChange={(e) => setLocation(e.target.value)}
-          placeholder={window.isRTL ? 'العنوان أو اسم المكان' : 'Address or place name'}
+          placeholder={window.isRTL ? 'ابحث عن العنوان أو اسم المكان' : 'Address or place name'}
           style={fieldStyle} />
       </div>
 
@@ -438,7 +438,7 @@ function AddPlanItemSheet({ dayDate, existing, onDone }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           }}>
             <window.IconTrash size={14} stroke="currentColor" />
-            {window.isRTL ? 'حذف' : 'Delete'}
+            {window.isRTL ? 'حذف النشاط' : 'Delete'}
           </button>
         )}
         <button onClick={handleSave} disabled={loading} style={{
@@ -448,10 +448,10 @@ function AddPlanItemSheet({ dayDate, existing, onDone }) {
           boxShadow: loading ? 'none' : '0 8px 20px oklch(0.62 0.13 35 / 0.4)',
         }}>
           {loading
-            ? (window.isRTL ? 'جارٍ الحفظ…' : 'Saving…')
+            ? (window.isRTL ? 'جارٍ الحفظ الآن…' : 'Saving…')
             : (isEdit
                 ? (window.isRTL ? 'حفظ التعديلات' : 'Save changes')
-                : (window.isRTL ? 'إضافة للخطة' : 'Add to plan'))}
+                : (window.isRTL ? 'إضافة إلى الخطة' : 'Add to plan'))}
         </button>
       </div>
     </div>

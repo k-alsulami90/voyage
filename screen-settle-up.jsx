@@ -38,7 +38,7 @@ function ScreenSettleUp({ back }) {
           setRecording(transfer.from + '>' + transfer.to);
           try {
             await window.recordSettlement(trip.id, transfer.from, transfer.to, transfer.amount);
-            window.toast?.(window.isRTL ? 'تمت تسوية الفاتورة' : 'Invoice settled.', 'success');
+            window.toast?.(window.isRTL ? 'تمت تسوية الفاتورة بنجاح' : 'Invoice settled.', 'success');
             setTick((n) => n + 1);
           } catch (err) {
             window.toast?.(err.message || 'Could not record', 'error');
@@ -73,7 +73,7 @@ function ScreenSettleUp({ back }) {
         title={t('settleUp')}
         subtitle={transfers.length > 0
           ? `${trip.title} · ${window.isRTL
-              ? `${transfers.length} ${transfers.length === 1 ? 'فاتورة' : 'فواتير'}`
+              ? `تشمل ${window.arPlural(transfers.length, { one: 'فاتورة واحدة', two: 'فاتورتين', few: `${transfers.length} فواتير`, many: `${transfers.length} فاتورة`, other: `${transfers.length} فاتورة` })} غير مُسوّاة`
               : `${transfers.length} ${transfers.length === 1 ? 'invoice' : 'invoices'}`}`
           : trip.title}
         onBack={back}
@@ -199,10 +199,10 @@ function ScreenSettleUp({ back }) {
                   ] : []}
                   onAction={async (key) => {
                     if (key !== 'delete') return;
-                    if (!confirm(window.isRTL ? 'إلغاء تسوية هذه الفاتورة؟' : 'Undo this settled invoice?')) return;
+                    if (!confirm(window.isRTL ? 'هل تريد التراجع عن تسوية هذه الفاتورة؟' : 'Undo this settled invoice?')) return;
                     try {
                       await window.deleteSettlement(s.id, trip?.id);
-                      window.toast?.(window.isRTL ? 'تم إلغاء التسوية' : 'Settlement undone', 'success');
+                      window.toast?.(window.isRTL ? 'تم التراجع عن التسوية بنجاح' : 'Settlement undone', 'success');
                     }
                     catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
                   }}>

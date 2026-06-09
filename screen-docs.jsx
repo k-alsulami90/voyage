@@ -85,7 +85,7 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
             autoFocus
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={window.isRTL ? 'ابحث في المستندات...' : 'Search documents...'}
+            placeholder={window.isRTL ? 'ابحث في مستنداتك...' : 'Search documents...'}
             style={{
               width: '100%', padding: '11px 14px', borderRadius: 12,
               border: '1px solid var(--hairline-2)', background: 'var(--cream-2)',
@@ -151,8 +151,8 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
             }}><IconDoc size={24} stroke="var(--ink-mute)" /></div>
             <div className="serif" style={{ fontSize: 17, color: 'var(--ink)' }}>
               {isCategoryFilter
-                ? (window.isRTL ? `لا يوجد في ${catLabel}` : `No ${catLabel} yet`)
-                : (window.isRTL ? 'لا توجد نتائج' : 'No matching documents')}
+                ? (window.isRTL ? `لا توجد مستندات مسجلة في فئة ${catLabel}` : `No ${catLabel} yet`)
+                : (window.isRTL ? 'لم نجد أي نتائج تطابق بحثك' : 'No matching documents')}
             </div>
             <div style={{
               display: 'flex', gap: 8, flexDirection: 'row',
@@ -165,13 +165,13 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
                   boxShadow: '0 4px 12px oklch(0.62 0.13 35 / 0.35)',
                 }}>
                   <IconPlus size={12} stroke="currentColor" />
-                  {window.isRTL ? `أضف ${catLabel}` : `Add ${catLabel}`}
+                  {window.isRTL ? `أضف مستنداً إلى ${catLabel}` : `Add ${catLabel}`}
                 </button>
               )}
               <button onClick={() => { setFilter('all'); setSearch(''); }} style={{
                 padding: '9px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 500,
                 background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', color: 'var(--ink-soft)',
-              }}>{window.isRTL ? 'الكل' : 'Show all'}</button>
+              }}>{window.isRTL ? 'كل المستندات' : 'Show all'}</button>
             </div>
           </div>
         );
@@ -200,7 +200,7 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
               display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
             }}><IconPlus size={18} stroke="var(--ink-soft)" /></div>
             <div style={{ fontSize: 11.5, fontWeight: 500 }}>
-              {window.isRTL ? 'إضافة' : 'Add'}
+              {window.isRTL ? 'إضافة مستند' : 'Add'}
             </div>
           </button>
         </div>
@@ -217,11 +217,11 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
               actions={[{ key: 'delete', bg: 'var(--clay)', icon: <window.IconTrash size={18} stroke="#fff" /> }]}
               onAction={async (key) => {
                 if (key !== 'delete') return;
-                if (!confirm(window.isRTL ? `حذف "${d.title}"؟` : `Delete "${d.title}"?`)) return;
+                if (!confirm(window.isRTL ? `هل تريد حذف مستند "${d.title}"؟` : `Delete "${d.title}"?`)) return;
                 try {
                   await window.deleteDocument(d.id, window.TRIP?.id, d.title);
                   await window.loadDocuments(window.TRIP?.id);
-                  window.toast?.(window.isRTL ? 'تم الحذف' : 'Deleted', 'success');
+                  window.toast?.(window.isRTL ? 'تم حذف المستند بنجاح' : 'Deleted', 'success');
                 } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
               }}>
               <DocRowList
@@ -264,8 +264,8 @@ function ViewToggle({ view, onChange }) {
       border: '0.5px solid var(--hairline)',
     }}>
       {[
-        { v: 'grid', icon: <GridIcon />, l: window.isRTL ? 'شبكة' : 'Grid' },
-        { v: 'list', icon: <ListIcon />, l: window.isRTL ? 'قائمة' : 'List' },
+        { v: 'grid', icon: <GridIcon />, l: window.isRTL ? 'عرض كشبكة' : 'Grid' },
+        { v: 'list', icon: <ListIcon />, l: window.isRTL ? 'عرض كقائمة' : 'List' },
       ].map(({ v, icon, l }) => (
         // Was 32x28 — below iOS HIG thumb-zone floor. Now 36x32 for
         // breathing room and aria-label for screen readers.
@@ -305,9 +305,9 @@ function ListIcon() {
 function SortMenu({ sortBy, onChange }) {
   const [open, setOpen] = React.useState(false);
   const opts = [
-    { k: 'newest',   l: window.isRTL ? 'الأحدث' : 'Newest' },
-    { k: 'name',     l: window.isRTL ? 'الاسم' : 'Name' },
-    { k: 'category', l: window.isRTL ? 'الفئة' : 'Category' },
+    { k: 'newest',   l: window.isRTL ? 'الأحدث تاريخاً' : 'Newest' },
+    { k: 'name',     l: window.isRTL ? 'الترتيب الأبجدي' : 'Name' },
+    { k: 'category', l: window.isRTL ? 'حسب الفئة' : 'Category' },
   ];
   const current = opts.find((o) => o.k === sortBy);
   return (
@@ -317,13 +317,13 @@ function SortMenu({ sortBy, onChange }) {
          "Sort:" label + a chevron showing the menu opens. The actual
          glyph carries no meaning the text doesn't already convey. */}
       <button onClick={() => setOpen(!open)}
-        aria-label={window.isRTL ? `الترتيب: ${current?.l}` : `Sort: ${current?.l}`} style={{
+        aria-label={window.isRTL ? `ترتيب حسب: ${current?.l}` : `Sort: ${current?.l}`} style={{
         padding: '6px 12px', borderRadius: 12, fontSize: 12, fontWeight: 500,
         background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
         color: 'var(--ink-soft)',
         display: 'inline-flex', alignItems: 'center', gap: 6,
       }}>
-        <span style={{ color: 'var(--ink-mute)' }}>{window.isRTL ? 'الترتيب' : 'Sort'}:</span>
+        <span style={{ color: 'var(--ink-mute)' }}>{window.isRTL ? 'ترتيب حسب' : 'Sort'}:</span>
         <span style={{ color: 'var(--ink)' }}>{current?.l}</span>
         <span style={{
           display: 'inline-grid', placeItems: 'center',
@@ -369,8 +369,8 @@ function docStatus(doc) {
 }
 function StatusDot({ status }) {
   const map = {
-    synced:  { color: 'var(--moss)',     label: window.isRTL ? 'محفوظ' : 'Synced' },
-    link:    { color: 'var(--indigo)',   label: window.isRTL ? 'رابط' : 'Link' },
+    synced:  { color: 'var(--moss)',     label: window.isRTL ? 'تم الحفظ' : 'Synced' },
+    link:    { color: 'var(--indigo)',   label: window.isRTL ? 'رابط ويب' : 'Link' },
     pending: { color: 'var(--ink-mute)', label: window.isRTL ? 'بانتظار الرفع' : 'No file' },
   };
   const s = map[status];
@@ -556,7 +556,7 @@ function EmptyVault({ onAdd }) {
         <IconDoc size={32} stroke="var(--ink-mute)" />
       </div>
       <div className="serif" style={{ fontSize: 22, color: 'var(--ink)' }}>
-        {window.isRTL ? 'مستوداع المستندات فارغ' : 'Your vault is empty'}
+        {window.isRTL ? 'مستودع مستنداتك فارغ حالياً' : 'Your vault is empty'}
       </div>
       <div style={{ fontSize: 13, color: 'var(--ink-mute)', maxWidth: 250, lineHeight: 1.5 }}>
         {window.isRTL
@@ -571,7 +571,7 @@ function EmptyVault({ onAdd }) {
         boxShadow: 'var(--shadow-md)',
       }}>
         <IconUpload size={14} stroke="currentColor" />
-        {window.isRTL ? 'إضافة أول مستند' : 'Add your first document'}
+        {window.isRTL ? 'إضافة أول مستند للرحلة' : 'Add your first document'}
       </button>
     </div>
   );

@@ -583,7 +583,7 @@ window.loadDocuments = async (tripId) => {
       const { data: { publicUrl } } = window.sb.storage
         .from('documents').getPublicUrl(r.file_path);
       resolvedLink  = publicUrl;
-      resolvedLabel = window.isRTL ? 'فتح PDF' : 'Open PDF';
+      resolvedLabel = window.isRTL ? 'استعراض ملف PDF' : 'Open PDF';
     }
     // Secondary file (e.g. boarding pass for flights) — resolve URL if present.
     let secondaryLink = null;

@@ -49,7 +49,7 @@ function ScreenAddDoc({ back, onCreated }) {
   const tint = CAT_TINT[cat] || 'clay';
 
   const handleSave = async () => {
-    if (!title.trim()) { setError(window.isRTL ? 'أدخل عنواناً' : 'Enter a title'); return; }
+    if (!title.trim()) { setError(window.isRTL ? 'يرجى إدخال عنوان للمستند' : 'Enter a title'); return; }
     const tripId = window.TRIP?.id;
     const userId = window.currentUserId;
     if (!tripId || !userId) { setError('No active trip or session'); return; }
@@ -67,7 +67,7 @@ function ScreenAddDoc({ back, onCreated }) {
         costLocal:    cost ? parseFloat(cost) : null,
         costCurrency: cost ? costCur : null,
         linkUrl:      details.location_url || null,
-        linkLabel:    details.location_url ? (window.isRTL ? 'الموقع' : 'Location') : null,
+        linkLabel:    details.location_url ? (window.isRTL ? 'الرابط المرفق' : 'Location') : null,
       });
       if (file)      await window.uploadDocumentFile(doc.id, tripId, file);
       if (secondary) await window.uploadDocumentSecondaryFile(doc.id, tripId, secondary);
@@ -105,7 +105,7 @@ function ScreenAddDoc({ back, onCreated }) {
           display: 'grid', placeItems: 'center',
         }}><span className="icon-flip"><IconBack size={17} stroke="var(--ink)" /></span></button>
         <div className="serif" style={{ fontSize: 20, color: 'var(--ink)' }}>
-          {window.isRTL ? 'مستند جديد' : 'New document'}
+          {window.isRTL ? 'إضافة مستند جديد' : 'New document'}
         </div>
         <div style={{ width: 36 }} />
       </div>
@@ -113,7 +113,7 @@ function ScreenAddDoc({ back, onCreated }) {
       <div style={{ padding: '0 18px', display: 'flex', flexDirection: 'column', gap: 22 }}>
 
         {/* Step 1 — Category */}
-        <DocStep number="1" title={window.isRTL ? 'النوع' : 'What is it?'}>
+        <DocStep number="1" title={window.isRTL ? 'حدد نوع المستند' : 'What is it?'}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {(window.DOC_CATEGORIES || []).map((c) => {
               const active = cat === c.key;
@@ -147,14 +147,14 @@ function ScreenAddDoc({ back, onCreated }) {
 
         {/* Step 3 — Structured details (category-specific) */}
         {schema.fields.length > 0 && (
-          <DocStep number="3" title={window.isRTL ? 'التفاصيل' : 'Details'}>
+          <DocStep number="3" title={window.isRTL ? 'أدخل تفاصيل المستند' : 'Details'}>
             <DocFieldGrid fields={schema.fields} values={details} onChange={setDetails} />
           </DocStep>
         )}
 
         {/* Step 4 — Primary file */}
         <DocStep number="4" title={schema.primaryFileLabel()} optional
-                hint={window.isRTL ? 'PDF أو صورة — حتى 25 ميغا' : 'PDF or image · up to 25 MB'}>
+                hint={window.isRTL ? 'الصيغ المدعومة: PDF أو صور — بحد أقصى 25 ميغابايت' : 'PDF or image · up to 25 MB'}>
           <FilePicker file={file} setFile={setFile} pickerRef={fileRef} tint={TINT_FILL[tint]} />
         </DocStep>
 
@@ -167,7 +167,7 @@ function ScreenAddDoc({ back, onCreated }) {
 
         {/* Cost + log to expenses */}
         {schema.showCost && (
-          <DocStep number={schema.secondaryFile ? '6' : '5'} title={window.isRTL ? 'التكلفة' : 'Cost'} optional>
+          <DocStep number={schema.secondaryFile ? '6' : '5'} title={window.isRTL ? 'قيمة التكلفة ورسوم الحجز' : 'Cost'} optional>
             <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
               <input type="number" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)}
                 placeholder="0"
@@ -190,10 +190,10 @@ function ScreenAddDoc({ back, onCreated }) {
                 style={{ width: 18, height: 18, accentColor: 'var(--clay)' }} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink)' }}>
-                  {window.isRTL ? 'أضف إلى المصروفات' : 'Add to expenses'}
+                  {window.isRTL ? 'إدراج تلقائي في ميزانية ومصروفات الرحلة' : 'Add to expenses'}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 1 }}>
-                  {window.isRTL ? 'سيُسجَّل تلقائياً في الميزانية' : 'Auto-logged in your trip budget'}
+                  {window.isRTL ? 'عند التفعيل، ستتم إضافة هذا المبلغ تلقائياً لعملياتك المالية' : 'Auto-logged in your trip budget'}
                 </div>
               </div>
             </label>
@@ -202,7 +202,7 @@ function ScreenAddDoc({ back, onCreated }) {
 
         {/* Cover photo */}
         <DocStep number={schema.showCost ? (schema.secondaryFile ? '7' : '6') : (schema.secondaryFile ? '6' : '5')}
-                 title={window.isRTL ? 'صورة الغلاف' : 'Cover photo'} optional
+                 title={window.isRTL ? 'تعيين صورة الغلاف' : 'Cover photo'} optional
                  hint={window.isRTL
                    ? 'صورة صغيرة تظهر في القائمة بدل الأيقونة الافتراضية'
                    : 'A small image shown in the list instead of the default icon'}>
@@ -221,13 +221,13 @@ function ScreenAddDoc({ back, onCreated }) {
                 border: '0.5px solid var(--hairline)',
               }} />
               <div style={{ flex: 1, fontSize: 12.5, color: 'var(--ink)' }}>
-                {window.isRTL ? 'صورة الغلاف' : 'Cover photo'}
+                {window.isRTL ? 'تعيين صورة الغلاف' : 'Cover photo'}
               </div>
               <button onClick={() => coverRef.current?.click()} style={{
                 padding: '7px 11px', borderRadius: 10, fontSize: 11.5, fontWeight: 500,
                 background: 'var(--cream)', border: '0.5px solid var(--hairline)',
                 color: 'var(--ink-soft)',
-              }}>{window.isRTL ? 'تغيير' : 'Replace'}</button>
+              }}>{window.isRTL ? 'تغيير الصورة' : 'Replace'}</button>
               <button onClick={() => setCoverFile(null)} style={{
                 padding: '7px 9px', borderRadius: 10,
                 background: 'transparent', color: 'var(--clay-deep)',
@@ -243,7 +243,7 @@ function ScreenAddDoc({ back, onCreated }) {
               flexDirection: 'row',
             }}>
               <window.IconCamera size={16} stroke="currentColor" />
-              {window.isRTL ? 'إضافة صورة' : 'Add a photo'}
+              {window.isRTL ? 'إدراج صورة من المعرض' : 'Add a photo'}
             </button>
           )}
         </DocStep>
@@ -301,7 +301,7 @@ function ScreenAddDoc({ back, onCreated }) {
           ) : (
             <>
               <IconCheck size={14} stroke="currentColor" />
-              {window.isRTL ? 'حفظ' : 'Save document'}
+              {window.isRTL ? 'حفظ ومتابعة' : 'Save document'}
             </>
           )}
         </button>
@@ -466,7 +466,7 @@ function FilePicker({ file, setFile, pickerRef, tint }) {
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{file.name}</div>
             <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 2 }}>
-              {(file.size / 1024 / 1024).toFixed(2)} MB · {window.isRTL ? 'اضغط للاستبدال' : 'tap to replace'}
+              {(file.size / 1024 / 1024).toFixed(2)} MB · {window.isRTL ? 'اضغط هنا لاستبدال الملف المرفق' : 'tap to replace'}
             </div>
           </div>
           <button onClick={(e) => { e.stopPropagation(); setFile(null); }} style={{
@@ -481,10 +481,10 @@ function FilePicker({ file, setFile, pickerRef, tint }) {
           }}><IconUpload size={20} /></div>
           <div style={{ textAlign: 'start' }}>
             <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>
-              {window.isRTL ? 'اختر ملفاً' : 'Pick a file'}
+              {window.isRTL ? 'اختر ملفاً للرفع' : 'Pick a file'}
             </div>
             <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 2 }}>
-              {window.isRTL ? 'PDF أو صورة' : 'PDF or image'}
+              {window.isRTL ? 'الصيغ المدعومة: PDF أو صور' : 'PDF or image'}
             </div>
           </div>
         </div>
