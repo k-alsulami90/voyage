@@ -375,6 +375,9 @@ function ProfileEditRows({ me }) {
       if (fields.default_currency) {
         window.USER_DEFAULT_CURRENCY = fields.default_currency.trim().toUpperCase();
       }
+      // Tell every screen reading the profile (Trips home aggregate,
+      // Insights, profile card here) to re-render with the new values.
+      window.notifyDataChange?.();
       window.toast?.(window.isRTL ? 'تم حفظ التعديلات بنجاح' : 'Saved', 'success');
       setEditing(null);
     } catch (err) {

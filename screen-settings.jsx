@@ -24,6 +24,12 @@ function ScreenSettings({ go, openSheet }) {
     try {
       const url = await window.uploadTripCover(trip.id, file);
       setCoverUrl(url);
+      // uploadTripCover updates the DB but doesn't refetch trip detail,
+      // so window.TRIP.coverImageUrl is still the old value. Reload the
+      // trip so Hub + Trips home cover photos pick up the new image
+      // without needing a manual refresh.
+      await window.loadTripDetail?.(trip.id);
+      window.notifyDataChange?.();
     } catch (err) { window.toast?.(err.message || 'Action failed', 'error'); }
     finally { setUploading(false); }
   };
@@ -553,6 +559,10 @@ function EditableTripParams({ trip: tripProp }) {
   const [cover,    setCover]    = React.useState(trip.cover || 'kyoto');
   const [countries, setCountries] = React.useState((trip.countries || []).join(', '));
 
+  // Sync the form state whenever ANY relevant trip field changes
+  // (was previously missing title / subtitle / startDate / endDate /
+  // cover from the deps, so e.g. saving new dates didn't refresh the
+  // form fields and the user saw their old dates still in the inputs).
   React.useEffect(() => {
     setTitle(trip.title || ''); setSubtitle(trip.subtitle || '');
     setStart(trip.startDate || ''); setEnd(trip.endDate || '');
@@ -565,7 +575,11 @@ function EditableTripParams({ trip: tripProp }) {
     setFx(trip.fx || window.FX_RATES[home] || 1);
     setCover(trip.cover || 'kyoto');
     setCountries((trip.countries || []).join(', '));
-  }, [trip.id, trip.budget?.plannedUSD, trip.homeCurrency, trip.localCurrency, trip.fx, trip.countries?.length]);
+  }, [
+    trip.id, trip.title, trip.subtitle, trip.startDate, trip.endDate,
+    trip.budget?.plannedUSD, trip.homeCurrency, trip.localCurrency,
+    trip.fx, trip.cover, trip.countries?.length,
+  ]);
 
   const CURRENCIES = ['USD','SAR','EUR','GBP','JPY','AED','EGP','MAD','TRY','INR','CHF'];
   const COVERS = ['kyoto','lisbon','oaxaca','lofoten','patagon'];
@@ -575,7 +589,14 @@ function EditableTripParams({ trip: tripProp }) {
     try {
       const { error } = await window.sb.from('trips').update(fields).eq('id', trip.id);
       if (error) throw error;
+      // loadTripDetail is wrapped to call notifyDataChange automatically,
+      // but we also fire it explicitly below so every screen reading
+      // window.TRIP picks up the new values on the very next render
+      // (Hub's date pill, day-of-trip count, currency-aware budget bar,
+      // etc.). Belt-and-suspenders because the wrapper has historically
+      // missed corner cases on slower devices.
       await window.loadTripDetail(trip.id);
+      window.notifyDataChange?.();
       setEditing(null);
       setTick((n) => n + 1);
       window.toast?.(window.isRTL ? 'تم حفظ التعديلات بنجاح' : 'Saved', 'success');

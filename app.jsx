@@ -58,6 +58,15 @@ function App() {
     window.notifyDataChange = () => setDataVersion((v) => v + 1);
     return () => { window.notifyDataChange = null; };
   }, []);
+
+  // Mirror loadTripData onto window so the Smart Track effect on Trips
+  // Home (which has no prop access to the App's useCallback) can ask
+  // for the candidate trip's docs/itinerary to be fetched. The mirror
+  // is kept in sync if loadTripData ever changes identity.
+  React.useEffect(() => {
+    window.loadTripData = (tripId) => loadTripData(tripId);
+    return () => { window.loadTripData = null; };
+  }, [loadTripData]);
   const [tripLoading, setTripLoading] = React.useState(false);
 
   // Track active trip + realtime subscription so we can re-load after auth refresh / refetch on demand
@@ -69,6 +78,14 @@ function App() {
     if (!tripId) return;
     activeTripRef.current = tripId;
     setTripLoading(true);
+    // Expose on window so non-React paths can trigger a trip load.
+    // The Smart Track card on Trips Home is the prime caller: it picks
+    // the next-up trip from window.TRIPS and asks for its docs to be
+    // loaded so it can find any boarding pass / check-in event within
+    // the next 24h. Without this, window.loadTripData was undefined
+    // (the function only lived as a useCallback closure in App), the
+    // smart-track effect silently no-op'd, and the boarding-pass card
+    // never appeared on the main page.
     // Settle individually so one failure doesn't blank everything
     const results = await Promise.allSettled([
       window.loadTripDetail(tripId),
