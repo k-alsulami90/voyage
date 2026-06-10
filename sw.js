@@ -7,7 +7,7 @@
 
 // Bump this on every deploy that changes shell behaviour. Vercel deploys
 // rebuild the file from git so the string itself is enough — no build step needed.
-const VERSION = 'v112-splash-fill-available';
+const VERSION = 'v113-src-folder-structure';
 const SHELL_CACHE  = `voyage-shell-${VERSION}`;
 const STATIC_CACHE = `voyage-static-${VERSION}`;
 const FONT_CACHE   = `voyage-fonts-${VERSION}`;
@@ -18,28 +18,35 @@ const SHELL_FILES = [
   '/offline.html',
   '/manifest.json',
   '/tokens.css',
-  '/i18n.jsx',
-  '/icons.jsx',
-  '/ui.jsx',
-  '/ios-frame.jsx',
-  '/tweaks-panel.jsx',
-  '/data.jsx',
-  '/supabase/client.jsx',
-  '/screen-auth.jsx',
-  '/screen-trips.jsx',
-  '/screen-insights.jsx',
-  '/screen-app-settings.jsx',
-  '/screen-hub.jsx',
-  '/screen-budget.jsx',
-  '/screen-analytics.jsx',
-  '/screen-docs.jsx',
-  '/screen-doc-detail.jsx',
-  '/screen-add-doc.jsx',
-  '/screen-settings.jsx',
-  '/screen-plan.jsx',
-  '/screen-trip-search.jsx',
-  '/docs-schema.jsx',
-  '/app.jsx',
+  // lib
+  '/src/lib/i18n.jsx',
+  '/src/lib/ios-frame.jsx',
+  '/src/lib/tweaks-panel.jsx',
+  '/src/lib/data.jsx',
+  '/src/lib/docs-schema.jsx',
+  // ui
+  '/src/ui/icons.jsx',
+  '/src/ui/ui.jsx',
+  // supabase
+  '/src/supabase/client.jsx',
+  // screens
+  '/src/screens/screen-auth.jsx',
+  '/src/screens/screen-onboarding.jsx',
+  '/src/screens/screen-trips.jsx',
+  '/src/screens/screen-insights.jsx',
+  '/src/screens/screen-app-settings.jsx',
+  '/src/screens/screen-hub.jsx',
+  '/src/screens/screen-budget.jsx',
+  '/src/screens/screen-analytics.jsx',
+  '/src/screens/screen-docs.jsx',
+  '/src/screens/screen-doc-detail.jsx',
+  '/src/screens/screen-add-doc.jsx',
+  '/src/screens/screen-settle-up.jsx',
+  '/src/screens/screen-plan.jsx',
+  '/src/screens/screen-trip-search.jsx',
+  '/src/screens/screen-settings.jsx',
+  // app entry
+  '/src/app.jsx',
 ];
 
 // ── Install: prime the shell cache ──────────────────────────

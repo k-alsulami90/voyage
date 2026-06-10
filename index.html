@@ -473,31 +473,32 @@
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
-  <!-- Local components -->
-  <script type="text/babel" src="i18n.jsx"></script>
-  <script type="text/babel" src="supabase/client.jsx"></script>
-  <script type="text/babel" src="ios-frame.jsx"></script>
-  <script type="text/babel" src="tweaks-panel.jsx"></script>
-  <script type="text/babel" src="data.jsx"></script>
-  <script type="text/babel" src="icons.jsx"></script>
-  <script type="text/babel" src="ui.jsx"></script>
-  <script type="text/babel" src="screen-auth.jsx"></script>
-  <script type="text/babel" src="screen-onboarding.jsx"></script>
-  <script type="text/babel" src="screen-trips.jsx"></script>
-  <script type="text/babel" src="screen-insights.jsx"></script>
-  <script type="text/babel" src="screen-app-settings.jsx"></script>
-  <script type="text/babel" src="screen-hub.jsx"></script>
-  <script type="text/babel" src="screen-budget.jsx"></script>
-  <script type="text/babel" src="screen-analytics.jsx"></script>
-  <script type="text/babel" src="screen-docs.jsx"></script>
-  <script type="text/babel" src="screen-doc-detail.jsx"></script>
-  <script type="text/babel" src="screen-add-doc.jsx"></script>
-  <script type="text/babel" src="screen-settle-up.jsx"></script>
-  <script type="text/babel" src="screen-plan.jsx"></script>
-  <script type="text/babel" src="screen-trip-search.jsx"></script>
-  <script type="text/babel" src="docs-schema.jsx"></script>
-  <script type="text/babel" src="screen-settings.jsx"></script>
-  <script type="text/babel" src="app.jsx"></script>
+  <!-- Local components (load order matters: lib + ui define globals
+       before screens use them; app.jsx mounts last) -->
+  <script type="text/babel" src="src/lib/i18n.jsx"></script>
+  <script type="text/babel" src="src/supabase/client.jsx"></script>
+  <script type="text/babel" src="src/lib/ios-frame.jsx"></script>
+  <script type="text/babel" src="src/lib/tweaks-panel.jsx"></script>
+  <script type="text/babel" src="src/lib/data.jsx"></script>
+  <script type="text/babel" src="src/ui/icons.jsx"></script>
+  <script type="text/babel" src="src/ui/ui.jsx"></script>
+  <script type="text/babel" src="src/screens/screen-auth.jsx"></script>
+  <script type="text/babel" src="src/screens/screen-onboarding.jsx"></script>
+  <script type="text/babel" src="src/screens/screen-trips.jsx"></script>
+  <script type="text/babel" src="src/screens/screen-insights.jsx"></script>
+  <script type="text/babel" src="src/screens/screen-app-settings.jsx"></script>
+  <script type="text/babel" src="src/screens/screen-hub.jsx"></script>
+  <script type="text/babel" src="src/screens/screen-budget.jsx"></script>
+  <script type="text/babel" src="src/screens/screen-analytics.jsx"></script>
+  <script type="text/babel" src="src/screens/screen-docs.jsx"></script>
+  <script type="text/babel" src="src/screens/screen-doc-detail.jsx"></script>
+  <script type="text/babel" src="src/screens/screen-add-doc.jsx"></script>
+  <script type="text/babel" src="src/screens/screen-settle-up.jsx"></script>
+  <script type="text/babel" src="src/screens/screen-plan.jsx"></script>
+  <script type="text/babel" src="src/screens/screen-trip-search.jsx"></script>
+  <script type="text/babel" src="src/lib/docs-schema.jsx"></script>
+  <script type="text/babel" src="src/screens/screen-settings.jsx"></script>
+  <script type="text/babel" src="src/app.jsx"></script>
 
   <!-- ── PWA: service worker + install prompt ── -->
   <script>
