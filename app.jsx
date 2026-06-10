@@ -441,7 +441,7 @@ function App() {
       </div>
     );
     return isMobile
-      ? <div style={{ position: 'fixed', inset: 0 }}>{loadingInner}</div>
+      ? <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 'var(--app-height, 100dvh)' }}>{loadingInner}</div>
       : <div className="device-stage"><IOSDevice width={402} height={874}>{loadingInner}</IOSDevice></div>;
   }
 
@@ -577,7 +577,11 @@ function App() {
   if (isMobile) {
     return (
       <div style={{
-        position: 'fixed', inset: 0, overflow: 'hidden',
+        // Height from the JS-measured --app-height (not inset:0 bottom)
+        // so the shell covers the full screen on iOS PWA cold launch —
+        // no cream sliver until an orientation change.
+        position: 'fixed', top: 0, left: 0, right: 0,
+        height: 'var(--app-height, 100dvh)', overflow: 'hidden',
         background: 'var(--cream)',
         fontFamily: 'var(--sans)',
         WebkitFontSmoothing: 'antialiased',
