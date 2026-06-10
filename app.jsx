@@ -1504,16 +1504,24 @@ function AddTripSheet({ onDone, onCreated }) {
   const [budget,    setBudget]    = React.useState('');
   const [currency,  setCurrency]  = React.useState('USD');
   const [cover,     setCover]     = React.useState('kyoto');
+  const [customUrl, setCustomUrl] = React.useState(null);   // object URL for preview
+  const [customFile,setCustomFile]= React.useState(null);   // File to upload after create
   const [loading,   setLoading]   = React.useState(false);
   const [error,     setError]     = React.useState(null);
+  const fileRef = React.useRef(null);
+
+  // Revoke the previous object URL whenever it changes / on unmount so we
+  // don't leak blob handles as the user swaps album photos.
+  React.useEffect(() => () => { if (customUrl) URL.revokeObjectURL(customUrl); }, [customUrl]);
 
   // Budget is entered in the user's HOME currency (SAR for most Gulf
   // users — resolved from their profile default), then converted to USD
-  // on save via window.toUSD. The destination/local currency below is a
+  // on save via window.toUSD. The destination currency below is a
   // separate concept (what they'll actually spend in on the trip).
   const homeCur = window.USER_DEFAULT_CURRENCY || 'SAR';
   const CURRENCIES = ['USD','EUR','GBP','JPY','AED','SAR','EGP','MAD','TRY','INR'];
   const STATUS = startDate > today ? 'upcoming' : endDate < today ? 'past' : 'active';
+  const customActive = !!customUrl;
 
   // Live preview derivations
   const MS = 86400000;
@@ -1532,16 +1540,40 @@ function AddTripSheet({ onDone, onCreated }) {
     past:     { color: 'var(--ink-mute)', label: window.isRTL ? 'سابقة'      : 'Past' },
   }[STATUS];
 
-  const labelStyle = {
-    fontSize: 12.5, fontWeight: 600, color: 'var(--ink-soft)',
-    marginBottom: 7, display: 'block', textAlign: 'start',
+  // ── Shared style tokens for the grouped (inset-list) form surfaces ──
+  // Grouping fields inside solid surfaces with dividers — instead of
+  // letting each input float on the page — is what makes the sheet read
+  // as a native app screen rather than a scrolling web form.
+  const groupCard = {
+    background: 'var(--cream-2)', borderRadius: 16,
+    border: '0.5px solid var(--hairline)', overflow: 'hidden',
   };
-  // 16px inputs to dodge iOS auto-zoom (PRODUCT.md a11y floor).
-  const fieldStyle = {
-    width: '100%', padding: '13px 14px', borderRadius: 14,
-    border: '0.5px solid var(--hairline-2)',
-    background: 'var(--cream-2)', color: 'var(--ink)',
-    fontSize: 16, outline: 'none', textAlign: 'start',
+  const fieldRow  = { padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 4 };
+  const rowLabel  = { fontSize: 11.5, fontWeight: 600, color: 'var(--ink-mute)', textAlign: 'start' };
+  // Borderless inputs — the group surface IS the field container, so the
+  // inputs sit flush inside it. 16px to dodge iOS auto-zoom.
+  const rowInput  = {
+    width: '100%', border: 'none', background: 'transparent', color: 'var(--ink)',
+    fontSize: 16, outline: 'none', textAlign: 'start', padding: 0,
+  };
+  const divider   = { height: 1, background: 'var(--hairline)', marginInline: 16 };
+  const sectionLabel = {
+    fontSize: 11.5, fontWeight: 600, color: 'var(--ink-mute)',
+    margin: '2px 4px 9px', display: 'block', textAlign: 'start',
+  };
+
+  const pickFromAlbum = () => fileRef.current?.click();
+  const onFilePicked = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setCustomFile(f);
+    setCustomUrl(URL.createObjectURL(f));   // previous URL revoked by effect
+    e.target.value = '';                     // allow re-picking the same file
+  };
+  const pickPreset = (key) => {
+    setCover(key);
+    setCustomFile(null);
+    setCustomUrl(null);
   };
 
   const handleSave = async () => {
@@ -1559,15 +1591,29 @@ function AddTripSheet({ onDone, onCreated }) {
         fxRate:        window.FX_RATES[currency] || 1,
         // Budget typed in home currency -> stored as USD.
         budgetUSD:     budget ? window.toUSD(budget, homeCur) : null,
-        coverStyle:    cover,
+        coverStyle:    cover,   // preset fallback even if a custom photo is set
         status: STATUS,
       });
+      // Upload the album photo now that the trip (and its id) exists. Non-fatal:
+      // if it fails the trip still opens with its preset cover.
+      if (customFile) {
+        try { await window.uploadTripCover(trip.id, customFile); }
+        catch (e) { console.warn('cover upload failed', e); }
+      }
       onCreated(trip.id);
     } catch (err) { setError(err.message); setLoading(false); }
   };
 
+  const coverTile = (selected) => ({
+    position: 'relative', width: 88, height: 58, borderRadius: 14, overflow: 'hidden',
+    flexShrink: 0,
+    boxShadow: selected ? '0 0 0 2.5px var(--clay), 0 8px 18px -8px rgba(0,0,0,0.4)' : 'var(--shadow-xs)',
+    transform: selected ? 'translateY(-2px)' : 'none',
+    transition: 'box-shadow 180ms cubic-bezier(.2,.8,.2,1), transform 180ms cubic-bezier(.2,.8,.2,1)',
+  });
+
   return (
-    <div style={{ padding: '6px 22px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+    <div style={{ padding: '4px 20px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* ── LIVE PREVIEW CARD — the hero. Updates as you type / pick. ── */}
       <div style={{
@@ -1576,7 +1622,7 @@ function AddTripSheet({ onDone, onCreated }) {
         boxShadow: 'var(--shadow-card)',
         border: '0.5px solid var(--hairline)',
       }}>
-        <window.CoverArt kind={cover} />
+        {customActive ? <window.CoverArt imageUrl={customUrl} /> : <window.CoverArt kind={cover} />}
         {/* Date pill */}
         <div style={{
           position: 'absolute', top: 16, insetInlineEnd: 16,
@@ -1626,90 +1672,101 @@ function AddTripSheet({ onDone, onCreated }) {
         </div>
       </div>
 
-      {/* ── NAME ── */}
-      <div>
-        <label htmlFor="at-name" style={labelStyle}>{window.isRTL ? 'اسم الرحلة' : 'Trip name'}</label>
-        <input id="at-name" value={title} onChange={(e) => setTitle(e.target.value)}
-          placeholder={window.isRTL ? 'مثلاً: طوكيو · الربيع' : 'e.g. Tokyo · Spring'}
-          style={fieldStyle} />
-      </div>
-
-      {/* ── SUBTITLE ── */}
-      <div>
-        <label htmlFor="at-sub" style={labelStyle}>{window.isRTL ? 'وصف مختصر (اختياري)' : 'Short description (optional)'}</label>
-        <input id="at-sub" value={subtitle} onChange={(e) => setSubtitle(e.target.value)}
-          placeholder={window.isRTL ? 'مثلاً: رحلة شهر العسل' : 'e.g. Honeymoon trip'}
-          style={fieldStyle} />
-      </div>
-
-      {/* ── DATES ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <div>
-          <label htmlFor="at-start" style={labelStyle}>{window.isRTL ? 'البداية' : 'Start'}</label>
-          <input id="at-start" type="date" value={startDate} onChange={(e) => setStart(e.target.value)}
-            style={fieldStyle} />
+      {/* ── DETAILS GROUP (name · description · dates) ── */}
+      <div style={groupCard}>
+        <div style={fieldRow}>
+          <label htmlFor="at-name" style={rowLabel}>{window.isRTL ? 'اسم الرحلة' : 'Trip name'}</label>
+          <input id="at-name" value={title} onChange={(e) => setTitle(e.target.value)}
+            placeholder={window.isRTL ? 'مثلاً: طوكيو · الربيع' : 'e.g. Tokyo · Spring'} style={rowInput} />
         </div>
-        <div>
-          <label htmlFor="at-end" style={labelStyle}>{window.isRTL ? 'النهاية' : 'End'}</label>
-          <input id="at-end" type="date" value={endDate} min={startDate} onChange={(e) => setEnd(e.target.value)}
-            style={fieldStyle} />
+        <div style={divider} />
+        <div style={fieldRow}>
+          <label htmlFor="at-sub" style={rowLabel}>{window.isRTL ? 'وصف مختصر (اختياري)' : 'Description (optional)'}</label>
+          <input id="at-sub" value={subtitle} onChange={(e) => setSubtitle(e.target.value)}
+            placeholder={window.isRTL ? 'مثلاً: رحلة شهر العسل' : 'e.g. Honeymoon trip'} style={rowInput} />
+        </div>
+        <div style={divider} />
+        <div style={{ ...fieldRow, flexDirection: 'row', gap: 0, alignItems: 'stretch' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label htmlFor="at-start" style={rowLabel}>{window.isRTL ? 'البداية' : 'Start'}</label>
+            <input id="at-start" type="date" value={startDate} onChange={(e) => setStart(e.target.value)} style={rowInput} />
+          </div>
+          <div style={{ width: 1, background: 'var(--hairline)', marginInline: 14 }} />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label htmlFor="at-end" style={rowLabel}>{window.isRTL ? 'النهاية' : 'End'}</label>
+            <input id="at-end" type="date" value={endDate} min={startDate} onChange={(e) => setEnd(e.target.value)} style={rowInput} />
+          </div>
         </div>
       </div>
 
-      {/* ── BUDGET (home currency) ── */}
-      <div>
-        <label htmlFor="at-budget" style={labelStyle}>
-          {window.isRTL ? `الميزانية بالـ${homeCur} (اختياري)` : `Budget in ${homeCur} (optional)`}
-        </label>
-        <input id="at-budget" type="number" inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)}
-          placeholder={window.isRTL ? 'مثلاً: 10000' : 'e.g. 10,000'} style={fieldStyle} />
-      </div>
-
-      {/* ── LOCAL CURRENCY ── */}
-      <div>
-        <label style={labelStyle}>{window.isRTL ? 'عملة الوجهة' : 'Destination currency'}</label>
-        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', flexDirection: 'row' }}>
-          {CURRENCIES.map((c) => (
-            <button key={c} onClick={() => setCurrency(c)} style={{
-              padding: '9px 13px', borderRadius: 10, fontSize: 13, fontWeight: 500,
-              background: currency === c ? 'var(--ink)' : 'var(--cream-2)',
-              color: currency === c ? 'var(--cream)' : 'var(--ink-soft)',
-              border: '0.5px solid var(--hairline)', transition: 'all 150ms',
-            }}>{c}</button>
-          ))}
+      {/* ── MONEY GROUP (budget · destination currency) ── */}
+      <div style={groupCard}>
+        <div style={{ ...fieldRow, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label htmlFor="at-budget" style={rowLabel}>{window.isRTL ? 'الميزانية (اختياري)' : 'Budget (optional)'}</label>
+            <input id="at-budget" type="number" inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)}
+              placeholder={window.isRTL ? 'مثلاً: 10000' : 'e.g. 10,000'} style={rowInput} />
+          </div>
+          <span style={{
+            fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 600,
+            color: 'var(--ink-mute)', flexShrink: 0,
+          }}>{homeCur}</span>
+        </div>
+        <div style={divider} />
+        <div style={fieldRow}>
+          <label style={rowLabel}>{window.isRTL ? 'عملة الوجهة' : 'Destination currency'}</label>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', flexDirection: 'row', marginTop: 8 }}>
+            {CURRENCIES.map((c) => (
+              <button key={c} onClick={() => setCurrency(c)} style={{
+                padding: '9px 13px', borderRadius: 10, fontSize: 13, fontWeight: 500,
+                background: currency === c ? 'var(--ink)' : 'var(--cream)',
+                color: currency === c ? 'var(--cream)' : 'var(--ink-soft)',
+                border: '0.5px solid var(--hairline)', transition: 'all 150ms',
+              }}>{c}</button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* ── COVER PICKER (visual) ── */}
+      {/* ── COVER PICKER — thumbnails only (no names) + album upload ── */}
       <div>
-        <label style={labelStyle}>{window.isRTL ? 'غلاف الرحلة' : 'Trip cover'}</label>
+        <label style={sectionLabel}>{window.isRTL ? 'غلاف الرحلة' : 'Trip cover'}</label>
+        <input ref={fileRef} type="file" accept="image/*" onChange={onFilePicked} style={{ display: 'none' }} />
         <div style={{
-          display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4,
+          display: 'flex', gap: 10, overflowX: 'auto',
+          margin: '0 -20px', padding: '2px 20px 8px',
           flexDirection: 'row',
         }} className="no-scrollbar">
+          {/* Album upload tile */}
+          <button onClick={pickFromAlbum}
+            aria-label={window.isRTL ? 'رفع صورة من الألبوم' : 'Upload from album'}
+            style={coverTile(customActive)}>
+            {customActive ? (
+              <window.CoverArt imageUrl={customUrl} />
+            ) : (
+              <div style={{
+                position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
+                background: 'var(--cream-2)', border: '1.5px dashed var(--hairline-2)',
+                borderRadius: 14,
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                  stroke="var(--ink-soft)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="3" />
+                  <circle cx="8.5" cy="8.5" r="1.6" />
+                  <path d="M21 15l-5-5L5 21" />
+                </svg>
+              </div>
+            )}
+          </button>
+          {/* Preset thumbnails — no labels */}
           {TRIP_COVERS.map((c) => {
-            const selected = cover === c.key;
+            const selected = !customActive && cover === c.key;
             return (
-              <button key={c.key} onClick={() => setCover(c.key)}
+              <button key={c.key} onClick={() => pickPreset(c.key)}
                 aria-pressed={selected}
                 aria-label={window.isRTL ? `غلاف ${c.ar}` : `${c.en} cover`}
-                style={{
-                  flexShrink: 0, width: 92, textAlign: 'center',
-                  display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center',
-                }}>
-                <div style={{
-                  position: 'relative', width: 92, height: 60, borderRadius: 14,
-                  overflow: 'hidden',
-                  boxShadow: selected ? '0 0 0 2.5px var(--clay), 0 8px 18px -8px rgba(0,0,0,0.4)' : 'var(--shadow-xs)',
-                  transform: selected ? 'translateY(-2px)' : 'none',
-                  transition: 'all 180ms cubic-bezier(.2,.8,.2,1)',
-                }}>
-                  <window.CoverArt kind={c.key} />
-                </div>
-                <span style={{
-                  fontSize: 11.5, fontWeight: selected ? 600 : 500,
-                  color: selected ? 'var(--ink)' : 'var(--ink-mute)',
-                }}>{window.isRTL ? c.ar : c.en}</span>
+                style={coverTile(selected)}>
+                <window.CoverArt kind={c.key} />
               </button>
             );
           })}
@@ -1725,21 +1782,30 @@ function AddTripSheet({ onDone, onCreated }) {
         }}>{error}</div>
       )}
 
-      <button onClick={handleSave} disabled={loading} style={{
-        width: '100%', padding: '16px', borderRadius: 18,
-        background: loading ? 'var(--ink-soft)' : 'var(--clay)', color: '#fff',
-        fontSize: 15, fontWeight: 600, marginTop: 2,
-        boxShadow: loading ? 'none' : '0 8px 20px oklch(0.62 0.13 35 / 0.4)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+      {/* ── PINNED FOOTER — the Create action stays anchored to the bottom
+           of the sheet (sticky), the way a native form's primary button
+           does, instead of scrolling away with the content. ── */}
+      <div style={{
+        position: 'sticky', bottom: 0, zIndex: 2,
+        margin: '4px -20px 0', padding: '12px 20px 16px',
+        background: 'var(--cream)', borderTop: '0.5px solid var(--hairline)',
       }}>
-        {loading ? (
-          <span style={{
-            width: 16, height: 16, borderRadius: '50%',
-            border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff',
-            display: 'inline-block', animation: 'expspin 0.7s linear infinite',
-          }} />
-        ) : (window.isRTL ? 'إنشاء الرحلة' : 'Create trip')}
-      </button>
+        <button onClick={handleSave} disabled={loading} style={{
+          width: '100%', padding: '16px', borderRadius: 18,
+          background: loading ? 'var(--ink-soft)' : 'var(--clay)', color: '#fff',
+          fontSize: 15, fontWeight: 600,
+          boxShadow: loading ? 'none' : '0 8px 20px oklch(0.62 0.13 35 / 0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        }}>
+          {loading ? (
+            <span style={{
+              width: 16, height: 16, borderRadius: '50%',
+              border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff',
+              display: 'inline-block', animation: 'expspin 0.7s linear infinite',
+            }} />
+          ) : (window.isRTL ? 'إنشاء الرحلة' : 'Create trip')}
+        </button>
+      </div>
     </div>
   );
 }
