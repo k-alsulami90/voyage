@@ -60,17 +60,21 @@
       display: block;
       background: var(--cream);
       padding: 0;
-      /* var(--app-height) is the JS-measured real height; 100dvh is the
-         fallback before the script runs. Fixes the iOS launch sliver. */
-      min-height: var(--app-height, 100dvh);
+      /* Layered height fallbacks for the iOS standalone launch bug:
+         -webkit-fill-available tracks the real screen and updates when
+         iOS settles; var(--app-height) is the JS-measured value; 100dvh
+         is the last resort. Whichever the browser honours, the body
+         fills the screen. */
+      height: 100dvh;
       height: var(--app-height, 100dvh);
+      min-height: -webkit-fill-available;
       overflow: hidden;
-      /* Lock body scrolling — inner #root scroll containers do the work */
+      /* Fill the containing block exactly (no stale explicit height) */
       position: fixed;
       inset: 0;
     }
     #root {
-      height: var(--app-height, 100dvh);
+      height: 100%;
       width: 100vw;
       overflow: hidden;
     }
@@ -87,10 +91,12 @@
      after React mounts (with a 2500ms minimum show time).
      ───────────────────────────────────────────────────────────── */
   #splash {
-    /* Use the JS-measured height, not inset:0, so the splash covers the
-       full screen on iOS cold launch (no cream sliver at the bottom). */
-    position: fixed; top: 0; left: 0; right: 0;
-    height: var(--app-height, 100dvh);
+    /* Fill the full containing block (all four insets = 0). This is more
+       robust than an explicit height, which can bind to a stale
+       window.innerHeight that iOS doesn't update until a rotation. Any
+       strip BELOW the web view at launch is the native window background
+       (manifest background_color) — handled there, not here. */
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     z-index: 9999;
     display: grid; place-items: center; overflow: hidden;
     color: #f5ecd9;
