@@ -97,7 +97,11 @@ function ScreenTrips({ goTrip, go }) {
   const matchesSearch = (t) => !search || (t.title || '').toLowerCase().includes(search.toLowerCase());
 
   const trips    = enrichedTrips.filter((t) => matchesScope(t) && matchesSearch(t));
-  const active   = enrichedTrips.find((t) => t.state.kind === 'current');
+  // ALL current trips — a traveler can have two overlapping live trips at
+  // once (e.g. a long regional trip + a short side trip). Previously this
+  // was a singular `.find`, so the second concurrent trip showed in no
+  // section at all and silently disappeared from the home screen.
+  const current  = enrichedTrips.filter((t) => t.state.kind === 'current');
   const upcoming = enrichedTrips.filter((t) => t.state.kind === 'upcoming');
   const past     = enrichedTrips.filter((t) => t.state.kind === 'past');
 
@@ -271,12 +275,20 @@ function ScreenTrips({ goTrip, go }) {
       )}
 
       {/* CURRENT TRIP — live progress card */}
-      {active && (scope === 'all' || scope === (active.shared ? 'shared' : 'private')) && (
-        <div style={{ padding: '4px 14px 0' }}>
-          <SectionLabel>{t('currentlyTraveling')}</SectionLabel>
-          <CurrentTripCard trip={active} onOpen={() => goTrip(active.id)} />
-        </div>
-      )}
+      {(() => {
+        const live = current.filter((tr) => scope === 'all' || scope === (tr.shared ? 'shared' : 'private'));
+        if (live.length === 0) return null;
+        return (
+          <div style={{ padding: '4px 14px 0' }}>
+            <SectionLabel>{t('currentlyTraveling')}</SectionLabel>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {live.map((tr) => (
+                <CurrentTripCard key={tr.id} trip={tr} onOpen={() => goTrip(tr.id)} />
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* UPCOMING — countdown cards in horizontal scroller */}
       {upcoming.length > 0 && (scope === 'all') && (

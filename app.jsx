@@ -67,6 +67,15 @@ function App() {
     window.loadTripData = (tripId) => loadTripData(tripId);
     return () => { window.loadTripData = null; };
   }, [loadTripData]);
+
+  // Expose route navigation so deep components without prop access
+  // (e.g. the delete action inside Trip Settings) can leave a screen.
+  // Used by trip deletion to exit the now-dead trip scope cleanly
+  // instead of reloading the page onto a route that no longer exists.
+  React.useEffect(() => {
+    window.navigateRoute = (r) => setRoute(r);
+    return () => { window.navigateRoute = null; };
+  }, []);
   const [tripLoading, setTripLoading] = React.useState(false);
 
   // Track active trip + realtime subscription so we can re-load after auth refresh / refetch on demand
@@ -372,6 +381,9 @@ function App() {
   React.useEffect(() => {
     if (route.scope === 'app') {
       window.TRIP = null;
+      // Also drop the remembered trip id so go('hub') etc. can't
+      // resurrect a trip the user has left (or deleted).
+      activeTripRef.current = null;
       setDataVersion((v) => v + 1);
     }
   }, [route.scope]);

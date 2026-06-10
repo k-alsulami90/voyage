@@ -491,9 +491,25 @@ function LifecycleActions() {
     if (!tripId) return;
     try {
       await window.sb.from('trips').delete().eq('id', tripId);
+      // Tear down the deleted trip's context, then LEAVE its scope before
+      // anything tries to re-load it. The old code reloaded the page, but
+      // the route is persisted in sessionStorage, so the reload restored
+      // the (now-deleted) trip route and stranded the user on a blank,
+      // loading trip screen.
+      window.TRIP = null;
+      if (window.currentUserId) {
+        try { await window.loadTrips(window.currentUserId); } catch (_) {}
+      }
+      if (typeof window.navigateRoute === 'function') {
+        window.navigateRoute({ scope: 'app', name: 'trips' });
+        window.notifyDataChange?.();
+      } else {
+        // Fallback: clear the saved route so a reload can't land back on
+        // the deleted trip, then reload.
+        try { sessionStorage.setItem('voyage:route', JSON.stringify({ scope: 'app', name: 'trips' })); } catch (_) {}
+        window.location.reload();
+      }
       window.toast?.(window.isRTL ? 'تم حذف الرحلة وسجلها بالكامل' : 'Trip deleted', 'success');
-      window.clearAllMockData();
-      window.location.reload();
     } catch (err) {
       window.toast?.(err.message || 'Could not delete', 'error');
     }
