@@ -234,9 +234,17 @@ function ScreenHub({ go, openSheet, loading }) {
               style={{
               width: '100%', textAlign: 'start',
               borderRadius: 22, padding: '16px 18px',
+              // Gradient uses FIXED oklch values (not var(--moss) /
+              // var(--clay) tokens) because those tokens shift with the
+              // theme -- in light mode the top-left stop landed at
+              // lightness 0.62, against which the white amount text
+              // failed WCAG AA contrast (only ~3.5:1) and read as
+              // "white on cream." Hardcoding the darker end of each
+              // spectrum keeps the gradient identifiable AND keeps the
+              // white sentence + bolded numbers readable in both themes.
               background: owed
-                ? 'linear-gradient(135deg, var(--moss) 0%, oklch(0.40 0.08 155) 100%)'
-                : 'linear-gradient(135deg, var(--clay) 0%, var(--clay-deep) 100%)',
+                ? 'linear-gradient(135deg, oklch(0.45 0.10 155) 0%, oklch(0.32 0.09 155) 100%)'
+                : 'linear-gradient(135deg, oklch(0.48 0.13 32) 0%, oklch(0.36 0.12 32) 100%)',
               color: '#fff', boxShadow: 'var(--shadow-md)',
               display: 'flex', alignItems: 'center', gap: 14,
               flexDirection: 'row',

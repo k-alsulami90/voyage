@@ -876,11 +876,21 @@ function SmartTrackRow({ event, last, onOpenTrip }) {
 // Primary = bright white pill with dark ink text (high-contrast CTA).
 // Secondary = transparent with light border on whatever surface it's on.
 function ActionPill({ label, href, icon, primary }) {
+  // PRIMARY pill: white background, dark text. The text color is
+  // HARDCODED to a dark slate (not var(--ink)) because var(--ink) flips
+  // to near-white in dark mode, which made the white-on-white pill
+  // disappear. Hardcoded oklch matches the LIGHT-mode --ink value
+  // and stays dark regardless of theme since the pill background is
+  // always white.
+  //
+  // SECONDARY pill: transparent, semi-white text. Always on the
+  // dark Smart Track card gradient, so the white text reads in
+  // both themes.
   return (
     <a href={href} target="_blank" rel="noreferrer" style={{
       padding: '8px 12px', borderRadius: 999,
       background: primary ? '#fff' : 'transparent',
-      color: primary ? 'var(--ink)' : 'rgba(255,255,255,0.92)',
+      color: primary ? 'oklch(0.22 0.025 250)' : 'rgba(255,255,255,0.92)',
       border: primary ? 'none' : '0.5px solid rgba(255,255,255,0.22)',
       fontSize: 12, fontWeight: 500,
       display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: 'row',
