@@ -8,64 +8,71 @@ import { Scene4SmartTrack } from './scenes/Scene4SmartTrack';
 import { Scene5Vault } from './scenes/Scene5Vault';
 import { Scene6CTA } from './scenes/Scene6CTA';
 
-// Six 6-second scenes at 30fps = 180 frames each, 1080 frames total.
-// Each scene wraps in a `<Sequence>` with `layout="none"` so the
-// scenes' own AbsoluteFill backgrounds aren't double-wrapped.
-const SCENE = 180;  // 6s @ 30fps
+// Varied scene durations — the v1 metronome of six identical 6s
+// blocks felt like PPT slides. The new cadence emphasises the killer
+// feature (Smart Track) with the longest beat, gives the Hook a
+// quick teaser-length punch, and lets the CTA breathe.
+//
+//   Hook        4.0s   120f   teaser
+//   Hub         6.0s   180f
+//   Split       5.0s   150f
+//   Smart Track 7.0s   210f   hero beat
+//   Vault       5.0s   150f
+//   CTA         5.0s   150f
+//
+// Total: 32.0s   960 frames @ 30 fps
 
-// Cross-fade between scenes — fades out the last 8 frames of every
-// scene so cuts breathe instead of hard-snapping. `useCurrentFrame()`
-// returns the LOCAL frame within the enclosing `<Sequence>` (Remotion
-// rebases time per-sequence), so we read it directly -- no need to
-// subtract index*SCENE. Subtracting it caused negative frames and a
-// blacked-out render.
-const CrossFade: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const FPS = 30;
+const SCENES = [
+  { Component: Scene1Hook,        durationInFrames: FPS * 4 },
+  { Component: Scene2Hub,         durationInFrames: FPS * 6 },
+  { Component: Scene3Split,       durationInFrames: FPS * 5 },
+  { Component: Scene4SmartTrack,  durationInFrames: FPS * 7 },
+  { Component: Scene5Vault,       durationInFrames: FPS * 5 },
+  { Component: Scene6CTA,         durationInFrames: FPS * 5 },
+];
+
+// Cross-fade. useCurrentFrame() inside a `<Sequence>` is LOCAL to
+// the sequence (Remotion rebases time), so we read it directly. The
+// fade-in is intentionally 0 frames -- each scene already animates
+// its own entry, so cross-fading on top mutes that motion. We just
+// fade out the last 10 frames so the visual baton passes cleanly.
+const SceneWrap: React.FC<{ children: React.ReactNode; total: number }> = ({
+  children, total,
+}) => {
   const sceneFrame = useCurrentFrame();
-  const fadeInOpacity = interpolate(sceneFrame, [0, 6], [0, 1], {
-    extrapolateRight: 'clamp', extrapolateLeft: 'clamp',
-  });
-  const fadeOutOpacity = interpolate(sceneFrame, [SCENE - 8, SCENE], [1, 0], {
+  const fadeOut = interpolate(sceneFrame, [total - 10, total], [1, 0], {
     extrapolateRight: 'clamp', extrapolateLeft: 'clamp',
   });
   return (
-    <div style={{
-      opacity: Math.min(fadeInOpacity, fadeOutOpacity),
-      width: '100%', height: '100%',
-    }}>
+    <div style={{ opacity: fadeOut, width: '100%', height: '100%' }}>
       {children}
     </div>
   );
 };
 
 export const MyComposition: React.FC = () => {
+  let from = 0;
   return (
     <AbsoluteFill style={{ background: '#000' }}>
-      <Sequence from={SCENE * 0} durationInFrames={SCENE} layout="none">
-        <CrossFade><Scene1Hook /></CrossFade>
-      </Sequence>
-      <Sequence from={SCENE * 1} durationInFrames={SCENE} layout="none">
-        <CrossFade><Scene2Hub /></CrossFade>
-      </Sequence>
-      <Sequence from={SCENE * 2} durationInFrames={SCENE} layout="none">
-        <CrossFade><Scene3Split /></CrossFade>
-      </Sequence>
-      <Sequence from={SCENE * 3} durationInFrames={SCENE} layout="none">
-        <CrossFade><Scene4SmartTrack /></CrossFade>
-      </Sequence>
-      <Sequence from={SCENE * 4} durationInFrames={SCENE} layout="none">
-        <CrossFade><Scene5Vault /></CrossFade>
-      </Sequence>
-      <Sequence from={SCENE * 5} durationInFrames={SCENE} layout="none">
-        <CrossFade><Scene6CTA /></CrossFade>
-      </Sequence>
+      {SCENES.map((s, i) => {
+        const Comp = s.Component;
+        const node = (
+          <Sequence key={i} from={from} durationInFrames={s.durationInFrames} layout="none">
+            <SceneWrap total={s.durationInFrames}><Comp /></SceneWrap>
+          </Sequence>
+        );
+        from += s.durationInFrames;
+        return node;
+      })}
 
-      {/* Audio: drop a `public/music.mp3` track and uncomment the
-          import + Audio tag below. Kept commented for now so the
-          project builds before you source a licence-free track.
-
-      import {Audio, staticFile} from 'remotion';
-      <Audio src={staticFile('music.mp3')} volume={0.6} />
+      {/* Audio: drop `public/music.mp3` and uncomment.
+          import {Audio, staticFile} from 'remotion';
+          <Audio src={staticFile('music.mp3')} volume={0.6} />
       */}
     </AbsoluteFill>
   );
 };
+
+export const COMPOSITION_FPS = FPS;
+export const COMPOSITION_DURATION = SCENES.reduce((acc, s) => acc + s.durationInFrames, 0);
