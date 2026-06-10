@@ -1,9 +1,8 @@
 import './index.css';
 import { Composition } from 'remotion';
-import { MyComposition } from './Composition';
+import { MyComposition, TOTAL_FRAMES } from './Composition';
 
-// 1080×1920 (9:16 vertical), 60fps, 26s total.
-// Three cinematic scenes -- see Composition.tsx for the cadence.
+// 1080×1920 (9:16 vertical for TikTok / Reels / Shorts), 60fps, 38s.
 // Render:  npx remotion render VoyageAd out/voyage-ad.mp4
 export const RemotionRoot: React.FC = () => {
   return (
@@ -11,7 +10,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="VoyageAd"
         component={MyComposition}
-        durationInFrames={1560}
+        durationInFrames={TOTAL_FRAMES}
         fps={60}
         width={1080}
         height={1920}
