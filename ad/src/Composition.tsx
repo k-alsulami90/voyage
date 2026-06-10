@@ -1,47 +1,35 @@
 import { AbsoluteFill, Sequence, useCurrentFrame, interpolate } from 'remotion';
 import './fonts';
 
-import { Scene1Hook } from './scenes/Scene1Hook';
-import { Scene2Hub } from './scenes/Scene2Hub';
-import { Scene3Split } from './scenes/Scene3Split';
-import { Scene4SmartTrack } from './scenes/Scene4SmartTrack';
-import { Scene5Vault } from './scenes/Scene5Vault';
-import { Scene6CTA } from './scenes/Scene6CTA';
+import { Scene1Collab } from './scenes/Scene1Collab';
+import { Scene2Docs } from './scenes/Scene2Docs';
+import { Scene3Analytics } from './scenes/Scene3Analytics';
 
-// Varied scene durations — the v1 metronome of six identical 6s
-// blocks felt like PPT slides. The new cadence emphasises the killer
-// feature (Smart Track) with the longest beat, gives the Hook a
-// quick teaser-length punch, and lets the CTA breathe.
+// Three-scene cinematic cut at 60fps.
 //
-//   Hook        4.0s   120f   teaser
-//   Hub         6.0s   180f
-//   Split       5.0s   150f
-//   Smart Track 7.0s   210f   hero beat
-//   Vault       5.0s   150f
-//   CTA         5.0s   150f
+//   Scene 1  Collab + Smart Budgeting    9.5s   570f
+//   Scene 2  Document Hub + Smart Assist 8.0s   480f
+//   Scene 3  Analytics + Settle + Logo   8.5s   510f
+//   ----------------------------------------------
+//   Total                                26.0s  1560f
 //
-// Total: 32.0s   960 frames @ 30 fps
+// Each scene owns its own camera (no global camera wrapper). Cuts
+// pass via an 18-frame fade-out on the outgoing scene; entries are
+// driven by each scene's own spring physics.
 
-const FPS = 30;
+const FPS = 60;
+
 const SCENES = [
-  { Component: Scene1Hook,        durationInFrames: FPS * 4 },
-  { Component: Scene2Hub,         durationInFrames: FPS * 6 },
-  { Component: Scene3Split,       durationInFrames: FPS * 5 },
-  { Component: Scene4SmartTrack,  durationInFrames: FPS * 7 },
-  { Component: Scene5Vault,       durationInFrames: FPS * 5 },
-  { Component: Scene6CTA,         durationInFrames: FPS * 5 },
+  { Component: Scene1Collab,    durationInFrames: Math.round(FPS * 9.5) },
+  { Component: Scene2Docs,      durationInFrames: FPS * 8 },
+  { Component: Scene3Analytics, durationInFrames: Math.round(FPS * 8.5) },
 ];
 
-// Cross-fade. useCurrentFrame() inside a `<Sequence>` is LOCAL to
-// the sequence (Remotion rebases time), so we read it directly. The
-// fade-in is intentionally 0 frames -- each scene already animates
-// its own entry, so cross-fading on top mutes that motion. We just
-// fade out the last 10 frames so the visual baton passes cleanly.
 const SceneWrap: React.FC<{ children: React.ReactNode; total: number }> = ({
   children, total,
 }) => {
   const sceneFrame = useCurrentFrame();
-  const fadeOut = interpolate(sceneFrame, [total - 10, total], [1, 0], {
+  const fadeOut = interpolate(sceneFrame, [total - 18, total], [1, 0], {
     extrapolateRight: 'clamp', extrapolateLeft: 'clamp',
   });
   return (
@@ -65,14 +53,6 @@ export const MyComposition: React.FC = () => {
         from += s.durationInFrames;
         return node;
       })}
-
-      {/* Audio: drop `public/music.mp3` and uncomment.
-          import {Audio, staticFile} from 'remotion';
-          <Audio src={staticFile('music.mp3')} volume={0.6} />
-      */}
     </AbsoluteFill>
   );
 };
-
-export const COMPOSITION_FPS = FPS;
-export const COMPOSITION_DURATION = SCENES.reduce((acc, s) => acc + s.durationInFrames, 0);
