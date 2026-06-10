@@ -1482,6 +1482,17 @@ function AddDocSheet({ onDone }) {
 }
 
 // ── Add Trip Sheet ────────────────────────────────────────────
+// Cover presets the user can choose from at creation. Same set the
+// Settings editor exposes; rendered here as live CoverArt thumbnails so
+// the user picks the trip's identity visually instead of by name.
+const TRIP_COVERS = [
+  { key: 'kyoto',   en: 'Kyoto',    ar: 'كيوتو' },
+  { key: 'lisbon',  en: 'Lisbon',   ar: 'لشبونة' },
+  { key: 'oaxaca',  en: 'Oaxaca',   ar: 'واهاكا' },
+  { key: 'lofoten', en: 'Lofoten',  ar: 'لوفوتن' },
+  { key: 'patagon', en: 'Patagonia',ar: 'باتاغونيا' },
+];
+
 function AddTripSheet({ onDone, onCreated }) {
   const today = new Date().toISOString().slice(0, 10);
   const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
@@ -1492,22 +1503,45 @@ function AddTripSheet({ onDone, onCreated }) {
   const [endDate,   setEnd]       = React.useState(nextWeek);
   const [budget,    setBudget]    = React.useState('');
   const [currency,  setCurrency]  = React.useState('USD');
+  const [cover,     setCover]     = React.useState('kyoto');
   const [loading,   setLoading]   = React.useState(false);
   const [error,     setError]     = React.useState(null);
 
+  // Budget is entered in the user's HOME currency (SAR for most Gulf
+  // users — resolved from their profile default), then converted to USD
+  // on save via window.toUSD. The destination/local currency below is a
+  // separate concept (what they'll actually spend in on the trip).
+  const homeCur = window.USER_DEFAULT_CURRENCY || 'SAR';
   const CURRENCIES = ['USD','EUR','GBP','JPY','AED','SAR','EGP','MAD','TRY','INR'];
   const STATUS = startDate > today ? 'upcoming' : endDate < today ? 'past' : 'active';
 
+  // Live preview derivations
+  const MS = 86400000;
+  const nights = (startDate && endDate)
+    ? Math.max(0, Math.round((new Date(endDate) - new Date(startDate)) / MS))
+    : 0;
+  const nightsLabel = window.isRTL
+    ? window.arPlural(nights, {
+        zero: 'ليلة واحدة', one: 'ليلة واحدة', two: 'ليلتان',
+        few: `${nights} ليالٍ`, many: `${nights} ليلة`, other: `${nights} ليلة`,
+      })
+    : `${nights} ${nights === 1 ? 'night' : 'nights'}`;
+  const statusMeta = {
+    active:   { color: 'var(--moss)',     label: window.isRTL ? 'نشطة الآن' : 'Active now' },
+    upcoming: { color: 'var(--honey)',    label: window.isRTL ? 'قادمة'      : 'Upcoming' },
+    past:     { color: 'var(--ink-mute)', label: window.isRTL ? 'سابقة'      : 'Past' },
+  }[STATUS];
+
+  const labelStyle = {
+    fontSize: 12.5, fontWeight: 600, color: 'var(--ink-soft)',
+    marginBottom: 7, display: 'block', textAlign: 'start',
+  };
+  // 16px inputs to dodge iOS auto-zoom (PRODUCT.md a11y floor).
   const fieldStyle = {
     width: '100%', padding: '13px 14px', borderRadius: 14,
-    border: '0.5px solid var(--hairline)',
-    background: 'var(--cream)', color: 'var(--ink)',
-    fontSize: 14, outline: 'none',
-    textAlign: 'start',
-  };
-  const labelStyle = {
-    fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em',
-    color: 'var(--ink-mute)', textTransform: 'uppercase', marginBottom: 6, display: 'block',
+    border: '0.5px solid var(--hairline-2)',
+    background: 'var(--cream-2)', color: 'var(--ink)',
+    fontSize: 16, outline: 'none', textAlign: 'start',
   };
 
   const handleSave = async () => {
@@ -1522,7 +1556,10 @@ function AddTripSheet({ onDone, onCreated }) {
         startDate,
         endDate,
         localCurrency: currency !== 'USD' ? currency : 'USD',
-        budgetUSD:     budget ? parseFloat(budget) : null,
+        fxRate:        window.FX_RATES[currency] || 1,
+        // Budget typed in home currency -> stored as USD.
+        budgetUSD:     budget ? window.toUSD(budget, homeCur) : null,
+        coverStyle:    cover,
         status: STATUS,
       });
       onCreated(trip.id);
@@ -1530,52 +1567,111 @@ function AddTripSheet({ onDone, onCreated }) {
   };
 
   return (
-    <div style={{ padding: '4px 22px 28px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ padding: '6px 22px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-      {/* Title */}
+      {/* ── LIVE PREVIEW CARD — the hero. Updates as you type / pick. ── */}
+      <div style={{
+        position: 'relative', width: '100%', aspectRatio: '1.6 / 1',
+        borderRadius: 24, overflow: 'hidden',
+        boxShadow: 'var(--shadow-card)',
+        border: '0.5px solid var(--hairline)',
+      }}>
+        <window.CoverArt kind={cover} />
+        {/* Date pill */}
+        <div style={{
+          position: 'absolute', top: 16, insetInlineEnd: 16,
+          padding: '6px 12px', borderRadius: 999,
+          background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(10px)',
+          fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 500,
+          color: 'rgba(255,255,255,0.96)', letterSpacing: '0.02em',
+        }}>{window.fmtDateRange(startDate, endDate)}</div>
+        {/* Status chip */}
+        <div style={{
+          position: 'absolute', top: 16, insetInlineStart: 16,
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '6px 11px', borderRadius: 999,
+          background: 'rgba(20,15,10,0.34)', backdropFilter: 'blur(10px)',
+          fontSize: 11.5, fontWeight: 600, color: '#fff',
+          flexDirection: 'row',
+        }}>
+          <span style={{ width: 7, height: 7, borderRadius: 999, background: statusMeta.color }} />
+          {statusMeta.label}
+        </div>
+        {/* Title block */}
+        <div style={{
+          position: 'absolute', insetInline: 20, bottom: 18,
+          textAlign: 'start',
+        }}>
+          <div className="serif-italic" style={{
+            fontSize: 34, lineHeight: 1.05, color: '#fff',
+            letterSpacing: '-0.01em',
+            textShadow: '0 2px 18px rgba(0,0,0,0.35)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            opacity: title.trim() ? 1 : 0.6,
+          }}>{title.trim() || (window.isRTL ? 'اسم رحلتك' : 'Your trip')}</div>
+          <div style={{
+            marginTop: 5, display: 'flex', alignItems: 'center', gap: 8,
+            fontSize: 12.5, color: 'rgba(255,255,255,0.9)', flexDirection: 'row',
+          }}>
+            {subtitle.trim() && (
+              <>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
+                  {subtitle.trim()}
+                </span>
+                <span style={{ opacity: 0.5 }}>·</span>
+              </>
+            )}
+            <span style={{ fontFamily: 'var(--mono)', flexShrink: 0 }}>{nightsLabel}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── NAME ── */}
       <div>
-        <label style={labelStyle}>{window.isRTL ? 'مسمى الرحلة *' : 'Trip name *'}</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)}
+        <label htmlFor="at-name" style={labelStyle}>{window.isRTL ? 'اسم الرحلة' : 'Trip name'}</label>
+        <input id="at-name" value={title} onChange={(e) => setTitle(e.target.value)}
           placeholder={window.isRTL ? 'مثلاً: طوكيو · الربيع' : 'e.g. Tokyo · Spring'}
           style={fieldStyle} />
       </div>
 
-      {/* Subtitle */}
+      {/* ── SUBTITLE ── */}
       <div>
-        <label style={labelStyle}>{window.isRTL ? 'وصف مختصر للرحلة' : 'Subtitle'}</label>
-        <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)}
+        <label htmlFor="at-sub" style={labelStyle}>{window.isRTL ? 'وصف مختصر (اختياري)' : 'Short description (optional)'}</label>
+        <input id="at-sub" value={subtitle} onChange={(e) => setSubtitle(e.target.value)}
           placeholder={window.isRTL ? 'مثلاً: رحلة شهر العسل' : 'e.g. Honeymoon trip'}
           style={fieldStyle} />
       </div>
 
-      {/* Dates */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      {/* ── DATES ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div>
-          <label style={labelStyle}>{window.isRTL ? 'تاريخ بداية الرحلة *' : 'Start date *'}</label>
-          <input type="date" value={startDate} onChange={(e) => setStart(e.target.value)}
-            style={{ ...fieldStyle, fontSize: 13 }} />
+          <label htmlFor="at-start" style={labelStyle}>{window.isRTL ? 'البداية' : 'Start'}</label>
+          <input id="at-start" type="date" value={startDate} onChange={(e) => setStart(e.target.value)}
+            style={fieldStyle} />
         </div>
         <div>
-          <label style={labelStyle}>{window.isRTL ? 'تاريخ نهاية الرحلة *' : 'End date *'}</label>
-          <input type="date" value={endDate} onChange={(e) => setEnd(e.target.value)}
-            style={{ ...fieldStyle, fontSize: 13 }} />
+          <label htmlFor="at-end" style={labelStyle}>{window.isRTL ? 'النهاية' : 'End'}</label>
+          <input id="at-end" type="date" value={endDate} min={startDate} onChange={(e) => setEnd(e.target.value)}
+            style={fieldStyle} />
         </div>
       </div>
 
-      {/* Budget */}
+      {/* ── BUDGET (home currency) ── */}
       <div>
-        <label style={labelStyle}>{window.isRTL ? 'الميزانية بالدولار (اختياري)' : 'Budget in USD (optional)'}</label>
-        <input type="number" inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)}
-          placeholder="0.00" style={fieldStyle} />
+        <label htmlFor="at-budget" style={labelStyle}>
+          {window.isRTL ? `الميزانية بالـ${homeCur} (اختياري)` : `Budget in ${homeCur} (optional)`}
+        </label>
+        <input id="at-budget" type="number" inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)}
+          placeholder={window.isRTL ? 'مثلاً: 10000' : 'e.g. 10,000'} style={fieldStyle} />
       </div>
 
-      {/* Local currency */}
+      {/* ── LOCAL CURRENCY ── */}
       <div>
-        <label style={labelStyle}>{window.isRTL ? 'العملة المحلية' : 'Local currency'}</label>
+        <label style={labelStyle}>{window.isRTL ? 'عملة الوجهة' : 'Destination currency'}</label>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', flexDirection: 'row' }}>
           {CURRENCIES.map((c) => (
             <button key={c} onClick={() => setCurrency(c)} style={{
-              padding: '8px 12px', borderRadius: 10, fontSize: 12.5, fontWeight: 500,
+              padding: '9px 13px', borderRadius: 10, fontSize: 13, fontWeight: 500,
               background: currency === c ? 'var(--ink)' : 'var(--cream-2)',
               color: currency === c ? 'var(--cream)' : 'var(--ink-soft)',
               border: '0.5px solid var(--hairline)', transition: 'all 150ms',
@@ -1584,21 +1680,40 @@ function AddTripSheet({ onDone, onCreated }) {
         </div>
       </div>
 
-      {/* Status preview */}
-      <div style={{
-        padding: '10px 14px', borderRadius: 12,
-        background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
-        fontSize: 12.5, color: 'var(--ink-mute)', display: 'flex', alignItems: 'center', gap: 8,
-        flexDirection: 'row',
-      }}>
-        <span style={{ width: 8, height: 8, borderRadius: 999, flexShrink: 0,
-          background: STATUS === 'active' ? 'var(--moss)' : STATUS === 'upcoming' ? 'var(--honey)' : 'var(--ink-mute)'
-        }} />
-        <span>
-          {STATUS === 'active' ? (window.isRTL ? 'الرحلة نشطة الآن' : 'Trip is active now')
-            : STATUS === 'upcoming' ? (window.isRTL ? 'رحلة قادمة' : 'Upcoming trip')
-            : (window.isRTL ? 'رحلة سابقة' : 'Past trip')}
-        </span>
+      {/* ── COVER PICKER (visual) ── */}
+      <div>
+        <label style={labelStyle}>{window.isRTL ? 'غلاف الرحلة' : 'Trip cover'}</label>
+        <div style={{
+          display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4,
+          flexDirection: 'row',
+        }} className="no-scrollbar">
+          {TRIP_COVERS.map((c) => {
+            const selected = cover === c.key;
+            return (
+              <button key={c.key} onClick={() => setCover(c.key)}
+                aria-pressed={selected}
+                aria-label={window.isRTL ? `غلاف ${c.ar}` : `${c.en} cover`}
+                style={{
+                  flexShrink: 0, width: 92, textAlign: 'center',
+                  display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center',
+                }}>
+                <div style={{
+                  position: 'relative', width: 92, height: 60, borderRadius: 14,
+                  overflow: 'hidden',
+                  boxShadow: selected ? '0 0 0 2.5px var(--clay), 0 8px 18px -8px rgba(0,0,0,0.4)' : 'var(--shadow-xs)',
+                  transform: selected ? 'translateY(-2px)' : 'none',
+                  transition: 'all 180ms cubic-bezier(.2,.8,.2,1)',
+                }}>
+                  <window.CoverArt kind={c.key} />
+                </div>
+                <span style={{
+                  fontSize: 11.5, fontWeight: selected ? 600 : 500,
+                  color: selected ? 'var(--ink)' : 'var(--ink-mute)',
+                }}>{window.isRTL ? c.ar : c.en}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {error && (
@@ -1613,7 +1728,7 @@ function AddTripSheet({ onDone, onCreated }) {
       <button onClick={handleSave} disabled={loading} style={{
         width: '100%', padding: '16px', borderRadius: 18,
         background: loading ? 'var(--ink-soft)' : 'var(--clay)', color: '#fff',
-        fontSize: 14, fontWeight: 600,
+        fontSize: 15, fontWeight: 600, marginTop: 2,
         boxShadow: loading ? 'none' : '0 8px 20px oklch(0.62 0.13 35 / 0.4)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
       }}>
@@ -1623,7 +1738,7 @@ function AddTripSheet({ onDone, onCreated }) {
             border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff',
             display: 'inline-block', animation: 'expspin 0.7s linear infinite',
           }} />
-        ) : (window.isRTL ? '✈ إنشاء الرحلة' : '✈ Create trip')}
+        ) : (window.isRTL ? 'إنشاء الرحلة' : 'Create trip')}
       </button>
     </div>
   );
