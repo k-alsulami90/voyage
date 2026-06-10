@@ -301,14 +301,31 @@ function App() {
   const [imageOverlay, setImageOverlay] = React.useState(null);
   React.useEffect(() => { window.openImageOverlay = (src) => setImageOverlay(src); }, []);
 
-  // DOM side-effects (palette, theme attribute, dir attribute)
+  // DOM side-effects (palette, theme attribute, dir attribute).
+  //
+  // CRITICAL: the palette inline override is for LIGHT mode only.
+  // Inline styles on documentElement trump every other CSS variable
+  // declaration -- including tokens.css's [data-theme="dark"] block.
+  // So if we inline-set --cream-2 to the light palette value and the
+  // user later toggles dark mode, the body / card backgrounds stay
+  // light-cream while --ink flips to near-white -- producing the
+  // invisible "Spent 29248 of 32000 planned" amount the user reported
+  // on the Hub. Clear the override in dark mode so the dark-theme
+  // tokens apply unscathed. Depends on BOTH palette AND dark so the
+  // override is re-applied/cleared whenever either changes.
   React.useEffect(() => {
     const p = PALETTES[tw.palette] || PALETTES.sunset;
     const r = document.documentElement.style;
-    r.setProperty('--cream', p.cream);
-    r.setProperty('--cream-2', p.cream2);
-    r.setProperty('--clay', p.clay);
-  }, [tw.palette]);
+    if (tw.dark) {
+      r.removeProperty('--cream');
+      r.removeProperty('--cream-2');
+      r.removeProperty('--clay');
+    } else {
+      r.setProperty('--cream', p.cream);
+      r.setProperty('--cream-2', p.cream2);
+      r.setProperty('--clay', p.clay);
+    }
+  }, [tw.palette, tw.dark]);
 
   React.useEffect(() => {
     document.documentElement.setAttribute('data-theme', tw.dark ? 'dark' : 'light');
