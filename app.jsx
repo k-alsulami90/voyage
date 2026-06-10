@@ -1588,8 +1588,8 @@ function AddTripSheet({ onDone, onCreated }) {
         startDate,
         endDate,
         localCurrency: currency !== 'USD' ? currency : 'USD',
-        fxRate:        window.FX_RATES[currency] || 1,
-        // Budget typed in home currency -> stored as USD.
+        // Budget typed in home currency -> stored as USD. Home currency +
+        // fx are set automatically by createTrip from the account preference.
         budgetUSD:     budget ? window.toUSD(budget, homeCur) : null,
         coverStyle:    cover,   // preset fallback even if a custom photo is set
         status: STATUS,

@@ -721,25 +721,15 @@ function EditableTripParams({ trip: tripProp }) {
         })} onCancel={() => setEditing(null)} />
       </EditRow>
 
-      {/* Currencies (home + local + fx) */}
-      <EditRow editing={editing} setEditing={setEditing} icon={<IconSwap size={16} stroke="var(--ink)" />} label={t('currencies')}
-           value={`${trip.homeCurrency || 'USD'}${trip.localCurrency && trip.localCurrency !== trip.homeCurrency ? ' ↔ ' + trip.localCurrency : ''}`}
+      {/* Destination currency. Home currency is NOT editable here — it is
+         the user's account preference (changed in App Settings) and every
+         trip is shown in it automatically. The exchange rate is automatic
+         (live table), so there is no manual rate field anymore. */}
+      <EditRow editing={editing} setEditing={setEditing} icon={<IconSwap size={16} stroke="var(--ink)" />} label={window.isRTL ? 'عملة الوجهة' : 'Destination currency'}
+           value={`${trip.localCurrency || homeCur}${(trip.localCurrency && trip.localCurrency !== homeCur) ? '  ·  ' + (1 / (window.FX_RATES[trip.localCurrency] || 1) * (window.FX_RATES[homeCur] || 1)).toFixed(2) + ' ' + homeCur : ''}`}
            fieldKey="currency">
         <div style={paramLabelStyle}>
-          {window.isRTL ? 'عملتك الرئيسية (في بلدك)' : 'Home currency'}
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {CURRENCIES.map((c) => (
-            <button key={c} onClick={() => setHomeCur(c)} style={{
-              padding: '6px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 500,
-              background: homeCur === c ? 'var(--ink)' : 'var(--cream)',
-              color: homeCur === c ? 'var(--cream)' : 'var(--ink-soft)',
-              border: '0.5px solid var(--hairline)',
-            }}>{c}</button>
-          ))}
-        </div>
-        <div style={{ ...paramLabelStyle, marginTop: 8 }}>
-          {window.isRTL ? 'العملة المحلية لوجهة السفر' : 'Local currency'}
+          {window.isRTL ? 'العملة المحلية لوجهة السفر' : 'Local currency at your destination'}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {CURRENCIES.map((c) => (
@@ -751,21 +741,25 @@ function EditableTripParams({ trip: tripProp }) {
             }}>{c}</button>
           ))}
         </div>
-        <div style={{ ...paramLabelStyle, marginTop: 8 }}>
-          {window.isRTL ? `سعر USD → ${homeCur} (افتراضي ${window.FX_RATES[homeCur] || 1})` : `USD → ${homeCur} rate (default ${window.FX_RATES[homeCur] || 1})`}
-        </div>
-        <input type="number" inputMode="decimal" value={fx} onChange={(e) => setFx(e.target.value)} placeholder={String(window.FX_RATES[homeCur] || 1)} style={inputStyle} />
-        <div style={{ fontSize: 11, color: 'var(--ink-mute)' }}>
-          {window.isRTL ? `1 ${localCur} = ${(1 / (window.FX_RATES[localCur] || 1)).toFixed(3)} USD (مرجعي)` : `1 ${localCur} = ${(1 / (window.FX_RATES[localCur] || 1)).toFixed(3)} USD (reference)`}
+        {/* Auto exchange-rate readout (read-only) */}
+        <div style={{
+          marginTop: 10, padding: '10px 12px', borderRadius: 10,
+          background: 'var(--cream)', border: '0.5px solid var(--hairline-2)',
+          fontSize: 12, color: 'var(--ink-soft)', fontFamily: 'var(--mono)',
+        }}>
+          {localCur === homeCur
+            ? (window.isRTL ? 'نفس عملتك الرئيسية' : 'Same as your home currency')
+            : `1 ${localCur} ≈ ${(window.FX_RATES[homeCur] / (window.FX_RATES[localCur] || 1)).toFixed(3)} ${homeCur}`}
         </div>
         <div style={{
-          marginTop: 8, padding: '8px 10px', borderRadius: 8,
-          background: 'var(--cream)', border: '0.5px dashed var(--hairline-2)',
-          fontSize: 10.5, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', letterSpacing: '0.04em',
+          marginTop: 8, fontSize: 10.5, color: 'var(--ink-mute)',
+          fontFamily: 'var(--mono)', letterSpacing: '0.04em',
         }}>
-          ⓘ {window.isRTL ? `أسعار مرجعية حدّثت في ${window.FX_RATES_UPDATED}. عدّل الحقل أعلاه إذا كان السعر غير صحيح.` : `Reference rates updated ${window.FX_RATES_UPDATED}. Override above if your rate differs.`}
+          ⓘ {window.isRTL
+            ? `أسعار الصرف تُحدّث تلقائياً (آخر تحديث ${window.FX_RATES_UPDATED}). عملتك الرئيسية ${homeCur} تُغيّر من إعدادات الحساب.`
+            : `Rates update automatically (last ${window.FX_RATES_UPDATED}). Your home currency ${homeCur} is set in Account settings.`}
         </div>
-        <SaveCancelBar saving={saving} onSave={() => save({ home_currency: homeCur, local_currency: localCur, fx_rate: parseFloat(fx) || window.FX_RATES[homeCur] || 1 })} onCancel={() => setEditing(null)} />
+        <SaveCancelBar saving={saving} onSave={() => save({ local_currency: localCur, fx_rate: window.FX_RATES[homeCur] || 1 })} onCancel={() => setEditing(null)} />
       </EditRow>
 
       {/* Cover style */}

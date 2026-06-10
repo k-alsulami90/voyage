@@ -7,7 +7,7 @@
 
 // Bump this on every deploy that changes shell behaviour. Vercel deploys
 // rebuild the file from git so the string itself is enough — no build step needed.
-const VERSION = 'v107-addtrip-grouped-album';
+const VERSION = 'v108-home-currency-auto-fx';
 const SHELL_CACHE  = `voyage-shell-${VERSION}`;
 const STATIC_CACHE = `voyage-static-${VERSION}`;
 const FONT_CACHE   = `voyage-fonts-${VERSION}`;
@@ -86,6 +86,11 @@ self.addEventListener('fetch', (event) => {
   // Never intercept Supabase API / Storage / Auth
   if (url.hostname.endsWith('.supabase.co') || url.hostname.endsWith('.supabase.in')) {
     return; // browser default
+  }
+
+  // Never cache the live FX endpoint — always hit network so rates are fresh.
+  if (url.hostname.endsWith('open.er-api.com')) {
+    return; // browser default (network)
   }
 
   // Cache-first for Google Fonts

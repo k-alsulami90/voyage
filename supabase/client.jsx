@@ -185,7 +185,9 @@ window.loadTrips = async (userId) => {
     coverPath:    r.cover_path || null,
     budgetPct:    0,
     budgetPlannedUSD: parseFloat(r.budget_planned_usd) || 0,
-    homeCurrency: r.home_currency || 'USD',
+    // Home currency follows the viewer's account preference, not the stored
+    // per-trip value (which legacy trips may have left at USD).
+    homeCurrency: window.USER_DEFAULT_CURRENCY || r.home_currency || 'USD',
     fx:           parseFloat(r.fx_rate) || 1,
     status:       r.status,
   }));
@@ -1264,7 +1266,8 @@ window.loadTripDetail = async (tripId) => {
                      : (data.country_code ? [data.country_code] : []),
     daysIn:        Math.min(daysIn, daysTotal),
     daysTotal,
-    homeCurrency:  data.home_currency || 'USD',
+    // Home currency = viewer's account preference (see loadTrips note).
+    homeCurrency:  window.USER_DEFAULT_CURRENCY || data.home_currency || 'USD',
     localCurrency: data.local_currency || 'USD',
     fx:            parseFloat(data.fx_rate) || 1,
     budget:        { plannedUSD: parseFloat(data.budget_planned_usd) || 0, spentUSD: 0 },
@@ -1313,9 +1316,13 @@ window.createTrip = async (fields) => {
     start_date:         fields.startDate,
     end_date:           fields.endDate,
     country_code:       fields.countryCode || null,
-    home_currency:      'USD',
+    // Home currency is ALWAYS the user's account preference — it is not a
+    // per-trip choice. (Budget amounts are stored in USD; home currency is
+    // only the display currency, and every user views trips in their own.)
+    home_currency:      window.USER_DEFAULT_CURRENCY || 'USD',
     local_currency:     fields.localCurrency || 'USD',
-    fx_rate:            fields.fxRate || 1,
+    // FX is auto from the live table, never hand-entered.
+    fx_rate:            window.FX_RATES[window.USER_DEFAULT_CURRENCY] || 1,
     budget_planned_usd: fields.budgetUSD || null,
     cover_style:        fields.coverStyle || 'kyoto',
     status:             fields.status || 'upcoming',

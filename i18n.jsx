@@ -465,13 +465,52 @@ window.FX_RATES = {
   KWD: 0.31,
   BHD: 0.38,
 };
-// Effective rate USD → code. Trip-specific override for home currency, else table.
+// Effective rate USD → code. Always the live table now — there is no
+// per-trip manual override anymore (rates update automatically, and a
+// hand-entered rate would just drift stale).
 window.fxRate = function(code) {
   if (!code || code === 'USD') return 1;
-  const trip = window.TRIP || {};
-  if (code === trip.homeCurrency && trip.fx && trip.fx > 0) return trip.fx;
   return window.FX_RATES[code] || 1;
 };
+
+// ── Auto-updating FX ────────────────────────────────────────
+// Refresh the rate table from a free, no-key endpoint. Strategy:
+//   1. Seed from localStorage cache instantly (offline-safe).
+//   2. Fetch live in the background; merge only the codes we know.
+//   3. Cache the result + date. Any failure leaves the built-in
+//      table untouched, so the app always has usable rates.
+// The service worker is configured to bypass this host (network-only)
+// so we never serve a stale cached exchange rate.
+window.refreshFxRates = async function() {
+  try {
+    const cached = JSON.parse(localStorage.getItem('voyage_fx') || 'null');
+    if (cached && cached.rates) {
+      Object.assign(window.FX_RATES, cached.rates);
+      if (cached.updated) window.FX_RATES_UPDATED = cached.updated;
+    }
+  } catch (_) { /* ignore bad cache */ }
+
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/USD', { cache: 'no-store' });
+    if (!res.ok) return;
+    const json = await res.json();
+    if (!json || !json.rates) return;
+    const next = {};
+    Object.keys(window.FX_RATES).forEach((c) => {
+      if (typeof json.rates[c] === 'number' && json.rates[c] > 0) next[c] = json.rates[c];
+    });
+    if (Object.keys(next).length === 0) return;
+    Object.assign(window.FX_RATES, next);
+    const updated = (json.time_last_update_utc
+      ? new Date(json.time_last_update_utc)
+      : new Date()).toISOString().slice(0, 10);
+    window.FX_RATES_UPDATED = updated;
+    localStorage.setItem('voyage_fx', JSON.stringify({ rates: next, updated }));
+    window.notifyDataChange?.();   // re-render any visible money with fresh rates
+  } catch (_) { /* offline or blocked — built-in table stays in effect */ }
+};
+// Kick off once at load; fire-and-forget so it never blocks first paint.
+window.refreshFxRates();
 
 // Format a USD-based amount in the trip's chosen display currency.
 // Pass { in: 'home' | 'local' | 'USD' | <ISO> } to override which currency to show.
