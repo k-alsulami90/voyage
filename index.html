@@ -28,6 +28,17 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Tajawal:wght@300;400;500;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Markazi+Text:wght@400;500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="tokens.css" />
 <style>
+  /* The <html> canvas paints behind the fixed <body>. On iOS PWA cold
+     launch the body is briefly shorter than the screen, and the strip
+     below it showed the canvas — which was cream (tokens.css sets
+     html,body to var(--cream)) — as a sliver at the bottom. Paint the
+     canvas the SAME dark as the splash so that launch-moment strip is
+     invisible. By the time the splash dismisses, --app-height has
+     settled and the cream body fills the screen. Defined here (inline,
+     network-first) so it lands immediately, not behind the cache-first
+     tokens.css. */
+  html { background: #0a0f1e; }
+
   body {
     min-height: 100vh;
     display: grid;

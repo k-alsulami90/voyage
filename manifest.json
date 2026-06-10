@@ -8,7 +8,7 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f3eed8",
+  "background_color": "#0a0f1e",
   "theme_color": "#221c16",
   "categories": ["travel", "finance", "productivity"],
   "icons": [
