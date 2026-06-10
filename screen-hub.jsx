@@ -547,16 +547,26 @@ function BalanceAmt({ children }) {
 // "of $X planned" reference number so the spent number reads as the
 // primary one without size escalation.
 function BudgetNum({ children, dim }) {
-  // Colour + weight moved to tokens.css (.amount-strong / .amount-dim)
-  // so the contrast is governed by theme-aware rules instead of by
-  // var(--ink) / var(--ink-mute). Previously --ink-mute (oklch 0.46)
-  // on cream-2 (oklch 0.975) sat right at the WCAG AA contrast floor
-  // and read as washed-out near-white to the user. The new classes
-  // anchor the dim variant at oklch 0.40 (≥5:1 on cream-2) in light
-  // mode and flip to oklch 0.72 in dark mode.
+  // Read the active theme at render time and hardcode the colour
+  // INLINE. The previous v103 attempt used .amount-strong / .amount-dim
+  // CSS classes in tokens.css, but the user still reported the amount
+  // showing as white. Likely cause: an SW-cached older tokens.css
+  // shadowed the new rules, or some other class with higher
+  // specificity overrode them. Hardcoded inline `color` bypasses
+  // both -- inline style has the highest specificity short of
+  // !important and is loaded from screen-hub.jsx (which also bumps
+  // every release) rather than from a separately-cached CSS file.
+  const isDark = (typeof document !== 'undefined') &&
+    document.documentElement.getAttribute('data-theme') === 'dark';
+  const color = isDark
+    ? (dim ? 'oklch(0.72 0.014 250)' : 'oklch(0.96 0.010 250)')
+    : (dim ? 'oklch(0.40 0.020 248)' : 'oklch(0.18 0.020 250)');
   return (
-    <span className={`mono ${dim ? 'amount-dim' : 'amount-strong'}`} style={{
-      fontSize: '1.15em', letterSpacing: '-0.01em',
+    <span className="mono" style={{
+      fontWeight: dim ? 500 : 700,
+      fontSize: '1.15em',
+      color,
+      letterSpacing: '-0.01em',
     }}>{children}</span>
   );
 }
