@@ -324,15 +324,15 @@ function ScreenHub({ go, openSheet, loading }) {
               }}>
                 {window.isRTL ? (
                   planned > 0 ? (
-                    <>أنفقت <BudgetNum>{fmtC(spent)}</BudgetNum> من أصل <BudgetNum dim>{fmtC(planned)}</BudgetNum>.</>
+                    <>أنفقت <HubBudgetNum>{fmtC(spent)}</HubBudgetNum> من أصل <HubBudgetNum dim>{fmtC(planned)}</HubBudgetNum>.</>
                   ) : (
-                    <>إجمالي ما أنفقته حتى الآن: <BudgetNum>{fmtC(spent)}</BudgetNum>.</>
+                    <>إجمالي ما أنفقته حتى الآن: <HubBudgetNum>{fmtC(spent)}</HubBudgetNum>.</>
                   )
                 ) : (
                   planned > 0 ? (
-                    <>Spent <BudgetNum>{fmtC(spent)}</BudgetNum> of <BudgetNum dim>{fmtC(planned)}</BudgetNum> planned.</>
+                    <>Spent <HubBudgetNum>{fmtC(spent)}</HubBudgetNum> of <HubBudgetNum dim>{fmtC(planned)}</HubBudgetNum> planned.</>
                   ) : (
-                    <>Spent <BudgetNum>{fmtC(spent)}</BudgetNum> so far.</>
+                    <>Spent <HubBudgetNum>{fmtC(spent)}</HubBudgetNum> so far.</>
                   )
                 )}
               </div>
@@ -546,7 +546,7 @@ function BalanceAmt({ children }) {
 // Same idea for the Budget Workspace card sentence. `dim` softens the
 // "of $X planned" reference number so the spent number reads as the
 // primary one without size escalation.
-function BudgetNum({ children, dim }) {
+function HubBudgetNum({ children, dim }) {
   // Read the active theme at render time and hardcode the colour
   // INLINE. The previous v103 attempt used .amount-strong / .amount-dim
   // CSS classes in tokens.css, but the user still reported the amount
