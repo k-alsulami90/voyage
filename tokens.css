@@ -173,6 +173,28 @@ textarea:focus-visible,
 
 .tab-num { font-variant-numeric: tabular-nums; }
 
+/* Amount typography — used by BudgetNum on the Hub Budget Workspace
+   card and any other "money inside an editorial sentence" surface.
+   Previously these colours flowed through var(--ink) / var(--ink-mute),
+   but the dim mute at oklch(0.46) read as washed-out near-white on
+   the cream-2 card in light mode (the "Spent 29248 of 32000 -- amount
+   invisible" report). Pinned to specific oklch values that hit ≥5:1
+   contrast on cream-2 (light mode) and on slate (dark mode). */
+.amount-strong {
+  color: oklch(0.18 0.020 250);
+  font-weight: 700;
+}
+.amount-dim {
+  color: oklch(0.40 0.020 248);
+  font-weight: 500;
+}
+[data-theme="dark"] .amount-strong {
+  color: oklch(0.96 0.010 250);
+}
+[data-theme="dark"] .amount-dim {
+  color: oklch(0.72 0.014 250);
+}
+
 /* Striped placeholder for missing imagery */
 .placeholder-img {
   background:

@@ -547,12 +547,16 @@ function BalanceAmt({ children }) {
 // "of $X planned" reference number so the spent number reads as the
 // primary one without size escalation.
 function BudgetNum({ children, dim }) {
+  // Colour + weight moved to tokens.css (.amount-strong / .amount-dim)
+  // so the contrast is governed by theme-aware rules instead of by
+  // var(--ink) / var(--ink-mute). Previously --ink-mute (oklch 0.46)
+  // on cream-2 (oklch 0.975) sat right at the WCAG AA contrast floor
+  // and read as washed-out near-white to the user. The new classes
+  // anchor the dim variant at oklch 0.40 (≥5:1 on cream-2) in light
+  // mode and flip to oklch 0.72 in dark mode.
   return (
-    <span className="mono" style={{
-      fontWeight: dim ? 500 : 700,
-      fontSize: '1.15em',
-      color: dim ? 'var(--ink-mute)' : 'var(--ink)',
-      letterSpacing: '-0.01em',
+    <span className={`mono ${dim ? 'amount-dim' : 'amount-strong'}`} style={{
+      fontSize: '1.15em', letterSpacing: '-0.01em',
     }}>{children}</span>
   );
 }
