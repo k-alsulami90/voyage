@@ -466,7 +466,12 @@ function DocTileGrid({ doc, onOpen }) {
         }}>
           <StatusDot status={status} />
           {fmtDocCost(doc) && (
-            <span className="mono" style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-soft)' }}>
+            <span className="mono" style={{
+              fontSize: 10, fontWeight: 600,
+              color: doc.linkedExpenseId ? 'var(--moss)' : 'var(--ink-soft)',
+              display: 'inline-flex', alignItems: 'center', gap: 3,
+            }}>
+              {doc.linkedExpenseId && <IconCheck size={10} stroke="currentColor" />}
               {fmtDocCost(doc)}
             </span>
           )}
@@ -522,8 +527,12 @@ function DocRowList({ doc, last, onOpen }) {
             {(window.fmtDocSummary?.(doc)) || doc.categoryLabel}
           </span>
           {fmtDocCost(doc) && (
-            <span className="mono" style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-soft)', flexShrink: 0 }}>
-              · {fmtDocCost(doc)}
+            <span className="mono" style={{
+              fontSize: 10, fontWeight: 600, flexShrink: 0,
+              color: doc.linkedExpenseId ? 'var(--moss)' : 'var(--ink-soft)',
+              display: 'inline-flex', alignItems: 'center', gap: 3,
+            }}>
+              · {doc.linkedExpenseId && <IconCheck size={10} stroke="currentColor" />}{fmtDocCost(doc)}
             </span>
           )}
         </div>

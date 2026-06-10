@@ -944,9 +944,17 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
   const [cat,     setCat]     = React.useState(existing?.cat   || prefill?.cat   || 'food');
   const [inputCur, setInputCur] = React.useState(existing ? home : (local !== home ? local : home));
   const [amt,     setAmt]     = React.useState(() => {
-    if (!existing) return '';
-    const rate = window.fxRate(home);
-    return Math.round((existing.usd || 0) * rate * 100) / 100;
+    if (existing) {
+      const rate = window.fxRate(home);
+      return Math.round((existing.usd || 0) * rate * 100) / 100;
+    }
+    // Prefill the amount when logging a known cost (e.g. a document's price),
+    // shown in the sheet's initial input currency.
+    if (prefill?.amountUSD != null) {
+      const initialCur = (local !== home ? local : home);
+      return Math.round(prefill.amountUSD * window.fxRate(initialCur) * 100) / 100;
+    }
+    return '';
   });
   const [paidBy,  setPaidBy]  = React.useState(existing?.who || window.currentUserId || members[0]?.id || '');
   const [note,    setNote]    = React.useState(existing?.note || '');
@@ -1042,6 +1050,18 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
         try { await window.deleteReceipt(existing.id, existing.receiptPath); } catch (_) {}
       }
       await window.loadExpenses(trip?.id || 'demo');
+      // Link this new expense back to the doc / plan item it was logged from,
+      // so that surface shows "logged" and clears if the expense is deleted.
+      if (!isEdit && expenseId && prefill?.source) {
+        try {
+          if (prefill.source.doc) {
+            await window.attachExpenseToDoc(prefill.source.doc, expenseId, trip?.id);
+          } else if (prefill.source.plan) {
+            await window.attachExpenseToItineraryItem(prefill.source.plan, expenseId, trip?.id);
+          }
+        } catch (e) { console.warn('link expense to source failed', e); }
+        window.notifyDataChange?.();
+      }
       onAdded?.();
       onDone();
     } catch (err) {

@@ -248,8 +248,11 @@ function PlanRow({ item, isLast, onTap, openSheet }) {
     openSheet?.('addExpense', {
       title: item.title,
       cat: PLAN_TO_EXPENSE_CAT[item.category] || 'misc',
+      // Link the resulting expense back to this activity.
+      source: { plan: item.id },
     });
   };
+  const isLogged = !!item.linkedExpenseId;
   return (
     <div onClick={onTap} style={{
       padding: '12px 14px', cursor: 'pointer',
@@ -299,17 +302,31 @@ function PlanRow({ item, isLast, onTap, openSheet }) {
               }}>{item.location}</span>
             </button>
           )}
-          <button onClick={logExpense}
-            aria-label={window.isRTL ? 'سجل مصروف لهذا النشاط' : 'Log expense for this activity'} style={{
-            padding: '6px 10px', borderRadius: 999,
-            background: 'var(--cream)', color: 'var(--ink-soft)',
-            border: '0.5px solid var(--hairline)',
-            fontSize: 11.5, fontWeight: 500,
-            display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: 'row',
-          }}>
-            <window.IconWallet size={11} stroke="currentColor" />
-            {t('planLogExpense') || 'Log expense'}
-          </button>
+          {isLogged ? (
+            <span
+              aria-label={window.isRTL ? 'مُسجّل في الميزانية' : 'Logged in budget'} style={{
+              padding: '6px 10px', borderRadius: 999,
+              background: 'oklch(0.50 0.08 155 / 0.14)', color: 'var(--moss)',
+              border: '0.5px solid oklch(0.50 0.08 155 / 0.30)',
+              fontSize: 11.5, fontWeight: 600,
+              display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: 'row',
+            }}>
+              <window.IconCheck size={11} stroke="currentColor" />
+              {window.isRTL ? 'مُسجّل' : 'Logged'}
+            </span>
+          ) : (
+            <button onClick={logExpense}
+              aria-label={window.isRTL ? 'سجل مصروف لهذا النشاط' : 'Log expense for this activity'} style={{
+              padding: '6px 10px', borderRadius: 999,
+              background: 'var(--cream)', color: 'var(--ink-soft)',
+              border: '0.5px solid var(--hairline)',
+              fontSize: 11.5, fontWeight: 500,
+              display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: 'row',
+            }}>
+              <window.IconWallet size={11} stroke="currentColor" />
+              {t('planLogExpense') || 'Log expense'}
+            </button>
+          )}
         </div>
       </div>
     </div>

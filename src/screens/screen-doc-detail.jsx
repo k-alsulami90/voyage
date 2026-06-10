@@ -9,7 +9,7 @@ const editLabelStyle = {
   color: 'var(--ink)', marginBottom: 6,
 };
 
-function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
+function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
   // Re-pull from window.DOCS_BY_CAT so edits show fresh data
   const allDocs = Object.values(window.DOCS_BY_CAT || {}).flat();
   const doc = allDocs.find((d) => d.id === initialDoc?.id) || initialDoc;
@@ -128,18 +128,29 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back }) {
   };
 
   // ── Expense linkage ────────────────────────────────────────
+  // Doc category -> expense category, mirrors the map in client.jsx.
+  const DOC_TO_EXPENSE_CAT = { flights: 'transit', lodging: 'lodging', transport: 'transit', visas: 'misc' };
   const toggleExpense = async () => {
-    setLinking(true);
-    try {
-      if (doc.linkedExpenseId) {
+    if (doc.linkedExpenseId) {
+      // Already logged -> remove (deletes the linked expense).
+      setLinking(true);
+      try {
         await window.unlinkDocExpense(doc.id, window.TRIP?.id);
         window.toast?.(window.isRTL ? 'تم استبعاد التكلفة من سجل المصروفات' : 'Removed from expenses', 'success');
-      } else {
-        await window.linkDocExpense(doc.id, window.TRIP?.id);
-        window.toast?.(window.isRTL ? 'تم إدراج التكلفة في سجل المصروفات' : 'Added to expenses', 'success');
-      }
-    } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
-    finally { setLinking(false); }
+      } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
+      finally { setLinking(false); }
+      return;
+    }
+    // Not logged yet -> open the Add Expense sheet, prefilled, so the user
+    // picks who paid + how to split. On save it links back to this doc.
+    const prefix = doc.category === 'flights' ? '✈ ' : doc.category === 'lodging' ? '🏨 ' : doc.category === 'transport' ? '🚆 ' : '';
+    openSheet?.('addExpense', {
+      title: (prefix + (doc.title || '')).trim(),
+      cat: DOC_TO_EXPENSE_CAT[doc.category] || 'misc',
+      amountUSD: doc.costUSD != null ? Number(doc.costUSD) : undefined,
+      note: doc.subtitle || null,
+      source: { doc: doc.id },
+    });
   };
 
   const deleteDoc = async () => {

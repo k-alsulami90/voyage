@@ -292,8 +292,33 @@ window.loadItinerary = async (tripId) => {
     location: r.location,
     sortOrder: r.sort_order,
     createdBy: r.created_by,
+    // Present only after the linked-expense migration runs; null otherwise.
+    linkedExpenseId: r.linked_expense_id || null,
   }));
   return window.ITINERARY;
+};
+
+// Attach an already-created expense to a plan (itinerary) item, so the Plan
+// can show it's logged and clear it when the expense is deleted. Defensive:
+// if the column doesn't exist yet (migration not run), it no-ops instead of
+// throwing, so logging still works.
+window.attachExpenseToItineraryItem = async (itemId, expenseId, tripId) => {
+  if (!window.sb || !itemId || !expenseId) return;
+  const { error } = await window.sb.from('itinerary_items')
+    .update({ linked_expense_id: expenseId }).eq('id', itemId);
+  if (error && !/linked_expense_id/i.test(error.message || '')) throw error;
+  if (tripId) await window.loadItinerary(tripId);
+};
+
+// Attach an already-created expense to a document (used when logging a doc's
+// cost through the Add Expense sheet so the user can set payer + split).
+window.attachExpenseToDoc = async (docId, expenseId, tripId) => {
+  if (!window.sb || !docId || !expenseId) return;
+  const { error } = await window.sb.from('documents')
+    .update({ linked_expense_id: expenseId }).eq('id', docId);
+  if (error) throw error;
+  window.LIFETIME_STATS = null;
+  if (tripId) await window.loadDocuments(tripId);
 };
 
 window.addItineraryItem = async (tripId, fields) => {
@@ -1382,6 +1407,12 @@ window.updateExpense = async (expenseId, tripId, fields) => {
 };
 
 window.deleteExpense = async (expenseId, tripId) => {
+  // Clear any doc / plan-item pointers FIRST so a "logged" indicator can't
+  // dangle at a deleted expense. (FKs may be ON DELETE SET NULL, but we do
+  // it explicitly so behaviour doesn't depend on the schema being perfect.)
+  try { await window.sb.from('documents').update({ linked_expense_id: null }).eq('linked_expense_id', expenseId); } catch (_) {}
+  try { await window.sb.from('itinerary_items').update({ linked_expense_id: null }).eq('linked_expense_id', expenseId); } catch (_) {}
+
   const { error } = await window.sb.from('expenses').delete().eq('id', expenseId);
   if (error) throw error;
   window.LIFETIME_STATS = null;
@@ -1391,6 +1422,11 @@ window.deleteExpense = async (expenseId, tripId) => {
     action:  'removed',
     target:  `Expense ${expenseId}`,
   }).then(() => {});
+  // Refresh docs + plan so their "logged" indicators clear immediately.
+  if (tripId) {
+    try { await window.loadDocuments(tripId); } catch (_) {}
+    try { await window.loadItinerary(tripId); } catch (_) {}
+  }
 };
 
 window.updateExpenseLink = async (docId, linkUrl, linkLabel) => {
