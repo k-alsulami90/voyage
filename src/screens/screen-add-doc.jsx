@@ -48,6 +48,15 @@ function ScreenAddDoc({ back, onCreated }) {
   const TINT_FILL = { indigo: 'var(--indigo)', clay: 'var(--clay)', moss: 'var(--moss)', honey: 'var(--honey)' };
   const tint = CAT_TINT[cat] || 'clay';
 
+  // Native inset-group surface — the section card that holds fields, so
+  // they read as a grouped form instead of loose islands floating on
+  // the page (the "feels like a browser" complaint).
+  const groupCard = {
+    background: 'var(--cream-2)', borderRadius: 16,
+    border: '0.5px solid var(--hairline)', padding: 14,
+    boxShadow: 'var(--shadow-xs)',
+  };
+
   const handleSave = async () => {
     if (!title.trim()) { setError(window.isRTL ? 'يرجى إدخال عنوان للمستند' : 'Enter a title'); return; }
     const tripId = window.TRIP?.id;
@@ -89,7 +98,7 @@ function ScreenAddDoc({ back, onCreated }) {
 
   return (
     <div data-screen-label="Add Document" style={{
-      background: 'var(--cream)', minHeight: '100%', paddingBottom: 140,
+      background: 'var(--cream)', minHeight: '100%', paddingBottom: 116,
     }}>
       {/* Header */}
       <div style={{
@@ -110,10 +119,10 @@ function ScreenAddDoc({ back, onCreated }) {
         <div style={{ width: 36 }} />
       </div>
 
-      <div style={{ padding: '0 18px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+      <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-        {/* Step 1 — Category */}
-        <DocStep number="1" title={window.isRTL ? 'حدد نوع المستند' : 'What is it?'}>
+        {/* Category */}
+        <DocStep title={window.isRTL ? 'نوع المستند' : 'What is it?'}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {(window.DOC_CATEGORIES || []).map((c) => {
               const active = cat === c.key;
@@ -123,10 +132,11 @@ function ScreenAddDoc({ back, onCreated }) {
               const emoji = window.DOC_SCHEMAS[c.key]?.emoji || '📄';
               return (
                 <button key={c.key} onClick={() => setCat(c.key)} style={{
-                  padding: '12px 14px', borderRadius: 14, textAlign: 'start',
+                  padding: '13px 14px', borderRadius: 14, textAlign: 'start',
                   background: active ? color : 'var(--cream-2)',
                   color: active ? '#fff' : 'var(--ink)',
                   border: active ? 'none' : '0.5px solid var(--hairline)',
+                  boxShadow: active ? '0 6px 16px -8px ' + color : 'var(--shadow-xs)',
                   display: 'flex', alignItems: 'center', gap: 10,
                   flexDirection: 'row', transition: 'all 160ms',
                 }}>
@@ -138,71 +148,75 @@ function ScreenAddDoc({ back, onCreated }) {
           </div>
         </DocStep>
 
-        {/* Step 2 — Title (category-specific label) */}
-        <DocStep number="2" title={schema.titleLabel()}>
-          <input value={title} onChange={(e) => setTitle(e.target.value)}
-            placeholder={schema.titlePlaceholder()}
-            style={docFieldStyle} />
+        {/* Details — title + structured fields grouped in one inset card */}
+        <DocStep title={window.isRTL ? 'التفاصيل' : 'Details'}>
+          <div style={groupCard}>
+            <label style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink-mute)', display: 'block', marginBottom: 6, textAlign: 'start' }}>
+              {schema.titleLabel()}
+            </label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)}
+              placeholder={schema.titlePlaceholder()}
+              style={docFieldStyle} />
+            {schema.fields.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <DocFieldGrid fields={schema.fields} values={details} onChange={setDetails} />
+              </div>
+            )}
+          </div>
         </DocStep>
 
-        {/* Step 3 — Structured details (category-specific) */}
-        {schema.fields.length > 0 && (
-          <DocStep number="3" title={window.isRTL ? 'أدخل تفاصيل المستند' : 'Details'}>
-            <DocFieldGrid fields={schema.fields} values={details} onChange={setDetails} />
-          </DocStep>
-        )}
-
-        {/* Step 4 — Primary file */}
-        <DocStep number="4" title={schema.primaryFileLabel()} optional
+        {/* Primary file */}
+        <DocStep title={schema.primaryFileLabel()} optional
                 hint={window.isRTL ? 'الصيغ المدعومة: PDF أو صور — بحد أقصى 25 ميغابايت' : 'PDF or image · up to 25 MB'}>
           <FilePicker file={file} setFile={setFile} pickerRef={fileRef} tint={TINT_FILL[tint]} />
         </DocStep>
 
-        {/* Step 4b — Secondary file (flights only) */}
+        {/* Secondary file (flights only) */}
         {schema.secondaryFile && (
-          <DocStep number="5" title={schema.secondaryFile.label()} optional>
+          <DocStep title={schema.secondaryFile.label()} optional>
             <FilePicker file={secondary} setFile={setSecondary} pickerRef={secondaryRef} tint={TINT_FILL[tint]} />
           </DocStep>
         )}
 
-        {/* Cost + log to expenses */}
+        {/* Cost + log to expenses — grouped */}
         {schema.showCost && (
-          <DocStep number={schema.secondaryFile ? '6' : '5'} title={window.isRTL ? 'قيمة التكلفة ورسوم الحجز' : 'Cost'} optional>
-            <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
-              <input type="number" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)}
-                placeholder="0"
-                style={{ ...docFieldStyle, flex: 1 }} />
-              <select value={costCur} onChange={(e) => setCostCur(e.target.value)} style={{
-                ...docFieldStyle, width: 'auto', minWidth: 80, fontFamily: 'var(--mono)',
-              }}>
-                {[tripLocal, tripHome, 'USD', 'SAR', 'AED', 'EUR']
-                  .filter((v, i, a) => a.indexOf(v) === i)
-                  .map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <label style={{
-              marginTop: 10, padding: '12px 14px', borderRadius: 14,
-              background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
-              display: 'flex', alignItems: 'center', gap: 10, flexDirection: 'row',
-              cursor: 'pointer',
-            }}>
-              <input type="checkbox" checked={logExpense} onChange={(e) => setLogExpense(e.target.checked)}
-                style={{ width: 18, height: 18, accentColor: 'var(--clay)' }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink)' }}>
-                  {window.isRTL ? 'إدراج تلقائي في ميزانية ومصروفات الرحلة' : 'Add to expenses'}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 1 }}>
-                  {window.isRTL ? 'عند التفعيل، ستتم إضافة هذا المبلغ تلقائياً لعملياتك المالية' : 'Auto-logged in your trip budget'}
-                </div>
+          <DocStep title={window.isRTL ? 'التكلفة' : 'Cost'} optional>
+            <div style={groupCard}>
+              <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
+                <input type="number" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)}
+                  placeholder="0"
+                  style={{ ...docFieldStyle, flex: 1 }} />
+                <select value={costCur} onChange={(e) => setCostCur(e.target.value)} style={{
+                  ...docFieldStyle, width: 'auto', minWidth: 84, fontFamily: 'var(--mono)',
+                }}>
+                  {[tripLocal, tripHome, 'USD', 'SAR', 'AED', 'EUR']
+                    .filter((v, i, a) => a.indexOf(v) === i)
+                    .map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
-            </label>
+              <label style={{
+                marginTop: 10, padding: '12px 14px', borderRadius: 12,
+                background: 'var(--cream)', border: '0.5px solid var(--hairline-2)',
+                display: 'flex', alignItems: 'center', gap: 10, flexDirection: 'row',
+                cursor: 'pointer',
+              }}>
+                <input type="checkbox" checked={logExpense} onChange={(e) => setLogExpense(e.target.checked)}
+                  style={{ width: 18, height: 18, accentColor: 'var(--clay)' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink)' }}>
+                    {window.isRTL ? 'إدراج تلقائي في ميزانية ومصروفات الرحلة' : 'Add to expenses'}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 1 }}>
+                    {window.isRTL ? 'عند التفعيل، ستتم إضافة هذا المبلغ تلقائياً لعملياتك المالية' : 'Auto-logged in your trip budget'}
+                  </div>
+                </div>
+              </label>
+            </div>
           </DocStep>
         )}
 
         {/* Cover photo */}
-        <DocStep number={schema.showCost ? (schema.secondaryFile ? '7' : '6') : (schema.secondaryFile ? '6' : '5')}
-                 title={window.isRTL ? 'تعيين صورة الغلاف' : 'Cover photo'} optional
+        <DocStep title={window.isRTL ? 'صورة الغلاف' : 'Cover photo'} optional
                  hint={window.isRTL
                    ? 'صورة صغيرة تظهر في القائمة بدل الأيقونة الافتراضية'
                    : 'A small image shown in the list instead of the default icon'}>
@@ -267,30 +281,31 @@ function ScreenAddDoc({ back, onCreated }) {
         />
       )}
 
-      {/* Sticky save bar */}
+      {/* Anchored footer — flush to the bottom edge, full width, top
+         hairline. This full-screen overlay covers the tab bar, so the
+         action bar belongs at bottom:0 like a native form footer, not
+         floating as a detached pill above a (hidden) nav. */}
       <div style={{
-        position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom) + 78px)',
-        insetInlineStart: 14, insetInlineEnd: 14, zIndex: 49,
-        display: 'flex', gap: 8, flexDirection: 'row',
-        padding: 7, borderRadius: 20,
-        background: 'rgba(255,251,244,0.92)',
+        position: 'fixed', bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, zIndex: 49,
+        display: 'flex', gap: 10, flexDirection: 'row',
+        padding: '12px 16px calc(12px + env(safe-area-inset-bottom))',
+        background: 'var(--cream)',
         backdropFilter: 'blur(20px) saturate(180%)',
         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-        border: '0.5px solid var(--hairline-2)',
-        boxShadow: '0 12px 30px rgba(34,28,22,0.18)',
+        borderTop: '0.5px solid var(--hairline)',
       }}>
         <button onClick={back} disabled={saving} style={{
-          padding: '13px 20px', borderRadius: 14,
-          background: 'transparent', color: 'var(--ink-soft)',
-          fontSize: 13.5, fontWeight: 500,
+          padding: '16px 20px', borderRadius: 16,
+          background: 'var(--cream-2)', border: '0.5px solid var(--hairline-2)',
+          color: 'var(--ink-soft)', fontSize: 14, fontWeight: 500,
         }}>{window.isRTL ? 'إلغاء' : 'Cancel'}</button>
         <button onClick={handleSave} disabled={saving} style={{
-          flex: 1, padding: '13px', borderRadius: 14,
+          flex: 1, padding: '16px', borderRadius: 16,
           background: saving ? 'var(--ink-soft)' : 'var(--clay)', color: '#fff',
-          fontSize: 14, fontWeight: 600,
+          fontSize: 15, fontWeight: 600,
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           flexDirection: 'row',
-          boxShadow: '0 6px 14px oklch(0.62 0.13 35 / 0.4)',
+          boxShadow: saving ? 'none' : '0 8px 20px oklch(0.62 0.13 35 / 0.4)',
         }}>
           {saving ? (
             <span style={{
@@ -311,32 +326,27 @@ function ScreenAddDoc({ back, onCreated }) {
 }
 
 // Shared field styles + components ────────────────────────────
+// Inputs sit on --cream (the page colour) so that inside a --cream-2
+// group card they read as defined fields. 16px to dodge iOS auto-zoom.
 const docFieldStyle = {
-  width: '100%', boxSizing: 'border-box', padding: '13px 14px', borderRadius: 14,
-  border: '0.5px solid var(--hairline)',
-  background: 'var(--cream-2)', color: 'var(--ink)',
-  fontSize: 15, outline: 'none', fontFamily: 'var(--sans)',
+  width: '100%', boxSizing: 'border-box', padding: '13px 14px', borderRadius: 12,
+  border: '0.5px solid var(--hairline-2)',
+  background: 'var(--cream)', color: 'var(--ink)',
+  fontSize: 16, outline: 'none', fontFamily: 'var(--sans)',
   textAlign: 'start',
 };
 
-function DocStep({ number, title, hint, optional, children }) {
+// Section label + content. The numbered step badges (1..7) were
+// scaffold-y; native forms group by labelled sections, so this is a
+// soft sentence-case label with an optional "· optional" note.
+function DocStep({ title, hint, optional, children }) {
   return (
     <div>
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10,
-        flexDirection: 'row',
+        display: 'flex', alignItems: 'baseline', gap: 7,
+        margin: '2px 4px 9px', flexDirection: 'row',
       }}>
-        <div style={{
-          width: 22, height: 22, borderRadius: 999,
-          background: 'var(--ink)', color: 'var(--cream)',
-          display: 'grid', placeItems: 'center',
-          fontSize: 11, fontWeight: 600, fontFamily: 'var(--mono)',
-        }}>{number}</div>
-        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{title}</div>
-        {/* Was uppercase mono 0.08em tracked — even the badge for
-           "optional" was shouting. Now lowercase sans, no tracking,
-           same ink-mute colour. The "·" stays as the visual separator
-           so it reads as a parenthetical note to the title. */}
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-soft)' }}>{title}</div>
         {optional && (
           <span style={{
             fontSize: 11, color: 'var(--ink-mute)', fontWeight: 400,
@@ -346,7 +356,7 @@ function DocStep({ number, title, hint, optional, children }) {
       {hint && (
         <div style={{
           fontSize: 11.5, color: 'var(--ink-mute)',
-          marginBottom: 10, padding: '0 2px', lineHeight: 1.4,
+          margin: '-4px 4px 9px', lineHeight: 1.4,
         }}>{hint}</div>
       )}
       {children}
@@ -410,7 +420,7 @@ function DocField({ field, value, onChange }) {
         value={v}
         onChange={(e) => onChange(field.type === 'datetime' ? fromLocalDateTimeInput(e.target.value) : e.target.value)}
         placeholder={field.placeholder ? field.placeholder() : ''}
-        style={{ ...docFieldStyle, fontSize: 14, padding: '11px 13px' }} />
+        style={{ ...docFieldStyle, fontSize: 16, padding: '11px 13px' }} />
     </div>
   );
 }
