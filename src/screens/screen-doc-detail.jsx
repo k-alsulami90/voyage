@@ -5,8 +5,8 @@
 // uppercase mono pattern duplicated inline; centralising it both
 // removes the slop and means the next style nudge ships in one place.
 const editLabelStyle = {
-  fontSize: 12, fontWeight: 600,
-  color: 'var(--ink)', marginBottom: 6,
+  fontSize: 11.5, fontWeight: 600,
+  color: 'var(--ink-mute)', marginBottom: 6,
 };
 
 function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
@@ -18,6 +18,14 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
   const schema = window.DOC_SCHEMAS[doc.category] || window.DOC_SCHEMAS.visas;
   const TINT_FILL = { indigo: 'var(--indigo)', clay: 'var(--clay)', moss: 'var(--moss)', honey: 'var(--honey)' };
   const tintFill = TINT_FILL[doc.tint] || 'var(--clay)';
+
+  // Native inset-group surface — same as the Add Document screen, so the
+  // edit form reads as grouped sections instead of loose floating fields.
+  const groupCard = {
+    background: 'var(--cream-2)', borderRadius: 16,
+    border: '0.5px solid var(--hairline)', padding: 14,
+    boxShadow: 'var(--shadow-xs)',
+  };
 
   // ── Edit state ────────────────────────────────────────────
   const [editing,  setEditing]  = React.useState(false);
@@ -300,37 +308,37 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
       {editing && (
         <div style={{ padding: '18px 14px 0' }}>
           <SectionLabel>{window.isRTL ? 'البيانات والتفاصيل' : 'Details'}</SectionLabel>
-          <div style={{ padding: '0 8px' }}>
-            {/* Category switcher first */}
-            <div style={{ marginBottom: 12 }}>
+          <div style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Category + structured fields, grouped in one inset card */}
+            <div style={groupCard}>
               <div style={editLabelStyle}>{window.isRTL ? 'الفئة' : 'Category'}</div>
               <select value={cat} onChange={(e) => setCat(e.target.value)} style={{
-                ...window.docFieldStyle, fontSize: 14, padding: '11px 13px',
+                ...window.docFieldStyle, fontSize: 16, padding: '11px 13px',
               }}>
                 {(window.DOC_CATEGORIES || []).map((c) => {
                   const label = CAT_T[c.key] ? t(CAT_T[c.key]) : c.label;
                   return <option key={c.key} value={c.key}>{label}</option>;
                 })}
               </select>
+              {schema.fields.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <window.DocFieldGrid fields={schema.fields} values={details} onChange={setDetails} />
+                </div>
+              )}
             </div>
 
-            {/* Category fields */}
-            {schema.fields.length > 0 && (
-              <window.DocFieldGrid fields={schema.fields} values={details} onChange={setDetails} />
-            )}
-
-            {/* Cost (only on cost-enabled categories) */}
+            {/* Cost (only on cost-enabled categories) — own inset card */}
             {schema.showCost && (
-              <div style={{ marginTop: 14 }}>
+              <div style={groupCard}>
                 <div style={editLabelStyle}>{window.isRTL ? 'تفاصيل التكلفة' : 'Cost'}</div>
                 <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
                   <input type="number" inputMode="decimal" value={cost}
                     onChange={(e) => setCost(e.target.value)}
                     placeholder="0"
-                    style={{ ...window.docFieldStyle, fontSize: 14, padding: '11px 13px', flex: 1 }} />
+                    style={{ ...window.docFieldStyle, fontSize: 16, padding: '11px 13px', flex: 1 }} />
                   <select value={costCur} onChange={(e) => setCostCur(e.target.value)} style={{
-                    ...window.docFieldStyle, fontSize: 14, padding: '11px 13px',
-                    width: 'auto', minWidth: 80, fontFamily: 'var(--mono)',
+                    ...window.docFieldStyle, fontSize: 16, padding: '11px 13px',
+                    width: 'auto', minWidth: 84, fontFamily: 'var(--mono)',
                   }}>
                     {[window.TRIP?.localCurrency || 'USD', window.TRIP?.homeCurrency || 'USD', 'USD', 'SAR', 'AED', 'EUR']
                       .filter((v, i, a) => v && a.indexOf(v) === i)
