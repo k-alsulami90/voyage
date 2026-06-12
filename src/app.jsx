@@ -82,6 +82,11 @@ function App() {
   const rtUnsubRef    = React.useRef(null);
   const activeTripRef = React.useRef(null);
   const initialLoadDoneRef = React.useRef(false);
+  // Tracks which user we've already run a full hydrate for. On boot,
+  // getSession() AND onAuthStateChange('SIGNED_IN') both fire for the
+  // same existing session, so without this guard the app hydrates
+  // (trips + prefs) twice — the "double-load" on startup.
+  const hydratedForRef = React.useRef(null);
 
   const loadTripData = React.useCallback(async (tripId) => {
     if (!tripId) return;
@@ -150,6 +155,11 @@ function App() {
     })();
 
     const hydrateForUser = async (userId) => {
+      // Idempotent per user: if we've already hydrated this user, skip.
+      // This collapses the boot-time double hydrate (getSession +
+      // SIGNED_IN) into one, and with it the 4 preference fetches → 2.
+      if (hydratedForRef.current === userId) return;
+      hydratedForRef.current = userId;
       window.currentUserId = userId;
       // Only wipe globals on the FIRST sign-in for this user; otherwise just refresh trips
       if (!initialLoadDoneRef.current) {
@@ -190,10 +200,14 @@ function App() {
     // Filter auth events — TOKEN_REFRESHED / USER_UPDATED must NOT wipe data
     const { data: { subscription } } = window.sb.auth.onAuthStateChange((event, s) => {
       if (event === 'SIGNED_IN') {
-        // Real sign-in (different user or first session) — full hydrate
+        // Real sign-in (different user or first session) — full hydrate.
+        // For a genuinely different user, clear the hydrate guard so the
+        // new user reloads; for the same existing session the guard
+        // inside hydrateForUser makes this a no-op (no double load).
         if (s && s.user.id !== window.currentUserId) {
           initialLoadDoneRef.current = false; // force wipe + reload
           activeTripRef.current = null;
+          hydratedForRef.current = null;
         }
         if (s) hydrateForUser(s.user.id);
         setSession(s);
@@ -201,6 +215,7 @@ function App() {
         window.currentUserId = null;
         activeTripRef.current = null;
         initialLoadDoneRef.current = false;
+        hydratedForRef.current = null;
         if (rtUnsubRef.current) { rtUnsubRef.current(); rtUnsubRef.current = null; }
         window.clearAllMockData();
         setSession(null);
