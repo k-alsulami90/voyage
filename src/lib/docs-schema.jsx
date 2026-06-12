@@ -138,6 +138,11 @@ function computeUpcomingEvents(opts = {}) {
   // Documents — flights, lodging, transport (rentals).
   const docs = Object.values(window.DOCS_BY_CAT || {}).flat();
   docs.forEach((doc) => {
+    // Per-traveler ownership: a doc owned by a specific traveler (boarding
+    // pass, visa, personal ticket) only reminds THAT traveler. A shared doc
+    // (owner null — hotel, car rental) reminds everyone. The owner is the
+    // doc's assigned owner, never the uploader.
+    if (doc.ownerUserId && doc.ownerUserId !== window.currentUserId) return;
     const d = doc.details || {};
     if (doc.category === 'flights' && d.dep_at) {
       const startAt = new Date(d.dep_at);

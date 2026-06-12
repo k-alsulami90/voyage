@@ -34,7 +34,13 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
   const [cat,      setCat]      = React.useState(doc.category || category?.key || 'flights');
   const [cost,     setCost]     = React.useState(doc.costLocal != null ? String(doc.costLocal) : (doc.costUSD != null ? String(doc.costUSD) : ''));
   const [costCur,  setCostCur]  = React.useState(doc.costCurrency || window.TRIP?.localCurrency || 'USD');
+  const [ownerUserId, setOwnerUserId] = React.useState(doc.ownerUserId || null);
   const [saving,   setSaving]   = React.useState(false);
+
+  // Trip members for the owner selector (null = shared with everyone).
+  const members = window.MEMBERS || [];
+  const isGroupTrip = members.length > 1;
+  const ownerName = ownerUserId ? (members.find((m) => m.id === ownerUserId)?.name?.split(' ')[0] || null) : null;
 
   // ── File / cover state ────────────────────────────────────
   const [uploading,    setUploading]    = React.useState(false);
@@ -53,7 +59,8 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
     setCat(doc.category || category?.key || 'flights');
     setCost(doc.costLocal != null ? String(doc.costLocal) : (doc.costUSD != null ? String(doc.costUSD) : ''));
     setCostCur(doc.costCurrency || window.TRIP?.localCurrency || 'USD');
-  }, [doc.id, doc.title, doc.category, JSON.stringify(doc.details), doc.costLocal, doc.costUSD, doc.costCurrency, category?.key]);
+    setOwnerUserId(doc.ownerUserId || null);
+  }, [doc.id, doc.title, doc.category, JSON.stringify(doc.details), doc.costLocal, doc.costUSD, doc.costCurrency, doc.ownerUserId, category?.key]);
 
   // ── File operations ───────────────────────────────────────
   const replacePrimary = async (file) => {
@@ -124,6 +131,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
         title, category: cat, details,
         costLocal: costNum, costCurrency: cost ? costCur : null,
         costUSD,
+        ownerUserId,
         linkUrl: details.location_url || null,
         linkLabel: details.location_url ? (window.isRTL ? 'الرابط المرجعي' : 'Location') : null,
       });
@@ -302,6 +310,19 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
             {summary}
           </div>
         )}
+        {/* Owner tag — only when assigned to a specific traveler on a group trip */}
+        {!editing && isGroupTrip && ownerName && (
+          <div style={{
+            marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '5px 11px', borderRadius: 999,
+            background: 'var(--cream)', border: '0.5px solid var(--hairline-2)',
+            fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)',
+            flexDirection: 'row',
+          }}>
+            <window.IconUsers size={12} stroke="var(--ink-mute)" />
+            {window.isRTL ? `لـ ${ownerName}` : `For ${ownerName}`}
+          </div>
+        )}
       </div>
 
       {/* ── EDIT MODE: structured fields ─────────────────────── */}
@@ -326,6 +347,26 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
                 </div>
               )}
             </div>
+
+            {/* Who is this for? — group trips only. null = everyone. */}
+            {isGroupTrip && (
+              <div style={groupCard}>
+                <div style={editLabelStyle}>{window.isRTL ? 'لمن هذا المستند؟' : "Who's this for?"}</div>
+                <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', flexDirection: 'row' }}>
+                  {[{ id: null, name: window.isRTL ? 'الجميع' : 'Everyone' }, ...members].map((o) => {
+                    const active = ownerUserId === o.id;
+                    return (
+                      <button key={o.id || 'all'} onClick={() => setOwnerUserId(o.id)} style={{
+                        padding: '9px 14px', borderRadius: 999, fontSize: 13, fontWeight: 500,
+                        background: active ? 'var(--ink)' : 'var(--cream)',
+                        color: active ? 'var(--cream)' : 'var(--ink-soft)',
+                        border: '0.5px solid var(--hairline-2)', transition: 'all 150ms',
+                      }}>{o.id ? o.name.split(' ')[0] : o.name}</button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Cost (only on cost-enabled categories) — own inset card */}
             {schema.showCost && (

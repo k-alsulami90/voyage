@@ -641,6 +641,8 @@ window.loadDocuments = async (tripId) => {
       costLocal:         r.cost_local != null ? parseFloat(r.cost_local) : null,
       costCurrency:      r.cost_currency || null,
       linkedExpenseId:   r.linked_expense_id || null,
+      // null = shared with everyone; a user id = that traveler's own doc.
+      ownerUserId:       r.owner_user_id || null,
       secondaryFilePath: r.secondary_file_path || null,
       secondaryFileSize: r.secondary_file_size || null,
       secondaryLink,
@@ -1159,8 +1161,16 @@ window.updateDocument = async (docId, fields) => {
   if (fields.costUSD !== undefined)  payload.cost_usd = fields.costUSD == null ? null : Number(fields.costUSD);
   if (fields.costLocal !== undefined) payload.cost_local = fields.costLocal == null ? null : Number(fields.costLocal);
   if (fields.costCurrency !== undefined) payload.cost_currency = fields.costCurrency || null;
+  if (fields.ownerUserId !== undefined) payload.owner_user_id = fields.ownerUserId || null;
   if (Object.keys(payload).length === 0) return;
-  const { error } = await window.sb.from('documents').update(payload).eq('id', docId);
+  let { error } = await window.sb.from('documents').update(payload).eq('id', docId);
+  // If the owner column isn't there yet, retry without it.
+  if (error && /owner_user_id/i.test(error.message || '') && 'owner_user_id' in payload) {
+    delete payload.owner_user_id;
+    if (Object.keys(payload).length > 0) {
+      ({ error } = await window.sb.from('documents').update(payload).eq('id', docId));
+    } else { error = null; }
+  }
   if (error) throw error;
 };
 
@@ -1242,7 +1252,7 @@ window.removeDocumentSecondaryFile = async (docId, secondaryPath) => {
 };
 
 window.addDocument = async (tripId, userId, fields) => {
-  const { data, error } = await window.sb.from('documents').insert({
+  const base = {
     trip_id:     tripId,
     uploaded_by: userId,
     title:       fields.title,
@@ -1256,7 +1266,16 @@ window.addDocument = async (tripId, userId, fields) => {
     cost_usd:    fields.costUSD != null ? Number(fields.costUSD) : null,
     cost_local:  fields.costLocal != null ? Number(fields.costLocal) : null,
     cost_currency: fields.costCurrency || null,
-  }).select().single();
+  };
+  // owner_user_id: null = shared with everyone; a user id = that traveler's
+  // own doc (chosen explicitly, never inferred from the uploader). Fall back
+  // gracefully if the migration hasn't been run yet.
+  let { data, error } = await window.sb.from('documents')
+    .insert({ ...base, owner_user_id: fields.ownerUserId || null })
+    .select().single();
+  if (error && /owner_user_id/i.test(error.message || '')) {
+    ({ data, error } = await window.sb.from('documents').insert(base).select().single());
+  }
   if (error) throw error;
 
   await window.sb.from('audit_log').insert({

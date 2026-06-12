@@ -15,6 +15,13 @@ function ScreenAddDoc({ back, onCreated }) {
   const [costCur,     setCostCur]     = React.useState(tripLocal);
   const [logExpense,  setLogExpense]  = React.useState(false);
 
+  // Owner: null = shared with everyone; a user id = a specific traveler's
+  // own doc (boarding pass, visa, personal ticket). Chosen explicitly, not
+  // inferred from the uploader — one person often uploads for the others.
+  const members = window.MEMBERS || [];
+  const isGroupTrip = members.length > 1;
+  const [ownerUserId, setOwnerUserId] = React.useState(null);
+
   // Files
   const [file,        setFile]        = React.useState(null);
   const [secondary,   setSecondary]   = React.useState(null);
@@ -77,6 +84,7 @@ function ScreenAddDoc({ back, onCreated }) {
         costCurrency: cost ? costCur : null,
         linkUrl:      details.location_url || null,
         linkLabel:    details.location_url ? (window.isRTL ? 'الرابط المرفق' : 'Location') : null,
+        ownerUserId,
       });
       if (file)      await window.uploadDocumentFile(doc.id, tripId, file);
       if (secondary) await window.uploadDocumentSecondaryFile(doc.id, tripId, secondary);
@@ -147,6 +155,28 @@ function ScreenAddDoc({ back, onCreated }) {
             })}
           </div>
         </DocStep>
+
+        {/* Who is this for? — only on group trips. null = everyone. */}
+        {isGroupTrip && (
+          <DocStep title={window.isRTL ? 'لمن هذا المستند؟' : "Who's this for?"}
+                   hint={window.isRTL
+                     ? 'بطاقة الصعود والتأشيرة تخص مسافراً واحداً — وحده يصله تذكير سمارت تراك. الحجوزات المشتركة اتركها للجميع.'
+                     : 'Boarding passes & visas belong to one traveler — only they get the Smart Track reminder. Leave shared bookings on Everyone.'}>
+            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', flexDirection: 'row' }}>
+              {[{ id: null, name: window.isRTL ? 'الجميع' : 'Everyone' }, ...members].map((o) => {
+                const active = ownerUserId === o.id;
+                return (
+                  <button key={o.id || 'all'} onClick={() => setOwnerUserId(o.id)} style={{
+                    padding: '9px 14px', borderRadius: 999, fontSize: 13, fontWeight: 500,
+                    background: active ? 'var(--ink)' : 'var(--cream-2)',
+                    color: active ? 'var(--cream)' : 'var(--ink-soft)',
+                    border: '0.5px solid var(--hairline)', transition: 'all 150ms',
+                  }}>{o.id ? o.name.split(' ')[0] : o.name}</button>
+                );
+              })}
+            </div>
+          </DocStep>
+        )}
 
         {/* Details — title + structured fields grouped in one inset card */}
         <DocStep title={window.isRTL ? 'التفاصيل' : 'Details'}>

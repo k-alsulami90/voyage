@@ -398,6 +398,16 @@ function fmtDocCost(doc) {
   return `$${Math.round(doc.costUSD).toLocaleString()}`;
 }
 
+// First name of the traveler a doc belongs to, or null when it's shared
+// with everyone (or a solo trip). Drives the "for X" tag.
+function docOwnerName(doc) {
+  if (!doc.ownerUserId) return null;
+  const members = window.MEMBERS || [];
+  if (members.length <= 1) return null;
+  const m = members.find((x) => x.id === doc.ownerUserId);
+  return m?.name?.split(' ')[0] || null;
+}
+
 // Tint → solid color helper (used for the file-kind icon background)
 function tintColor(tint) {
   return ({
@@ -460,6 +470,14 @@ function DocTileGrid({ doc, onOpen }) {
           fontSize: 10.5, color: 'var(--ink-mute)', marginTop: 3,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>{(window.fmtDocSummary?.(doc)) || doc.categoryLabel}</div>
+        {docOwnerName(doc) && (
+          <div style={{
+            marginTop: 5, display: 'inline-flex', alignItems: 'center', gap: 4,
+            padding: '2px 8px', borderRadius: 999,
+            background: 'var(--cream)', border: '0.5px solid var(--hairline-2)',
+            fontSize: 9.5, fontWeight: 600, color: 'var(--ink-soft)',
+          }}>{window.isRTL ? `لـ ${docOwnerName(doc)}` : `For ${docOwnerName(doc)}`}</div>
+        )}
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           marginTop: 6, gap: 6,
@@ -533,6 +551,11 @@ function DocRowList({ doc, last, onOpen }) {
               display: 'inline-flex', alignItems: 'center', gap: 3,
             }}>
               · {doc.linkedExpenseId && <IconCheck size={10} stroke="currentColor" />}{fmtDocCost(doc)}
+            </span>
+          )}
+          {docOwnerName(doc) && (
+            <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-soft)', flexShrink: 0 }}>
+              · {window.isRTL ? `لـ ${docOwnerName(doc)}` : `For ${docOwnerName(doc)}`}
             </span>
           )}
         </div>
