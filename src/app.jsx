@@ -54,8 +54,19 @@ function App() {
   // Expose a global notifier so any helper (deleteExpense, loadDocuments, etc.)
   // can ask the React tree to re-render after mutating the window.X caches.
   // Avoids the "I deleted X but the row is still there until I navigate away" bug.
+  //
+  // COALESCED: a single user action often calls several load* functions
+  // in sequence (e.g. linkDocExpense -> loadExpenses + loadDocuments),
+  // and each was wrapped to fire notifyDataChange — so one action
+  // re-rendered the whole tree 2-3 times. We now coalesce all calls
+  // within a frame into a single re-render via requestAnimationFrame.
   React.useEffect(() => {
-    window.notifyDataChange = () => setDataVersion((v) => v + 1);
+    let scheduled = false;
+    window.notifyDataChange = () => {
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(() => { scheduled = false; setDataVersion((v) => v + 1); });
+    };
     return () => { window.notifyDataChange = null; };
   }, []);
 
@@ -1032,6 +1043,53 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
       setError(t('fillRequired') || 'Enter a title and amount');
       return;
     }
+
+    // ── OPTIMISTIC FAST PATH ──────────────────────────────────
+    // The common case (a brand-new expense, no receipt to upload, not
+    // logged from a doc/plan) is the hottest path — logging spend one-
+    // handed during a trip. Show it INSTANTLY: append to the local
+    // cache, recompute totals, close the sheet, and do the DB insert in
+    // the background. On failure we roll the row back and toast. Edits,
+    // receipts, and doc/plan-linked logs keep the awaited path below
+    // (they need the real row id, or to reconcile a replaced file).
+    const tripId = trip?.id || 'demo';
+    const createdByFast = paidBy || window.currentUserId;
+    if (!isEdit && !receiptFile && !(prefill && prefill.source)) {
+      const tempId = 'temp-' + Date.now();
+      const nowISO = new Date().toISOString();
+      const payload = {
+        title: title.trim(), category: cat, amountUSD: amtUSD,
+        amountLocal: amtLocalForDB, localCurrency: local,
+        note: note.trim() || null, splitWith: splitWithIds,
+      };
+      const optimistic = {
+        id: tempId, who: createdByFast, cat, title: payload.title,
+        jpy: local === 'JPY' ? (parseFloat(amtLocalForDB) || 0) : 0,
+        usd: amtUSD, when: window.fmtDate(nowISO), createdAt: nowISO,
+        note: payload.note || '', splitWith: splitWithIds,
+        receiptPath: null, receiptUrl: null,
+      };
+      window.EXPENSES = [optimistic, ...(window.EXPENSES || [])];
+      window.recomputeExpenseDerived?.(tripId);
+      window.LIFETIME_STATS = null;
+      window.notifyDataChange?.();
+      onAdded?.();
+      onDone();   // close the sheet immediately
+      (async () => {
+        try {
+          await window.addExpense(tripId, createdByFast, payload);
+          await window.loadExpenses(tripId);   // reconcile temp → real row
+          window.notifyDataChange?.();
+        } catch (err) {
+          window.EXPENSES = (window.EXPENSES || []).filter((e) => e.id !== tempId);
+          window.recomputeExpenseDerived?.(tripId);
+          window.notifyDataChange?.();
+          window.toast?.(err.message || 'Failed to save expense', 'error');
+        }
+      })();
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {

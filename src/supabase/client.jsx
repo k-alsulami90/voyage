@@ -552,26 +552,30 @@ window.loadExpenses = async (tripId) => {
     receiptUrl:  r.receipt_url || null,
   }));
 
-  // Recalculate category totals
-  const totals = {};
-  window.EXPENSES.forEach((e) => {
-    totals[e.cat] = (totals[e.cat] || 0) + e.usd;
-  });
-  const total = Object.values(totals).reduce((s, v) => s + v, 0) || 1;
-  window.CATEGORIES = window.CATEGORIES.map((c) => ({
-    ...c,
-    amt: totals[c.key] || 0,
-    pct: Math.round(((totals[c.key] || 0) / total) * 100),
-  }));
-
-  // Update TRIP budget spent
-  if (window.TRIP && window.TRIP.id === tripId) {
-    window.TRIP.budget.spentUSD = total;
-  }
+  window.recomputeExpenseDerived(tripId);
 
   // Mark this trip's data as freshly loaded; cache summary for cold-boot
   window._tripDataLoadedAt[tripId] = Date.now();
   window._cacheTripSummary(tripId);
+};
+
+// Recompute the values DERIVED from window.EXPENSES (category totals +
+// the trip's spent budget). Extracted so the optimistic add/remove path
+// can refresh them without a network round-trip, exactly like loadExpenses.
+window.recomputeExpenseDerived = (tripId) => {
+  const totals = {};
+  (window.EXPENSES || []).forEach((e) => {
+    totals[e.cat] = (totals[e.cat] || 0) + e.usd;
+  });
+  const total = Object.values(totals).reduce((s, v) => s + v, 0) || 1;
+  window.CATEGORIES = (window.CATEGORIES || []).map((c) => ({
+    ...c,
+    amt: totals[c.key] || 0,
+    pct: Math.round(((totals[c.key] || 0) / total) * 100),
+  }));
+  if (window.TRIP && window.TRIP.id === tripId) {
+    window.TRIP.budget.spentUSD = Object.values(totals).reduce((s, v) => s + v, 0);
+  }
 };
 
 window.loadMembers = async (tripId) => {
@@ -1139,12 +1143,13 @@ window.addExpense = async (tripId, userId, fields) => {
   if (error) throw error;
 
   window.LIFETIME_STATS = null;  // invalidate so Insights re-aggregates next visit
-  await window.sb.from('audit_log').insert({
+  // Audit log is fire-and-forget — never block the save UI on it.
+  window.sb.from('audit_log').insert({
     trip_id: tripId,
     user_id: userId,
     action:  'added',
     target:  fields.title,
-  });
+  }).then(() => {}, () => {});
   return data;
 };
 
@@ -1278,12 +1283,13 @@ window.addDocument = async (tripId, userId, fields) => {
   }
   if (error) throw error;
 
-  await window.sb.from('audit_log').insert({
+  // Audit log is fire-and-forget — never block the save UI on it.
+  window.sb.from('audit_log').insert({
     trip_id: tripId,
     user_id: userId,
     action:  'uploaded',
     target:  fields.title,
-  });
+  }).then(() => {}, () => {});
   return data;
 };
 

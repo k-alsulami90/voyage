@@ -86,16 +86,18 @@ function ScreenAddDoc({ back, onCreated }) {
         linkLabel:    details.location_url ? (window.isRTL ? 'الرابط المرفق' : 'Location') : null,
         ownerUserId,
       });
-      if (file)      await window.uploadDocumentFile(doc.id, tripId, file);
-      if (secondary) await window.uploadDocumentSecondaryFile(doc.id, tripId, secondary);
-      if (coverFile) {
-        try { await window.uploadDocCover(doc.id, tripId, coverFile); }
-        catch (e) { window.toast?.(e.message || 'Cover upload failed', 'error'); }
-      }
-      if (logExpense && costUSD) {
-        try { await window.linkDocExpense(doc.id, tripId); }
-        catch (e) { window.toast?.(e.message || 'Expense link failed', 'error'); }
-      }
+      // The uploads + expense link are independent of each other — run
+      // them in PARALLEL instead of one-after-another so the save isn't
+      // the sum of every network round-trip. Each failure surfaces a
+      // toast but doesn't abort the others (the doc row already exists).
+      const tasks = [];
+      if (file)      tasks.push(window.uploadDocumentFile(doc.id, tripId, file));
+      if (secondary) tasks.push(window.uploadDocumentSecondaryFile(doc.id, tripId, secondary));
+      if (coverFile) tasks.push(window.uploadDocCover(doc.id, tripId, coverFile)
+        .catch((e) => window.toast?.(e.message || 'Cover upload failed', 'error')));
+      if (logExpense && costUSD) tasks.push(window.linkDocExpense(doc.id, tripId)
+        .catch((e) => window.toast?.(e.message || 'Expense link failed', 'error')));
+      if (tasks.length) await Promise.allSettled(tasks);
       await window.loadDocuments(tripId);
       onCreated?.(doc.id);
     } catch (err) {
