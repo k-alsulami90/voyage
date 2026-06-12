@@ -411,8 +411,32 @@
     // (rAF + a few delayed ticks), then on every resize / orientation /
     // pageshow. CSS uses var(--app-height) with a 100dvh fallback.
     (function () {
+      // KEY INSIGHT: on the broken cold launch, window.innerHeight is the
+      // value that stays STALE until a rotation — so re-reading it on a
+      // timer never helps. visualViewport.height usually reports the true
+      // height even then; and in INSTALLED standalone mode the web view
+      // is exactly the physical screen height (viewport-fit=cover +
+      // black-translucent status bar), so screen.height is the ultimate
+      // source of truth. We take the best of all three.
+      var standalone = (navigator.standalone === true) ||
+        (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+      function measure() {
+        var h = window.innerHeight || 0;
+        if (window.visualViewport && window.visualViewport.height > h) {
+          h = window.visualViewport.height;
+        }
+        // Standalone, portrait, full-width (not iPad split view): the view
+        // must be exactly screen-height tall. If the reported height is
+        // short of that, iOS hasn't settled yet — trust the screen.
+        if (standalone && window.screen &&
+            Math.abs(window.innerWidth - window.screen.width) < 2 &&
+            window.screen.height > h) {
+          h = window.screen.height;
+        }
+        return h;
+      }
       function setAppHeight() {
-        document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+        document.documentElement.style.setProperty('--app-height', measure() + 'px');
       }
       setAppHeight();
       // Re-apply across the first second of launch, when iOS is still
@@ -420,6 +444,9 @@
       requestAnimationFrame(setAppHeight);
       [60, 150, 300, 600, 1000].forEach(function (ms) { setTimeout(setAppHeight, ms); });
       window.addEventListener('resize', setAppHeight);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', setAppHeight);
+      }
       window.addEventListener('orientationchange', function () {
         setAppHeight(); setTimeout(setAppHeight, 250);
       });

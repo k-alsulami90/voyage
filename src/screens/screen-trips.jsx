@@ -333,25 +333,8 @@ function ScreenTrips({ goTrip, go }) {
         </div>
       )}
 
-      {/* Footer: privacy notice */}
-      <div style={{
-        margin: '24px 22px 0',
-        padding: '12px 14px', borderRadius: 14,
-        background: 'oklch(0.50 0.08 155 / 0.08)',
-        border: '0.5px dashed oklch(0.50 0.08 155 / 0.35)',
-        display: 'flex', alignItems: 'center', gap: 10,
-        flexDirection: 'row',
-      }}>
-        <span style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--moss)', color: '#fff', display: 'grid', placeItems: 'center' }}>
-          <IconUsers size={14} stroke="#fff" />
-        </span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, color: 'var(--moss)', fontWeight: 500 }}>{t('crewPrivacy')}</div>
-          <div style={{ fontSize: 10.5, color: 'var(--ink-mute)', marginTop: 1 }}>
-            {t('crewPrivacySub')}
-          </div>
-        </div>
-      </div>
+      {/* Crew-privacy notice removed from the home page per user request —
+         the same message lives in App Settings (tripScopedCollab/Sub). */}
     </div>
   );
 }
