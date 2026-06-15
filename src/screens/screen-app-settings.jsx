@@ -23,6 +23,27 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
   const [email,   setEmail]   = React.useState('');
   const [stats,   setStats]   = React.useState(window.LIFETIME_STATS || null);
 
+  // Push reminders — only surfaced when push is configured + supported.
+  const pushAvailable = !!window.pushSupported?.();
+  const [pushState, setPushState] = React.useState('off'); // off | on | denied | busy
+  React.useEffect(() => {
+    if (!pushAvailable) return;
+    window.pushStatus?.().then((s) => setPushState(s)).catch(() => {});
+  }, [pushAvailable]);
+  const togglePush = async () => {
+    if (pushState === 'busy') return;
+    const goingOn = pushState !== 'on';
+    setPushState('busy');
+    try {
+      const next = goingOn ? await window.pushSubscribe() : await window.pushUnsubscribe();
+      setPushState(next);
+      if (goingOn) window.toast?.(window.isRTL ? 'تم تفعيل تذكيرات الرحلة' : 'Trip reminders on', 'success');
+    } catch (e) {
+      setPushState(await (window.pushStatus?.() || 'off'));
+      window.toast?.(e.message || 'Could not change reminders', 'error');
+    }
+  };
+
   React.useEffect(() => {
     const uid = window.currentUserId;
     if (!uid || !window.sb) return;
@@ -164,6 +185,31 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
               ))}
             </div>
           </div>
+
+          {/* Trip reminders (push) — only when configured + supported */}
+          {pushAvailable && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              flexDirection: 'row', padding: '13px 16px',
+              borderTop: '0.5px solid var(--hairline)',
+            }}>
+              <div style={{
+                width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
+                background: 'var(--cream)', border: '0.5px solid var(--hairline)',
+              }}><IconBell size={16} stroke="var(--ink)" /></div>
+              <div style={{ flex: 1, textAlign: 'start' }}>
+                <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>
+                  {window.isRTL ? 'تذكيرات الرحلة' : 'Trip reminders'}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 1 }}>
+                  {pushState === 'denied'
+                    ? (window.isRTL ? 'الإشعارات محظورة في إعدادات النظام' : 'Notifications blocked in system settings')
+                    : (window.isRTL ? 'بطاقة الصعود وتسجيل الدخول قبل موعدها بـ 24 ساعة' : 'Boarding pass & check-in 24h before')}
+                </div>
+              </div>
+              <AppToggle on={pushState === 'on'} onChange={togglePush} />
+            </div>
+          )}
 
           {/* Static rows */}
           <ProfileEditRows me={me} />

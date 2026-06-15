@@ -7,7 +7,7 @@
 
 // Bump this on every deploy that changes shell behaviour. Vercel deploys
 // rebuild the file from git so the string itself is enough — no build step needed.
-const VERSION = 'v126-phase4-offline';
+const VERSION = 'v127-phase5-push';
 const SHELL_CACHE  = `voyage-shell-${VERSION}`;
 const STATIC_CACHE = `voyage-static-${VERSION}`;
 const FONT_CACHE   = `voyage-fonts-${VERSION}`;
@@ -21,6 +21,7 @@ const SHELL_FILES = [
   // lib
   '/src/lib/i18n.jsx',
   '/src/lib/offline.jsx',
+  '/src/lib/push.jsx',
   '/src/lib/ios-frame.jsx',
   '/src/lib/tweaks-panel.jsx',
   '/src/lib/data.jsx',
@@ -81,6 +82,38 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+});
+
+// ── Push notifications ──────────────────────────────────────
+// The Smart Track reminder ("boarding pass in 24h") is sent server-side
+// by the smart-track-push Edge Function. Payload shape:
+//   { title, body, url, tag }
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; }
+  catch (_) { data = { title: 'Voyage', body: event.data ? event.data.text() : '' }; }
+  const title = data.title || 'Voyage';
+  const options = {
+    body: data.body || '',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: data.tag || 'voyage',
+    data: { url: data.url || '/' },
+    dir: 'auto',
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil((async () => {
+    const all = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of all) {
+      if ('focus' in c) { try { await c.navigate(url); } catch (_) {} return c.focus(); }
+    }
+    if (clients.openWindow) return clients.openWindow(url);
+  })());
 });
 
 // ── Fetch ───────────────────────────────────────────────────
