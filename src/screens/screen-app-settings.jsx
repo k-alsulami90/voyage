@@ -19,16 +19,22 @@ function AppToggle({ on, onChange }) {
 }
 
 function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkToggle, onLangChange }) {
-  const [profile, setProfile] = React.useState(window.MEMBERS?.[0] || null);
-  const [email,   setEmail]   = React.useState('');
+  // Seed from the global account cache (primed at hydrate, refreshed on
+  // every visit) so a return to this screen paints the real name / email
+  // instantly instead of flashing 'Loading…' while it refetches.
+  const [profile, setProfile] = React.useState(window.ACCOUNT?.profile || null);
+  const [email,   setEmail]   = React.useState(window.ACCOUNT?.email || '');
   const [stats,   setStats]   = React.useState(window.LIFETIME_STATS || null);
 
   // Push reminders — only surfaced when push is configured + supported.
   const pushAvailable = !!window.pushSupported?.();
-  const [pushState, setPushState] = React.useState('off'); // off | on | denied | busy
+  const [pushState, setPushState] = React.useState(window.ACCOUNT?.pushState || 'off'); // off | on | denied | busy
   React.useEffect(() => {
     if (!pushAvailable) return;
-    window.pushStatus?.().then((s) => setPushState(s)).catch(() => {});
+    window.pushStatus?.().then((s) => {
+      setPushState(s);
+      window.ACCOUNT = { ...(window.ACCOUNT || {}), pushState: s };
+    }).catch(() => {});
   }, [pushAvailable]);
   const togglePush = async () => {
     if (pushState === 'busy') return;
@@ -37,6 +43,7 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
     try {
       const next = goingOn ? await window.pushSubscribe() : await window.pushUnsubscribe();
       setPushState(next);
+      window.ACCOUNT = { ...(window.ACCOUNT || {}), pushState: next };
       if (goingOn) window.toast?.(window.isRTL ? 'تم تفعيل تذكيرات الرحلة' : 'Trip reminders on', 'success');
     } catch (e) {
       setPushState(await (window.pushStatus?.() || 'off'));
@@ -49,11 +56,20 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
     if (!uid || !window.sb) return;
     // Profile name + initials
     window.sb.from('profiles').select('*').eq('id', uid).single()
-      .then(({ data }) => { if (data) setProfile({ id: data.id, name: data.name, initials: data.initials, hue: data.avatar_hue || 35 }); })
+      .then(({ data }) => {
+        if (!data) return;
+        const p = { id: data.id, name: data.name, initials: data.initials, hue: data.avatar_hue || 35 };
+        setProfile(p);
+        window.ACCOUNT = { ...(window.ACCOUNT || {}), profile: p };
+      })
       .catch(() => {});
     // Real email from auth session
     window.sb.auth.getUser()
-      .then(({ data }) => { if (data?.user?.email) setEmail(data.user.email); })
+      .then(({ data }) => {
+        if (!data?.user?.email) return;
+        setEmail(data.user.email);
+        window.ACCOUNT = { ...(window.ACCOUNT || {}), email: data.user.email };
+      })
       .catch(() => {});
     // Lifetime stats — fetch if not already cached
     if (!window.LIFETIME_STATS) {
@@ -392,19 +408,24 @@ function ProfileNum({ children }) {
 // remount on every keystroke (React anti-pattern when defined inside parent).
 function ProfileEditRows({ me }) {
   const [editing, setEditing] = React.useState(null);  // 'currency' | 'home' | null
-  const [currency, setCurrency] = React.useState('USD');
-  const [home,     setHome]     = React.useState('');
+  // Seed from the account cache so the chosen currency + home base show
+  // immediately on every revisit (no 'USD' / 'Not set' flash before the
+  // refetch lands).
+  const [currency, setCurrency] = React.useState(window.ACCOUNT?.currency || window.USER_DEFAULT_CURRENCY || 'USD');
+  const [home,     setHome]     = React.useState(window.ACCOUNT?.home || '');
   const [saving,   setSaving]   = React.useState(false);
 
-  // Hydrate from server
+  // Hydrate from server (stale-while-revalidate over the cached seed).
   React.useEffect(() => {
     if (!window.sb || !window.currentUserId) return;
     window.sb.from('profiles').select('default_currency, home_base').eq('id', window.currentUserId).single()
       .then(({ data }) => {
-        if (data) {
-          setCurrency((data.default_currency || 'USD').trim());
-          setHome(data.home_base || '');
-        }
+        if (!data) return;
+        const cur = (data.default_currency || 'USD').trim();
+        const hb  = data.home_base || '';
+        setCurrency(cur);
+        setHome(hb);
+        window.ACCOUNT = { ...(window.ACCOUNT || {}), currency: cur, home: hb };
       }).catch(() => {});
   }, []);
 
@@ -421,6 +442,13 @@ function ProfileEditRows({ me }) {
       if (fields.default_currency) {
         window.USER_DEFAULT_CURRENCY = fields.default_currency.trim().toUpperCase();
       }
+      // Keep the account cache in lockstep so navigating away and back
+      // shows the saved value, not the pre-save one.
+      window.ACCOUNT = {
+        ...(window.ACCOUNT || {}),
+        ...(fields.default_currency != null ? { currency: fields.default_currency.trim() } : {}),
+        ...('home_base' in fields ? { home: fields.home_base || '' } : {}),
+      };
       // Tell every screen reading the profile (Trips home aggregate,
       // Insights, profile card here) to re-render with the new values.
       window.notifyDataChange?.();

@@ -308,6 +308,18 @@ function App() {
     try { sessionStorage.setItem('voyage:route', JSON.stringify(route)); } catch (_) {}
   }, [route]);
 
+  // Each screen should open at the top. The trip-scope scroll container
+  // has a stable key across tabs (so we don't lose local state), which
+  // means its scrollTop carries over: scroll down in Hub, tap Budget, and
+  // Budget would open mid-page. Reset to top whenever the screen changes.
+  // (App-scope tabs remount the container, so this is a harmless no-op
+  // there; doc/sheet overlays don't change `route`, so they don't reset
+  // the screen underneath them.)
+  const scrollerRef = React.useRef(null);
+  React.useEffect(() => {
+    if (scrollerRef.current) scrollerRef.current.scrollTop = 0;
+  }, [route.scope, route.name, route.tripId]);
+
   // Redirect after session resolves:
   //   - recovery session → keep them on reset screen
   //   - signed in + onboarded → trips
@@ -521,6 +533,7 @@ function App() {
         WebkitOverflowScrolling: 'touch',           // iOS momentum scroll
         overscrollBehavior: 'contain',              // don't bounce parent
       }}
+           ref={scrollerRef}
            className="no-scrollbar"
            key={route.scope + ':' + (route.tripId || route.name)}>
         {screenNode}

@@ -89,10 +89,23 @@ window.loadUserPreferences = async (userId) => {
   try {
     const { data, error } = await window.sb
       .from('profiles')
-      .select('default_currency')
+      .select('default_currency, name, initials, avatar_hue, home_base')
       .eq('id', userId)
       .maybeSingle();
     if (error) throw error;
+
+    // Prime the account cache so App Settings paints name / home / currency
+    // instantly on first open (and on every later remount) instead of
+    // flashing 'Loading…' / 'Not set' / 'USD' while it refetches. The
+    // screen still revalidates on mount (stale-while-revalidate).
+    if (data) {
+      window.ACCOUNT = {
+        ...(window.ACCOUNT || {}),
+        profile: { id: userId, name: data.name, initials: data.initials, hue: data.avatar_hue || 35 },
+        currency: (data.default_currency || 'USD').trim().toUpperCase(),
+        home: data.home_base || '',
+      };
+    }
 
     const profileCur = (data?.default_currency || '').trim().toUpperCase();
 
@@ -137,6 +150,7 @@ window.clearAllMockData = () => {
   window.DOCS          = [];
   window.AUDIT         = [];
   window.LIFETIME_STATS = null;
+  window.ACCOUNT       = null;   // cached profile/email/currency/home for App Settings
   window.USER_DEFAULT_CURRENCY = null;
   window.DOCS_BY_CAT   = { flights: [], lodging: [], visas: [], transport: [] };
   window.DOC_CATEGORIES = window.DOC_CATEGORIES?.map((c) => ({ ...c, count: 0 })) || [];
