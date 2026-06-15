@@ -123,6 +123,12 @@ function App() {
     const seeded = window.seedTripFromList?.(tripId);
     setTripLoading(!seeded);
     if (seeded) setDataVersion((v) => v + 1);  // paint the seed now
+    // Fill the per-trip caches from the offline store (only empty slices)
+    // so the trip is viewable instantly / with no signal while the
+    // network refresh below runs. Drops the skeleton the moment it fills.
+    window.cacheHydrateTrip?.(tripId).then((filled) => {
+      if (filled) { setTripLoading(false); setDataVersion((v) => v + 1); }
+    });
     // Expose on window so non-React paths can trigger a trip load.
     // The Smart Track card on Trips Home is the prime caller: it picks
     // the next-up trip from window.TRIPS and asks for its docs to be
@@ -149,6 +155,7 @@ function App() {
     });
     setTripLoading(false);
     setDataVersion((v) => v + 1);
+    window.cachePersistTrip?.(tripId);   // snapshot the fresh data for offline
 
     if (rtUnsubRef.current) { rtUnsubRef.current(); rtUnsubRef.current = null; }
     rtUnsubRef.current = window.subscribeToTrip(tripId, () => {
@@ -197,6 +204,18 @@ function App() {
         window.clearAllMockData();
         initialLoadDoneRef.current = true;
       }
+      // Instant paint from the offline cache BEFORE the network: restores
+      // the trips list (and the currency) so a cold boot shows your trips
+      // immediately, and so the app is usable with no signal. The network
+      // loads below overwrite it (stale-while-revalidate).
+      try {
+        const prefs = await window.cacheGet?.('prefs');
+        if (prefs && prefs.currency && !window.USER_DEFAULT_CURRENCY) {
+          window.USER_DEFAULT_CURRENCY = prefs.currency;
+        }
+        const filled = await window.cacheHydrateTrips?.();
+        if (filled) setDataVersion((v) => v + 1);
+      } catch (_) {}
       try {
         // Load profile-level preferences FIRST so fmtMoney has a sane
         // fallback currency for the first render. The profile field is
@@ -212,6 +231,7 @@ function App() {
           await loadTripData(activeTripRef.current);
         }
         setDataVersion((v) => v + 1);
+        window.replayOutbox?.();   // flush any expenses queued while offline
       } catch (err) {
         console.error('hydrate failed', err);
       }
@@ -249,6 +269,7 @@ function App() {
         hydratedForRef.current = null;
         if (rtUnsubRef.current) { rtUnsubRef.current(); rtUnsubRef.current = null; }
         window.clearAllMockData();
+        window.cacheClearAll?.();   // don't leave one user's data cached for the next
         setSession(null);
         setDataVersion((v) => v + 1);
       } else if (event === 'PASSWORD_RECOVERY') {
@@ -1099,12 +1120,24 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
         try {
           await window.addExpense(tripId, createdByFast, payload);
           await window.loadExpenses(tripId);   // reconcile temp → real row
+          window.cachePersistTrip?.(tripId);   // snapshot for offline
           window.notifyDataChange?.();
         } catch (err) {
-          window.EXPENSES = (window.EXPENSES || []).filter((e) => e.id !== tempId);
-          window.recomputeExpenseDerived?.(tripId);
-          window.notifyDataChange?.();
-          window.toast?.(err.message || 'Failed to save expense', 'error');
+          if (!navigator.onLine) {
+            // Offline: KEEP the optimistic row and queue the write so it
+            // syncs automatically on reconnect. Persist so the pending row
+            // survives an app restart while still offline.
+            await window.outboxEnqueue?.({ type: 'expense', tripId, createdBy: createdByFast, payload });
+            window.cachePersistTrip?.(tripId);
+            window.notifyDataChange?.();
+            window.toast?.(window.isRTL ? 'حُفظ — سيُزامن عند عودة الاتصال' : 'Saved — will sync when you reconnect', 'success');
+          } else {
+            // Genuine server error while online: roll the row back.
+            window.EXPENSES = (window.EXPENSES || []).filter((e) => e.id !== tempId);
+            window.recomputeExpenseDerived?.(tripId);
+            window.notifyDataChange?.();
+            window.toast?.(err.message || 'Failed to save expense', 'error');
+          }
         }
       })();
       return;

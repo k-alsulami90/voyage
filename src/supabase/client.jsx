@@ -204,6 +204,10 @@ window.loadTrips = async (userId) => {
   // falls through to window.USER_DEFAULT_CURRENCY (which loadUser-
   // Preferences infers from the most-common non-USD trip currency),
   // and the global views display the user's effective currency.
+
+  // Persist for instant cold boot + offline viewing.
+  window.cachePersistTrips?.();
+  window.cachePut?.('prefs', { currency: window.USER_DEFAULT_CURRENCY });
 };
 
 // ── Settlements (Phase 2) ────────────────────────────────────

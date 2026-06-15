@@ -7,7 +7,7 @@
 
 // Bump this on every deploy that changes shell behaviour. Vercel deploys
 // rebuild the file from git so the string itself is enough — no build step needed.
-const VERSION = 'v125-phase3-consistency';
+const VERSION = 'v126-phase4-offline';
 const SHELL_CACHE  = `voyage-shell-${VERSION}`;
 const STATIC_CACHE = `voyage-static-${VERSION}`;
 const FONT_CACHE   = `voyage-fonts-${VERSION}`;
@@ -20,6 +20,7 @@ const SHELL_FILES = [
   '/tokens.css',
   // lib
   '/src/lib/i18n.jsx',
+  '/src/lib/offline.jsx',
   '/src/lib/ios-frame.jsx',
   '/src/lib/tweaks-panel.jsx',
   '/src/lib/data.jsx',

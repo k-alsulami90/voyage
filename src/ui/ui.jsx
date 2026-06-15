@@ -708,7 +708,7 @@ function OfflineBanner() {
   if (online) return null;
   return (
     <div className="offline-banner">
-      {window.isRTL ? '⚠ أنت غير متصل بالإنترنت · العرض فقط — أعد الاتصال لإجراء أي تغييرات' : "⚠ You're offline · view only — reconnect to make changes"}
+      {window.isRTL ? '⚠ أنت غير متصل · المصروفات التي تسجّلها تُزامن عند عودة الاتصال' : '⚠ Offline · expenses you log will sync when you reconnect'}
     </div>
   );
 }

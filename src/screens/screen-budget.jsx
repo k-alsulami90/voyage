@@ -505,6 +505,18 @@ function ScreenBudget({ go, openSheet, loading }) {
                         fontSize: 13.5, fontWeight: 500, color: 'var(--ink)',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       }}>{e.title}</span>
+                      {/* Queued offline — not yet synced to the server. */}
+                      {String(e.id).startsWith('temp-') && (
+                        <span style={{
+                          flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4,
+                          padding: '2px 7px', borderRadius: 999,
+                          background: 'oklch(0.78 0.13 80 / 0.18)', color: 'var(--honey)',
+                          fontSize: 9.5, fontWeight: 700,
+                        }}>
+                          <IconClock size={9} stroke="currentColor" />
+                          {window.isRTL ? 'بانتظار المزامنة' : 'Pending'}
+                        </span>
+                      )}
                     </div>
                     <div style={{
                       fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 4,
