@@ -25,6 +25,10 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
   const [profile, setProfile] = React.useState(window.ACCOUNT?.profile || null);
   const [email,   setEmail]   = React.useState(window.ACCOUNT?.email || '');
   const [stats,   setStats]   = React.useState(window.LIFETIME_STATS || window.LIFETIME_STATS_LKG || null);
+  // Trip activity digests (someone added expenses/docs to a shared trip).
+  // Defaults on; the profile fetch below refreshes it. Cached so it doesn't
+  // flicker on revisit.
+  const [activityOn, setActivityOn] = React.useState(window.ACCOUNT?.activity !== false);
 
   // Push reminders — only surfaced when push is configured + supported.
   const pushAvailable = !!window.pushSupported?.();
@@ -51,6 +55,24 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
     }
   };
 
+  // Trip activity digest opt-out (profiles.notify_activity). Optimistic;
+  // reverts + toasts on failure. Degrades silently if the column doesn't
+  // exist yet (pre-migration) — the update just no-ops server-side.
+  const toggleActivity = async () => {
+    const next = !activityOn;
+    setActivityOn(next);
+    window.ACCOUNT = { ...(window.ACCOUNT || {}), activity: next };
+    try {
+      const { error } = await window.sb.from('profiles')
+        .update({ notify_activity: next }).eq('id', window.currentUserId);
+      if (error) throw error;
+    } catch (e) {
+      setActivityOn(!next);
+      window.ACCOUNT = { ...(window.ACCOUNT || {}), activity: !next };
+      window.toast?.(e.message || 'Could not change setting', 'error');
+    }
+  };
+
   React.useEffect(() => {
     const uid = window.currentUserId;
     if (!uid || !window.sb) return;
@@ -60,7 +82,10 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
         if (!data) return;
         const p = { id: data.id, name: data.name, initials: data.initials, hue: data.avatar_hue || 35 };
         setProfile(p);
-        window.ACCOUNT = { ...(window.ACCOUNT || {}), profile: p };
+        // notify_activity may be absent pre-migration → treat as on.
+        const act = data.notify_activity !== false;
+        setActivityOn(act);
+        window.ACCOUNT = { ...(window.ACCOUNT || {}), profile: p, activity: act };
       })
       .catch(() => {});
     // Real email from auth session
@@ -224,6 +249,32 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
                 </div>
               </div>
               <AppToggle on={pushState === 'on'} onChange={togglePush} />
+            </div>
+          )}
+
+          {/* Trip activity digest — only meaningful once push is on, so it
+             tucks under the reminders toggle as a sub-channel. */}
+          {pushAvailable && pushState === 'on' && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              flexDirection: 'row', padding: '13px 16px',
+              borderTop: '0.5px solid var(--hairline)',
+            }}>
+              <div style={{
+                width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
+                background: 'var(--cream)', border: '0.5px solid var(--hairline)',
+              }}><IconUsers size={16} stroke="var(--ink)" /></div>
+              <div style={{ flex: 1, textAlign: 'start' }}>
+                <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>
+                  {window.isRTL ? 'نشاط الرحلة' : 'Trip activity'}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 1 }}>
+                  {window.isRTL
+                    ? 'عند إضافة الرفاق مصاريف أو مستندات لرحلة مشتركة'
+                    : 'When crew add expenses or documents to a shared trip'}
+                </div>
+              </div>
+              <AppToggle on={activityOn} onChange={toggleActivity} />
             </div>
           )}
 

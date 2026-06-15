@@ -62,6 +62,46 @@ select cron.schedule(
 );
 ```
 
+## Trip activity digests (second function)
+
+A sibling function, `trip-activity-push`, notifies the **other** members of
+a shared trip when someone adds expenses or documents. It's **batched**:
+each person's recent adds to a trip collapse into one digest per recipient
+("Sarah added 2 expenses and a document"), so logging spend during a trip
+doesn't spam the crew.
+
+Setup is the same shape as Smart Track:
+
+```bash
+# 1. Migration (preference column + dedupe ledger)
+#    Paste docs/migration-activity-push.sql into the SQL editor and run it.
+
+# 2. Deploy the function (reuses the SAME VAPID secrets — no new secrets)
+supabase functions deploy trip-activity-push --no-verify-jwt
+
+# 3. Schedule it on the same ~15 min cadence
+```
+```sql
+select cron.schedule(
+  'trip-activity-push',
+  '*/15 * * * *',
+  $$
+  select net.http_post(
+    url     => 'https://<PROJECT_REF>.functions.supabase.co/trip-activity-push',
+    headers => '{"Authorization":"Bearer <SERVICE_ROLE_KEY>","Content-Type":"application/json"}'::jsonb
+  );
+  $$
+);
+```
+
+- Excludes the actor; solo trips (no other members) send nothing.
+- Per-user opt-out lives in **Settings → Trip activity** (appears once push
+  is on). It writes `profiles.notify_activity`; the function skips anyone
+  who turned it off.
+- Reads `audit_log` (`added` = expense, `uploaded` = document) over a 30-min
+  look-back; the `push_activity_sent` ledger keys on `(audit_id, user_id)`
+  so nothing is sent twice across ticks.
+
 ## How recipients are chosen
 - Doc assigned to a traveler (`owner_user_id`) → only that traveler is reminded.
 - Shared doc (`owner_user_id` null) → everyone on the trip.
