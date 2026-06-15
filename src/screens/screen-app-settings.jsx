@@ -24,7 +24,7 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
   // instantly instead of flashing 'Loading…' while it refetches.
   const [profile, setProfile] = React.useState(window.ACCOUNT?.profile || null);
   const [email,   setEmail]   = React.useState(window.ACCOUNT?.email || '');
-  const [stats,   setStats]   = React.useState(window.LIFETIME_STATS || null);
+  const [stats,   setStats]   = React.useState(window.LIFETIME_STATS || window.LIFETIME_STATS_LKG || null);
 
   // Push reminders — only surfaced when push is configured + supported.
   const pushAvailable = !!window.pushSupported?.();

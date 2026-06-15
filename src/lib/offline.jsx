@@ -102,7 +102,7 @@
     if (!(window.EXPENSES || []).length && (c.expenses || []).length) window.EXPENSES = c.expenses;
     if (!(window.MEMBERS || []).length && (c.members || []).length) window.MEMBERS = c.members;
     const docsEmpty = !window.DOCS_BY_CAT || Object.values(window.DOCS_BY_CAT).every((a) => !a || !a.length);
-    if (docsEmpty && c.docs) window.DOCS_BY_CAT = c.docs;
+    if (docsEmpty && c.docs) { window.DOCS_BY_CAT = c.docs; window.DOCS_TRIP_ID = tripId; }
     if (!(window.ITINERARY || []).length && (c.itinerary || []).length) window.ITINERARY = c.itinerary;
     if (!(window.SETTLEMENTS || []).length && (c.settlements || []).length) window.SETTLEMENTS = c.settlements;
     window.recomputeExpenseDerived?.(tripId);

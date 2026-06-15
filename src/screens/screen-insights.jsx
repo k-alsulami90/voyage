@@ -9,8 +9,8 @@
 // by 0.5px hairlines with generous vertical rhythm.
 
 function ScreenInsights({ go, goTrip }) {
-  const [stats, setStats] = React.useState(window.LIFETIME_STATS || null);
-  const [loading, setLoading] = React.useState(!window.LIFETIME_STATS);
+  const [stats, setStats] = React.useState(window.LIFETIME_STATS || window.LIFETIME_STATS_LKG || null);
+  const [loading, setLoading] = React.useState(!(window.LIFETIME_STATS || window.LIFETIME_STATS_LKG));
 
   React.useEffect(() => {
     let alive = true;
@@ -20,7 +20,8 @@ function ScreenInsights({ go, goTrip }) {
       // cache was warm. recomputeExpenseDerived nulls the cache on every
       // expense change, but refetching on mount is the belt-and-
       // suspenders that keeps Insights from ever showing stale totals.
-      if (window.LIFETIME_STATS) setStats(window.LIFETIME_STATS);
+      const seed = window.LIFETIME_STATS || window.LIFETIME_STATS_LKG;
+      if (seed) setStats(seed);
       else setLoading(true);
       try {
         const s = await window.loadLifetimeStats?.();

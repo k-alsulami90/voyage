@@ -30,7 +30,10 @@ function ScreenTrips({ goTrip, go }) {
   const [showSearch, setShowSearch] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const [initialLoad, setInitialLoad] = React.useState(!window.TRIPS || window.TRIPS.length === 0);
-  const [stats, setStats] = React.useState(window.LIFETIME_STATS || null);
+  // Seed from the live cache, falling back to the last-known-good snapshot
+  // so returning from a trip (which nulls LIFETIME_STATS to force a
+  // refresh) doesn't blank the Insights card to a skeleton.
+  const [stats, setStats] = React.useState(window.LIFETIME_STATS || window.LIFETIME_STATS_LKG || null);
   // Tick once a minute so the relative time labels ("in 25m", "Now")
   // stay fresh while the page is open.
   const [, forceTick] = React.useState(0);
@@ -121,8 +124,15 @@ function ScreenTrips({ goTrip, go }) {
   // candidate's data is loaded, otherwise fall back to the cached events
   // for the SAME candidate so the card holds steady while the refetch
   // runs in the background.
+  // Compute live ONLY when the candidate's documents are actually loaded
+  // (DOCS_TRIP_ID matches). seedTripFromList sets window.TRIP to the
+  // candidate but empties DOCS_BY_CAT until loadDocuments resolves, so a
+  // TRIP-only check would compute [] against the empty docs and overwrite
+  // the cache with nothing — the card would blink out on every trip
+  // enter/exit. The DOCS_TRIP_ID guard holds the last good events instead.
   let events = [];
-  if (smartTripCandidate && window.TRIP?.id === smartTripCandidate.id) {
+  if (smartTripCandidate && window.TRIP?.id === smartTripCandidate.id
+      && window.DOCS_TRIP_ID === smartTripCandidate.id) {
     events = window.computeUpcomingEvents?.() || [];
     window._smartEventsCache = { id: smartTripCandidate.id, events };
   } else if (smartTripCandidate && window._smartEventsCache?.id === smartTripCandidate.id) {

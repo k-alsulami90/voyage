@@ -150,9 +150,11 @@ window.clearAllMockData = () => {
   window.DOCS          = [];
   window.AUDIT         = [];
   window.LIFETIME_STATS = null;
+  window.LIFETIME_STATS_LKG = null;   // last-known-good display snapshot
   window.ACCOUNT       = null;   // cached profile/email/currency/home for App Settings
   window.USER_DEFAULT_CURRENCY = null;
   window.DOCS_BY_CAT   = { flights: [], lodging: [], visas: [], transport: [] };
+  window.DOCS_TRIP_ID  = null;
   window.DOC_CATEGORIES = window.DOC_CATEGORIES?.map((c) => ({ ...c, count: 0 })) || [];
   window.CATEGORIES    = window.CATEGORIES?.map((c) => ({ ...c, amt: 0, pct: 0 })) || [];
   window.TRIP_ANALYTICS = {
@@ -677,6 +679,11 @@ window.loadDocuments = async (tripId) => {
     if (byCat[r.category]) byCat[r.category].push(doc);
   });
   window.DOCS_BY_CAT = byCat;
+  // Tag which trip these docs belong to. The Smart Track card on Trips
+  // home uses this to know the loaded docs are really the candidate's
+  // before computing events from them (seedTripFromList sets TRIP to the
+  // candidate but empties DOCS_BY_CAT first, so TRIP alone isn't enough).
+  window.DOCS_TRIP_ID = tripId;
 
   window.DOC_CATEGORIES = window.DOC_CATEGORIES.map((c) => ({
     ...c,
@@ -1120,6 +1127,15 @@ window.loadLifetimeStats = async () => {
     expenseCount: expenses.length,
     loadedAt: Date.now(),
   };
+  // Last-known-good snapshot for DISPLAY. recomputeExpenseDerived nulls
+  // LIFETIME_STATS to force a refetch (e.g. just opening a trip reloads
+  // its expenses and invalidates the lifetime aggregate), but the Trips
+  // home + Insights still want to paint the previous numbers instantly
+  // while that refetch runs — otherwise the cards blank to a skeleton on
+  // every trip enter/exit. The LKG is never nulled by invalidation, only
+  // overwritten by a fresher full computation, so it's always a real past
+  // snapshot — exactly what stale-while-revalidate wants.
+  window.LIFETIME_STATS_LKG = window.LIFETIME_STATS;
   return window.LIFETIME_STATS;
 };
 
@@ -1392,6 +1408,7 @@ window.seedTripFromList = (tripId) => {
   window.EXPENSES    = [];
   window.MEMBERS     = [];
   window.DOCS_BY_CAT = { flights: [], lodging: [], visas: [], transport: [] };
+  window.DOCS_TRIP_ID = null;   // docs not yet loaded for this trip
   window.ITINERARY   = [];
   window.SETTLEMENTS = [];
   window.AUDIT       = [];
