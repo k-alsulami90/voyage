@@ -8,7 +8,7 @@
 // iOS note: Web Push only works in an INSTALLED PWA on iOS 16.4+, and the
 // subscribe call must run from a user gesture (the Settings toggle does).
 
-window.PUSH_VAPID_PUBLIC = ''; // <-- paste VAPID public key to enable push
+window.PUSH_VAPID_PUBLIC = 'BAhkqnHnpWAMntnCQoIr1vKH3hZLfO0rBaRpdvGPPNxNUA1a78-cQEZQZ_21nExLmamhlzBmMekzBhcU4oxO3pc';
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
