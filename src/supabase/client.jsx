@@ -1329,6 +1329,62 @@ window.loadTripDetail = async (tripId) => {
   };
 };
 
+// Synchronously seed window.TRIP from the already-loaded trips list, so a
+// trip screen shows the CORRECT trip's basics the instant you navigate to
+// it — no blank, no flash of the previously-open trip — while
+// loadTripDetail + loadExpenses enrich it in the background. Returns true
+// if window.TRIP now holds (at least) this trip.
+//   - If window.TRIP is already this exact trip (re-entry), keep the rich
+//     version untouched.
+//   - If the trips list isn't loaded yet (cold boot), return false so the
+//     caller can fall back to a skeleton.
+window.seedTripFromList = (tripId) => {
+  if (!tripId) return false;
+  if (window.TRIP && window.TRIP.id === tripId) return true;
+  const t = (window.TRIPS || []).find((x) => x.id === tripId);
+  if (!t) return false;
+  const MS = 86400000;
+  const start = new Date(t.startDate);
+  const end   = new Date(t.endDate);
+  const today = new Date();
+  const daysTotal = Math.max(1, Math.ceil((end - start) / MS));
+  const daysIn    = Math.min(Math.max(1, Math.floor((today - start) / MS) + 1), daysTotal);
+  window.TRIP = {
+    id:            t.id,
+    title:         t.title,
+    subtitle:      t.sub || '',
+    dates:         t.dates,
+    startDate:     t.startDate,
+    endDate:       t.endDate,
+    country:       t.country || '',
+    countries:     t.countries || [],
+    daysIn,
+    daysTotal,
+    homeCurrency:  window.USER_DEFAULT_CURRENCY || t.homeCurrency || 'USD',
+    localCurrency: t.localCurrency || t.homeCurrency || 'USD',
+    fx:            t.fx || 1,
+    budget:        { plannedUSD: t.budgetPlannedUSD || 0, spentUSD: 0 },
+    cover:         t.cover || 'kyoto',
+    coverImageUrl: t.coverImageUrl || null,
+    status:        t.status,
+    weather:       { temp: '--', cond: '' },
+    next:          { label: '', when: '' },
+  };
+  // We just switched to a DIFFERENT trip, so the per-trip caches still
+  // hold the previous trip's data. Reset them to empty (not the old
+  // trip's) so the new trip's screens never flash the wrong expenses /
+  // members / docs under the correct hero; the background loaders fill
+  // them in immediately after.
+  window.EXPENSES    = [];
+  window.MEMBERS     = [];
+  window.DOCS_BY_CAT = { flights: [], lodging: [], visas: [], transport: [] };
+  window.ITINERARY   = [];
+  window.SETTLEMENTS = [];
+  window.AUDIT       = [];
+  window.recomputeExpenseDerived?.(t.id);  // zero CATEGORIES + spent
+  return true;
+};
+
 // Upload a cover image and update the trip record
 window.uploadTripCover = async (tripId, file) => {
   const ext  = file.name.split('.').pop();

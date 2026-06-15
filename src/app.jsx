@@ -102,7 +102,13 @@ function App() {
   const loadTripData = React.useCallback(async (tripId) => {
     if (!tripId) return;
     activeTripRef.current = tripId;
-    setTripLoading(true);
+    // Seed window.TRIP synchronously from the trips list so the screen
+    // shows THIS trip's basics immediately (no blank, no flash of the
+    // last-open trip). Only fall back to the loading skeleton when we
+    // have nothing at all to show (cold boot before the list loaded).
+    const seeded = window.seedTripFromList?.(tripId);
+    setTripLoading(!seeded);
+    if (seeded) setDataVersion((v) => v + 1);  // paint the seed now
     // Expose on window so non-React paths can trigger a trip load.
     // The Smart Track card on Trips Home is the prime caller: it picks
     // the next-up trip from window.TRIPS and asks for its docs to be
@@ -395,22 +401,22 @@ function App() {
     }
   }, [route.scope, route.tripId, loadTripData]);
 
-  // When the user leaves a trip back to a global route (Trips home,
-  // Insights, App Settings), wipe window.TRIP. Otherwise fmtMoney's
-  // "what currency is home?" lookup keeps reading the LAST opened
-  // trip's homeCurrency + fx, and the global views display amounts
-  // in that trip's context instead of the user's own default. (This
-  // was the same bug the user kept hitting: trips on the Trips home
-  // showed different totals depending on which trip they'd just
-  // tapped.) Per-trip cards format via fmtTripMoney(trip), so they're
-  // not affected by clearing window.TRIP here.
+  // When the user leaves a trip back to a global route we used to NULL
+  // window.TRIP here. That was the systemic cause of "content blanks for
+  // a moment when I navigate away and back": re-entering the same trip
+  // found window.TRIP null, so loadTripData refetched everything and the
+  // screens flashed skeletons / empty states during the gap. The reason
+  // for the null (fmtMoney leaking the last trip's home currency + fx
+  // into global views) is now obsolete — homeCurrency is mapped to the
+  // user's account preference everywhere, and fxRate always uses the
+  // live table, so a lingering window.TRIP can no longer corrupt global
+  // money. We now KEEP window.TRIP so navigation is seamless (the
+  // self-healing effect above skips the reload when it already matches),
+  // and only drop the remembered trip id so go('hub') can't resurrect a
+  // deleted trip. Per-trip cards still format via fmtTripMoney(trip).
   React.useEffect(() => {
     if (route.scope === 'app') {
-      window.TRIP = null;
-      // Also drop the remembered trip id so go('hub') etc. can't
-      // resurrect a trip the user has left (or deleted).
       activeTripRef.current = null;
-      setDataVersion((v) => v + 1);
     }
   }, [route.scope]);
   const openSheet = (s, payload) => {
