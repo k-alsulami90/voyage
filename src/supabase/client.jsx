@@ -563,6 +563,11 @@ window.loadExpenses = async (tripId) => {
 // the trip's spent budget). Extracted so the optimistic add/remove path
 // can refresh them without a network round-trip, exactly like loadExpenses.
 window.recomputeExpenseDerived = (tripId) => {
+  // Any change to a trip's expenses also changes the lifetime aggregates,
+  // so invalidate them centrally HERE. Every expense mutation funnels
+  // through this (loadExpenses + the optimistic add/rollback), so the
+  // Trips home / Insights numbers can't go stale via a forgotten null.
+  window.LIFETIME_STATS = null;
   const totals = {};
   (window.EXPENSES || []).forEach((e) => {
     totals[e.cat] = (totals[e.cat] || 0) + e.usd;
@@ -1298,11 +1303,7 @@ window.loadTripDetail = async (tripId) => {
   const { data, error } = await window.sb
     .from('trips').select('*').eq('id', tripId).single();
   if (error) { console.error('loadTripDetail', error); return; }
-  const start = new Date(data.start_date);
-  const end   = new Date(data.end_date);
-  const today = new Date();
-  const daysIn    = Math.max(1, Math.floor((today - start) / 86400000) + 1);
-  const daysTotal = Math.max(1, Math.ceil((end - start) / 86400000));
+  const { daysIn, daysTotal } = window.tripDays(data.start_date, data.end_date);
   window.TRIP = {
     id:            data.id,
     title:         data.title,
@@ -1314,7 +1315,7 @@ window.loadTripDetail = async (tripId) => {
     countries:     Array.isArray(data.countries) && data.countries.length > 0
                      ? data.countries.filter(Boolean)
                      : (data.country_code ? [data.country_code] : []),
-    daysIn:        Math.min(daysIn, daysTotal),
+    daysIn,
     daysTotal,
     // Home currency = viewer's account preference (see loadTrips note).
     homeCurrency:  window.USER_DEFAULT_CURRENCY || data.home_currency || 'USD',
@@ -1343,12 +1344,7 @@ window.seedTripFromList = (tripId) => {
   if (window.TRIP && window.TRIP.id === tripId) return true;
   const t = (window.TRIPS || []).find((x) => x.id === tripId);
   if (!t) return false;
-  const MS = 86400000;
-  const start = new Date(t.startDate);
-  const end   = new Date(t.endDate);
-  const today = new Date();
-  const daysTotal = Math.max(1, Math.ceil((end - start) / MS));
-  const daysIn    = Math.min(Math.max(1, Math.floor((today - start) / MS) + 1), daysTotal);
+  const { daysIn, daysTotal } = window.tripDays(t.startDate, t.endDate);
   window.TRIP = {
     id:            t.id,
     title:         t.title,

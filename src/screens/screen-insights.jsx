@@ -15,14 +15,19 @@ function ScreenInsights({ go, goTrip }) {
   React.useEffect(() => {
     let alive = true;
     (async () => {
-      if (window.LIFETIME_STATS) { setStats(window.LIFETIME_STATS); return; }
-      setLoading(true);
+      // Stale-while-revalidate: show the cached aggregate instantly (no
+      // blank), then ALWAYS refetch so the numbers are fresh even if the
+      // cache was warm. recomputeExpenseDerived nulls the cache on every
+      // expense change, but refetching on mount is the belt-and-
+      // suspenders that keeps Insights from ever showing stale totals.
+      if (window.LIFETIME_STATS) setStats(window.LIFETIME_STATS);
+      else setLoading(true);
       try {
         const s = await window.loadLifetimeStats?.();
-        if (alive) setStats(s || null);
+        if (alive && s) setStats(s);
       } catch (err) {
         console.error('insights load', err);
-        window.toast?.(err.message || 'Failed to load insights', 'error');
+        if (!window.LIFETIME_STATS) window.toast?.(err.message || 'Failed to load insights', 'error');
       } finally {
         if (alive) setLoading(false);
       }

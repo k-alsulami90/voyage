@@ -12,17 +12,17 @@ function tripTemporalState(trip) {
   const start = new Date(trip.startDate); start.setHours(0, 0, 0, 0);
   const end = new Date(trip.endDate); end.setHours(0, 0, 0, 0);
   const ms = 86400000;
+  // Day counts come from the SAME canonical helper the Hub uses
+  // (window.tripDays), so "Day N of M" can't differ between a trip card
+  // here and the trip's own Hub.
+  const { daysIn, daysTotal } = window.tripDays(trip.startDate, trip.endDate);
   if (now < start) {
-    const daysUntil = Math.round((start - now) / ms);
-    return { kind: 'upcoming', daysUntil };
+    return { kind: 'upcoming', daysUntil: Math.round((start - now) / ms), totalDays: daysTotal };
   }
   if (now > end) {
-    const totalDays = Math.max(1, Math.round((end - start) / ms) + 1);
-    return { kind: 'past', totalDays };
+    return { kind: 'past', totalDays: daysTotal };
   }
-  const dayN = Math.min(Math.max(1, Math.round((now - start) / ms) + 1), Math.round((end - start) / ms) + 1);
-  const totalDays = Math.round((end - start) / ms) + 1;
-  return { kind: 'current', dayN, totalDays, daysRemaining: totalDays - dayN };
+  return { kind: 'current', dayN: daysIn, totalDays: daysTotal, daysRemaining: daysTotal - daysIn };
 }
 
 function ScreenTrips({ goTrip, go }) {
@@ -53,12 +53,17 @@ function ScreenTrips({ goTrip, go }) {
     window.loadTripData?.(smartTripCandidate.id);
   }, [smartTripCandidate?.id]);
 
-  // Lazy-load lifetime stats once trips exist
+  // Lifetime stats, stale-while-revalidate. `stats` is seeded from the
+  // cached window.LIFETIME_STATS for instant display; we then refetch on
+  // every mount (and when the trip count changes) so the lifetime
+  // overview + per-trip spend are always eventually-fresh, regardless of
+  // which mutation path ran while we were away. (Previously gated on
+  // !stats, so a stale-but-present cache never refreshed.)
   React.useEffect(() => {
-    if (!stats && window.TRIPS && window.TRIPS.length > 0 && window.loadLifetimeStats) {
-      window.loadLifetimeStats().then((s) => setStats(s)).catch(() => {});
+    if (window.TRIPS && window.TRIPS.length > 0 && window.loadLifetimeStats) {
+      window.loadLifetimeStats().then((s) => { if (s) setStats(s); }).catch(() => {});
     }
-  }, [stats, window.TRIPS?.length]);
+  }, [window.TRIPS?.length]);
 
   // Mark initial load complete once TRIPS appears
   React.useEffect(() => {

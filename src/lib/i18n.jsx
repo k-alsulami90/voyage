@@ -435,6 +435,25 @@ window.fmtDateRange = function(a, b) {
   return `${window.fmtDate(a)} ${arrow} ${window.fmtDate(b)}`;
 };
 
+// Canonical trip day math — ONE source of truth for "Day N of M" so the
+// Hub (window.TRIP.daysIn/daysTotal) and the trip cards
+// (tripTemporalState) never disagree. Days are whole, inclusive of both
+// endpoints (a Mon→Fri trip is 5 days), and daysIn is clamped to the
+// trip length. Previously loadTripDetail used floor/ceil while
+// tripTemporalState used round+1, so they could be off by one near
+// midnight / trip boundaries.
+window.tripDays = function(startDate, endDate) {
+  if (!startDate || !endDate) return { daysIn: 1, daysTotal: 1 };
+  const MS = 86400000;
+  const start = new Date(startDate); start.setHours(0, 0, 0, 0);
+  const end   = new Date(endDate);   end.setHours(0, 0, 0, 0);
+  const now   = new Date();          now.setHours(0, 0, 0, 0);
+  if (isNaN(start) || isNaN(end)) return { daysIn: 1, daysTotal: 1 };
+  const daysTotal = Math.max(1, Math.round((end - start) / MS) + 1);
+  const daysIn    = Math.min(Math.max(1, Math.round((now - start) / MS) + 1), daysTotal);
+  return { daysIn, daysTotal };
+};
+
 // ── Currency formatting ─────────────────────────────────────
 // Symbols by ISO code. Trailing space for letter codes so they read nicely.
 window.CUR_SYM = {
