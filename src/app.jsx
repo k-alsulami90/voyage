@@ -5,14 +5,28 @@
 //   DOC:     Modal-overlay doc detail page
 
 function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState(
-    () => window.matchMedia('(max-width: 500px)').matches
-  );
+  // A phone is a phone in BOTH orientations. Deciding purely on
+  // max-width meant landscape (~844px) flipped the app from the mobile
+  // branch to the desktop device-frame branch — a different top-level
+  // tree, so React remounted everything and wiped any in-progress form
+  // (the "rotating resets what I typed in Add Trip/Doc" bug).
+  // `pointer: coarse` is true on touch phones/tablets and does NOT change
+  // on rotation, so the branch stays stable. We still treat a genuinely
+  // narrow window (<=500px, e.g. a small desktop window) as mobile.
+  const compute = () =>
+    window.matchMedia('(pointer: coarse)').matches ||
+    window.matchMedia('(max-width: 500px)').matches;
+  const [isMobile, setIsMobile] = React.useState(compute);
   React.useEffect(() => {
-    const mq = window.matchMedia('(max-width: 500px)');
-    const handler = (e) => setIsMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    const mqW = window.matchMedia('(max-width: 500px)');
+    const mqP = window.matchMedia('(pointer: coarse)');
+    const handler = () => setIsMobile(compute());
+    mqW.addEventListener('change', handler);
+    mqP.addEventListener('change', handler);
+    return () => {
+      mqW.removeEventListener('change', handler);
+      mqP.removeEventListener('change', handler);
+    };
   }, []);
   return isMobile;
 }

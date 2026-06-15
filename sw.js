@@ -7,7 +7,7 @@
 
 // Bump this on every deploy that changes shell behaviour. Vercel deploys
 // rebuild the file from git so the string itself is enough — no build step needed.
-const VERSION = 'v123-numfield-daterange';
+const VERSION = 'v124-no-remount-on-rotate';
 const SHELL_CACHE  = `voyage-shell-${VERSION}`;
 const STATIC_CACHE = `voyage-static-${VERSION}`;
 const FONT_CACHE   = `voyage-fonts-${VERSION}`;
