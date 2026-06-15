@@ -105,10 +105,24 @@ function ScreenTrips({ goTrip, go }) {
   const upcoming = enrichedTrips.filter((t) => t.state.kind === 'upcoming');
   const past     = enrichedTrips.filter((t) => t.state.kind === 'past');
 
-  // Compute upcoming events when the candidate's data is loaded.
-  const events = (smartTripCandidate && window.TRIP?.id === smartTripCandidate.id)
-    ? (window.computeUpcomingEvents?.() || [])
-    : [];
+  // Smart Track events, stale-while-revalidate.
+  //
+  // The card used to be gated purely on window.TRIP being the candidate.
+  // But leaving home clears window.TRIP, and returning remounts this
+  // screen and re-fetches the candidate's data — so for a few hundred ms
+  // window.TRIP isn't the candidate yet, events is [], and the card
+  // BLINKS OUT then back in. We now cache the last computed events per
+  // candidate on window (survives unmount): compute live when the
+  // candidate's data is loaded, otherwise fall back to the cached events
+  // for the SAME candidate so the card holds steady while the refetch
+  // runs in the background.
+  let events = [];
+  if (smartTripCandidate && window.TRIP?.id === smartTripCandidate.id) {
+    events = window.computeUpcomingEvents?.() || [];
+    window._smartEventsCache = { id: smartTripCandidate.id, events };
+  } else if (smartTripCandidate && window._smartEventsCache?.id === smartTripCandidate.id) {
+    events = window._smartEventsCache.events;
+  }
   const nextEvent  = events[0] || null;
   const followups  = events.slice(1, 4);
 
