@@ -66,6 +66,8 @@ function ScreenAddDoc({ back, onCreated }) {
 
   const handleSave = async () => {
     if (!title.trim()) { setError(window.isRTL ? 'يرجى إدخال عنوان للمستند' : 'Enter a title'); return; }
+    const rangeErr = window.validateDocRanges?.(schema, details);
+    if (rangeErr) { setError(rangeErr); return; }
     const tripId = window.TRIP?.id;
     const userId = window.currentUserId;
     if (!tripId || !userId) { setError('No active trip or session'); return; }
@@ -215,8 +217,7 @@ function ScreenAddDoc({ back, onCreated }) {
           <DocStep title={window.isRTL ? 'التكلفة' : 'Cost'} optional>
             <div style={groupCard}>
               <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
-                <input type="number" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)}
-                  placeholder="0"
+                <NumberField value={cost} onChange={setCost} placeholder="0"
                   style={{ ...docFieldStyle, flex: 1 }} />
                 <select value={costCur} onChange={(e) => setCostCur(e.target.value)} style={{
                   ...docFieldStyle, width: 'auto', minWidth: 84, fontFamily: 'var(--mono)',
@@ -396,39 +397,138 @@ function DocStep({ title, hint, optional, children }) {
   );
 }
 
-// Render an array of schema field defs as a responsive 1- or 2-column grid.
-function DocFieldGrid({ fields, values, onChange }) {
-  // Group adjacent fields with col===2 next to their predecessor.
-  const rows = [];
-  let cursor = [];
-  fields.forEach((f) => {
-    if (f.col === 2 && cursor.length === 1) { cursor.push(f); rows.push(cursor); cursor = []; }
-    else {
-      if (cursor.length) rows.push(cursor);
-      cursor = [f];
-    }
-  });
-  if (cursor.length) rows.push(cursor);
-
+// ── Reusable numeric input ───────────────────────────────────
+// type="text" + inputMode triggers the numeric keypad on iOS/Android AND
+// sidesteps every type="number" quirk (scroll-wheel mutation, arrow keys,
+// stray e/+/- chars, locale commas). We sanitize the string ourselves:
+// `decimal` (default) keeps digits + a single dot (money); pass
+// decimal={false} for integer-only fields (counts, nights).
+function NumberField({ value, onChange, placeholder, decimal = true, style, id, ...rest }) {
+  const sanitize = (s) => {
+    if (!decimal) return String(s).replace(/\D/g, '');
+    s = String(s).replace(/[^\d.]/g, '');
+    const dot = s.indexOf('.');
+    if (dot !== -1) s = s.slice(0, dot + 1) + s.slice(dot + 1).replace(/\./g, '');
+    return s;
+  };
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {rows.map((row, i) => (
-        <div key={i} style={{
-          display: 'grid', gap: 8,
-          gridTemplateColumns: row.length === 2 ? '2fr 1fr' : '1fr',
-        }}>
-          {row.map((f) => (
-            <DocField key={f.key} field={f}
-              value={values[f.key] || ''}
-              onChange={(v) => onChange({ ...values, [f.key]: v })} />
-          ))}
-        </div>
-      ))}
+    <input
+      id={id}
+      type="text"
+      inputMode={decimal ? 'decimal' : 'numeric'}
+      autoComplete="off" autoCorrect="off" spellCheck={false}
+      value={value}
+      onChange={(e) => onChange(sanitize(e.target.value))}
+      placeholder={placeholder}
+      style={style}
+      {...rest}
+    />
+  );
+}
+
+// ── Unified date-time range (start → end) ────────────────────
+// Native date / datetime-local inputs (so we keep the iOS wheel picker),
+// stacked in one card so they read as a single range. The end input's
+// `min` is bound to the start value, which makes iOS natively block any
+// earlier datetime — INCLUDING earlier hours on the same day. Used for
+// adjacent schema pairs (hotel check-in/out, transport pick-up/drop-off).
+function DateTimeRange({ start, end, values, onChange }) {
+  const isDate = start.type === 'date';
+  const inputType = isDate ? 'date' : 'datetime-local';
+  const toIn   = (x) => (!x ? '' : (isDate ? x : toLocalDateTimeInput(x)));
+  const fromIn = (x) => (isDate ? x : fromLocalDateTimeInput(x));
+  const startVal = values[start.key] || '';
+  const endVal   = values[end.key] || '';
+  const minEnd   = startVal ? toIn(startVal) : undefined;
+  const cellLabel  = { fontSize: 11.5, fontWeight: 600, color: 'var(--ink-mute)', marginBottom: 6, display: 'block' };
+  const inputStyle = { ...docFieldStyle, fontSize: 16, padding: '11px 13px' };
+  return (
+    <div style={{
+      padding: 12, borderRadius: 14,
+      background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+      display: 'flex', flexDirection: 'column', gap: 8,
+    }}>
+      <div>
+        <label style={cellLabel}>{start.label()}</label>
+        <input type={inputType} value={toIn(startVal)}
+          onChange={(e) => onChange({ ...values, [start.key]: fromIn(e.target.value) })}
+          style={inputStyle} />
+      </div>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8, padding: '0 2px',
+        color: 'var(--ink-mute)', fontSize: 11,
+      }}>
+        <span style={{ flex: 1, height: '0.5px', background: 'var(--hairline-2)' }} />
+        <span className="icon-flip" style={{ transform: 'rotate(90deg)' }}>
+          <window.IconChevron size={12} stroke="currentColor" />
+        </span>
+        <span style={{ flex: 1, height: '0.5px', background: 'var(--hairline-2)' }} />
+      </div>
+      <div>
+        <label style={cellLabel}>{end.label()}</label>
+        <input type={inputType} value={toIn(endVal)} min={minEnd}
+          onChange={(e) => onChange({ ...values, [end.key]: fromIn(e.target.value) })}
+          style={inputStyle} />
+      </div>
     </div>
   );
 }
 
-function DocField({ field, value, onChange }) {
+// Convert a stored value into the native input's min format.
+function rangeMin(field, startVal) {
+  if (!startVal) return undefined;
+  return field.type === 'datetime' ? toLocalDateTimeInput(startVal) : startVal;
+}
+
+// Render an array of schema field defs. Builds render blocks:
+//   single  — one field
+//   pair    — a col:2 field beside its predecessor (2fr/1fr)
+//   range   — an end field whose `rangeStart` is the IMMEDIATELY preceding
+//             field → unified DateTimeRange. Non-adjacent range ends (e.g.
+//             flight arrival, separated from departure by the airport
+//             fields) stay single but still get a native `min`.
+function DocFieldGrid({ fields, values, onChange }) {
+  const set = (key, val) => onChange({ ...values, [key]: val });
+  const blocks = [];
+  for (let i = 0; i < fields.length; i++) {
+    const f = fields[i];
+    const prev = blocks[blocks.length - 1];
+    if (f.rangeStart && prev && prev.kind === 'single' && prev.field.key === f.rangeStart) {
+      blocks[blocks.length - 1] = { kind: 'range', start: prev.field, end: f };
+      continue;
+    }
+    if (f.col === 2 && prev && prev.kind === 'single') {
+      blocks[blocks.length - 1] = { kind: 'pair', a: prev.field, b: f };
+      continue;
+    }
+    blocks.push({ kind: 'single', field: f });
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {blocks.map((b, i) => {
+        if (b.kind === 'range') {
+          return <DateTimeRange key={i} start={b.start} end={b.end} values={values} onChange={onChange} />;
+        }
+        if (b.kind === 'pair') {
+          return (
+            <div key={i} style={{ display: 'grid', gap: 8, gridTemplateColumns: '2fr 1fr' }}>
+              <DocField field={b.a} value={values[b.a.key] || ''} onChange={(v) => set(b.a.key, v)} />
+              <DocField field={b.b} value={values[b.b.key] || ''} onChange={(v) => set(b.b.key, v)} />
+            </div>
+          );
+        }
+        const f = b.field;
+        return (
+          <DocField key={i} field={f} value={values[f.key] || ''}
+            min={f.rangeStart ? rangeMin(f, values[f.rangeStart]) : undefined}
+            onChange={(v) => set(f.key, v)} />
+        );
+      })}
+    </div>
+  );
+}
+
+function DocField({ field, value, onChange, min }) {
   const inputType = field.type === 'date' ? 'date'
                   : field.type === 'datetime' ? 'datetime-local'
                   : field.type === 'url' ? 'url' : 'text';
@@ -436,20 +536,27 @@ function DocField({ field, value, onChange }) {
   const v = (field.type === 'datetime' && value)
     ? toLocalDateTimeInput(value)
     : value;
+  const labelEl = (
+    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>{field.label()}</div>
+  );
+  if (field.type === 'number') {
+    return (
+      <div>
+        {labelEl}
+        <NumberField value={value} onChange={onChange}
+          placeholder={field.placeholder ? field.placeholder() : ''}
+          decimal={field.integer !== true}
+          style={{ ...docFieldStyle, fontSize: 16, padding: '11px 13px' }} />
+      </div>
+    );
+  }
   return (
     <div>
-      {/* Was uppercase mono 0.10em tracked 10px — repeated for every
-         schema field (8 in a flight doc, 4 in lodging, etc.). Now
-         sentence-case sans semibold ink. Matches the DocInfoRow fix
-         that v79 shipped on the read side. */}
-      <div style={{
-        fontSize: 12, fontWeight: 600,
-        color: 'var(--ink)',
-        marginBottom: 6,
-      }}>{field.label()}</div>
+      {labelEl}
       <input
         type={inputType}
         value={v}
+        min={min}
         onChange={(e) => onChange(field.type === 'datetime' ? fromLocalDateTimeInput(e.target.value) : e.target.value)}
         placeholder={field.placeholder ? field.placeholder() : ''}
         style={{ ...docFieldStyle, fontSize: 16, padding: '11px 13px' }} />
@@ -539,6 +646,8 @@ window.ScreenAddDoc = ScreenAddDoc;
 window.DocStep = DocStep;
 window.DocFieldGrid = DocFieldGrid;
 window.DocField = DocField;
+window.NumberField = NumberField;
+window.DateTimeRange = DateTimeRange;
 window.FilePicker = FilePicker;
 window.toLocalDateTimeInput = toLocalDateTimeInput;
 window.fromLocalDateTimeInput = fromLocalDateTimeInput;

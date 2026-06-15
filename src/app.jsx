@@ -1193,9 +1193,8 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
           )}
         </div>
         {/* Amount input styled as display */}
-        <input
-          type="number" inputMode="decimal"
-          value={amt} onChange={(e) => setAmt(e.target.value)}
+        <window.NumberField
+          value={amt} onChange={setAmt}
           placeholder="0"
           style={{
             background: 'transparent', border: 'none', outline: 'none',
@@ -1819,7 +1818,7 @@ function AddTripSheet({ onDone, onCreated }) {
         <div style={{ ...fieldRow, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
             <label htmlFor="at-budget" style={rowLabel}>{window.isRTL ? 'الميزانية (اختياري)' : 'Budget (optional)'}</label>
-            <input id="at-budget" type="number" inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)}
+            <window.NumberField id="at-budget" value={budget} onChange={setBudget}
               placeholder={window.isRTL ? 'مثلاً: 10000' : 'e.g. 10,000'} style={rowInput} />
           </div>
           <span style={{

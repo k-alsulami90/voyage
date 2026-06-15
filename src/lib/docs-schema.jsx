@@ -23,7 +23,7 @@ const DOC_SCHEMAS = {
       { key: 'dep_at',       type: 'datetime', label: () => window.isRTL ? 'موعد الإقلاع' : 'Departure' },
       { key: 'arr_airport',  type: 'text',     label: () => window.isRTL ? 'مطار الوصول' : 'To airport',   placeholder: () => window.isRTL ? 'اكتب رمز مطار الهبوط (مثل RUH)' : 'RUH' },
       { key: 'arr_terminal', type: 'text',     label: () => window.isRTL ? 'الصالة' : 'Terminal',           placeholder: () => '1', col: 2 },
-      { key: 'arr_at',       type: 'datetime', label: () => window.isRTL ? 'موعد الهبوط' : 'Arrival' },
+      { key: 'arr_at',       type: 'datetime', rangeStart: 'dep_at', label: () => window.isRTL ? 'موعد الهبوط' : 'Arrival' },
       { key: 'location_url', type: 'url',      label: () => window.isRTL ? 'رابط المطار' : 'Airport map link', placeholder: () => 'https://maps.google.com/...' },
     ],
     primaryFileLabel: () => window.isRTL ? 'التذكرة الإلكترونية الرسمية (PDF)' : 'E-ticket',
@@ -39,7 +39,7 @@ const DOC_SCHEMAS = {
     titlePlaceholder: () => window.isRTL ? 'مثال: فندق نيكو طوكيو' : 'e.g. Park Hyatt Tokyo',
     fields: [
       { key: 'check_in_at',  type: 'datetime', label: () => window.isRTL ? 'موعد تسجيل الدخول (Check-in)' : 'Check-in' },
-      { key: 'check_out_at', type: 'datetime', label: () => window.isRTL ? 'موعد مغادرة السكن (Check-out)' : 'Check-out' },
+      { key: 'check_out_at', type: 'datetime', rangeStart: 'check_in_at', label: () => window.isRTL ? 'موعد مغادرة السكن (Check-out)' : 'Check-out' },
       { key: 'address',      type: 'text',     label: () => window.isRTL ? 'العنوان' : 'Address',         placeholder: () => 'Street, city' },
       { key: 'location_url', type: 'url',      label: () => window.isRTL ? 'رابط الموقع' : 'Location link', placeholder: () => 'https://maps.google.com/...' },
     ],
@@ -53,7 +53,7 @@ const DOC_SCHEMAS = {
     fields: [
       { key: 'vendor',       type: 'text',     label: () => window.isRTL ? 'المزود' : 'Vendor',            placeholder: () => 'Hertz · Avis · JR' },
       { key: 'pickup_at',    type: 'datetime', label: () => window.isRTL ? 'الاستلام' : 'Pick-up' },
-      { key: 'dropoff_at',   type: 'datetime', label: () => window.isRTL ? 'التسليم' : 'Drop-off' },
+      { key: 'dropoff_at',   type: 'datetime', rangeStart: 'pickup_at', label: () => window.isRTL ? 'التسليم' : 'Drop-off' },
       { key: 'location_url', type: 'url',      label: () => window.isRTL ? 'رابط الموقع' : 'Location link', placeholder: () => 'https://maps.google.com/...' },
     ],
     primaryFileLabel: () => window.isRTL ? 'مرجع الإيجار' : 'Rental reference',
@@ -66,7 +66,7 @@ const DOC_SCHEMAS = {
     fields: [
       { key: 'visa_type',  type: 'text', label: () => window.isRTL ? 'نوع التأشيرة' : 'Visa type', placeholder: () => 'Tourist · Business' },
       { key: 'issued_on',  type: 'date', label: () => window.isRTL ? 'تاريخ الإصدار' : 'Issued' },
-      { key: 'expires_on', type: 'date', label: () => window.isRTL ? 'تاريخ الانتهاء' : 'Expires' },
+      { key: 'expires_on', type: 'date', rangeStart: 'issued_on', label: () => window.isRTL ? 'تاريخ الانتهاء' : 'Expires' },
     ],
     primaryFileLabel: () => window.isRTL ? 'وثيقة التأشيرة' : 'Visa document',
     showCost: false,
@@ -275,6 +275,29 @@ function relativeWhenLabel(startAt, now = new Date()) {
     { weekday: 'short', month: 'short', day: 'numeric' });
   return `${dayLabel} · ${time}`;
 }
+
+// Reusable range validator — one rule for every segment (flights /
+// hotels / transport / visas). For each field carrying `rangeStart`, the
+// end value must not be earlier than its start. Returns a plain-language
+// error string (RTL/EN) or null when the doc is valid. The native `min`
+// attribute already blocks this in the picker; this is the belt-and-
+// suspenders check on save (and covers values pasted/typed past min).
+window.validateDocRanges = (schema, details) => {
+  const fields = (schema && schema.fields) || [];
+  for (const f of fields) {
+    if (!f.rangeStart) continue;
+    const startVal = details ? details[f.rangeStart] : null;
+    const endVal   = details ? details[f.key] : null;
+    if (startVal && endVal && new Date(endVal) < new Date(startVal)) {
+      const sf = fields.find((x) => x.key === f.rangeStart);
+      const startLabel = sf ? sf.label() : '';
+      return window.isRTL
+        ? `«${f.label()}» لا يمكن أن يكون قبل «${startLabel}»`
+        : `“${f.label()}” can’t be before “${startLabel}”`;
+    }
+  }
+  return null;
+};
 
 window.DOC_SCHEMAS = DOC_SCHEMAS;
 window.fmtDocSummary = fmtDocSummary;

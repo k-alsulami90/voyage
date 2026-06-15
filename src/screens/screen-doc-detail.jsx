@@ -123,6 +123,8 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
   // ── Save edits ─────────────────────────────────────────────
   const saveEdits = async () => {
     if (!title.trim()) { window.toast?.(window.isRTL ? 'يرجى إدخال عنوان للمستند' : 'Title is required', 'error'); return; }
+    const rangeErr = window.validateDocRanges?.(schema, details);
+    if (rangeErr) { window.toast?.(rangeErr, 'error'); return; }
     setSaving(true);
     try {
       const costNum = cost ? parseFloat(cost) : null;
@@ -373,9 +375,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
               <div style={groupCard}>
                 <div style={editLabelStyle}>{window.isRTL ? 'تفاصيل التكلفة' : 'Cost'}</div>
                 <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
-                  <input type="number" inputMode="decimal" value={cost}
-                    onChange={(e) => setCost(e.target.value)}
-                    placeholder="0"
+                  <window.NumberField value={cost} onChange={setCost} placeholder="0"
                     style={{ ...window.docFieldStyle, fontSize: 16, padding: '11px 13px', flex: 1 }} />
                   <select value={costCur} onChange={(e) => setCostCur(e.target.value)} style={{
                     ...window.docFieldStyle, fontSize: 16, padding: '11px 13px',
