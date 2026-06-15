@@ -129,7 +129,6 @@ function ScreenTrips({ goTrip, go }) {
     events = window._smartEventsCache.events;
   }
   const nextEvent  = events[0] || null;
-  const followups  = events.slice(1, 4);
 
   return (
     <div data-screen-label="00 Trips Home" style={{
@@ -274,21 +273,18 @@ function ScreenTrips({ goTrip, go }) {
         )}
       </div>
 
-      {/* SMART TRACK — next time-anchored event (flight, check-in, pickup) */}
+      {/* SMART TRACK — next time-anchored event (flight, check-in, pickup).
+         One event → a single hero card. Two or more in the 24h window →
+         a peeking, swipe-to-flip deck (SmartTrackStack). */}
       {nextEvent && scope === 'all' && (
         <div style={{ padding: '4px 14px 0' }}>
           <SectionLabel>{window.isRTL ? 'الحدث القادم' : 'Up next'}</SectionLabel>
-          <SmartTrackCard event={nextEvent} trip={smartTripCandidate} onOpenTrip={() => goTrip(smartTripCandidate.id)} />
-          {followups.length > 0 && (
-            <div style={{
-              marginTop: 8, background: 'var(--cream-2)', borderRadius: 18,
-              border: '0.5px solid var(--hairline)', overflow: 'hidden',
-            }}>
-              {followups.map((ev, i) => (
-                <SmartTrackRow key={ev.id} event={ev} last={i === followups.length - 1}
-                  onOpenTrip={() => goTrip(smartTripCandidate.id)} />
-              ))}
-            </div>
+          {events.length > 1 ? (
+            <SmartTrackStack events={events.slice(0, 5)} trip={smartTripCandidate}
+              onOpen={() => goTrip(smartTripCandidate.id)} />
+          ) : (
+            <SmartTrackCard event={nextEvent} trip={smartTripCandidate}
+              onOpenTrip={() => goTrip(smartTripCandidate.id)} />
           )}
         </div>
       )}
@@ -717,6 +713,119 @@ function getSmartTrackPalette(type) {
   return SMART_TRACK_PALETTES[type] || SMART_TRACK_PALETTES.plan;
 }
 
+// Peeking deck of Smart Track cards (option A). When the next 24h holds
+// 2+ events (e.g. flight + car + hotel), they stack like travel passes:
+// the most imminent is on top, the rest peek behind it (offset up +
+// scaled), with a "1/3" counter. Swipe the front card sideways (or it
+// snaps back) to spring the next one forward; the old front slides to the
+// back of the deck — a loop, nothing is lost. Inner action links
+// (boarding pass, Trip) stay tappable because we only advance on a real
+// horizontal drag, never a tap. Reduced-motion users get a plain list.
+function SmartTrackStack({ events, trip, onOpen }) {
+  const n = events.length;
+  const reduce = React.useRef(
+    typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false
+  ).current;
+  const [index, setIndex] = React.useState(0);
+  const [dx, setDx] = React.useState(0);
+  const drag = React.useRef({ x: 0, active: false, moved: false });
+
+  if (reduce || n <= 1) {
+    const rows = events.slice(1, 4);
+    return (
+      <>
+        <SmartTrackCard event={events[0]} trip={trip} onOpenTrip={onOpen} />
+        {rows.length > 0 && (
+          <div style={{
+            marginTop: 8, background: 'var(--cream-2)', borderRadius: 18,
+            border: '0.5px solid var(--hairline)', overflow: 'hidden',
+          }}>
+            {rows.map((ev, i) => (
+              <SmartTrackRow key={ev.id} event={ev} last={i === rows.length - 1} onOpenTrip={onOpen} />
+            ))}
+          </div>
+        )}
+      </>
+    );
+  }
+
+  const advance = () => { setDx(0); setIndex((i) => (i + 1) % n); };
+  const onDown = (e) => { drag.current = { x: e.clientX, active: true, moved: false }; };
+  const onMove = (e) => {
+    if (!drag.current.active) return;
+    const d = e.clientX - drag.current.x;
+    if (Math.abs(d) > 4) drag.current.moved = true;
+    setDx(d);
+  };
+  const onUp = () => {
+    if (!drag.current.active) return;
+    drag.current.active = false;
+    if (Math.abs(dx) > 64) advance(); else setDx(0);
+  };
+
+  const MAX = Math.min(n, 3);   // depth layers shown
+  return (
+    <div>
+      <div style={{ position: 'relative' }}>
+        {/* Invisible sizer keeps the container height = the current front
+           card, so every visible card can be absolutely positioned (no
+           relative/absolute switch to break the spring transitions). */}
+        <div aria-hidden="true" style={{ visibility: 'hidden', pointerEvents: 'none' }}>
+          <SmartTrackCard event={events[index]} trip={trip} onOpenTrip={() => {}} />
+        </div>
+        {events.map((ev, i) => {
+          const rel = (i - index + n) % n;   // 0 = front
+          const depth = Math.min(rel, MAX - 1);
+          const isFront = rel === 0;
+          const transform = isFront
+            ? `translateX(${dx}px) rotate(${dx * 0.02}deg)`
+            : `translateY(${-depth * 10}px) scale(${1 - depth * 0.05})`;
+          const opacity = rel >= MAX ? 0 : (isFront ? 1 : 1 - depth * 0.22);
+          return (
+            <div key={ev.id}
+              onPointerDown={isFront ? onDown : undefined}
+              onPointerMove={isFront ? onMove : undefined}
+              onPointerUp={isFront ? onUp : undefined}
+              onPointerCancel={isFront ? onUp : undefined}
+              style={{
+                position: 'absolute', top: 0, left: 0, right: 0,
+                zIndex: 30 - rel,
+                transform, opacity,
+                transition: (isFront && drag.current.active)
+                  ? 'none'
+                  : 'transform 320ms cubic-bezier(.2,.8,.2,1), opacity 280ms',
+                pointerEvents: isFront ? 'auto' : 'none',
+                touchAction: 'pan-y',
+                willChange: 'transform',
+              }}>
+              <SmartTrackCard event={ev} trip={trip} onOpenTrip={onOpen} />
+            </div>
+          );
+        })}
+      </div>
+      {/* Counter + affordance hint */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginTop: 10, padding: '0 4px', flexDirection: 'row',
+      }}>
+        <div style={{ display: 'flex', gap: 5, flexDirection: 'row' }}>
+          {events.map((_, i) => (
+            <span key={i} style={{
+              width: i === index ? 16 : 6, height: 6, borderRadius: 999,
+              background: i === index ? 'var(--ink)' : 'var(--hairline-2)',
+              transition: 'width 220ms, background 220ms',
+            }} />
+          ))}
+        </div>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--ink-mute)', letterSpacing: '0.04em' }}>
+          {(index % n) + 1} / {n} · {window.isRTL ? 'اسحب للتالي' : 'swipe'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function SmartTrackCard({ event, trip, onOpenTrip }) {
   const when = window.relativeWhenLabel(event.startAt);
   const isNow = /now|الآن/i.test(when);
@@ -968,4 +1077,4 @@ function SmartTrackTypeIcon({ type, size = 22 }) {
   );
 }
 
-Object.assign(window, { ScreenTrips, CoverArt, SmartTrackCard, SmartTrackRow });
+Object.assign(window, { ScreenTrips, CoverArt, SmartTrackCard, SmartTrackRow, SmartTrackStack });
