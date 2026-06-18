@@ -526,16 +526,18 @@ function App() {
 
   const appShell = (
     <div style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>
-      {/* Key only changes when entering/exiting a trip (or switching trips) — */}
-      {/* not on every tab switch. Prevents losing local screen state. */}
+      {/* Keyed by the full route so the scroller remounts on every
+         navigation — that replays the `screen-enter` settle and starts the
+         new screen at the top. The inner screens already remount per route
+         (different component per tab), so this loses no extra state. */}
       <div style={{
         position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden',
         WebkitOverflowScrolling: 'touch',           // iOS momentum scroll
         overscrollBehavior: 'contain',              // don't bounce parent
       }}
            ref={scrollerRef}
-           className="no-scrollbar"
-           key={route.scope + ':' + (route.tripId || route.name)}>
+           className="no-scrollbar screen-enter"
+           key={route.scope + ':' + route.name + ':' + (route.tripId || '')}>
         {screenNode}
       </div>
 

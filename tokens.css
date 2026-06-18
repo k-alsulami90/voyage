@@ -108,6 +108,19 @@ button {
 button:active { transform: scale(0.97); opacity: 0.92; }
 button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
+/* Instant taps — `manipulation` removes the legacy ~300ms tap delay and
+   the double-tap-to-zoom wait on controls, so a tap registers the moment
+   the finger lands. The single biggest "why does it feel laggy" fix. */
+button, a, [role="button"], label, summary,
+input, select, textarea {
+  touch-action: manipulation;
+}
+
+/* Large tappable surfaces (trip cards, hero cards) feel premium with a
+   gentler press than the 0.97 used for small controls — a full-width card
+   snapping to 0.97 reads as a "thunk". 0.99 reads as a soft press. */
+.press-soft:active:not(:disabled) { transform: scale(0.99); }
+
 /* Keyboard focus ring — only when the user is actually navigating with the
    keyboard, never on mouse / touch. iPad PWA + bluetooth keyboard, desktop
    browser preview, anyone using a screen reader: they get a real signal. */
@@ -377,10 +390,22 @@ textarea:focus-visible,
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.35; }
 }
-/* Respect reduced motion — kill both pulses for users who asked. */
+/* Screen enter — a quick, subtle settle on each navigation so the app
+   feels continuous instead of hard-cutting between screens. Fast (170ms)
+   and slight (6px rise) so it reads as polish, never as waiting. */
+@keyframes screenIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.screen-enter { animation: screenIn 170ms cubic-bezier(.2,.8,.2,1) both; }
+
+/* Respect reduced motion — kill the pulses, the press scale, and the
+   screen-enter settle for users who asked for less motion. */
 @media (prefers-reduced-motion: reduce) {
   @keyframes pulse      { 0%, 100% { opacity: 1; transform: none; } }
   @keyframes pulse-fade { 0%, 100% { opacity: 1; } }
+  .screen-enter { animation: none; }
+  button:active, .press-soft:active, [role="button"]:active { transform: none; }
 }
 
 /* Pull-to-refresh indicator */

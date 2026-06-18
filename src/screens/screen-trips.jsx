@@ -368,7 +368,7 @@ function ScreenTrips({ goTrip, go }) {
 function CurrentTripCard({ trip, onOpen }) {
   const { dayN, totalDays, daysRemaining } = trip.state;
   return (
-    <button onClick={onOpen} style={{
+    <button onClick={onOpen} className="press-soft" style={{
       width: '100%', textAlign: 'start', borderRadius: 28,
       overflow: 'hidden', position: 'relative',
       background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
@@ -459,7 +459,7 @@ function UpcomingTripCard({ trip, onOpen }) {
     daysUntil === 1 ? t('dayAway') :
     t('daysAway', { n: daysUntil });
   return (
-    <button onClick={onOpen} style={{
+    <button onClick={onOpen} className="press-soft" style={{
       flexShrink: 0, width: 220, textAlign: 'start',
       borderRadius: 22, overflow: 'hidden',
       background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
@@ -548,7 +548,7 @@ function PastTripCard({ trip, onOpen }) {
     .find((t) => t.id === trip.id);
   const spent = tripStat?.spent || 0;
   return (
-    <button onClick={onOpen} style={{
+    <button onClick={onOpen} className="press-soft" style={{
       display: 'flex', alignItems: 'center', gap: 12,
       padding: '12px 14px', borderRadius: 18, textAlign: 'start', width: '100%',
       background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
