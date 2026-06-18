@@ -557,7 +557,12 @@ window.loadExpenses = async (tripId) => {
 
   if (error) { console.error('loadExpenses', error); return; }
 
-  window.EXPENSES = (data || []).map((r) => ({
+  const rows = data || [];
+  // Receipts live in the private documents bucket → sign their paths fresh
+  // (the stored receipt_url is a now-dead public url).
+  const signed = await window._signDocPaths(rows.map((r) => r.receipt_path));
+
+  window.EXPENSES = rows.map((r) => ({
     id:        r.id,
     who:       r.created_by,
     cat:       r.category,
@@ -569,7 +574,7 @@ window.loadExpenses = async (tripId) => {
     note:      r.note || '',
     splitWith: Array.isArray(r.split_with) ? r.split_with.filter(Boolean) : [],
     receiptPath: r.receipt_path || null,
-    receiptUrl:  r.receipt_url || null,
+    receiptUrl:  (r.receipt_path ? signed.get(r.receipt_path) : null) || null,
   }));
 
   window.recomputeExpenseDerived(tripId);
@@ -620,6 +625,27 @@ window.loadMembers = async (tripId) => {
   }));
 };
 
+// Sign a batch of private `documents`-bucket paths in one round-trip →
+// Map<path, signedUrl>. The bucket is private (see migration-storage-
+// private.sql), so files are only reachable through short-lived signed
+// urls. We re-sign on every load, so a 2h expiry is plenty for a session
+// and there's nothing long-lived to leak. Bad/again-missing paths are
+// simply absent from the map (caller falls back to null).
+window._signDocPaths = async (paths, expiresIn = 7200) => {
+  const map = new Map();
+  const unique = [...new Set((paths || []).filter(Boolean))];
+  if (unique.length === 0 || !window.sb) return map;
+  try {
+    const { data, error } = await window.sb.storage
+      .from('documents').createSignedUrls(unique, expiresIn);
+    if (error) { console.error('createSignedUrls', error); return map; }
+    (data || []).forEach((d) => {
+      if (d && d.signedUrl && !d.error) map.set(d.path, d.signedUrl);
+    });
+  } catch (e) { console.error('signDocPaths', e); }
+  return map;
+};
+
 window.loadDocuments = async (tripId) => {
   const { data, error } = await window.sb
     .from('documents')
@@ -629,24 +655,31 @@ window.loadDocuments = async (tripId) => {
 
   if (error) { console.error('loadDocuments', error); return; }
 
+  const rows = data || [];
+  // Collect every private-bucket path on this trip and sign them all in a
+  // single call, then map each doc to its signed url below.
+  const toSign = [];
+  rows.forEach((r) => {
+    if (r.file_path) toSign.push(r.file_path);
+    if (r.secondary_file_path) toSign.push(r.secondary_file_path);
+    if (r.cover_path) toSign.push(r.cover_path);
+  });
+  const signed = await window._signDocPaths(toSign);
+
   const byCat = { flights: [], lodging: [], visas: [], transport: [] };
-  (data || []).forEach((r) => {
+  rows.forEach((r) => {
     // Links come ONLY from Supabase Storage — external link_url is ignored.
     // User must upload the file via the Upload button to get a working link.
     let resolvedLink = null;
     let resolvedLabel = null;
     if (r.file_path) {
-      const { data: { publicUrl } } = window.sb.storage
-        .from('documents').getPublicUrl(r.file_path);
-      resolvedLink  = publicUrl;
+      resolvedLink  = signed.get(r.file_path) || null;
       resolvedLabel = window.isRTL ? 'استعراض ملف PDF' : 'Open PDF';
     }
     // Secondary file (e.g. boarding pass for flights) — resolve URL if present.
     let secondaryLink = null;
     if (r.secondary_file_path) {
-      const { data: { publicUrl: pu } } = window.sb.storage
-        .from('documents').getPublicUrl(r.secondary_file_path);
-      secondaryLink = pu;
+      secondaryLink = signed.get(r.secondary_file_path) || null;
     }
     const doc = {
       id:        r.id,
@@ -659,7 +692,7 @@ window.loadDocuments = async (tripId) => {
         : (r.file_path ? '...' : '--'),
       tint:      r.tint,
       filePath:  r.file_path || null,
-      coverUrl:  r.cover_url || null,
+      coverUrl:  (r.cover_path ? signed.get(r.cover_path) : null) || null,
       coverPath: r.cover_path || null,
       link:      resolvedLink,
       linkLabel: resolvedLabel,
@@ -705,8 +738,11 @@ window.uploadReceipt = async (expenseId, tripId, file) => {
       upsert: true, contentType: file.type || 'image/jpeg',
     });
   if (upErr) throw upErr;
-  const { data: { publicUrl } } = window.sb.storage
-    .from('documents').getPublicUrl(path);
+  // Private bucket → signed url for immediate display (loadExpenses re-signs
+  // from receipt_path on every load, so this stored url is just transient).
+  const { data: signedData } = await window.sb.storage
+    .from('documents').createSignedUrl(path, 7200);
+  const publicUrl = signedData?.signedUrl || null;
   const { error: dbErr } = await window.sb.from('expenses').update({
     receipt_path: path, receipt_url: publicUrl,
   }).eq('id', expenseId);
@@ -855,9 +891,11 @@ window.uploadDocCover = async (docId, tripId, file) => {
       upsert: true, contentType: file.type || 'image/jpeg',
     });
   if (upErr) throw upErr;
-  const { data: { publicUrl } } = window.sb.storage
-    .from('documents').getPublicUrl(path);
-  const url = `${publicUrl}?v=${Date.now()}`;
+  // Private bucket → signed url for immediate display (loadDocuments re-signs
+  // from cover_path on every load).
+  const { data: signedData } = await window.sb.storage
+    .from('documents').createSignedUrl(path, 7200);
+  const url = signedData?.signedUrl || null;
   const { error: dbErr } = await window.sb.from('documents').update({
     cover_path: path, cover_url: url,
   }).eq('id', docId);
@@ -903,8 +941,12 @@ window.uploadDocumentFile = async (docId, tripId, file) => {
     .from('documents').upload(path, file, { upsert: true, contentType: file.type });
   if (upErr) throw upErr;
 
-  const { data: { publicUrl } } = window.sb.storage
-    .from('documents').getPublicUrl(path);
+  // Private bucket → signed url for immediate display. loadDocuments re-signs
+  // from file_path on every load, so the stored link_url is just transient
+  // (and intentionally ignored on read).
+  const { data: signedData } = await window.sb.storage
+    .from('documents').createSignedUrl(path, 7200);
+  const publicUrl = signedData?.signedUrl || null;
 
   const { error: dbErr } = await window.sb.from('documents').update({
     file_path:       path,
