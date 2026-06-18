@@ -166,6 +166,11 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
       title: (prefix + (doc.title || '')).trim(),
       cat: DOC_TO_EXPENSE_CAT[doc.category] || 'misc',
       amountUSD: doc.costUSD != null ? Number(doc.costUSD) : undefined,
+      // Carry the ORIGINAL amount + currency the user typed for the doc
+      // (e.g. 2350 SAR) so the expense sheet opens on exactly that, instead
+      // of silently converting it into the trip's local currency.
+      amountLocal: doc.costLocal != null ? Number(doc.costLocal) : undefined,
+      currency: doc.costCurrency || undefined,
       note: doc.subtitle || null,
       source: { doc: doc.id },
     });

@@ -1022,14 +1022,24 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
   // Prefill (e.g. from a Plan activity): seeds title + category, user still types the amount.
   const [title,   setTitle]   = React.useState(existing?.title || prefill?.title || '');
   const [cat,     setCat]     = React.useState(existing?.cat   || prefill?.cat   || 'food');
-  const [inputCur, setInputCur] = React.useState(existing ? home : (local !== home ? local : home));
+  // When logging from a doc/plan that knows the ORIGINAL currency the user
+  // typed (e.g. 2350 SAR), open the sheet in that currency — but only if the
+  // toggle can actually show it (it switches between home and local). A
+  // third currency falls back to the trip's local.
+  const prefillCur = (!existing && prefill?.currency && (prefill.currency === home || prefill.currency === local))
+    ? prefill.currency : null;
+  const [inputCur, setInputCur] = React.useState(existing ? home : (prefillCur || (local !== home ? local : home)));
   const [amt,     setAmt]     = React.useState(() => {
     if (existing) {
       const rate = window.fxRate(home);
       return Math.round((existing.usd || 0) * rate * 100) / 100;
     }
-    // Prefill the amount when logging a known cost (e.g. a document's price),
-    // shown in the sheet's initial input currency.
+    // Original amount in its original currency — exactly what the user typed,
+    // no conversion, no surprise.
+    if (prefillCur && prefill?.amountLocal != null) {
+      return prefill.amountLocal;
+    }
+    // Fallback: only a USD value is known → show it in the initial currency.
     if (prefill?.amountUSD != null) {
       const initialCur = (local !== home ? local : home);
       return Math.round(prefill.amountUSD * window.fxRate(initialCur) * 100) / 100;
