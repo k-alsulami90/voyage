@@ -11946,12 +11946,6 @@ function App() {
     };
   }, []);
   React.useEffect(() => {
-    window.loadTripData = (tripId) => loadTripData(tripId);
-    return () => {
-      window.loadTripData = null;
-    };
-  }, [loadTripData]);
-  React.useEffect(() => {
     window.navigateRoute = (r) => setRoute(r);
     return () => {
       window.navigateRoute = null;
@@ -12001,6 +11995,12 @@ function App() {
       setDataVersion((v) => v + 1);
     });
   }, []);
+  React.useEffect(() => {
+    window.loadTripData = (tripId) => loadTripData(tripId);
+    return () => {
+      window.loadTripData = null;
+    };
+  }, [loadTripData]);
   React.useEffect(() => {
     if (!window.sb) {
       console.warn("Supabase SDK not loaded — falling back to auth screen");

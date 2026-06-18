@@ -84,15 +84,6 @@ function App() {
     return () => { window.notifyDataChange = null; };
   }, []);
 
-  // Mirror loadTripData onto window so the Smart Track effect on Trips
-  // Home (which has no prop access to the App's useCallback) can ask
-  // for the candidate trip's docs/itinerary to be fetched. The mirror
-  // is kept in sync if loadTripData ever changes identity.
-  React.useEffect(() => {
-    window.loadTripData = (tripId) => loadTripData(tripId);
-    return () => { window.loadTripData = null; };
-  }, [loadTripData]);
-
   // Expose route navigation so deep components without prop access
   // (e.g. the delete action inside Trip Settings) can leave a screen.
   // Used by trip deletion to exit the now-dead trip scope cleanly
@@ -162,6 +153,17 @@ function App() {
       setDataVersion((v) => v + 1);
     });
   }, []);
+
+  // Mirror loadTripData onto window so non-React callers (the Smart Track
+  // effect on Trips Home) can trigger a trip load. MUST come after the
+  // const above: its [loadTripData] dependency is read during render, and
+  // esbuild keeps `const` (real temporal dead zone) where Babel emitted
+  // `var` (hoisted) — referencing it earlier threw "Cannot access
+  // 'loadTripData' before initialization" and blocked the whole app.
+  React.useEffect(() => {
+    window.loadTripData = (tripId) => loadTripData(tripId);
+    return () => { window.loadTripData = null; };
+  }, [loadTripData]);
 
   React.useEffect(() => {
     if (!window.sb) {
