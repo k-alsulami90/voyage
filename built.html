@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1" />
+<title>Voyage — Travel Tracker</title>
+
+<!-- PWA manifest + theme -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0F172A" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#f3eed8" media="(prefers-color-scheme: light)" />
+<meta name="description" content="Plan trips, track expenses, share with your crew — designed for Gulf travelers." />
+
+<!-- iOS / Apple — standalone PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Voyage" />
+<meta name="format-detection" content="telephone=no" />
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png" />
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+<link rel="shortcut icon" href="favicon.ico" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Tajawal:wght@300;400;500;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Markazi+Text:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  /* The <html> canvas paints behind the fixed <body>. On iOS PWA cold
+     launch the body is briefly shorter than the screen, and the strip
+     below it showed the canvas — which was cream (tokens.css sets
+     html,body to var(--cream)) — as a sliver at the bottom. Paint the
+     canvas the SAME dark as the splash so that launch-moment strip is
+     invisible. By the time the splash dismisses, --app-height has
+     settled and the cream body fills the screen. Defined here (inline,
+     network-first) so it lands immediately, not behind the cache-first
+     tokens.css. */
+  html { background: #0a0f1e; }
+
+  body {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    background:
+      radial-gradient(ellipse 60% 50% at 30% 20%, oklch(0.32 0.04 40) 0%, transparent 60%),
+      radial-gradient(ellipse 80% 60% at 80% 100%, oklch(0.28 0.03 220) 0%, transparent 55%),
+      #14110d;
+    padding: 32px 16px;
+  }
+  /* Stage shadow under the device */
+  .device-stage {
+    position: relative;
+    filter: drop-shadow(0 50px 60px rgba(0,0,0,0.6));
+  }
+
+  @media (max-width: 500px) {
+    body {
+      display: block;
+      background: var(--cream);
+      padding: 0;
+      /* Layered height fallbacks for the iOS standalone launch bug:
+         -webkit-fill-available tracks the real screen and updates when
+         iOS settles; var(--app-height) is the JS-measured value; 100dvh
+         is the last resort. Whichever the browser honours, the body
+         fills the screen. */
+      height: 100dvh;
+      height: var(--app-height, 100dvh);
+      min-height: -webkit-fill-available;
+      overflow: hidden;
+      /* Fill the containing block exactly (no stale explicit height) */
+      position: fixed;
+      inset: 0;
+    }
+    #root {
+      height: 100%;
+      width: 100vw;
+      overflow: hidden;
+    }
+  }
+
+  /* iOS: respect notch and home indicator */
+  @supports (padding: env(safe-area-inset-top)) {
+    body { padding-top: 0; padding-bottom: 0; }
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     SPLASH — cinematic 2.5s cold-boot animation.
+     Pure CSS, paints before any JSX is parsed. JS auto-dismisses
+     after React mounts (with a 2500ms minimum show time).
+     ───────────────────────────────────────────────────────────── */
+  #splash {
+    /* Fill the full containing block (all four insets = 0). This is more
+       robust than an explicit height, which can bind to a stale
+       window.innerHeight that iOS doesn't update until a rotation. Any
+       strip BELOW the web view at launch is the native window background
+       (manifest background_color) — handled there, not here. */
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 9999;
+    display: grid; place-items: center; overflow: hidden;
+    color: #f5ecd9;
+    /* Painted radial-gradient bg replaces the animated aurora blobs.
+       Zero GPU cost — just one paint at load. */
+    background:
+      radial-gradient(ellipse 60% 50% at 15% 20%, rgba(255,138,92,0.35) 0%, transparent 55%),
+      radial-gradient(ellipse 55% 45% at 85% 90%, rgba(107,123,255,0.30) 0%, transparent 55%),
+      #0a0f1e;
+    transition: opacity 600ms cubic-bezier(.32,.72,0,1), visibility 0s linear 600ms;
+    will-change: opacity;
+  }
+  #splash.splash-leave {
+    opacity: 0; visibility: hidden; pointer-events: none;
+  }
+
+  /* Aurora + stars removed — they were the biggest mobile GPU drain.
+     Background gradient on #splash provides the depth feel for free. */
+  .splash-aurora, .splash-stars { display: none; }
+
+  /* Center stage */
+  .splash-stage {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column; align-items: center; gap: 22px;
+    text-align: center;
+  }
+
+  /* ── SVG scene — the actual "video" ── */
+  /* IMPORTANT: opacity defaults to 1 so the scene is always visible
+     even if entrance animation doesn't run (iOS Reduce Motion etc.) */
+  .splash-scene {
+    width: 280px; height: 170px;
+    opacity: 1;
+  }
+  /* Only fade up if motion is allowed */
+  @media (prefers-reduced-motion: no-preference) {
+    .splash-scene {
+      animation: scene-in 700ms cubic-bezier(.32,.72,0,1) both;
+    }
+    @keyframes scene-in {
+      0%   { opacity: 0; transform: translateY(8px) scale(0.96); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+  }
+
+  /* The dotted travel arc draws across */
+  .scene-path {
+    fill: none;
+    stroke: rgba(245,236,217,0.45);
+    stroke-width: 1.4;
+    stroke-dasharray: 3 5;
+    stroke-dashoffset: 0;
+    stroke-linecap: round;
+    /* Reveal the dashes left-to-right */
+    animation: path-draw 1800ms cubic-bezier(.45,.05,.55,.95) 200ms both;
+  }
+  @keyframes path-draw {
+    0%   { stroke-dashoffset: 320; }
+    100% { stroke-dashoffset: 0; }
+  }
+
+  /* Origin + destination dots — visible by default, animate if motion allowed */
+  .scene-pin {
+    transform-origin: center;
+    transform-box: fill-box;
+  }
+  .scene-pin-pulse {
+    stroke: rgba(245,236,217,0.7);
+    stroke-width: 1;
+    transform-origin: center;
+    transform-box: fill-box;
+    opacity: 0;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .scene-pin {
+      opacity: 0;
+      animation: pin-in 400ms cubic-bezier(.32,1.6,.4,1) forwards;
+    }
+    .scene-pin.dest { animation-delay: 1700ms; }
+    .scene-pin.orig { animation-delay: 200ms; }
+    @keyframes pin-in {
+      0%   { opacity: 0; transform: scale(0); }
+      60%  { opacity: 1; transform: scale(1.6); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .scene-pin-pulse {
+      animation: pin-pulse 1800ms ease-out 2;       /* run 2× then stop */
+      will-change: transform, opacity;
+    }
+    .scene-pin-pulse.orig { animation-delay: 0.6s; }
+    .scene-pin-pulse.dest { animation-delay: 2.1s; }
+    @keyframes pin-pulse {
+      0%   { opacity: 0.8; transform: scale(0.8); }
+      100% { opacity: 0;   transform: scale(3); }
+    }
+  }
+
+  /* Plane — animate translate3d (GPU-compositor only) with 3 keyframes max.
+     Fewer keyframes = smoother interpolation. translate3d forces a GPU
+     layer on iOS Safari. */
+  .scene-plane {
+    transform: translate3d(30px, 120px, 0) rotate(-25deg);
+    transform-origin: center;
+    transform-box: fill-box;
+    will-change: transform;
+    animation: plane-arc 1600ms cubic-bezier(.4, 0, .6, 1) 300ms forwards;
+  }
+  @keyframes plane-arc {
+    0%   { transform: translate3d(30px, 120px, 0)  rotate(-25deg); }
+    50%  { transform: translate3d(140px, 25px, 0)  rotate(0deg); }
+    100% { transform: translate3d(250px, 80px, 0)  rotate(20deg); }
+  }
+
+  /* Trail — 2 dots (was 4), simpler keyframes, 3 waypoints */
+  .scene-trail {
+    transform: translate3d(30px, 120px, 0);
+    transform-origin: center;
+    transform-box: fill-box;
+    opacity: 0;
+    will-change: transform, opacity;
+  }
+  .scene-trail.t1 { animation: trail-arc 1600ms cubic-bezier(.4,0,.6,1) 450ms forwards; }
+  .scene-trail.t2 { animation: trail-arc 1600ms cubic-bezier(.4,0,.6,1) 600ms forwards; }
+  .scene-trail.t3, .scene-trail.t4 { display: none; }
+  @keyframes trail-arc {
+    0%   { transform: translate3d(30px, 120px, 0);  opacity: 0; }
+    15%  { opacity: 0.85; }
+    50%  { transform: translate3d(140px, 25px, 0); }
+    100% { transform: translate3d(250px, 80px, 0);  opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scene-plane {
+      animation: none;
+      transform: translate3d(250px, 80px, 0) rotate(20deg);
+    }
+    .scene-trail { display: none; }
+  }
+
+  /* Mountain silhouette — visible by default */
+  .scene-mountain {
+    fill: rgba(20,15,30,0.55);
+    transform-origin: bottom center;
+  }
+  .scene-mountain.back { fill: rgba(40,30,55,0.45); }
+
+  /* Sun glow — always visible */
+  .scene-sun {
+    fill: #FFC972;
+    opacity: 0.65;
+    filter: blur(2px);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .scene-mountain {
+      opacity: 0;
+      animation: mtn-in 900ms cubic-bezier(.32,.72,0,1) 100ms forwards;
+    }
+    .scene-mountain.back { animation-delay: 50ms; }
+    @keyframes mtn-in {
+      0%   { opacity: 0; transform: translateY(8px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .scene-sun {
+      opacity: 0;
+      animation: sun-rise 1200ms cubic-bezier(.32,.72,0,1) 200ms forwards;
+    }
+    @keyframes sun-rise {
+      0%   { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 0.65; transform: translateY(0); }
+    }
+  }
+
+  /* Wordmark — plain text fade (shimmer killed for FPS) */
+  .splash-wordmark {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+    font-size: 60px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: #f5ecd9;
+    opacity: 0;
+    will-change: opacity, transform;
+    animation: wm-in 600ms cubic-bezier(.32,.72,0,1) 1400ms forwards;
+  }
+  @keyframes wm-in {
+    0%   { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Tracking line that draws + glows */
+  .splash-rule {
+    position: relative; width: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(245,236,217,0.6), transparent);
+    animation: rule-grow 600ms cubic-bezier(.32,.72,0,1) 1700ms forwards;
+  }
+  @keyframes rule-grow { to { width: 160px; } }
+
+  /* Tagline + loading dots */
+  .splash-tagline {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: rgba(245,236,217,0.78);
+    opacity: 0;
+    animation: tag-in 600ms cubic-bezier(.32,.72,0,1) 1950ms forwards;
+  }
+  @keyframes tag-in {
+    0%   { opacity: 0; transform: translateY(6px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Dots + progress bar removed — extra repaints. The plane + wordmark
+     entrance is enough visual signal that the app is loading. */
+  .splash-dots, .splash-progress { display: none; }
+
+  @keyframes splash-fade-in { to { opacity: 1; } }
+
+  /* Reduced motion — skip animations, show final state immediately */
+  @media (prefers-reduced-motion: reduce) {
+    #splash *,
+    #splash::before, #splash::after {
+      animation: none !important;
+    }
+    .splash-mark, .splash-wordmark, .splash-rule, .splash-tagline,
+    .splash-dots, .splash-stars { opacity: 1; transform: none; }
+    .splash-rule { width: 160px; }
+    .splash-progress::after { width: 100%; }
+    .splash-wordmark { -webkit-text-fill-color: #f5ecd9; background: none; }
+  }
+</style>
+</head>
+<body>
+  <!-- Splash — pure CSS, paints before React loads. JS dismisses after mount. -->
+  <div id="splash" aria-hidden="true">
+    <div class="splash-aurora"><b></b><b></b><b></b></div>
+    <div class="splash-stars">
+      <span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span>
+    </div>
+    <div class="splash-stage">
+      <!-- Animated travel scene — pure CSS, no SMIL (iOS PWA compat). -->
+      <svg class="splash-scene" viewBox="0 0 280 170" xmlns="http://www.w3.org/2000/svg">
+        <!-- Sun glow behind the path -->
+        <ellipse class="scene-sun" cx="200" cy="105" rx="42" ry="42" />
+        <!-- Distant mountain layer -->
+        <path class="scene-mountain back"
+              d="M 0,135 L 30,95 L 60,115 L 95,75 L 130,105 L 165,80 L 200,110 L 240,90 L 280,120 L 280,170 L 0,170 Z" />
+        <!-- Front mountain layer -->
+        <path class="scene-mountain"
+              d="M 0,160 L 25,125 L 55,145 L 90,105 L 130,140 L 170,115 L 210,150 L 245,125 L 280,155 L 280,170 L 0,170 Z" />
+        <!-- The dotted travel arc — purely decorative -->
+        <path class="scene-path" d="M 30,120 Q 140,10 250,80" />
+        <!-- Origin pin (left) -->
+        <circle class="scene-pin-pulse orig" cx="30" cy="120" r="4" fill="none" />
+        <circle class="scene-pin orig"       cx="30" cy="120" r="3.5" fill="#f5ecd9" />
+        <!-- Destination pin (right) -->
+        <circle class="scene-pin-pulse dest" cx="250" cy="80" r="4" fill="none" />
+        <circle class="scene-pin dest"       cx="250" cy="80" r="3.5" fill="#f5ecd9" />
+
+        <!-- Sparkle trail — 4 dots animated via pure CSS waypoints -->
+        <circle class="scene-trail t1" cx="0" cy="0" r="1.8" fill="#FFD9A8" />
+        <circle class="scene-trail t2" cx="0" cy="0" r="1.4" fill="#FFD9A8" />
+        <circle class="scene-trail t3" cx="0" cy="0" r="1.0" fill="#FFD9A8" />
+        <circle class="scene-trail t4" cx="0" cy="0" r="0.7" fill="#FFD9A8" />
+
+        <!-- Plane — CSS transform keyframes carry it along 5 waypoints -->
+        <g class="scene-plane">
+          <path d="M -10,-4 L 10,0 L -10,4 L -6,0 Z" fill="#f5ecd9" />
+          <circle cx="0" cy="0" r="1.6" fill="#ffffff" />
+        </g>
+      </svg>
+      <div class="splash-wordmark">voyage</div>
+      <div class="splash-rule"></div>
+      <div class="splash-tagline">For people who wander</div>
+      <div class="splash-dots"><span></span><span></span><span></span></div>
+    </div>
+    <div class="splash-progress"></div>
+  </div>
+
+  <div id="root">
+    <!-- Hardcoded fallback: shown if React/Babel never mount within 8s.
+         No DevTools required — user just taps a button. -->
+    <div id="mount-fallback" style="display:none; position:fixed; inset:0;
+         background:#f3eed8; color:#221c16; padding:24px;
+         font-family:-apple-system, system-ui, sans-serif;
+         display:none; place-items:center; text-align:center;">
+      <div style="max-width:300px;">
+        <div style="font-family:'Instrument Serif', Georgia, serif; font-style:italic; font-size:36px; margin-bottom:24px;">voyage</div>
+        <div style="font-family:'Instrument Serif', Georgia, serif; font-size:22px; margin-bottom:8px;">Trouble loading</div>
+        <div style="font-size:13px; color:#666; margin-bottom:20px; line-height:1.5;">
+          Check your connection. If the issue continues, tap Reset.
+        </div>
+        <div style="display:flex; gap:8px; justify-content:center;">
+          <button onclick="location.reload()" style="padding:12px 20px; border-radius:14px; border:0; background:#221c16; color:#f3eed8; font-weight:600; font-size:14px;">Reload</button>
+          <button onclick="(async()=>{try{const n=await caches.keys();await Promise.all(n.map(x=>caches.delete(x)));const r=await navigator.serviceWorker.getRegistrations();await Promise.all(r.map(x=>x.unregister()));}catch(e){}finally{location.reload();}})()" style="padding:12px 20px; border-radius:14px; border:1px solid rgba(0,0,0,0.15); background:#fff; color:#221c16; font-weight:600; font-size:14px;">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    // ── iOS standalone-PWA viewport height fix ────────────────
+    // On cold launch as an installed PWA, iOS reports a viewport height
+    // BEFORE it finishes laying out the chrome, so `100dvh` / fixed
+    // `inset:0` come up short and the body's background shows through as
+    // a sliver at the bottom. An orientation change fires a resize that
+    // recomputes it — which is exactly why rotating "fixes" it.
+    //
+    // We drive the real height into a --app-height CSS variable from
+    // window.innerHeight and re-apply it aggressively right after launch
+    // (rAF + a few delayed ticks), then on every resize / orientation /
+    // pageshow. CSS uses var(--app-height) with a 100dvh fallback.
+    (function () {
+      // KEY INSIGHT: on the broken cold launch, window.innerHeight is the
+      // value that stays STALE until a rotation — so re-reading it on a
+      // timer never helps. visualViewport.height usually reports the true
+      // height even then; and in INSTALLED standalone mode the web view
+      // is exactly the physical screen height (viewport-fit=cover +
+      // black-translucent status bar), so screen.height is the ultimate
+      // source of truth. We take the best of all three.
+      var standalone = (navigator.standalone === true) ||
+        (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+      function measure() {
+        var h = window.innerHeight || 0;
+        if (window.visualViewport && window.visualViewport.height > h) {
+          h = window.visualViewport.height;
+        }
+        // Standalone, portrait, full-width (not iPad split view): the view
+        // must be exactly screen-height tall. If the reported height is
+        // short of that, iOS hasn't settled yet — trust the screen.
+        if (standalone && window.screen &&
+            Math.abs(window.innerWidth - window.screen.width) < 2 &&
+            window.screen.height > h) {
+          h = window.screen.height;
+        }
+        return h;
+      }
+      function setAppHeight() {
+        document.documentElement.style.setProperty('--app-height', measure() + 'px');
+      }
+      setAppHeight();
+      // Re-apply across the first second of launch, when iOS is still
+      // settling the standalone chrome height.
+      requestAnimationFrame(setAppHeight);
+      [60, 150, 300, 600, 1000].forEach(function (ms) { setTimeout(setAppHeight, ms); });
+      window.addEventListener('resize', setAppHeight);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', setAppHeight);
+      }
+      window.addEventListener('orientationchange', function () {
+        setAppHeight(); setTimeout(setAppHeight, 250);
+      });
+      window.addEventListener('pageshow', setAppHeight);
+      window.addEventListener('load', setAppHeight);
+      // Returning from background can also resize the standalone view.
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) setAppHeight();
+      });
+    })();
+
+    // ── Splash dismissal ──────────────────────────────────────
+    // Minimum show time so the animation completes gracefully
+    // (otherwise on fast networks the splash flashes for 200ms).
+    // Maximum show time so a stuck app doesn't hide the splash forever.
+    (function () {
+      var SPLASH_MIN_MS = 2400;
+      var SPLASH_MAX_MS = 6000;
+      var mountedAt = Date.now();
+      var splash = document.getElementById('splash');
+      var dismissed = false;
+      function hideSplash() {
+        if (dismissed || !splash) return;
+        dismissed = true;
+        var elapsed = Date.now() - mountedAt;
+        var wait = Math.max(0, SPLASH_MIN_MS - elapsed);
+        setTimeout(function () { splash.classList.add('splash-leave'); }, wait);
+      }
+      // Expose so React can call it the moment its first screen renders
+      window.__hideSplash = hideSplash;
+      // Safety net: dismiss after MAX_MS no matter what
+      setTimeout(hideSplash, SPLASH_MAX_MS);
+    })();
+
+    // If React hasn't mounted into #root within 8s, show the fallback.
+    window._mountTimer = setTimeout(() => {
+      const root = document.getElementById('root');
+      // Heuristic: an unmounted #root has only our fallback child OR is empty
+      if (root && root.children.length <= 1) {
+        const fb = document.getElementById('mount-fallback');
+        if (fb) fb.style.display = 'grid';
+      }
+    }, 8000);
+  </script>
+
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin="anonymous"></script>
+
+  <!-- React + Babel pinned -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
+
+  <!-- Local components (load order matters: lib + ui define globals
+       before screens use them; app.jsx mounts last) -->
+
+  <script src="/dist/app.js"></script>
+
+  <!-- ── PWA: service worker + install prompt ── -->
+  <script>
+    // Register service worker + auto-update flow.
+    // Critical for production: when a new SW is deployed, users on the old
+    // version must NOT get stuck. We listen for the new SW activating
+    // and reload the page once (guarded by a flag to prevent infinite loops).
+    if ('serviceWorker' in navigator &&
+        (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+      window.addEventListener('load', async () => {
+        try {
+          const reg = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+
+          // If a new SW takes control of this page → reload once so user gets fresh assets
+          let refreshing = false;
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshing) return;
+            refreshing = true;
+            location.reload();
+          });
+
+          // Check for updates every time the tab regains focus / every 5 min
+          const checkForUpdate = () => reg.update().catch(() => {});
+          window.addEventListener('focus', checkForUpdate);
+          setInterval(checkForUpdate, 5 * 60 * 1000);
+
+          // Listen for an updated SW that's waiting to take over → notify + skip waiting
+          reg.addEventListener('updatefound', () => {
+            const installing = reg.installing;
+            if (!installing) return;
+            installing.addEventListener('statechange', () => {
+              if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                // New version installed alongside the current one — activate it immediately
+                window.toast?.('Updating to latest version…', 'info');
+                installing.postMessage({ type: 'SKIP_WAITING' });
+              }
+            });
+          });
+        } catch (err) {
+          console.warn('SW registration failed:', err);
+        }
+      });
+    }
+
+    // Capture the install prompt so we can trigger it from a UI button
+    window._deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      window._deferredInstallPrompt = e;
+      // Let React listen for this
+      window.dispatchEvent(new CustomEvent('voyage:install-available'));
+    });
+    window.addEventListener('appinstalled', () => {
+      window._deferredInstallPrompt = null;
+      window.toast?.('Voyage installed', 'success');
+    });
+
+    // Detect iOS Safari (no beforeinstallprompt support — needs manual instructions)
+    window.isIOSStandalone = () => window.navigator.standalone === true;
+    window.isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  </script>
+</body>
+</html>
