@@ -46,7 +46,11 @@ const FILES = [
   'src/app.jsx',
 ];
 
+// Output goes to assets/ (TRACKED by git so Vercel serves it as a static
+// file). The temp concat goes to dist/ (gitignored) so a failed build never
+// leaves a stray file staged.
 fs.mkdirSync('dist', { recursive: true });
+fs.mkdirSync('assets', { recursive: true });
 
 const banner = '/* Voyage — generated bundle. DO NOT EDIT. Edit src/**.jsx then run: node build.mjs */\n';
 const concat = banner + FILES.map((f) => {
@@ -62,7 +66,7 @@ fs.writeFileSync(tmp, concat);
 execSync(
   `npx --yes esbuild@0.24.0 "${tmp}" --loader:.jsx=jsx ` +
   `--jsx-factory=React.createElement --jsx-fragment=React.Fragment ` +
-  `--target=es2019 --charset=utf8 --outfile=dist/app.js`,
+  `--target=es2019 --charset=utf8 --outfile=assets/app.js`,
   { stdio: 'inherit' }
 );
 fs.unlinkSync(tmp);
@@ -76,9 +80,9 @@ html = html.replace(/[ \t]*<script type="text\/babel"[^\n]*\n/g, '');
 // Insert the single pre-compiled bundle right before the PWA SW block.
 html = html.replace(
   /([ \t]*)<!-- ── PWA: service worker/,
-  '$1<script src="/dist/app.js"></script>\n\n$1<!-- ── PWA: service worker'
+  '$1<script src="/assets/app.js"></script>\n\n$1<!-- ── PWA: service worker'
 );
 fs.writeFileSync('built.html', html);
 
-const kb = (fs.statSync('dist/app.js').size / 1024).toFixed(1);
-console.log(`\n✓ dist/app.js  (${kb} kb)\n✓ built.html   (test page — live index.html untouched)`);
+const kb = (fs.statSync('assets/app.js').size / 1024).toFixed(1);
+console.log(`\n✓ assets/app.js  (${kb} kb)\n✓ built.html     (test page — live index.html untouched)`);
