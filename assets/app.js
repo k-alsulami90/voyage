@@ -12557,16 +12557,88 @@ function scrollActiveToTop() {
   if (!scroller) return;
   (_a = scroller.scrollTo) == null ? void 0 : _a.call(scroller, { top: 0, behavior: "smooth" });
 }
+function PlaneMark({ size = 15 }) {
+  return /* @__PURE__ */ React.createElement(
+    "svg",
+    {
+      width: size,
+      height: size,
+      viewBox: "0 0 24 24",
+      "aria-hidden": "true",
+      style: { display: "block", transform: window.isRTL ? "scaleX(-1)" : "none" }
+    },
+    /* @__PURE__ */ React.createElement("path", { d: "M2 21l21-9L2 3v7l15 2-15 2z", fill: "var(--clay)" })
+  );
+}
+function slotHalf(N) {
+  return `${0.5 / N * 100}%`;
+}
+function RouteNav({ tabs, active, onChange, onAdd }) {
+  const N = tabs.length;
+  const activeIndex = Math.max(0, tabs.findIndex((tb) => tb.k === active));
+  const pos = window.isRTL ? N - 1 - activeIndex : activeIndex;
+  const reduce = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)").matches : false;
+  const glide = reduce ? "none" : "transform 260ms cubic-bezier(.2,.8,.2,1)";
+  const slot = `${100 / N}%`;
+  return /* @__PURE__ */ React.createElement("div", { style: navShell }, /* @__PURE__ */ React.createElement("div", { style: tabsWrap }, /* @__PURE__ */ React.createElement("div", { style: {
+    position: "absolute",
+    top: 7,
+    left: slotHalf(N),
+    right: slotHalf(N),
+    borderTop: "1.5px dotted var(--hairline-2)",
+    pointerEvents: "none"
+  } }), tabs.map((_, i) => /* @__PURE__ */ React.createElement("span", { key: "stop" + i, style: {
+    position: "absolute",
+    top: 4.5,
+    left: `${(i + 0.5) / N * 100}%`,
+    transform: "translateX(-50%)",
+    width: 5,
+    height: 5,
+    borderRadius: 999,
+    background: "var(--cream-2)",
+    border: "1.5px solid var(--hairline-2)",
+    pointerEvents: "none"
+  } })), /* @__PURE__ */ React.createElement("div", { style: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: slot,
+    height: 15,
+    display: "grid",
+    placeItems: "center",
+    zIndex: 2,
+    pointerEvents: "none",
+    transform: `translateX(${pos * 100}%)`,
+    transition: glide,
+    filter: "drop-shadow(0 2px 3px oklch(0.62 0.13 35 / 0.4))"
+  } }, /* @__PURE__ */ React.createElement(PlaneMark, null)), tabs.map((tab) => {
+    const isActive = active === tab.k;
+    return /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: tab.k,
+        "aria-label": tab.l,
+        "aria-current": isActive ? "page" : void 0,
+        onClick: () => isActive ? scrollActiveToTop() : onChange(tab.k),
+        style: tabBtn(isActive)
+      },
+      /* @__PURE__ */ React.createElement("span", { style: {
+        display: "grid",
+        placeItems: "center",
+        transform: isActive ? "scale(1.06)" : "scale(1)",
+        transition: "transform 200ms cubic-bezier(.2,.8,.2,1)"
+      } }, /* @__PURE__ */ React.createElement(tab.i, { size: 21, stroke: "currentColor" })),
+      /* @__PURE__ */ React.createElement("span", { style: navLabel(isActive) }, tab.l)
+    );
+  })), onAdd && /* @__PURE__ */ React.createElement("button", { onClick: onAdd, style: navAdd, "aria-label": window.isRTL ? "إضافة" : "Add" }, /* @__PURE__ */ React.createElement(IconPlus, { size: 22, stroke: "#fff" })));
+}
 function AppNav({ active, onChange, onAdd }) {
   const tabs = [
     { k: "trips", l: t("myTrips"), i: IconCompass },
     { k: "insights", l: t("insightsNav"), i: IconSparkle },
     { k: "appSettings", l: t("accountNav"), i: IconGear }
   ];
-  return /* @__PURE__ */ React.createElement("div", { style: navShell }, tabs.map((t2) => {
-    const isActive = active === t2.k;
-    return /* @__PURE__ */ React.createElement("button", { key: t2.k, onClick: () => isActive ? scrollActiveToTop() : onChange(t2.k), style: navItem(isActive) }, /* @__PURE__ */ React.createElement(t2.i, { size: 22, stroke: "currentColor" }), /* @__PURE__ */ React.createElement("span", { style: navLabel(isActive) }, t2.l));
-  }), /* @__PURE__ */ React.createElement("button", { onClick: onAdd, style: navAdd, "aria-label": "Add" }, /* @__PURE__ */ React.createElement(IconPlus, { size: 22, stroke: "#fff" })));
+  return /* @__PURE__ */ React.createElement(RouteNav, { tabs, active, onChange, onAdd });
 }
 function TripNav({ active, onChange }) {
   const tabs = [
@@ -12576,10 +12648,7 @@ function TripNav({ active, onChange }) {
     { k: "docs", l: t("vaultNav"), i: IconDoc },
     { k: "settings", l: t("settings"), i: IconGear }
   ];
-  return /* @__PURE__ */ React.createElement("div", { style: navShell }, tabs.map((t2) => {
-    const isActive = active === t2.k;
-    return /* @__PURE__ */ React.createElement("button", { key: t2.k, onClick: () => isActive ? scrollActiveToTop() : onChange(t2.k), style: navItem(isActive) }, /* @__PURE__ */ React.createElement(t2.i, { size: 22, stroke: "currentColor" }), /* @__PURE__ */ React.createElement("span", { style: navLabel(isActive) }, t2.l));
-  }));
+  return /* @__PURE__ */ React.createElement(RouteNav, { tabs, active, onChange });
 }
 const navShell = {
   position: "absolute",
@@ -12587,7 +12656,7 @@ const navShell = {
   left: 0,
   right: 0,
   zIndex: 50,
-  padding: "8px 10px calc(8px + env(safe-area-inset-bottom))",
+  padding: "6px 12px calc(8px + env(safe-area-inset-bottom))",
   background: "var(--cream-2)",
   backdropFilter: "blur(28px) saturate(180%)",
   WebkitBackdropFilter: "blur(28px) saturate(180%)",
@@ -12596,20 +12665,27 @@ const navShell = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  gap: 4
+  gap: 8
 };
-const navItem = (active) => ({
+const tabsWrap = {
+  position: "relative",
+  flex: 1,
+  display: "flex",
+  alignItems: "flex-end",
+  gap: 0,
+  paddingTop: 15
+};
+const tabBtn = (active) => ({
+  flex: 1,
+  minWidth: 0,
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-  gap: 2,
-  padding: "4px 8px",
-  borderRadius: 12,
+  gap: 3,
+  padding: "2px 4px",
   background: "transparent",
   color: active ? "var(--clay-deep)" : "var(--ink-mute)",
-  transition: "color 200ms",
-  flex: 1,
-  minWidth: 0
+  transition: "color 220ms"
 });
 const navLabel = (active) => ({
   fontSize: window.isRTL ? 9.5 : 10.5,

@@ -756,6 +756,88 @@ function scrollActiveToTop() {
   scroller.scrollTo?.({ top: 0, behavior: 'smooth' });
 }
 
+// ── Travel-route bottom nav ─────────────────────────────────
+// The destinations sit on a dotted "route" line; a little plane marks the
+// current screen and glides to whichever one you tap. The motion conveys
+// state (which screen you're on, and the move between them) — it's the
+// active indicator, not decoration. Reuses the splash plane for cohesion.
+function PlaneMark({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true"
+      style={{ display: 'block', transform: window.isRTL ? 'scaleX(-1)' : 'none' }}>
+      <path d="M2 21l21-9L2 3v7l15 2-15 2z" fill="var(--clay)" />
+    </svg>
+  );
+}
+
+// half of one tab slot, as a % string — insets the route line so it runs
+// from the first stop's centre to the last stop's centre, not edge to edge.
+function slotHalf(N) { return `${(0.5 / N) * 100}%`; }
+
+function RouteNav({ tabs, active, onChange, onAdd }) {
+  const N = tabs.length;
+  const activeIndex = Math.max(0, tabs.findIndex((tb) => tb.k === active));
+  // The plane follows VISUAL order, which flips under RTL.
+  const pos = window.isRTL ? (N - 1 - activeIndex) : activeIndex;
+  const reduce = typeof window !== 'undefined' && window.matchMedia
+    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false;
+  const glide = reduce ? 'none' : 'transform 260ms cubic-bezier(.2,.8,.2,1)';
+  const slot = `${100 / N}%`;
+
+  return (
+    <div style={navShell}>
+      <div style={tabsWrap}>
+        {/* the route line */}
+        <div style={{
+          position: 'absolute', top: 7, left: slotHalf(N), right: slotHalf(N),
+          borderTop: '1.5px dotted var(--hairline-2)', pointerEvents: 'none',
+        }} />
+        {/* a stop marker under each destination */}
+        {tabs.map((_, i) => (
+          <span key={'stop' + i} style={{
+            position: 'absolute', top: 4.5, left: `${((i + 0.5) / N) * 100}%`,
+            transform: 'translateX(-50%)', width: 5, height: 5, borderRadius: 999,
+            background: 'var(--cream-2)', border: '1.5px solid var(--hairline-2)',
+            pointerEvents: 'none',
+          }} />
+        ))}
+        {/* the plane: parked over the active stop, glides on change */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, width: slot, height: 15,
+          display: 'grid', placeItems: 'center', zIndex: 2, pointerEvents: 'none',
+          transform: `translateX(${pos * 100}%)`, transition: glide,
+          filter: 'drop-shadow(0 2px 3px oklch(0.62 0.13 35 / 0.4))',
+        }}>
+          <PlaneMark />
+        </div>
+        {/* destinations */}
+        {tabs.map((tab) => {
+          const isActive = active === tab.k;
+          return (
+            <button key={tab.k} aria-label={tab.l} aria-current={isActive ? 'page' : undefined}
+              onClick={() => isActive ? scrollActiveToTop() : onChange(tab.k)}
+              style={tabBtn(isActive)}>
+              <span style={{
+                display: 'grid', placeItems: 'center',
+                transform: isActive ? 'scale(1.06)' : 'scale(1)',
+                transition: 'transform 200ms cubic-bezier(.2,.8,.2,1)',
+              }}>
+                <tab.i size={21} stroke="currentColor" />
+              </span>
+              <span style={navLabel(isActive)}>{tab.l}</span>
+            </button>
+          );
+        })}
+      </div>
+      {onAdd && (
+        <button onClick={onAdd} style={navAdd} aria-label={window.isRTL ? 'إضافة' : 'Add'}>
+          <IconPlus size={22} stroke="#fff" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── App-scope bottom nav ──
 function AppNav({ active, onChange, onAdd }) {
   const tabs = [
@@ -763,20 +845,7 @@ function AppNav({ active, onChange, onAdd }) {
     { k: 'insights',    l: t('insightsNav'), i: IconSparkle },
     { k: 'appSettings', l: t('accountNav'),  i: IconGear },
   ];
-  return (
-    <div style={navShell}>
-      {tabs.map((t) => {
-        const isActive = active === t.k;
-        return (
-          <button key={t.k} onClick={() => isActive ? scrollActiveToTop() : onChange(t.k)} style={navItem(isActive)}>
-            <t.i size={22} stroke="currentColor" />
-            <span style={navLabel(isActive)}>{t.l}</span>
-          </button>
-        );
-      })}
-      <button onClick={onAdd} style={navAdd} aria-label="Add"><IconPlus size={22} stroke="#fff" /></button>
-    </div>
-  );
+  return <RouteNav tabs={tabs} active={active} onChange={onChange} onAdd={onAdd} />;
 }
 
 // ── Trip-scope bottom nav ──
@@ -788,19 +857,7 @@ function TripNav({ active, onChange }) {
     { k: 'docs',     l: t('vaultNav'),  i: IconDoc },
     { k: 'settings', l: t('settings'),  i: IconGear },
   ];
-  return (
-    <div style={navShell}>
-      {tabs.map((t) => {
-        const isActive = active === t.k;
-        return (
-          <button key={t.k} onClick={() => isActive ? scrollActiveToTop() : onChange(t.k)} style={navItem(isActive)}>
-            <t.i size={22} stroke="currentColor" />
-            <span style={navLabel(isActive)}>{t.l}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
+  return <RouteNav tabs={tabs} active={active} onChange={onChange} />;
 }
 
 // Classic iOS-style tab bar — flush to the bottom edge, full width, safe-area inset.
@@ -808,23 +865,27 @@ function TripNav({ active, onChange }) {
 // underneath it (no white sliver under the home indicator).
 const navShell = {
   position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 50,
-  padding: '8px 10px calc(8px + env(safe-area-inset-bottom))',
+  padding: '6px 12px calc(8px + env(safe-area-inset-bottom))',
   background: 'var(--cream-2)',
   backdropFilter: 'blur(28px) saturate(180%)',
   WebkitBackdropFilter: 'blur(28px) saturate(180%)',
   borderTop: '0.5px solid var(--hairline)',
   boxShadow: '0 -2px 12px rgba(0,0,0,0.06)',
   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  gap: 4,
+  gap: 8,
 };
-// iOS tab item: icon stacked above label, both visible always
-const navItem = (active) => ({
-  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-  padding: '4px 8px', borderRadius: 12,
-  background: 'transparent',
-  color: active ? 'var(--clay-deep)' : 'var(--ink-mute)',
-  transition: 'color 200ms',
+// Holds the route line + plane + the equal-width destinations. gap:0 so each
+// destination is exactly 1/N wide and the plane/stops line up precisely.
+const tabsWrap = {
+  position: 'relative', flex: 1, display: 'flex', alignItems: 'flex-end',
+  gap: 0, paddingTop: 15,
+};
+const tabBtn = (active) => ({
   flex: 1, minWidth: 0,
+  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+  padding: '2px 4px', background: 'transparent',
+  color: active ? 'var(--clay-deep)' : 'var(--ink-mute)',
+  transition: 'color 220ms',
 });
 const navLabel = (active) => ({
   fontSize: window.isRTL ? 9.5 : 10.5,
