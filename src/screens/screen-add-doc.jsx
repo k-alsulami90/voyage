@@ -222,8 +222,7 @@ function ScreenAddDoc({ back, onCreated }) {
                 <select value={costCur} onChange={(e) => setCostCur(e.target.value)} style={{
                   ...docFieldStyle, width: 'auto', minWidth: 84, fontFamily: 'var(--mono)',
                 }}>
-                  {[tripLocal, tripHome, 'USD', 'SAR', 'AED', 'EUR']
-                    .filter((v, i, a) => a.indexOf(v) === i)
+                  {window.currencyOptions(tripLocal, tripHome)
                     .map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>

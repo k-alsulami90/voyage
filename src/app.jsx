@@ -1768,7 +1768,7 @@ function AddTripSheet({ onDone, onCreated }) {
   // on save via window.toUSD. The destination currency below is a
   // separate concept (what they'll actually spend in on the trip).
   const homeCur = window.USER_DEFAULT_CURRENCY || 'SAR';
-  const CURRENCIES = ['USD','EUR','GBP','JPY','AED','SAR','EGP','MAD','TRY','INR'];
+  const CURRENCIES = window.CURRENCIES;
   const STATUS = startDate > today ? 'upcoming' : endDate < today ? 'past' : 'active';
   const customActive = !!customUrl;
 

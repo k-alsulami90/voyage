@@ -510,7 +510,7 @@ function ProfileEditRows({ me }) {
     } finally { setSaving(false); }
   };
 
-  const CURRENCIES = ['USD','SAR','EUR','GBP','JPY','AED','EGP','MAD','TRY','INR','CHF','KWD','BHD'];
+  const CURRENCIES = window.CURRENCIES;
   const rowStyle = {
     display: 'flex', alignItems: 'center', gap: 12, flexDirection: 'row',
     padding: '13px 16px', width: '100%', textAlign: 'start',

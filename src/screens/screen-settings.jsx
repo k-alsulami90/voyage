@@ -597,7 +597,7 @@ function EditableTripParams({ trip: tripProp }) {
     trip.fx, trip.cover, trip.countries?.length,
   ]);
 
-  const CURRENCIES = ['USD','SAR','EUR','GBP','JPY','AED','EGP','MAD','TRY','INR','CHF'];
+  const CURRENCIES = window.CURRENCIES;
   const COVERS = ['kyoto','lisbon','oaxaca','lofoten','patagon'];
 
   const save = async (fields) => {

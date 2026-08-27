@@ -9,7 +9,7 @@ toggle simply hides itself.
 - `src/lib/push.jsx` — client subscribe/unsubscribe + a `PUSH_VAPID_PUBLIC` slot.
 - `sw.js` — `push` + `notificationclick` handlers.
 - App Settings → **Trip reminders** toggle (appears once a VAPID key is set).
-- `docs/migration-push.sql` — `push_subscriptions` + `push_sent` tables.
+- `supabase/migrations/015_push.sql` — `push_subscriptions` + `push_sent` tables.
 - `supabase/functions/smart-track-push/index.ts` — the sender (Deno).
 
 ## 1. Generate VAPID keys
@@ -27,7 +27,7 @@ Bump the service-worker `VERSION` in `sw.js` and deploy. The toggle now
 appears in App Settings.
 
 ## 3. Run the migration
-Paste `docs/migration-push.sql` into the Supabase SQL editor and run it.
+Paste `supabase/migrations/015_push.sql` into the Supabase SQL editor and run it.
 
 ## 4. Deploy the Edge Function + set secrets
 ```bash
@@ -74,7 +74,7 @@ Setup is the same shape as Smart Track:
 
 ```bash
 # 1. Migration (preference column + dedupe ledger)
-#    Paste docs/migration-activity-push.sql into the SQL editor and run it.
+#    Paste supabase/migrations/016_activity_push.sql into the SQL editor and run it.
 
 # 2. Deploy the function (reuses the SAME VAPID secrets — no new secrets)
 supabase functions deploy trip-activity-push --no-verify-jwt

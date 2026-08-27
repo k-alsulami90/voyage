@@ -460,29 +460,54 @@ window.CUR_SYM = {
   USD:'$', EUR:'€', GBP:'£', JPY:'¥',
   SAR:'SAR ', AED:'AED ', EGP:'EGP ', MAD:'MAD ',
   CHF:'CHF ', TRY:'₺', INR:'₹', KWD:'KWD ', BHD:'BHD ',
+  IDR:'Rp ',
 };
-// Currencies that shouldn't show decimals
-window.CUR_WHOLE = new Set(['JPY','SAR','KWD','BHD','EGP']);
+// Currencies that shouldn't show decimals. IDR belongs here for the same
+// reason as JPY: the sen subunit is long dead, and a coffee in Bali runs
+// ~35,000 — two decimals would be noise on every line.
+window.CUR_WHOLE = new Set(['JPY','SAR','KWD','BHD','EGP','IDR']);
 
-// USD-based FX rates: 1 USD = N <code>. Realistic mid-market rates (Nov 2025-ish).
-// User can override per trip via Settings → Currencies → FX rate (stored in trip.fx
-// as USD→home rate). For local currency we always fall back to this table.
+// THE currency list. Every picker (onboarding, account settings, trip
+// settings, the expense sheet) reads this one array — before, four
+// screens each hardcoded their own copy and they had drifted apart:
+// the expense sheet was missing CHF/KWD/BHD and trip settings was
+// missing KWD/BHD, so a user on those currencies could set them as a
+// home currency and then not find them when logging a trip's spend.
+window.CURRENCIES = [
+  'USD','SAR','EUR','GBP','JPY','AED','EGP','MAD','TRY','INR','CHF','KWD','BHD','IDR',
+];
+
+// Same list, but with the currencies the user is most likely to want
+// pulled to the front (the open trip's local + home currency). Used by
+// the compact cost selectors on documents, which used to offer a fixed
+// six — so a hotel paid in a currency outside that six simply could not
+// be recorded at the price it was actually paid.
+window.currencyOptions = function(...preferred) {
+  return [...preferred, ...window.CURRENCIES]
+    .filter((c, i, a) => c && a.indexOf(c) === i);
+};
+
+// USD-based FX rates: 1 USD = N <code>. Mid-market rates, refreshed by hand.
+// This table is only the SEED / offline fallback — refreshFxRates() below
+// replaces it with live values on every load. Keep it roughly current
+// anyway: it's what a first-run user with no signal actually sees.
 // Bump this date whenever you refresh the table.
-window.FX_RATES_UPDATED = '2025-11-15';
+window.FX_RATES_UPDATED = '2026-08-27';
 window.FX_RATES = {
   USD: 1,
-  EUR: 0.92,
-  GBP: 0.79,
-  JPY: 149,
-  CHF: 0.88,
+  EUR: 0.8578,
+  GBP: 0.7351,
+  JPY: 159.2,
+  CHF: 0.8051,
   SAR: 3.75,
-  AED: 3.67,
-  EGP: 48,
-  MAD: 9.85,
-  TRY: 32,
-  INR: 83,
-  KWD: 0.31,
-  BHD: 0.38,
+  AED: 3.6725,
+  EGP: 50.2322,
+  MAD: 9.2577,
+  TRY: 48.1525,
+  INR: 95.4659,
+  KWD: 0.3082,
+  BHD: 0.376,
+  IDR: 17745,
 };
 // Effective rate USD → code. Always the live table now — there is no
 // per-trip manual override anymore (rates update automatically, and a

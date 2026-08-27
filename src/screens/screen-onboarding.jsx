@@ -63,7 +63,7 @@ function ScreenOnboarding({ onComplete, onCreateTrip }) {
     }
   };
 
-  const CURRENCIES = ['USD','SAR','EUR','GBP','JPY','AED','EGP','MAD','TRY','INR','CHF','KWD','BHD'];
+  const CURRENCIES = window.CURRENCIES;
 
   return (
     <div data-screen-label="Onboarding" style={{

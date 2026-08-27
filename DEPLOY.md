@@ -89,7 +89,10 @@ In an incognito window on the live URL:
 ## Known tech debt (won't block launch)
 
 - Babel compiles JSX in the browser → slow first paint on phones (~2-3s). Vite migration is in the Tier 4 plan; not blocking publish.
-- FX_RATES is a static table (last updated 2025-11-15). Manual override per trip is wired. Auto-refresh via Edge Function is a Phase 4 task.
+- FX rates refresh live from open.er-api.com on every load; the table in
+  `src/lib/i18n.jsx` is only the offline seed. Refresh it by hand now and
+  then — it's what a first-run user with no signal sees. There is no
+  per-trip manual override anymore.
 - No error tracking yet — wire up Sentry in Phase 4.
 
 ## Rollback

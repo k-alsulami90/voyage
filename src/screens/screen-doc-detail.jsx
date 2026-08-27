@@ -386,8 +386,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
                     ...window.docFieldStyle, fontSize: 16, padding: '11px 13px',
                     width: 'auto', minWidth: 84, fontFamily: 'var(--mono)',
                   }}>
-                    {[window.TRIP?.localCurrency || 'USD', window.TRIP?.homeCurrency || 'USD', 'USD', 'SAR', 'AED', 'EUR']
-                      .filter((v, i, a) => v && a.indexOf(v) === i)
+                    {window.currencyOptions(window.TRIP?.localCurrency, window.TRIP?.homeCurrency)
                       .map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
