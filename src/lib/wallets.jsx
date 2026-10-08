@@ -378,4 +378,189 @@ function MyTripCostCard({ openSheet }) {
   );
 }
 
-Object.assign(window, { TodayBudgetCard, WalletsSetup, MyTripCostCard });
+// ── Trip pace: the one analysis that changes a decision ───────────────
+// "At this pace you'll finish on X" + a small day-by-day bar row.
+// Bookings (general budget) count once in the projection, not per day.
+function TripPaceCard() {
+  const ar = window.isRTL;
+  const trip = window.TRIP;
+  if (!trip?.startDate || !trip?.endDate) return null;
+  const fmtC = (usd) => window.fmtMoney(usd, { in: 'home' });
+  const expenses = window.EXPENSES || [];
+  const planned = trip.budget?.plannedUSD || 0;
+  const general = expenses.filter((e) => window.isGeneralBudgetExpense(e, trip));
+  const daily = expenses.filter((e) => !window.isGeneralBudgetExpense(e, trip));
+  const generalUSD = general.reduce((s, e) => s + (e.usd || 0), 0);
+  const today = window.localISO();
+  const totalDays = Math.max(1, _daysBetween(trip.startDate, trip.endDate) + 1);
+  if (today < trip.startDate) return null;                 // nothing to pace yet
+  const lastDay = today > trip.endDate ? trip.endDate : today;
+  const daysSoFar = Math.max(1, _daysBetween(trip.startDate, lastDay) + 1);
+  const byDay = {};
+  daily.forEach((e) => { const k = window.localISO(e.createdAt); byDay[k] = (byDay[k] || 0) + (e.usd || 0); });
+  const days = [];
+  for (let i = 0; i < daysSoFar; i++) {
+    const d = _parseDay(trip.startDate); d.setDate(d.getDate() + i);
+    const k = window.localISO(d);
+    days.push({ n: i + 1, k, v: byDay[k] || 0 });
+  }
+  const dailyUSD = days.reduce((s, d) => s + d.v, 0);
+  const avg = dailyUSD / daysSoFar;
+  const projection = generalUSD + avg * totalDays;
+  const ended = today > trip.endDate;
+  const diff = planned - projection;
+  const max = Math.max(...days.map((d) => d.v), 1);
+  const good = diff >= 0;
+  return (
+    <div style={{ padding: '0 14px 16px' }}>
+      <div style={{ background: 'var(--cream-2)', borderRadius: 22, padding: '16px 18px', border: '0.5px solid var(--hairline)' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{ar ? 'وتيرة الصرف' : 'Pace'}</div>
+        <div style={{ fontSize: 14, color: 'var(--ink-soft)', marginTop: 6, lineHeight: 1.7 }}>
+          {ar
+            ? <>تصرفون يومياً <b className="mono">{fmtC(avg)}</b>. {ended ? 'خلصت الرحلة على' : 'بهالوتيرة بتخلصون على'} <b className="mono">{fmtC(ended ? generalUSD + dailyUSD : projection)}</b>{planned > 0 && <>، <span style={{ color: good ? 'var(--moss)' : 'var(--clay-deep)', fontWeight: 600 }}>{good ? 'أقل' : 'أعلى'} من الميزانية بـ {fmtC(Math.abs(ended ? planned - generalUSD - dailyUSD : diff))}</span></>}.</>
+            : <>You spend <b>{fmtC(avg)}</b> a day. {ended ? 'You finished on' : "At this pace you'll finish on"} <b>{fmtC(ended ? generalUSD + dailyUSD : projection)}</b>{planned > 0 && <>, <span style={{ color: good ? 'var(--moss)' : 'var(--clay-deep)', fontWeight: 600 }}>{fmtC(Math.abs(ended ? planned - generalUSD - dailyUSD : diff))} {good ? 'under' : 'over'} budget</span></>}.</>}
+        </div>
+        {/* day bars — row direction follows the language */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 54, marginTop: 12 }}>
+          {days.map((d) => (
+            <div key={d.k} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: 0 }}>
+              <div title={fmtC(d.v)} style={{
+                width: '100%', maxWidth: 22, borderRadius: 5,
+                height: Math.max(3, (d.v / max) * 40),
+                background: d.k === today ? 'var(--clay)' : 'var(--ink-mute)', opacity: d.v ? 1 : 0.25,
+              }} />
+              <span style={{ fontSize: 10.5, color: 'var(--ink-mute)' }}>{d.n}</span>
+            </div>
+          ))}
+        </div>
+        {generalUSD > 0 && (
+          <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 8 }}>
+            {ar ? `الحجوزات (${fmtC(generalUSD)}) محسوبة مرة وحدة، مو ضمن الصرف اليومي.` : `Bookings (${fmtC(generalUSD)}) count once, not per day.`}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Personal limit (private) ──────────────────────────────────────────
+window.MY_LIMITS = window.MY_LIMITS || {};
+window.loadMyLimit = async (tripId) => {
+  if (!tripId || !window.sb) return null;
+  const { data, error } = await window.sb.from('personal_budgets')
+    .select('amount_usd').eq('trip_id', tripId).eq('user_id', window.currentUserId).maybeSingle();
+  if (error) return null;
+  const v = data ? parseFloat(data.amount_usd) : null;
+  window.MY_LIMITS[tripId] = v;
+  return v;
+};
+window.saveMyLimit = async (tripId, usd) => {
+  const { error } = await window.sb.from('personal_budgets')
+    .upsert({ trip_id: tripId, user_id: window.currentUserId, amount_usd: Math.round(usd * 100) / 100, updated_at: new Date().toISOString() });
+  if (error) {
+    throw new Error(/personal_budgets/i.test(error.message || '')
+      ? (window.isRTL ? 'قاعدة البيانات تحتاج تحديث: شغّل ملف 021_personal_budgets.sql' : 'Run migration 021_personal_budgets.sql')
+      : error.message);
+  }
+  window.MY_LIMITS[tripId] = usd;
+};
+
+function PersonalLimitCard() {
+  const ar = window.isRTL;
+  const trip = window.TRIP;
+  const home = trip?.homeCurrency || 'USD';
+  const fmtC = (usd) => window.fmtMoney(usd, { in: 'home' });
+  const [limit, setLimit] = React.useState(window.MY_LIMITS[trip?.id] ?? null);
+  const [editing, setEditing] = React.useState(false);
+  const [val, setVal] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  React.useEffect(() => { let on = true; window.loadMyLimit(trip?.id).then((v) => { if (on) setLimit(v); }); return () => { on = false; }; }, [trip?.id]);
+  const spent = (window.MY_PERSONAL_EXPENSES || []).reduce((s, e) => s + (e.usd || 0), 0);
+  const save = async () => {
+    const n = parseFloat(val); if (!(n >= 0)) return;
+    setSaving(true);
+    try { const usd = window.toUSD(n, home); await window.saveMyLimit(trip.id, usd); setLimit(usd); setEditing(false); }
+    catch (e) { window.toast?.(e.message || 'Failed', 'error'); }
+    setSaving(false);
+  };
+  const field = { flex: 1, minWidth: 0, padding: '12px 14px', borderRadius: 14, fontSize: 16, border: '0.5px solid var(--hairline)', background: 'var(--cream)', color: 'var(--ink)', outline: 'none', fontFamily: 'var(--mono)' };
+  const left = limit != null ? limit - spent : null;
+  const pct = limit ? Math.min(1, spent / limit) : 0;
+  return (
+    <div style={{ padding: '0 14px 16px' }}>
+      <div style={{ background: 'var(--cream-2)', borderRadius: 22, padding: '16px 18px', border: '0.5px solid var(--hairline)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{ar ? 'حدّك الشخصي' : 'Your limit'}</div>
+          {limit != null && !editing && (
+            <button onClick={() => { setVal(String(Math.round(limit * window.fxRate(home)))); setEditing(true); }}
+              style={{ fontSize: 12.5, color: 'var(--ink-soft)', minHeight: 36, padding: '0 4px', background: 'transparent' }}>{ar ? 'تعديل' : 'Edit'}</button>
+          )}
+        </div>
+        {(limit == null || editing) ? (
+          <>
+            <div style={{ fontSize: 13, color: 'var(--ink-mute)', margin: '6px 0 10px', lineHeight: 1.6 }}>
+              {ar ? `كم تبي تصرف على نفسك في هالرحلة؟ (تسوق وغيره، ${home})` : `How much for yourself on this trip? (${home})`}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <window.NumberField value={val} onChange={setVal} placeholder="2000" style={field} />
+              <button disabled={saving} onClick={save} style={{ minHeight: 46, padding: '0 18px', borderRadius: 14, background: 'var(--ink)', color: 'var(--cream)', fontSize: 14, fontWeight: 600 }}>
+                {saving ? '…' : (ar ? 'حفظ' : 'Save')}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+              <span className="mono" style={{ fontSize: 26, fontWeight: 700, color: left < 0 ? 'var(--clay-deep)' : 'var(--ink)' }}>{fmtC(Math.abs(left))}</span>
+              <span style={{ fontSize: 13, color: 'var(--ink-mute)' }}>
+                {left < 0 ? (ar ? 'تجاوزت حدّك' : 'over your limit') : (ar ? `باقي من ${fmtC(limit)}` : `left of ${fmtC(limit)}`)}
+              </span>
+            </div>
+            <div style={{ height: 6, borderRadius: 999, background: 'var(--cream)', marginTop: 10, overflow: 'hidden' }}>
+              <div style={{ width: `${pct * 100}%`, height: '100%', borderRadius: 999, background: left < 0 ? 'var(--clay)' : 'var(--moss)' }} />
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// "My budget" view: limit, my trip cost, my categories.
+function MyBudgetView({ openSheet }) {
+  const ar = window.isRTL;
+  const fmtC = (usd) => window.fmtMoney(usd, { in: 'home' });
+  const personal = window.MY_PERSONAL_EXPENSES || [];
+  const total = personal.reduce((s, e) => s + (e.usd || 0), 0);
+  const byCat = {};
+  personal.forEach((e) => { byCat[e.cat] = (byCat[e.cat] || 0) + (e.usd || 0); });
+  const cats = (window.CATEGORIES || []).filter((c) => byCat[c.key] > 0);
+  return (
+    <>
+      <PersonalLimitCard />
+      <window.MyTripCostCard openSheet={openSheet} />
+      {cats.length > 0 && (
+        <div style={{ padding: '0 14px 16px' }}>
+          <div style={{ background: 'var(--cream-2)', borderRadius: 22, padding: '16px 18px', border: '0.5px solid var(--hairline)' }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 10 }}>{ar ? 'وين راحت مصاريفك الشخصية' : 'Where your money went'}</div>
+            <div style={{ display: 'flex', height: 10, borderRadius: 999, overflow: 'hidden', gap: 2 }}>
+              {cats.map((c) => <div key={c.key} style={{ flex: byCat[c.key], background: c.color }} />)}
+            </div>
+            <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
+              {cats.map((c) => (
+                <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 9, height: 9, borderRadius: 3, background: c.color }} />
+                  <span style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)' }}>{window.catLabel(c.key, c.label)}</span>
+                  <span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>{Math.round((byCat[c.key] / total) * 100)}%</span>
+                  <span className="mono" style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)', minWidth: 80, textAlign: 'end' }}>{fmtC(byCat[c.key])}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+Object.assign(window, { TodayBudgetCard, WalletsSetup, MyTripCostCard, TripPaceCard, PersonalLimitCard, MyBudgetView });

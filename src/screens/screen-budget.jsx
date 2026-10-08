@@ -10,6 +10,11 @@ function ScreenBudget({ go, openSheet, loading }) {
   const [search, setSearch]   = React.useState('');
   const [showSearch, setShowSearch] = React.useState(false);
   const [showFilters, setShowFilters] = React.useState(false);
+  // Two views: the group's trip budget, and my own (private) budget.
+  const [tab, setTabState] = React.useState(() => {
+    try { return sessionStorage.getItem('voyage:expTab') || 'trip'; } catch (_) { return 'trip'; }
+  });
+  const setTab = (v) => { setTabState(v); try { sessionStorage.setItem('voyage:expTab', v); } catch (_) {} };
   const cats = window.CATEGORIES || [];
 
   // Compute "day N" for each expense relative to trip start date
@@ -36,7 +41,7 @@ function ScreenBudget({ go, openSheet, loading }) {
     return (
       <div style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>
         <Header title={t('budgetNav')} onBack={() => go('hub')} />
-        <ExpensesSwitch active="list" go={go} />
+        <ExpensesSwitch active={tab} onChange={setTab} />
         {!trip && !loading ? (
           <div style={{ padding: '48px 32px', textAlign: 'center', color: 'var(--ink-mute)' }}>
             <div className="serif" style={{ fontSize: 18 }}>
@@ -69,8 +74,8 @@ function ScreenBudget({ go, openSheet, loading }) {
     <div data-screen-label="02 Budget" style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>
       {/* Header */}
       <Header title={t('budgetNav')} onBack={() => go('hub')} />
-      <ExpensesSwitch active="list" go={go} />
-      <window.MyTripCostCard openSheet={openSheet} />
+      <ExpensesSwitch active={tab} onChange={setTab} />
+      {tab === 'mine' ? <window.MyBudgetView openSheet={openSheet} /> : <>
 
       {/* OVER-BUDGET ALERT — matches the v72 Hub treatment.
          Was a full clay gradient surface, the loud SaaS-alert pattern.
@@ -225,6 +230,9 @@ function ScreenBudget({ go, openSheet, loading }) {
           ))}
         </div>
       </div>
+
+      {/* PACE — the one piece of analysis worth keeping on screen */}
+      <window.TripPaceCard />
 
       {/* FILTER + LIST */}
       <div style={{ padding: '18px 14px 0' }}>
@@ -572,6 +580,7 @@ function ScreenBudget({ go, openSheet, loading }) {
           <AuditLogPanel entries={window.AUDIT} />
         </div>
       )}
+      </>}
     </div>
   );
 }
@@ -719,10 +728,10 @@ function BudgetNum({ children, dim }) {
 
 // Expenses = one tab with two views: the list (budget) and the analysis.
 // The "+" in the tab bar adds expenses, so neither view needs its own.
-function ExpensesSwitch({ active, go }) {
+function ExpensesSwitch({ active, onChange }) {
   const opts = [
-    { k: 'list',     l: window.isRTL ? 'القائمة' : 'List',      to: 'budget' },
-    { k: 'analysis', l: window.isRTL ? 'التحليل' : 'Analysis', to: 'analytics' },
+    { k: 'trip', l: window.isRTL ? 'الرحلة' : 'Trip' },
+    { k: 'mine', l: window.isRTL ? '🔒 ميزانيتي' : '🔒 My budget' },
   ];
   return (
     <div style={{ padding: '0 22px 12px' }}>
@@ -731,7 +740,7 @@ function ExpensesSwitch({ active, go }) {
         background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
       }}>
         {opts.map((o) => (
-          <button key={o.k} onClick={() => o.k !== active && go(o.to)} aria-current={o.k === active ? 'page' : undefined} style={{
+          <button key={o.k} onClick={() => o.k !== active && onChange?.(o.k)} aria-current={o.k === active ? 'page' : undefined} style={{
             flex: 1, minHeight: 40, borderRadius: 11, fontSize: 13.5, fontWeight: 600,
             background: o.k === active ? 'var(--ink)' : 'transparent',
             color: o.k === active ? 'var(--cream)' : 'var(--ink-soft)',
