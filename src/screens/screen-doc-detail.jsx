@@ -39,7 +39,9 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
 
   // Trip members for the owner selector (null = shared with everyone).
   const members = window.MEMBERS || [];
-  const isGroupTrip = members.length > 1;
+  // Always offer mine/everyone: people can join the trip later, and a
+  // ticket added while you were alone must not become visible to them.
+  const isGroupTrip = true;
   const ownerName = ownerUserId ? (members.find((m) => m.id === ownerUserId)?.name?.split(' ')[0] || null) : null;
 
   // ── File / cover state ────────────────────────────────────

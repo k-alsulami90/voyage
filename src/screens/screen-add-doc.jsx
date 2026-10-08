@@ -19,7 +19,9 @@ function ScreenAddDoc({ back, onCreated }) {
   // own doc (boarding pass, visa, personal ticket). Chosen explicitly, not
   // inferred from the uploader — one person often uploads for the others.
   const members = window.MEMBERS || [];
-  const isGroupTrip = members.length > 1;
+  // Always offer mine/everyone: people can join the trip later, and a
+  // ticket added while you were alone must not become visible to them.
+  const isGroupTrip = true;
   // Each traveler adds their OWN tickets/visas ("for me"); hotels and
   // rentals default to shared. Personal docs are private (RLS).
   const defaultOwner = (c) => (isGroupTrip && (c === 'flights' || c === 'visas')) ? window.currentUserId : null;

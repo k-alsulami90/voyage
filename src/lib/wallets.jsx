@@ -322,17 +322,18 @@ function WalletsSetup() {
 function MyTripCostCard({ openSheet }) {
   const ar = window.isRTL;
   const members = window.MEMBERS || [];
-  if (members.length < 2) return null;
   const me = window.currentUserId;
   const fmtC = (usd) => window.fmtMoney(usd, { in: 'home' });
   const groupTotal = (window.EXPENSES || []).reduce((s, e) => s + (e.usd || 0), 0);
-  const share = groupTotal / members.length;
+  const share = groupTotal / Math.max(1, members.length);
   const myDocs = Object.values(window.DOCS_BY_CAT || {}).flat()
     .filter((d) => d && d.ownerUserId === me && d.costUSD != null && d.costUSD > 0);
   const docsUSD = myDocs.reduce((s, d) => s + (d.costUSD || 0), 0);
   const personal = window.MY_PERSONAL_EXPENSES || [];
   const personalUSD = personal.reduce((s, e) => s + (e.usd || 0), 0);
   const total = share + docsUSD + personalUSD;
+  // Solo trip with nothing personal yet: the card would just repeat the total.
+  if (members.length < 2 && !myDocs.length && !personal.length) return null;
   const row = (label, val, sub) => (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '7px 0' }}>
       <div style={{ flex: 1 }}>

@@ -1164,7 +1164,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
   // Personal spend (my own shopping…): one tap, only I see it, and it
   // never touches the group's budget — it shows in "Your trip cost".
   const me = members.find((m) => m.id === window.currentUserId);
-  if (members.length > 1 && me) {
+  if (me) {   // also on solo trips: keeps your shopping out of the trip budget
     payerOptions.push({ key: 'personal', id: me.id, member: me, personal: true,
       label: window.isRTL ? 'شخصي' : 'Personal', sub: window.isRTL ? 'لك فقط' : 'just you' });
   }
