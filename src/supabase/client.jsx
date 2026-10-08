@@ -242,6 +242,15 @@ window.loadTrips = async (userId) => {
   window.cachePut?.('prefs', { currency: window.USER_DEFAULT_CURRENCY });
 };
 
+// The trip happening today (start ≤ today ≤ end), or null. With two
+// overlapping trips, the one that started most recently wins.
+window.activeTripNow = () => {
+  const today = window.localISO();
+  return (window.TRIPS || [])
+    .filter((t) => t.startDate && t.endDate && t.startDate <= today && today <= t.endDate)
+    .sort((a, b) => (a.startDate < b.startDate ? 1 : -1))[0] || null;
+};
+
 // ── Settlements (Phase 2) ────────────────────────────────────
 // Load settlements for a trip into window.SETTLEMENTS.
 // Falls back gracefully if the table doesn't exist yet (pre-migration).

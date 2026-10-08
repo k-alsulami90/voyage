@@ -45,7 +45,7 @@ function ScreenHub({ go, openSheet, loading }) {
         flexDirection: 'row',
         padding: '0 18px',
       }}>
-        <button onClick={() => go('trips')} className="glass" style={{
+        <button onClick={() => go('trips')} aria-label={window.isRTL ? 'رحلاتي' : 'My trips'} className="glass" style={{
           width: 38, height: 38, borderRadius: 999, display: 'flex',
           alignItems: 'center', justifyContent: 'center', color: 'var(--ink)',
         }}>
@@ -65,15 +65,15 @@ function ScreenHub({ go, openSheet, loading }) {
         <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
           <button className="glass" style={btnGlass} onClick={() => openSheet('search')}
                   aria-label={window.isRTL ? 'بحث في الرحلة' : 'Search'}><IconSearch size={18} /></button>
-          <button className="glass" style={btnGlass} onClick={() => openSheet('share')}
-                  aria-label={t('inviteTheCrew')}><IconShare size={18} /></button>
+          <button className="glass" style={btnGlass} onClick={() => go('settings')}
+                  aria-label={t('settings')}><IconGear size={18} /></button>
         </div>
       </div>
 
       {/* HERO — big illustration card with trip name bleeding off bottom */}
       <div style={{ position: 'relative', padding: '0 14px', paddingTop: 110 }}>
         <div style={{
-          position: 'relative', height: 330, borderRadius: 32,
+          position: 'relative', height: 230, borderRadius: 32,
           overflow: 'hidden', boxShadow: 'var(--shadow-lg)',
         }}>
           {(trip.coverUrl || trip.coverImageUrl) ? (
@@ -304,7 +304,22 @@ function ScreenHub({ go, openSheet, loading }) {
         </div>
       )}
 
-      {/* BUDGET WORKSPACE CARD — overlaps with title above */}
+      {/* NEXT EVENT — the same Smart Track card as My trips (flight,
+         check-in, pickup, plan item), so "what's next" is on Today too. */}
+      {(() => {
+        const ev = (window.DOCS_TRIP_ID === trip.id) ? (window.computeUpcomingEvents?.() || [])[0] : null;
+        if (!ev || !window.SmartTrackCard) return null;
+        return (
+          <div style={{ padding: '24px 14px 0' }}>
+            <SectionLabel>{window.isRTL ? 'الحدث القادم' : 'Up next'}</SectionLabel>
+            <window.SmartTrackCard event={ev} trip={trip} />
+          </div>
+        );
+      })()}
+
+      {/* BUDGET WORKSPACE CARD — hidden on cards trips (the Today card
+         above already says what's left, per day and per card). */}
+      {!window.walletsOf?.(trip) && (
       <div style={{ padding: '24px 14px 0', position: 'relative', zIndex: 3 }}>
         <button onClick={() => go('budget')} style={{
           display: 'block', width: '100%', textAlign: 'start',
@@ -406,51 +421,7 @@ function ScreenHub({ go, openSheet, loading }) {
           )}
         </button>
       </div>
-
-      {/* QUICK ACTIONS — iOS HIG-style four-tile widget. Primary action
-         (Add expense) takes a full-dark surface so the hierarchy reads
-         as "1 primary + 3 secondary" instead of "4 interchangeable
-         tiles." Labels match their destinations everywhere in the app
-         (Vault label matches the bottom-tab Vault, not the prior
-         action-verb "Upload" which masked where the tap actually went). */}
-      <div style={{ padding: '24px 14px 0' }}>
-        <SectionLabel>{t('quickActions')}</SectionLabel>
-        <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8,
-          padding: '0 14px',
-        }}>
-          {[
-            { i: <IconPlus size={20} />,     l: t('add'),                primary: true,  onClick: () => openSheet('addExpense') },
-            { i: <IconCompass size={18} />,  l: t('planNav') || t('plan'),                onClick: () => go('plan') },
-            { i: <IconDoc size={18} />,      l: t('vaultNav'),                            onClick: () => go('docs') },
-            { i: <IconSparkle size={18} />,  l: t('statsNav'),                            onClick: () => go('analytics') },
-          ].map((q, i) => (
-            <button key={i} onClick={q.onClick}
-              aria-label={q.l} style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
-              padding: '14px 4px 12px', borderRadius: 18,
-              background: q.primary ? 'var(--ink)' : 'var(--cream-2)',
-              border: q.primary ? 'none' : '0.5px solid var(--hairline)',
-              boxShadow: q.primary
-                ? '0 8px 18px -8px oklch(0.22 0.025 250 / 0.4)'
-                : 'var(--shadow-xs)',
-            }}>
-              <div style={{
-                width: 32, height: 32, borderRadius: 10,
-                background: q.primary ? 'rgba(255,255,255,0.14)' : 'var(--cream)',
-                color: q.primary ? 'var(--cream)' : 'var(--ink)',
-                display: 'grid', placeItems: 'center',
-                border: q.primary ? '0.5px solid rgba(255,255,255,0.2)' : '0.5px solid var(--hairline)',
-              }}>{q.i}</div>
-              <span style={{
-                fontSize: 11.5, fontWeight: q.primary ? 600 : 500,
-                color: q.primary ? 'var(--cream)' : 'var(--ink-soft)',
-                letterSpacing: q.primary ? '-0.005em' : 0,
-              }}>{q.l}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* RECENT — only when there are expenses.
          Rows used to be inert <div>s — they looked like list rows but

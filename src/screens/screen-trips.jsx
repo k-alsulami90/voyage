@@ -933,7 +933,7 @@ function SmartTrackCard({ event, trip, onOpenTrip }) {
               <ActionPill label={window.isRTL ? 'الموقع' : 'Location'} href={event.locationUrl}
                 icon={<window.IconPin size={13} stroke="currentColor" />} />
             )}
-            <button onClick={onOpenTrip} style={{
+            {onOpenTrip && <button onClick={onOpenTrip} style={{
               padding: '8px 12px', borderRadius: 999,
               background: 'transparent', color: 'rgba(255,255,255,0.85)',
               border: '0.5px solid rgba(255,255,255,0.22)',
@@ -944,7 +944,7 @@ function SmartTrackCard({ event, trip, onOpenTrip }) {
               <span className="icon-flip" style={{ opacity: 0.7 }}>
                 <window.IconChevron size={11} stroke="currentColor" />
               </span>
-            </button>
+            </button>}
           </div>
         )}
       </div>

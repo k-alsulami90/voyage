@@ -35,7 +35,8 @@ function ScreenBudget({ go, openSheet, loading }) {
   if (loading || !trip || !dataReady) {
     return (
       <div style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>
-        <Header title={t('budget')} onBack={() => go('hub')} />
+        <Header title={t('budgetNav')} onBack={() => go('hub')} />
+        <ExpensesSwitch active="list" go={go} />
         {!trip && !loading ? (
           <div style={{ padding: '48px 32px', textAlign: 'center', color: 'var(--ink-mute)' }}>
             <div className="serif" style={{ fontSize: 18 }}>
@@ -67,25 +68,8 @@ function ScreenBudget({ go, openSheet, loading }) {
   return (
     <div data-screen-label="02 Budget" style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>
       {/* Header */}
-      <Header title={t('budget')} onBack={() => go('hub')} action={
-        <>
-          <button onClick={() => go('analytics')} aria-label={t('statsNav')} title={t('statsNav')} style={{
-            width: 36, height: 36, borderRadius: 999,
-            background: 'var(--cream-2)', color: 'var(--ink-soft)',
-            border: '0.5px solid var(--hairline)',
-            display: 'grid', placeItems: 'center',
-          }}>
-            <IconSparkle size={15} stroke="currentColor" />
-          </button>
-          <button onClick={() => openSheet?.('addExpense')} aria-label={t('add')} style={{
-            width: 36, height: 36, borderRadius: 999,
-            background: 'var(--clay)', display: 'grid', placeItems: 'center',
-            boxShadow: '0 4px 10px oklch(0.62 0.13 35 / 0.4)',
-          }}>
-            <IconPlus size={16} stroke="#fff" />
-          </button>
-        </>
-      } />
+      <Header title={t('budgetNav')} onBack={() => go('hub')} />
+      <ExpensesSwitch active="list" go={go} />
 
       {/* OVER-BUDGET ALERT — matches the v72 Hub treatment.
          Was a full clay gradient surface, the loud SaaS-alert pattern.
@@ -528,7 +512,7 @@ function ScreenBudget({ go, openSheet, loading }) {
                       {e.note && <span style={{ opacity: 0.7 }}>· {e.note}</span>}
                     </div>
                     {/* Split badge — show on shared expenses */}
-                    {(e.splitWith && e.splitWith.length > 0) && (() => {
+                    {!window.walletsOf?.(window.TRIP) && (e.splitWith && e.splitWith.length > 0) && (() => {
                       const totalSharers = e.splitWith.length + 1;
                       const userIsInSplit = e.who === window.currentUserId
                         || e.splitWith.includes(window.currentUserId);
@@ -732,4 +716,30 @@ function BudgetNum({ children, dim }) {
   );
 }
 
-Object.assign(window, { ScreenBudget, Header });
+// Expenses = one tab with two views: the list (budget) and the analysis.
+// The "+" in the tab bar adds expenses, so neither view needs its own.
+function ExpensesSwitch({ active, go }) {
+  const opts = [
+    { k: 'list',     l: window.isRTL ? 'القائمة' : 'List',      to: 'budget' },
+    { k: 'analysis', l: window.isRTL ? 'التحليل' : 'Analysis', to: 'analytics' },
+  ];
+  return (
+    <div style={{ padding: '0 22px 12px' }}>
+      <div style={{
+        display: 'flex', padding: 3, borderRadius: 14,
+        background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+      }}>
+        {opts.map((o) => (
+          <button key={o.k} onClick={() => o.k !== active && go(o.to)} aria-current={o.k === active ? 'page' : undefined} style={{
+            flex: 1, minHeight: 40, borderRadius: 11, fontSize: 13.5, fontWeight: 600,
+            background: o.k === active ? 'var(--ink)' : 'transparent',
+            color: o.k === active ? 'var(--cream)' : 'var(--ink-soft)',
+            transition: 'background 180ms, color 180ms',
+          }}>{o.l}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { ScreenBudget, Header, ExpensesSwitch });

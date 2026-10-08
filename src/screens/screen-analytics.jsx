@@ -112,7 +112,8 @@ function ScreenAnalytics({ go, loading }) {
   if (expenses.length === 0) {
     return (
       <div style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>
-        <Header title={t('statsNav')} onBack={() => go('hub')} />
+        <Header title={t('budgetNav')} onBack={() => go('hub')} />
+      <window.ExpensesSwitch active="analysis" go={go} />
         <div style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: '60px 32px', textAlign: 'center', gap: 14,
@@ -140,7 +141,8 @@ function ScreenAnalytics({ go, loading }) {
     <div data-screen-label="06 Trip Analytics" style={{
       background: 'var(--cream)', minHeight: '100%', paddingBottom: 100,
     }}>
-      <Header title={t('statsNav')} onBack={() => go('hub')} />
+      <Header title={t('budgetNav')} onBack={() => go('hub')} />
+      <window.ExpensesSwitch active="analysis" go={go} />
 
       {/* DAILY AVG hero + sparkline */}
       <div style={{ padding: '0 14px' }}>

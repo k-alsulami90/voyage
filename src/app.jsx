@@ -441,6 +441,30 @@ function App() {
     loadTripData(tripId);
   };
 
+  // A sheet to open once the trip we're navigating into has loaded
+  // (the "+" on My trips → add an expense on the live trip).
+  const pendingSheetRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!pendingSheetRef.current || route.scope !== 'trip') return;
+    if (window.TRIP?.id !== route.tripId || !(window.MEMBERS || []).length) return;
+    const s = pendingSheetRef.current; pendingSheetRef.current = null;
+    openSheet(s);
+  });
+
+  // Open straight into the trip you're on. Once per app launch, and only
+  // from My trips (a restored deep route, e.g. Budget, is left alone), so
+  // going back to the list doesn't bounce you into the trip again.
+  React.useEffect(() => {
+    if (route.scope !== 'app' || route.name !== 'trips') return;
+    let done = false;
+    try { done = sessionStorage.getItem('voyage:autoOpened') === '1'; } catch (_) {}
+    if (done) return;
+    const live = window.activeTripNow?.();
+    if (!live) return;
+    try { sessionStorage.setItem('voyage:autoOpened', '1'); } catch (_) {}
+    goTrip(live.id);
+  }, [route.scope, route.name, dataVersion]);
+
   // Self-healing: whenever the route is trip-scoped and the right trip isn't loaded, fetch it.
   // No tripLoading guard — loadTripData is idempotent via the realtime channel map.
   React.useEffect(() => {
@@ -561,9 +585,14 @@ function App() {
 
       {/* Nav layers — hidden during onboarding (it has its own flow) */}
       {route.scope === 'app' && route.name !== 'onboarding' &&
-        <AppNav active={route.name} onChange={go} onAdd={() => openSheet('addTrip')} />}
+        <AppNav active={route.name === 'insights' ? 'trips' : route.name} onChange={go} onAdd={() => {
+          // During a trip, "+" logs an expense on it; otherwise it plans a trip.
+          const live = window.activeTripNow?.();
+          if (live) { pendingSheetRef.current = 'addExpense'; goTrip(live.id); }
+          else openSheet('addTrip');
+        }} />}
       {route.scope === 'trip' && (
-        <TripNav active={route.name} onChange={go} />
+        <TripNav active={route.name} onChange={go} onAdd={() => openSheet('addExpense')} />
       )}
 
       <Sheet open={sheet === 'addTrip'} onClose={() => setSheet(null)} title={window.isRTL ? 'التخطيط لرحلة جديدة' : 'New trip'} height={0.88}>
@@ -840,24 +869,27 @@ function RouteNav({ tabs, active, onChange, onAdd }) {
 
 // ── App-scope bottom nav ──
 function AppNav({ active, onChange, onAdd }) {
+  // Insights lives behind the stats card on My trips (one tap), not a tab.
   const tabs = [
     { k: 'trips',       l: t('myTrips'),     i: IconCompass },
-    { k: 'insights',    l: t('insightsNav'), i: IconSparkle },
     { k: 'appSettings', l: t('accountNav'),  i: IconGear },
   ];
   return <RouteNav tabs={tabs} active={active} onChange={onChange} onAdd={onAdd} />;
 }
 
 // ── Trip-scope bottom nav ──
-function TripNav({ active, onChange }) {
+// Four destinations + one "+" that always means "add an expense".
+// Trip settings moved to a gear on the Today header (used once, pre-trip);
+// Analytics is a view inside Expenses.
+function TripNav({ active, onChange, onAdd }) {
   const tabs = [
     { k: 'hub',      l: t('hub'),       i: IconHome },
     { k: 'plan',     l: t('planNav'),   i: IconCompass },
     { k: 'budget',   l: t('budgetNav'), i: IconWallet },
     { k: 'docs',     l: t('vaultNav'),  i: IconDoc },
-    { k: 'settings', l: t('settings'),  i: IconGear },
   ];
-  return <RouteNav tabs={tabs} active={active} onChange={onChange} />;
+  const shown = active === 'analytics' ? 'budget' : active === 'settings' ? 'hub' : active;
+  return <RouteNav tabs={tabs} active={shown} onChange={onChange} onAdd={onAdd} />;
 }
 
 // Classic iOS-style tab bar — flush to the bottom edge, full width, safe-area inset.
