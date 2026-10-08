@@ -524,7 +524,7 @@ function ScreenBudget({ go, openSheet, loading }) {
                       flexDirection: 'row', paddingInlineStart: 16,
                     }}>
                       <Avatar m={m} size={15} />
-                      <span>{m.name.split(' ')[0]} · {e.when}</span>
+                      <span>{window.walletsOf?.(window.TRIP) ? (window.isRTL ? `بطاقة ${m.name.split(' ')[0]}` : `${m.name.split(' ')[0]}'s card`) : m.name.split(' ')[0]} · {e.when}</span>
                       {e.note && <span style={{ opacity: 0.7 }}>· {e.note}</span>}
                     </div>
                     {/* Split badge — show on shared expenses */}

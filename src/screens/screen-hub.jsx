@@ -169,7 +169,12 @@ function ScreenHub({ go, openSheet, loading }) {
          a glance). Hero-metric template gone: no uppercase mono eyebrow,
          no 26px serif amount, no big "+"/"−" glyph. The body is an
          editorial sentence with the amount as inline emphasis. */}
-      {(window.MEMBERS || []).length > 1 && (() => {
+      {/* TODAY'S BUDGET — trips that run on a few people's cards. Replaces
+         the per-person balance card: the group settles between themselves
+         outside the app, so "X owes you" is noise here. */}
+      {window.walletsOf?.(trip) && <window.TodayBudgetCard onManage={() => go('settings')} />}
+
+      {!window.walletsOf?.(trip) && (window.MEMBERS || []).length > 1 && (() => {
         const balance = window.computeUserBalance?.(
           window.currentUserId,
           window.EXPENSES || [],

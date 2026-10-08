@@ -1418,6 +1418,7 @@ window.loadTripDetail = async (tripId) => {
     cover:         data.cover_style || 'kyoto',
     coverImageUrl: data.cover_image_url || null,
     status:        data.status,
+    wallets:       data.wallets || null,
     weather:       { temp: '--', cond: '' },
     next:          { label: '', when: '' },
   };
@@ -1561,6 +1562,8 @@ window.updateExpense = async (expenseId, tripId, fields) => {
     local_currency: fields.localCurrency,
     note:           fields.note || null,
   };
+  // Payer can be changed on edit (it was silently ignored before).
+  if (fields.paidBy) baseUpdate.created_by = fields.paidBy;
   let { error } = await window.sb.from('expenses')
     .update({ ...baseUpdate, split_with: fields.splitWith || [] })
     .eq('id', expenseId);

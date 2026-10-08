@@ -1,0 +1,317 @@
+// ════════════════════════════════════════════════════════════════════
+// Cards (البطاقات) + today's budget
+//
+// The group's trip money sits on a few people's cards. Setup is one list:
+// whose card, and how much is on it. Every expense says which card paid.
+// From that the app shows, at a glance:
+//   * how much is left on each card
+//   * how much the group can spend TODAY — the remaining money divided by
+//     the remaining days, so overspending one day automatically tightens
+//     the next days (and saving loosens them).
+// No shares, no transfers, no settle-up: money between friends is sorted
+// outside the app. Everything is a plain sum, so fixing a wrong expense
+// (edit / delete) fixes every number.
+// ════════════════════════════════════════════════════════════════════
+
+window.walletsOf = (trip) => {
+  const w = trip && trip.wallets;
+  if (!w || !w.enabled) return null;
+  const cards = (Array.isArray(w.cards) ? w.cards : [])
+    .filter((c) => c && c.user_id)
+    .map((c) => ({ id: c.user_id, amountUSD: parseFloat(c.amount_usd) || 0 }));
+  if (cards.length === 0) return null;
+  return { cards };
+};
+
+const _parseDay = (iso) => {
+  const [y, m, d] = String(iso || '').split('-').map(Number);
+  return y ? new Date(y, (m || 1) - 1, d || 1) : null;
+};
+const _daysBetween = (a, b) => Math.round((_parseDay(b) - _parseDay(a)) / 86400000);
+
+window.computeTodayBudget = (trip, expenses, todayISO) => {
+  const w = window.walletsOf(trip);
+  if (!w) return null;
+  expenses = expenses || [];
+  const today = todayISO || window.localISO();
+  const ids = new Set(w.cards.map((c) => c.id));
+  const dayOf = (e) => (e.createdAt ? window.localISO(e.createdAt) : today);
+  // Anything logged BEFORE the trip starts is prepaid (hotels, flights):
+  // it counts in the overall trip budget, not against the cards' money.
+  const cardExp = expenses.filter((e) => ids.has(e.who) && (!trip.startDate || dayOf(e) >= trip.startDate));
+
+  const cards = w.cards.map((c) => {
+    const spent = cardExp.filter((e) => e.who === c.id).reduce((s, e) => s + (e.usd || 0), 0);
+    return { ...c, spent, left: c.amountUSD - spent };
+  });
+  const totalUSD = cards.reduce((s, c) => s + c.amountUSD, 0);
+  const spentUSD = cards.reduce((s, c) => s + c.spent, 0);
+  const leftUSD = totalUSD - spentUSD;
+
+  const start = trip.startDate, end = trip.endDate;
+  const totalDays = start && end ? Math.max(1, _daysBetween(start, end) + 1) : 1;
+  const planPerDay = totalUSD / totalDays;
+
+  let phase = 'during';
+  if (start && today < start) phase = 'before';
+  else if (end && today > end) phase = 'after';
+
+  let daysLeft, allowance, todaySpent = 0, todayLeft = null, nextDaysAllowance = null;
+  if (phase === 'during') {
+    daysLeft = Math.max(1, _daysBetween(today, end) + 1);              // includes today
+    const beforeToday = cardExp.filter((e) => dayOf(e) < today).reduce((s, e) => s + (e.usd || 0), 0);
+    todaySpent = cardExp.filter((e) => dayOf(e) === today).reduce((s, e) => s + (e.usd || 0), 0);
+    allowance = (totalUSD - beforeToday) / daysLeft;
+    todayLeft = allowance - todaySpent;
+    if (daysLeft > 1) nextDaysAllowance = (totalUSD - beforeToday - todaySpent) / (daysLeft - 1);
+  } else if (phase === 'before') {
+    daysLeft = totalDays;
+    allowance = leftUSD / totalDays;
+  } else {
+    daysLeft = 0;
+    allowance = 0;
+  }
+  return { cards, totalUSD, spentUSD, leftUSD, totalDays, planPerDay, phase, daysLeft, allowance, todaySpent, todayLeft, nextDaysAllowance };
+};
+
+const _first = (m) => ((m && m.name) || '').trim().split(/\s+/)[0] || '?';
+
+// ── Hub card ──────────────────────────────────────────────────────────
+function TodayBudgetCard({ onManage }) {
+  const trip = window.TRIP;
+  const members = window.MEMBERS || [];
+  const b = window.computeTodayBudget(trip, window.EXPENSES);
+  if (!b) return null;
+  const ar = window.isRTL;
+  const fmtC = (usd) => window.fmtMoney(usd, { in: 'home' });
+  const over = b.phase === 'during' && b.todayLeft < 0;
+  const roomy = b.allowance >= b.planPerDay;
+
+  let headline, sub;
+  if (b.phase === 'during') {
+    headline = over
+      ? (ar ? 'تجاوزتوا اليوم' : 'Over today by')
+      : (ar ? 'باقي لليوم' : 'Left today');
+    sub = ar ? `من ${fmtC(b.allowance)} لليوم` : `of ${fmtC(b.allowance)} for today`;
+  } else if (b.phase === 'before') {
+    headline = ar ? 'ميزانيتكم اليومية' : 'Your daily budget';
+    sub = ar ? `على ${b.totalDays} أيام` : `over ${b.totalDays} days`;
+  } else {
+    headline = ar ? 'باقي بعد الرحلة' : 'Left after the trip';
+    sub = '';
+  }
+  const bigValue = b.phase === 'during' ? Math.abs(b.todayLeft) : (b.phase === 'before' ? b.allowance : b.leftUSD);
+  const pctToday = b.phase === 'during' && b.allowance > 0 ? Math.max(0, Math.min(1, b.todaySpent / b.allowance)) : 0;
+
+  return (
+    <div style={{ padding: '0 14px', marginTop: 16 }}>
+      <div style={{
+        background: over ? 'oklch(0.62 0.13 35 / 0.10)' : 'var(--cream-2)',
+        borderRadius: 24, padding: '18px 18px 12px',
+        border: over ? '1px solid oklch(0.62 0.13 35 / 0.35)' : '0.5px solid var(--hairline)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: over ? 'var(--clay-deep)' : 'var(--ink)' }}>{headline}</div>
+          <button onClick={onManage} style={{
+            fontSize: 12.5, color: 'var(--ink-soft)', fontWeight: 500, minHeight: 36, padding: '0 4px', background: 'transparent',
+          }}>{ar ? 'البطاقات' : 'Cards'}</button>
+        </div>
+        <div style={{ marginTop: 2, display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+          <span className="mono" style={{ fontSize: 32, fontWeight: 700, color: over ? 'var(--clay-deep)' : 'var(--ink)' }}>
+            {fmtC(bigValue)}
+          </span>
+          {sub && <span style={{ fontSize: 13, color: 'var(--ink-mute)' }}>{sub}</span>}
+        </div>
+
+        {b.phase === 'during' && (
+          <div style={{ height: 6, borderRadius: 999, background: 'var(--cream)', marginTop: 10, overflow: 'hidden' }}>
+            <div style={{
+              width: `${(over ? 1 : pctToday) * 100}%`, height: '100%', borderRadius: 999,
+              background: over ? 'var(--clay)' : 'var(--moss)', transition: 'width 300ms cubic-bezier(.2,.8,.2,1)',
+            }} />
+          </div>
+        )}
+
+        {/* One plain sentence about the rest of the trip */}
+        {b.phase === 'during' && (
+          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 12, lineHeight: 1.7 }}>
+            {ar
+              ? <>باقي للرحلة <b className="mono">{fmtC(b.leftUSD)}</b>{b.daysLeft > 1 && b.nextDaysAllowance != null
+                  ? <>، يعني <b className="mono">{fmtC(b.nextDaysAllowance)}</b> لكل يوم من الأيام الجاية ({b.daysLeft - 1}).</>
+                  : '.'}</>
+              : <>{fmtC(b.leftUSD)} left for the trip{b.daysLeft > 1 && b.nextDaysAllowance != null
+                  ? <>, so <b>{fmtC(b.nextDaysAllowance)}</b> a day for the next {b.daysLeft - 1} days.</>
+                  : '.'}</>}
+          </div>
+        )}
+        {b.phase !== 'after' && (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '5px 10px', borderRadius: 999,
+            background: roomy ? 'oklch(0.50 0.08 155 / 0.12)' : 'oklch(0.62 0.13 35 / 0.12)',
+            color: roomy ? 'var(--moss)' : 'var(--clay-deep)', fontSize: 12.5, fontWeight: 600,
+          }}>
+            {roomy
+              ? (ar ? `فيه متسع · خطتكم ${fmtC(b.planPerDay)} يومياً` : `Room to spare · plan ${fmtC(b.planPerDay)}/day`)
+              : (ar ? `اقتصدوا شوي · خطتكم ${fmtC(b.planPerDay)} يومياً` : `Ease off · plan ${fmtC(b.planPerDay)}/day`)}
+          </div>
+        )}
+
+        {/* Cards */}
+        <div style={{ marginTop: 12, borderTop: '0.5px solid var(--hairline)', paddingTop: 6 }}>
+          {b.cards.map((c) => {
+            const m = members.find((x) => x.id === c.id) || { id: c.id, name: '?' };
+            return (
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0' }}>
+                <Avatar m={m} size={26} />
+                <span style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)' }}>
+                  {ar ? `بطاقة ${_first(m)}` : `${_first(m)}'s card`}
+                </span>
+                <span className="mono" style={{ fontSize: 14, fontWeight: 600, color: c.left < 0 ? 'var(--clay-deep)' : 'var(--ink)' }}>
+                  {fmtC(c.left)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Trip settings: the cards list ─────────────────────────────────────
+function WalletsSetup() {
+  const ar = window.isRTL;
+  const trip = window.TRIP;
+  const members = window.MEMBERS || [];
+  const home = trip?.homeCurrency || 'USD';
+  const rate = window.fxRate(home);
+  const raw = trip?.wallets || {};
+  const [enabled, setEnabled] = React.useState(!!raw.enabled);
+  const [cards, setCards] = React.useState(() => {
+    const m = {};
+    (raw.cards || []).forEach((c) => { m[c.user_id] = String(Math.round((parseFloat(c.amount_usd) || 0) * rate)); });
+    return m;
+  });
+  const [saving, setSaving] = React.useState(false);
+  const ids = Object.keys(cards);
+  const totalHome = ids.reduce((s, id) => s + (parseFloat(cards[id]) || 0), 0);
+  const days = trip?.startDate && trip?.endDate ? Math.max(1, _daysBetween(trip.startDate, trip.endDate) + 1) : 1;
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const wallets = {
+        enabled,
+        cards: ids.map((id) => ({
+          user_id: id,
+          amount_usd: Math.round(window.toUSD(parseFloat(cards[id]) || 0, home) * 100) / 100,
+        })),
+      };
+      const { error } = await window.sb.from('trips').update({ wallets }).eq('id', trip.id);
+      if (error) {
+        throw new Error(/wallets/i.test(error.message || '')
+          ? (ar ? 'قاعدة البيانات تحتاج تحديث: شغّل ملف 019_trip_cards.sql في Supabase' : 'Run migration 019_trip_cards.sql')
+          : error.message);
+      }
+      await window.loadTripDetail(trip.id);
+      window.notifyDataChange?.();
+      window.toast?.(ar ? 'تم الحفظ' : 'Saved', 'success');
+    } catch (e) {
+      window.toast?.(e.message || 'Failed', 'error');
+    }
+    setSaving(false);
+  };
+
+  const field = {
+    flex: 1, minWidth: 0, width: 'auto', padding: '12px 14px', borderRadius: 14, fontSize: 16,
+    border: '0.5px solid var(--hairline)', background: 'var(--cream)', color: 'var(--ink)', outline: 'none',
+    fontFamily: 'var(--mono)',
+  };
+
+  return (
+    <div style={{ padding: '24px 14px 0' }}>
+      <SectionLabel>{ar ? 'البطاقات والميزانية اليومية' : 'Cards & daily budget'}</SectionLabel>
+      <div style={{ background: 'var(--cream-2)', borderRadius: 22, margin: '0 8px', padding: 16, border: '0.5px solid var(--hairline)' }}>
+        <button onClick={() => setEnabled((v) => !v)} style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 12, minHeight: 44, background: 'transparent',
+        }}>
+          <div style={{ flex: 1, textAlign: 'start' }}>
+            <div style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 500 }}>{ar ? 'نصرف من بطاقات محددة' : 'We spend from set cards'}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--ink-mute)', marginTop: 2, lineHeight: 1.5 }}>
+              {ar ? 'تعرفون كم باقي في كل بطاقة، وكم تقدرون تصرفون اليوم' : 'See what is left on each card and what you can spend today'}
+            </div>
+          </div>
+          <span aria-hidden style={{
+            width: 46, height: 28, borderRadius: 999, flexShrink: 0, position: 'relative',
+            background: enabled ? 'var(--moss)' : 'var(--hairline-2)', transition: 'background 180ms',
+          }}>
+            <span style={{
+              position: 'absolute', top: 3, insetInlineStart: enabled ? 21 : 3, width: 22, height: 22,
+              borderRadius: 999, background: '#fff', transition: 'inset-inline-start 180ms',
+            }} />
+          </span>
+        </button>
+
+        {enabled && (
+          <>
+            <div style={{ fontSize: 13, color: 'var(--ink-mute)', margin: '14px 0 8px' }}>
+              {ar ? 'بطاقة مين؟' : 'Whose card?'}
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {members.map((m) => {
+                const on = m.id in cards;
+                return (
+                  <button key={m.id} onClick={() => setCards((p) => {
+                    const n = { ...p }; if (on) delete n[m.id]; else n[m.id] = ''; return n;
+                  })} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px 6px 6px', minHeight: 44,
+                    borderRadius: 999, background: on ? 'var(--statement)' : 'var(--cream)',
+                    color: on ? 'var(--statement-fg)' : 'var(--ink)', border: on ? 'none' : '0.5px solid var(--hairline)',
+                    fontSize: 13.5, fontWeight: 500,
+                  }}>
+                    <Avatar m={m} size={30} />{_first(m)}
+                  </button>
+                );
+              })}
+            </div>
+
+            {ids.length > 0 && (
+              <>
+                <div style={{ fontSize: 13, color: 'var(--ink-mute)', margin: '16px 0 8px' }}>
+                  {ar ? `كم في كل بطاقة للرحلة؟ (${home})` : `Amount on each card (${home})`}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 }}>
+                  {ids.map((id) => {
+                    const m = members.find((x) => x.id === id) || { name: '?' };
+                    return (
+                      <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <Avatar m={m} size={30} />
+                        <span style={{ width: 76, fontSize: 13.5, color: 'var(--ink)' }}>{_first(m)}</span>
+                        <window.NumberField value={cards[id]} placeholder="0"
+                          onChange={(v) => setCards((p) => ({ ...p, [id]: v }))} style={field} />
+                      </div>
+                    );
+                  })}
+                </div>
+                {totalHome > 0 && (
+                  <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 12, lineHeight: 1.7 }}>
+                    {ar
+                      ? <>المجموع <b className="mono">{Math.round(totalHome).toLocaleString('en')} {home}</b> على {days} أيام، يعني <b className="mono">{Math.round(totalHome / days).toLocaleString('en')} {home}</b> يومياً.</>
+                      : <>Total <b>{Math.round(totalHome).toLocaleString('en')} {home}</b> over {days} days: <b>{Math.round(totalHome / days).toLocaleString('en')} {home}</b> a day.</>}
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
+
+        <button disabled={saving} onClick={save} style={{
+          marginTop: 16, width: '100%', minHeight: 48, borderRadius: 14,
+          background: 'var(--ink)', color: 'var(--cream)', fontSize: 14.5, fontWeight: 600, opacity: saving ? 0.6 : 1,
+        }}>{saving ? '…' : (ar ? 'حفظ' : 'Save')}</button>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { TodayBudgetCard, WalletsSetup });

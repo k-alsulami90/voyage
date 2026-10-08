@@ -527,7 +527,7 @@ function App() {
   }
 
   const appShell = (
-    <div style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>
+    <div id="app-shell" style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>
       {/* Keyed by the full route so the scroller remounts on every
          navigation — that replays the `screen-enter` settle and starts the
          new screen at the top. The inner screens already remount per route
@@ -1111,7 +1111,36 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
     }
     return '';
   });
-  const [paidBy,  setPaidBy]  = React.useState(existing?.who || window.currentUserId || members[0]?.id || '');
+  // ── Who paid ──────────────────────────────────────────────
+  // Trips with cards (بطاقات): the group money sits on a few people's cards,
+  // so "who paid" is simply WHICH CARD. Default = the logger's own card,
+  // else the last card used on this trip. Trips without cards keep the
+  // per-member payer.
+  const wallets = window.walletsOf?.(trip) || null;
+  const nameOf = (m) => ((m && m.name) || '').trim().split(/\s+/)[0] || '?';
+  const payerOptions = wallets
+    ? wallets.cards.map((c) => {
+        const m = members.find((x) => x.id === c.id) || { id: c.id, name: '?' };
+        return { key: c.id, id: c.id, member: m,
+          label: c.id === window.currentUserId ? (window.isRTL ? 'بطاقتي' : 'My card') : nameOf(m),
+          sub: window.isRTL ? 'بطاقة' : 'card' };
+      })
+    : members.map((m) => ({
+        key: m.id, id: m.id, member: m,
+        label: m.id === window.currentUserId ? (window.isRTL ? 'أنا' : 'Me') : nameOf(m), sub: null,
+      }));
+  const lastPayerKey = (() => { try { return localStorage.getItem('voyage:lastPayer:' + (trip?.id || '')); } catch (_) { return null; } })();
+  const initialPayerKey = (() => {
+    const valid = (k) => k && payerOptions.some((o) => o.key === k);
+    if (existing && valid(existing.who)) return existing.who;
+    if (valid(window.currentUserId) && wallets) return window.currentUserId;
+    if (valid(lastPayerKey)) return lastPayerKey;
+    if (valid(window.currentUserId)) return window.currentUserId;
+    return payerOptions[0]?.key || existing?.who || '';
+  })();
+  const [payerKey, setPayerKey] = React.useState(initialPayerKey);
+  const paidBy = payerKey || window.currentUserId || members[0]?.id || '';
+  const [detailsOpen, setDetailsOpen] = React.useState(!!existing || !!prefill);
   const [note,    setNote]    = React.useState(existing?.note || '');
   const [loading, setLoading] = React.useState(false);
   const [error,   setError]   = React.useState(null);
@@ -1168,10 +1197,15 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
   const amtLocalForDB = local !== 'USD' ? amtUSD * window.fxRate(local) : null;
 
   const handleSave = async () => {
-    if (!title.trim() || amtNum <= 0) {
-      setError(t('fillRequired') || 'Enter a title and amount');
+    if (amtNum <= 0) {
+      setError(window.isRTL ? 'اكتب المبلغ' : 'Enter the amount');
       return;
     }
+    // Name is optional: fall back to the category label.
+    const catMeta = CAT_META[cat] || {};
+    const finalTitle = title.trim()
+      || (window.isRTL ? (catMeta.label_ar || cat) : (catMeta.label_en || cat));
+    try { localStorage.setItem('voyage:lastPayer:' + (trip?.id || ''), payerKey); } catch (_) {}
 
     // ── OPTIMISTIC FAST PATH ──────────────────────────────────
     // The common case (a brand-new expense, no receipt to upload, not
@@ -1187,7 +1221,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
       const tempId = 'temp-' + Date.now();
       const nowISO = new Date().toISOString();
       const payload = {
-        title: title.trim(), category: cat, amountUSD: amtUSD,
+        title: finalTitle, category: cat, amountUSD: amtUSD,
         amountLocal: amtLocalForDB, localCurrency: local,
         note: note.trim() || null, splitWith: splitWithIds,
       };
@@ -1236,8 +1270,9 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
     try {
       const createdBy = paidBy || window.currentUserId;
       const payload = {
-        title: title.trim(),
+        title: finalTitle,
         category: cat,
+        paidBy: isEdit ? createdBy : undefined,
         amountUSD: amtUSD,
         amountLocal: amtLocalForDB,
         localCurrency: local,
@@ -1345,18 +1380,6 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
         </div>
       </div>
 
-      {/* Title / Vendor */}
-      <div style={{ marginBottom: 10 }}>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase' }}>
-          {window.isRTL ? 'المسمى / المكان' : 'Vendor / Description'}
-        </div>
-        <input
-          type="text" value={title} onChange={(e) => setTitle(e.target.value)}
-          placeholder={window.isRTL ? 'مثلاً: مطعم، فندق، وسيلة نقل...' : 'Restaurant, hotel, transport...'}
-          style={fieldStyle}
-        />
-      </div>
-
       {/* Category */}
       <div style={{ marginBottom: 10 }}>
         <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase' }}>
@@ -1385,27 +1408,32 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
         </div>
       </div>
 
-      {/* Paid by */}
+      {/* Paid by — which card (cards trips) or which member */}
       {members.length > 0 && (
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase' }}>
-            {window.isRTL ? 'جرى الدفع بواسطة' : 'Paid by'}
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 12.5, color: 'var(--ink-mute)', marginBottom: 6 }}>
+            {wallets ? (window.isRTL ? 'من أي بطاقة؟' : 'Which card?') : (window.isRTL ? 'مين دفع؟' : 'Who paid?')}
           </div>
           <div className="no-scrollbar" style={{ display: 'flex', gap: 7, overflowX: 'auto', flexDirection: 'row', paddingBottom: 2 }}>
-            {members.map((m) => {
-              const active = paidBy === m.id;
+            {payerOptions.map((o) => {
+              const active = payerKey === o.key;
               return (
-                <button key={m.id} onClick={() => setPaidBy(m.id)} style={{
-                  flexShrink: 0, minWidth: 70, padding: '10px 8px', borderRadius: 14,
+                <button key={o.key} onClick={() => setPayerKey(o.key)} style={{
+                  flexShrink: 0, minWidth: 74, minHeight: 64, padding: '8px 10px', borderRadius: 14,
                   background: active ? 'var(--statement)' : 'var(--cream-2)',
                   border: active ? 'none' : '0.5px solid var(--hairline)',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                   transition: 'all 160ms',
                 }}>
-                  <Avatar m={m} size={28} />
-                  <span style={{ fontSize: 10.5, fontWeight: 500, color: active ? 'var(--statement-fg)' : 'var(--ink-soft)', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {m.name.split(' ')[0]}
+                  <Avatar m={o.member} size={26} />
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: active ? 'var(--statement-fg)' : 'var(--ink)', maxWidth: 84, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {o.label}
                   </span>
+                  {o.sub && (
+                    <span style={{ fontSize: 10.5, color: active ? 'var(--statement-fg)' : 'var(--ink-mute)', opacity: active ? 0.8 : 1 }}>
+                      {o.sub}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -1413,8 +1441,34 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
         </div>
       )}
 
-      {/* Split with — only visible on shared trips (≥2 members) */}
-      {isShared && (
+      {/* Everything else is optional and auto-filled: title, split, note, receipt */}
+      <button onClick={() => setDetailsOpen((v) => !v)} style={{
+        width: '100%', minHeight: 44, marginBottom: detailsOpen ? 10 : 14, borderRadius: 14,
+        background: 'transparent', border: '0.5px dashed var(--hairline-2)',
+        color: 'var(--ink-soft)', fontSize: 13, fontWeight: 500,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+      }}>
+        {detailsOpen
+          ? (window.isRTL ? 'إخفاء التفاصيل' : 'Hide details')
+          : wallets
+            ? (window.isRTL ? 'تفاصيل أكثر (الاسم، ملاحظة، إيصال)' : 'More details (name, note, receipt)')
+            : (window.isRTL ? 'تفاصيل أكثر (الاسم، التقسيم، ملاحظة، إيصال)' : 'More details (name, split, note, receipt)')}
+      </button>
+      {detailsOpen && (<>
+      {/* Title / Vendor */}
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase' }}>
+          {window.isRTL ? 'الاسم (اختياري)' : 'Name (optional)'}
+        </div>
+        <input
+          type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+          placeholder={window.isRTL ? 'مثلاً: مطعم، فندق، وسيلة نقل...' : 'Restaurant, hotel, transport...'}
+          style={fieldStyle}
+        />
+      </div>
+
+      {/* Split with — only on shared trips WITHOUT cards (cards = one group budget, nothing to split) */}
+      {isShared && !wallets && (
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase' }}>
             {t('splitWithLabel')}
@@ -1568,6 +1622,8 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
           </button>
         )}
       </div>
+
+      </>)}
 
       {error && (
         <div style={{

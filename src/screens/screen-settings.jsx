@@ -247,6 +247,9 @@ function ScreenSettings({ go, openSheet }) {
         <InvitesList tripId={trip.id} />
       </div>
 
+      {/* Cards (البطاقات) — whose card carries the trip money and how much */}
+      <window.WalletsSetup key={trip.id} />
+
       {/* Parameters — now fully editable */}
       <div style={{ padding: '24px 14px 0' }}>
         <SectionLabel>{t('tripParameters')}</SectionLabel>
