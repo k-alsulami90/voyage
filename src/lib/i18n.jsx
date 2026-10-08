@@ -187,7 +187,7 @@ const TRANSLATIONS = {
     addToKyoto:'Add to Kyoto trip',
     addDocTitle:'Add document', pile:'Pile',
     pdfJpgPng:'PDF, JPG, PNG · up to 25 MB', dropHere:'Drop here',
-    dayLbl:'Day', ofLbl:'of', heySunday:'HEY MIRA · SUNDAY',
+    dayLbl:'Day', ofLbl:'of',
     uploadedBy:'uploaded by', admin:'Admin', editor:'Editor', viewer:'Viewer',
     onPace:'on pace', editCover:'Edit cover', tripScopedNote:'TRIP-SCOPED',
     daily:'daily', planned:'planned',
@@ -373,7 +373,7 @@ const TRANSLATIONS = {
     addToKyoto:'إضافة إلى رحلة كيوتو',
     addDocTitle:'إضافة مستند', pile:'المجلد',
     pdfJpgPng:'PDF، JPG، PNG · حتى 25 ميغابايت', dropHere:'أفلت هنا',
-    dayLbl:'اليوم', ofLbl:'من', heySunday:'مرحباً · الأحد',
+    dayLbl:'اليوم', ofLbl:'من',
     uploadedBy:'رُفع بواسطة', admin:'مشرف', editor:'محرر', viewer:'قارئ',
     onPace:'في المسار', editCover:'تعديل غلاف الرحلة', tripScopedNote:'محدود بالرحلة',
     daily:'يومي', planned:'مخطط',
@@ -382,6 +382,17 @@ const TRANSLATIONS = {
 
 window.LANG = 'en';
 window.isRTL = false;
+
+// Calendar day (YYYY-MM-DD) in the user's LOCAL timezone. Never use
+// toISOString().slice(0,10) for a calendar day: that is the UTC date, which
+// for Gulf users (UTC+3) lands on the PREVIOUS day before 03:00 and shifts
+// every local-midnight Date back by one day.
+window.localISO = (d) => {
+  const x = d == null ? new Date() : (d instanceof Date ? d : new Date(d));
+  if (isNaN(x)) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())}`;
+};
 
 // ── Arabic pluralization helper ─────────────────────────────
 // Arabic has six count categories, far richer than English's two. Using

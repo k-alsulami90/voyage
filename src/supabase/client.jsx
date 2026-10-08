@@ -142,7 +142,21 @@ window.loadUserPreferences = async (userId) => {
 };
 
 // ── Clear ALL mock data — call immediately on sign-in ────────
+// Trips-list readiness. Lifetime stats (Insights, Account card) are derived
+// from window.TRIPS; when the app cold-boots straight onto one of those
+// screens (route restored from sessionStorage) the stats used to be
+// computed BEFORE loadTrips finished, showing "no data" / "0 trips".
+window._resetTripsReady = () => {
+  window._tripsLoaded = false;
+  window._tripsReady = new Promise((res) => { window._markTripsReady = () => { window._tripsLoaded = true; res(); }; });
+};
+window._resetTripsReady();
+window._waitForTrips = (ms = 8000) => window._tripsLoaded
+  ? Promise.resolve()
+  : Promise.race([window._tripsReady, new Promise((r) => setTimeout(r, ms))]);
+
 window.clearAllMockData = () => {
+  window._resetTripsReady();
   window.TRIPS         = [];
   window.TRIP          = null;
   window.MEMBERS       = [];
@@ -207,6 +221,8 @@ window.loadTrips = async (userId) => {
     fx:           parseFloat(r.fx_rate) || 1,
     status:       r.status,
   }));
+
+  window._markTripsReady?.();
 
   // NOTE: previously this function ALSO auto-set window.TRIP to the
   // active-or-most-recent trip. That was the real cause of the
@@ -962,6 +978,7 @@ window.uploadDocumentFile = async (docId, tripId, file) => {
 // Aggregate every expense the user can see (RLS scopes to their trips automatically)
 // and compute the full lifetime-stats payload used by the Insights screen.
 window.loadLifetimeStats = async () => {
+  await window._waitForTrips();
   // Use '*' so missing columns (e.g. split_with before migration runs) don't error
   const { data, error } = await window.sb
     .from('expenses')
@@ -1057,7 +1074,7 @@ window.loadLifetimeStats = async () => {
     const dt = new Date(e.created_at);
     const wd = dt.getDay();
     wkSpend[wd] += parseFloat(e.amount_usd) || 0;
-    wkDays[wd].add(dt.toISOString().slice(0, 10));
+    wkDays[wd].add(window.localISO(dt));
   });
   const byWeekday = wkSpend.map((spent, i) => ({
     day: i, spent, avg: wkDays[i].size > 0 ? spent / wkDays[i].size : 0,

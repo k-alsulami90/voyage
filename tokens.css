@@ -54,7 +54,7 @@
      leaving; sans with weight contrast does the editorial work instead. */
   --serif: 'Cormorant Garamond', 'Markazi Text', 'Amiri', Georgia, serif;  /* reserved for .wordmark */
   --sans:  'Geist', 'Tajawal', 'IBM Plex Sans Arabic', 'Inter Tight', -apple-system, system-ui, sans-serif;
-  --mono:  'JetBrains Mono', 'IBM Plex Mono', 'Geist Mono', ui-monospace, monospace;
+  --mono:  'JetBrains Mono', 'IBM Plex Mono', 'Geist Mono', 'IBM Plex Sans Arabic', 'Tajawal', ui-monospace, monospace;  /* Arabic fallbacks: Arabic words inside mono spans would otherwise render in a random system font */
   --arabic-line-height: 1.6;
 }
 
@@ -345,6 +345,12 @@ textarea:focus-visible,
   letter-spacing: 0;
   font-style: normal;  /* italic Arabic doesn't exist; Amiri italic is decorative */
 }
+
+/* Arabic letters must join: any letter-spacing (including the -0.02em
+   on .mono and inline overrides) breaks cursive joining and renders
+   words like "أشخاص" as separated glyphs. Numbers lose nothing visible. */
+[lang="ar"] .mono,
+[lang="ar"] .mono * { letter-spacing: 0 !important; }
 
 /* RTL icon flips — back arrows, chevrons, directional indicators */
 [dir="rtl"] .icon-flip,

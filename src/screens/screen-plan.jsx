@@ -33,7 +33,7 @@ function ScreenPlan({ go, openSheet, loading }) {
     }
   }
 
-  const isoDay = (d) => d.toISOString().slice(0, 10);
+  const isoDay = (d) => window.localISO(d);
   const itemsByDay = {};
   items.forEach((it) => {
     (itemsByDay[it.dayDate] = itemsByDay[it.dayDate] || []).push(it);

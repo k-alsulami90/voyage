@@ -149,7 +149,13 @@ function ScreenTrips({ goTrip, go }) {
          here was unlabeled and stole focus on a first-time visit. */}
       <LargeTitleHeader
         title={t('yourTravels')}
-        subtitle={t('heySunday')}
+        subtitle={(() => {
+          // Real first name + today's weekday (was a hardcoded "HEY MIRA · SUNDAY").
+          const first = (window.ACCOUNT?.profile?.name || '').trim().split(/\s+/)[0];
+          const day = new Date().toLocaleDateString(window.isRTL ? 'ar' : 'en-US', { weekday: 'long' });
+          const hi = window.isRTL ? 'مرحباً' : 'Hi';
+          return first ? `${hi} ${first} · ${day}` : `${hi} · ${day}`;
+        })()}
       />
 
       {/* GLOBAL INSIGHTS CARD — editorial composition.

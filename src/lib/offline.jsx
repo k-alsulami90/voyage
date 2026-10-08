@@ -86,7 +86,7 @@
   window.cacheHydrateTrips = async () => {
     if (window.TRIPS && window.TRIPS.length) return false;
     const t = await window.cacheGet('trips');
-    if (Array.isArray(t) && t.length) { window.TRIPS = t; return true; }
+    if (Array.isArray(t) && t.length) { window.TRIPS = t; window._markTripsReady?.(); return true; }
     return false;
   };
 

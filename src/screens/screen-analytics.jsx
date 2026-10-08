@@ -84,7 +84,7 @@ function ScreenAnalytics({ go, loading }) {
 
   // Full-trip daily buckets — every day from start_date to end_date (or today).
   // Bucket by ISO YYYY-MM-DD from raw createdAt so we don't depend on display format.
-  const isoOf = (iso) => (iso || '').slice(0, 10);
+  const isoOf = (iso) => (iso ? window.localISO(iso) : '');
   const dailyByISO = {};
   const dailyByISOCats = {};
   expenses.forEach((e) => {
@@ -101,7 +101,7 @@ function ScreenAnalytics({ go, loading }) {
     const end = endRaw < new Date() ? endRaw : new Date();
     const out = [];
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      out.push(d.toISOString().slice(0, 10));
+      out.push(window.localISO(d));
     }
     return out;
   })();
@@ -613,7 +613,7 @@ function ScreenAnalytics({ go, loading }) {
                 : null;
               const weekday = d.toLocaleDateString(window.isRTL ? 'ar' : 'en', { weekday: 'short' });
               const date = d.toLocaleDateString(window.isRTL ? 'ar' : 'en', { month: 'short', day: 'numeric' });
-              const isToday = iso === new Date().toISOString().slice(0, 10);
+              const isToday = iso === window.localISO();
               return (
                 <div key={iso} style={{
                   padding: '11px 14px',

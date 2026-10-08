@@ -1743,8 +1743,8 @@ const TRIP_COVERS = [
 ];
 
 function AddTripSheet({ onDone, onCreated }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+  const today = window.localISO();
+  const nextWeek = window.localISO(new Date(Date.now() + 7 * 86400000));
 
   const [title,     setTitle]     = React.useState('');
   const [subtitle,  setSubtitle]  = React.useState('');
