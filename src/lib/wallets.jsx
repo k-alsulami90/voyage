@@ -490,7 +490,12 @@ function PersonalLimitCard() {
     <div style={{ padding: '0 14px 16px' }}>
       <div style={{ background: 'var(--cream-2)', borderRadius: 22, padding: '16px 18px', border: '0.5px solid var(--hairline)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{ar ? 'حدّك الشخصي' : 'Your limit'}</div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{ar ? 'حدّ مصاريفك الشخصية' : 'Personal spending limit'}</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 2 }}>
+              {ar ? 'تسوق وغيره — ما يشمل طيرانك ولا حجوزاتك' : 'Shopping etc. — excludes your flight and bookings'}
+            </div>
+          </div>
           {limit != null && !editing && (
             <button onClick={() => { setVal(String(Math.round(limit * window.fxRate(home)))); setEditing(true); }}
               style={{ fontSize: 12.5, color: 'var(--ink-soft)', minHeight: 36, padding: '0 4px', background: 'transparent' }}>{ar ? 'تعديل' : 'Edit'}</button>
@@ -499,7 +504,7 @@ function PersonalLimitCard() {
         {(limit == null || editing) ? (
           <>
             <div style={{ fontSize: 13, color: 'var(--ink-mute)', margin: '6px 0 10px', lineHeight: 1.6 }}>
-              {ar ? `كم تبي تصرف على نفسك في هالرحلة؟ (تسوق وغيره، ${home})` : `How much for yourself on this trip? (${home})`}
+              {ar ? `كم تبي تصرف على نفسك في هالرحلة؟ (${home})` : `How much for yourself on this trip? (${home})`}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <window.NumberField value={val} onChange={setVal} placeholder="2000" style={field} />
