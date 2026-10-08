@@ -70,6 +70,7 @@ function ScreenBudget({ go, openSheet, loading }) {
       {/* Header */}
       <Header title={t('budgetNav')} onBack={() => go('hub')} />
       <ExpensesSwitch active="list" go={go} />
+      <window.MyTripCostCard openSheet={openSheet} />
 
       {/* OVER-BUDGET ALERT — matches the v72 Hub treatment.
          Was a full clay gradient surface, the loud SaaS-alert pattern.

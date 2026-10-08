@@ -1161,9 +1161,17 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
         key: m.id, id: m.id, member: m,
         label: m.id === window.currentUserId ? (window.isRTL ? 'أنا' : 'Me') : nameOf(m), sub: null,
       }));
+  // Personal spend (my own shopping…): one tap, only I see it, and it
+  // never touches the group's budget — it shows in "Your trip cost".
+  const me = members.find((m) => m.id === window.currentUserId);
+  if (members.length > 1 && me) {
+    payerOptions.push({ key: 'personal', id: me.id, member: me, personal: true,
+      label: window.isRTL ? 'شخصي' : 'Personal', sub: window.isRTL ? 'لك فقط' : 'just you' });
+  }
   const lastPayerKey = (() => { try { return localStorage.getItem('voyage:lastPayer:' + (trip?.id || '')); } catch (_) { return null; } })();
   const initialPayerKey = (() => {
     const valid = (k) => k && payerOptions.some((o) => o.key === k);
+    if (existing?.isPersonal) return 'personal';
     if (existing && valid(existing.who)) return existing.who;
     if (valid(window.currentUserId) && wallets) return window.currentUserId;
     if (valid(lastPayerKey)) return lastPayerKey;
@@ -1171,7 +1179,8 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
     return payerOptions[0]?.key || existing?.who || '';
   })();
   const [payerKey, setPayerKey] = React.useState(initialPayerKey);
-  const paidBy = payerKey || window.currentUserId || members[0]?.id || '';
+  const isPersonal = payerKey === 'personal';
+  const paidBy = (isPersonal ? window.currentUserId : payerKey) || window.currentUserId || members[0]?.id || '';
   const [detailsOpen, setDetailsOpen] = React.useState(!!existing || !!prefill);
   const [note,    setNote]    = React.useState(existing?.note || '');
   const [loading, setLoading] = React.useState(false);
@@ -1213,7 +1222,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
 
   // Compute the split_with array based on mode
   const computeSplitWith = () => {
-    if (splitMode === 'me') return [];
+    if (isPersonal || splitMode === 'me') return [];
     if (splitMode === 'everyone') return members.map((m) => m.id).filter((id) => id !== paidBy);
     return customSet.filter((id) => id !== paidBy);
   };
@@ -1237,7 +1246,8 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
     const catMeta = CAT_META[cat] || {};
     const finalTitle = title.trim()
       || (window.isRTL ? (catMeta.label_ar || cat) : (catMeta.label_en || cat));
-    try { localStorage.setItem('voyage:lastPayer:' + (trip?.id || ''), payerKey); } catch (_) {}
+    // Remember the card/payer for next time — but never default to "personal".
+    if (!isPersonal) { try { localStorage.setItem('voyage:lastPayer:' + (trip?.id || ''), payerKey); } catch (_) {} }
 
     // ── OPTIMISTIC FAST PATH ──────────────────────────────────
     // The common case (a brand-new expense, no receipt to upload, not
@@ -1255,16 +1265,17 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
       const payload = {
         title: finalTitle, category: cat, amountUSD: amtUSD,
         amountLocal: amtLocalForDB, localCurrency: local,
-        note: note.trim() || null, splitWith: splitWithIds,
+        note: note.trim() || null, splitWith: splitWithIds, isPersonal,
       };
       const optimistic = {
         id: tempId, who: createdByFast, cat, title: payload.title,
         jpy: local === 'JPY' ? (parseFloat(amtLocalForDB) || 0) : 0,
         usd: amtUSD, when: window.fmtDate(nowISO), createdAt: nowISO,
-        note: payload.note || '', splitWith: splitWithIds,
+        note: payload.note || '', splitWith: splitWithIds, isPersonal,
         receiptPath: null, receiptUrl: null,
       };
-      window.EXPENSES = [optimistic, ...(window.EXPENSES || [])];
+      if (isPersonal) window.MY_PERSONAL_EXPENSES = [optimistic, ...(window.MY_PERSONAL_EXPENSES || [])];
+      else window.EXPENSES = [optimistic, ...(window.EXPENSES || [])];
       window.recomputeExpenseDerived?.(tripId);
       window.LIFETIME_STATS = null;
       window.notifyDataChange?.();
@@ -1288,6 +1299,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
           } else {
             // Genuine server error while online: roll the row back.
             window.EXPENSES = (window.EXPENSES || []).filter((e) => e.id !== tempId);
+            window.MY_PERSONAL_EXPENSES = (window.MY_PERSONAL_EXPENSES || []).filter((e) => e.id !== tempId);
             window.recomputeExpenseDerived?.(tripId);
             window.notifyDataChange?.();
             window.toast?.(err.message || 'Failed to save expense', 'error');
@@ -1305,6 +1317,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
         title: finalTitle,
         category: cat,
         paidBy: isEdit ? createdBy : undefined,
+        isPersonal,
         amountUSD: amtUSD,
         amountLocal: amtLocalForDB,
         localCurrency: local,
@@ -1453,7 +1466,8 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
                 <button key={o.key} onClick={() => setPayerKey(o.key)} style={{
                   flexShrink: 0, minWidth: 74, minHeight: 64, padding: '8px 10px', borderRadius: 14,
                   background: active ? 'var(--statement)' : 'var(--cream-2)',
-                  border: active ? 'none' : '0.5px solid var(--hairline)',
+                  border: active ? 'none' : (o.personal ? '1px dashed var(--ink-mute)' : '0.5px solid var(--hairline)'),
+                  marginInlineStart: o.personal ? 6 : 0,
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                   transition: 'all 160ms',
                 }}>
@@ -1500,7 +1514,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
       </div>
 
       {/* Split with — only on shared trips WITHOUT cards (cards = one group budget, nothing to split) */}
-      {isShared && !wallets && (
+      {isShared && !wallets && !isPersonal && (
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase' }}>
             {t('splitWithLabel')}

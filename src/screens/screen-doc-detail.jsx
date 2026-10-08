@@ -137,6 +137,8 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
         linkUrl: details.location_url || null,
         linkLabel: details.location_url ? (window.isRTL ? 'الرابط المرجعي' : 'Location') : null,
       });
+      // Shared + cost → general budget; personal or no cost → nothing.
+      try { await window.syncDocExpense(doc.id, window.TRIP?.id); } catch (_) {}
       await window.loadDocuments(window.TRIP?.id);
       setEditing(false);
       window.toast?.(window.isRTL ? 'تم حفظ جميع التعديلات بنجاح' : 'Saved', 'success');
@@ -326,10 +328,46 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
             fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)',
             flexDirection: 'row',
           }}>
-            <window.IconUsers size={12} stroke="var(--ink-mute)" />
-            {window.isRTL ? `لـ ${ownerName}` : `For ${ownerName}`}
+            🔒 {window.isRTL ? 'لك فقط — ما يشوفه غيرك' : 'Only you can see this'}
           </div>
         )}
+      </div>
+
+      {/* ── FILES SECTION ──────────────────────────────────────
+         Primary + (if category has it) secondary file. Each shows
+         open/replace/remove inline. */}
+      <div style={{ padding: '18px 14px 0' }}>
+        <SectionLabel>{window.isRTL ? 'الملفات' : 'Files'}</SectionLabel>
+        <div style={{
+          margin: '0 8px',
+          display: 'flex', flexDirection: 'column', gap: 8,
+        }}>
+          <FileRow
+            label={schema.primaryFileLabel()}
+            file={hasFile ? { name: window.isRTL ? 'ملف مرفوع' : 'Uploaded', size: doc.size, url: doc.link } : null}
+            tint={tintFill}
+            uploading={uploading}
+            onPick={() => fileRef.current?.click()}
+            onRemove={removePrimary}
+          />
+          <input ref={fileRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
+            onChange={(e) => { if (e.target.files[0]) replacePrimary(e.target.files[0]); e.target.value = ''; }} />
+
+          {schema.secondaryFile && (
+            <>
+              <FileRow
+                label={schema.secondaryFile.label()}
+                file={hasSec ? { name: window.isRTL ? 'ملف مرفوع' : 'Uploaded', size: null, url: doc.secondaryLink } : null}
+                tint={tintFill}
+                uploading={uploadingSec}
+                onPick={() => secondaryRef.current?.click()}
+                onRemove={removeSecondary}
+              />
+              <input ref={secondaryRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
+                onChange={(e) => { if (e.target.files[0]) replaceSecondary(e.target.files[0]); e.target.value = ''; }} />
+            </>
+          )}
+        </div>
       </div>
 
       {/* ── EDIT MODE: structured fields ─────────────────────── */}
@@ -358,17 +396,18 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
             {/* Who is this for? — group trips only. null = everyone. */}
             {isGroupTrip && (
               <div style={groupCard}>
-                <div style={editLabelStyle}>{window.isRTL ? 'لمن هذا المستند؟' : "Who's this for?"}</div>
+                <div style={editLabelStyle}>{window.isRTL ? 'لمن؟' : "Who's it for?"}</div>
                 <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', flexDirection: 'row' }}>
-                  {[{ id: null, name: window.isRTL ? 'الجميع' : 'Everyone' }, ...members].map((o) => {
+                  {[{ id: window.currentUserId, name: window.isRTL ? 'لي أنا' : 'Just me' },
+                    { id: null, name: window.isRTL ? 'مشترك للجميع' : 'Everyone' }].map((o) => {
                     const active = ownerUserId === o.id;
                     return (
                       <button key={o.id || 'all'} onClick={() => setOwnerUserId(o.id)} style={{
-                        padding: '9px 14px', borderRadius: 999, fontSize: 13, fontWeight: 500,
+                        flex: 1, minHeight: 42, borderRadius: 12, fontSize: 13.5, fontWeight: 600,
                         background: active ? 'var(--ink)' : 'var(--cream)',
                         color: active ? 'var(--cream)' : 'var(--ink-soft)',
                         border: '0.5px solid var(--hairline-2)', transition: 'all 150ms',
-                      }}>{o.id ? o.name.split(' ')[0] : o.name}</button>
+                      }}>{o.name}</button>
                     );
                   })}
                 </div>
@@ -438,77 +477,17 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
           }}>
             <div style={{ flex: 1 }}>
               <div className="mono" style={{ fontSize: 18, fontWeight: 600, color: 'var(--ink)' }}>
-                {doc.costLocal != null && doc.costCurrency
-                  ? `${doc.costCurrency} ${doc.costLocal.toLocaleString()}`
-                  : `$${doc.costUSD.toLocaleString()}`}
+                {window.fmtMoney(doc.costUSD, { in: 'home' })}
               </div>
-              {doc.linkedExpenseId ? (
-                <div style={{
-                  fontSize: 11, color: 'var(--moss)', marginTop: 3,
-                  display: 'flex', alignItems: 'center', gap: 4, flexDirection: 'row',
-                }}>
-                  <IconCheck size={11} stroke="currentColor" />
-                  {window.isRTL ? 'مُدرج في قائمة المصروفات' : 'Logged in expenses'}
-                </div>
-              ) : (
-                <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 3 }}>
-                  {window.isRTL ? 'غير مدرج في ميزانية الرحلة' : 'Not in the trip budget'}
-                </div>
-              )}
+              <div style={{ fontSize: 12, color: doc.ownerUserId ? 'var(--ink-mute)' : 'var(--moss)', marginTop: 3 }}>
+                {doc.ownerUserId
+                  ? (window.isRTL ? '🔒 تكلفتك — تظهر لك في «تكلفة رحلتك» فقط' : '🔒 Your cost — only in your trip cost')
+                  : (window.isRTL ? '✓ من الميزانية العامة للرحلة' : "✓ In the trip's general budget")}
+              </div>
             </div>
-            <button onClick={toggleExpense} disabled={linking || doc.costUSD == null} style={{
-              padding: '9px 14px', borderRadius: 12,
-              background: doc.linkedExpenseId ? 'var(--cream)' : 'var(--ink)',
-              color: doc.linkedExpenseId ? 'var(--ink)' : 'var(--cream)',
-              border: doc.linkedExpenseId ? '0.5px solid var(--hairline)' : 'none',
-              fontSize: 12.5, fontWeight: 500,
-              display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row',
-            }}>
-              {linking ? '…'
-                : (doc.linkedExpenseId
-                    ? (window.isRTL ? 'استبعاد من المصروفات' : 'Remove')
-                    : (window.isRTL ? 'إدراج في المصروفات' : 'Add to expenses'))}
-            </button>
           </div>
         </div>
       )}
-
-      {/* ── FILES SECTION ──────────────────────────────────────
-         Primary + (if category has it) secondary file. Each shows
-         open/replace/remove inline. */}
-      <div style={{ padding: '18px 14px 0' }}>
-        <SectionLabel>{window.isRTL ? 'الملفات المرفقة' : 'Files'}</SectionLabel>
-        <div style={{
-          margin: '0 8px',
-          display: 'flex', flexDirection: 'column', gap: 8,
-        }}>
-          <FileRow
-            label={schema.primaryFileLabel()}
-            file={hasFile ? { name: window.isRTL ? 'ملف مرفوع' : 'Uploaded', size: doc.size, url: doc.link } : null}
-            tint={tintFill}
-            uploading={uploading}
-            onPick={() => fileRef.current?.click()}
-            onRemove={removePrimary}
-          />
-          <input ref={fileRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
-            onChange={(e) => { if (e.target.files[0]) replacePrimary(e.target.files[0]); e.target.value = ''; }} />
-
-          {schema.secondaryFile && (
-            <>
-              <FileRow
-                label={schema.secondaryFile.label()}
-                file={hasSec ? { name: window.isRTL ? 'ملف مرفوع' : 'Uploaded', size: null, url: doc.secondaryLink } : null}
-                tint={tintFill}
-                uploading={uploadingSec}
-                onPick={() => secondaryRef.current?.click()}
-                onRemove={removeSecondary}
-              />
-              <input ref={secondaryRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
-                onChange={(e) => { if (e.target.files[0]) replaceSecondary(e.target.files[0]); e.target.value = ''; }} />
-            </>
-          )}
-        </div>
-      </div>
 
       {/* ── DELETE — only inside edit mode, at the end of the form ── */}
       {editing && (

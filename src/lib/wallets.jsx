@@ -36,9 +36,9 @@ window.computeTodayBudget = (trip, expenses, todayISO) => {
   const today = todayISO || window.localISO();
   const ids = new Set(w.cards.map((c) => c.id));
   const dayOf = (e) => (e.createdAt ? window.localISO(e.createdAt) : today);
-  // Anything logged BEFORE the trip starts is prepaid (hotels, flights):
-  // it counts in the overall trip budget, not against the cards' money.
-  const cardExp = expenses.filter((e) => ids.has(e.who) && (!trip.startDate || dayOf(e) >= trip.startDate));
+  // Bookings (logged before the trip starts, or from a document's cost) are
+  // GENERAL budget: they count in the trip total, not against the cards.
+  const cardExp = expenses.filter((e) => ids.has(e.who) && !window.isGeneralBudgetExpense(e, trip));
 
   const cards = w.cards.map((c) => {
     const spent = cardExp.filter((e) => e.who === c.id).reduce((s, e) => s + (e.usd || 0), 0);
@@ -314,4 +314,67 @@ function WalletsSetup() {
   );
 }
 
-Object.assign(window, { TodayBudgetCard, WalletsSetup });
+// ── "Your trip cost" — private to the viewer ──────────────────────────
+// Your share of the group's spend (trip total ÷ members) + your own
+// bookings (personal documents with a cost, e.g. your flight) + your
+// personal expenses. Only you see this: personal docs and expenses are
+// filtered by the database (RLS), not just hidden in the UI.
+function MyTripCostCard({ openSheet }) {
+  const ar = window.isRTL;
+  const members = window.MEMBERS || [];
+  if (members.length < 2) return null;
+  const me = window.currentUserId;
+  const fmtC = (usd) => window.fmtMoney(usd, { in: 'home' });
+  const groupTotal = (window.EXPENSES || []).reduce((s, e) => s + (e.usd || 0), 0);
+  const share = groupTotal / members.length;
+  const myDocs = Object.values(window.DOCS_BY_CAT || {}).flat()
+    .filter((d) => d && d.ownerUserId === me && d.costUSD != null && d.costUSD > 0);
+  const docsUSD = myDocs.reduce((s, d) => s + (d.costUSD || 0), 0);
+  const personal = window.MY_PERSONAL_EXPENSES || [];
+  const personalUSD = personal.reduce((s, e) => s + (e.usd || 0), 0);
+  const total = share + docsUSD + personalUSD;
+  const row = (label, val, sub) => (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '7px 0' }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>{label}</div>
+        {sub && <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 1 }}>{sub}</div>}
+      </div>
+      <span className="mono" style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{fmtC(val)}</span>
+    </div>
+  );
+  return (
+    <div style={{ padding: '0 14px 16px' }}>
+      <div style={{ background: 'var(--cream-2)', borderRadius: 22, padding: '16px 18px', border: '0.5px solid var(--hairline)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{ar ? 'تكلفة رحلتك' : 'Your trip cost'}</div>
+          <span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>🔒 {ar ? 'تظهر لك فقط' : 'only you'}</span>
+        </div>
+        <div className="mono" style={{ fontSize: 26, fontWeight: 700, color: 'var(--ink)', margin: '4px 0 6px' }}>{fmtC(total)}</div>
+        <div style={{ borderTop: '0.5px solid var(--hairline)', paddingTop: 4 }}>
+          {row(ar ? 'نصيبك من مصاريف الرحلة' : 'Your share of the trip',
+               share, ar ? `${fmtC(groupTotal)} ÷ ${members.length}` : `${fmtC(groupTotal)} ÷ ${members.length}`)}
+          {row(ar ? 'حجوزاتك (طيران وغيره)' : 'Your bookings (flights…)', docsUSD,
+               myDocs.length ? myDocs.map((d) => d.title).join(' · ') : (ar ? 'أضف تكلفة تذكرتك من المستندات' : 'Add your ticket cost in Docs'))}
+          {row(ar ? 'مصاريفك الشخصية' : 'Your personal spend', personalUSD,
+               personal.length ? null : (ar ? 'من زر + اختر «شخصي»' : 'Tap + and choose “Personal”'))}
+        </div>
+        {personal.length > 0 && (
+          <div style={{ marginTop: 6, display: 'grid', gap: 4 }}>
+            {personal.slice(0, 6).map((e) => (
+              <button key={e.id} onClick={() => openSheet?.('editExpense', e)} style={{
+                display: 'flex', alignItems: 'center', gap: 8, minHeight: 40, padding: '0 12px', borderRadius: 12,
+                background: 'var(--cream)', border: '0.5px solid var(--hairline)', textAlign: 'start',
+              }}>
+                <span style={{ flex: 1, fontSize: 13, color: 'var(--ink)' }}>{e.title}</span>
+                <span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>{e.when}</span>
+                <span className="mono" style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{fmtC(e.usd)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { TodayBudgetCard, WalletsSetup, MyTripCostCard });

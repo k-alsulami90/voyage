@@ -13,14 +13,17 @@ function ScreenAddDoc({ back, onCreated }) {
   const tripHome  = window.TRIP?.homeCurrency  || 'USD';
   const [cost,        setCost]        = React.useState('');
   const [costCur,     setCostCur]     = React.useState(tripLocal);
-  const [logExpense,  setLogExpense]  = React.useState(false);
+  const [moreOpen,    setMoreOpen]    = React.useState(false);
 
   // Owner: null = shared with everyone; a user id = a specific traveler's
   // own doc (boarding pass, visa, personal ticket). Chosen explicitly, not
   // inferred from the uploader — one person often uploads for the others.
   const members = window.MEMBERS || [];
   const isGroupTrip = members.length > 1;
-  const [ownerUserId, setOwnerUserId] = React.useState(null);
+  // Each traveler adds their OWN tickets/visas ("for me"); hotels and
+  // rentals default to shared. Personal docs are private (RLS).
+  const defaultOwner = (c) => (isGroupTrip && (c === 'flights' || c === 'visas')) ? window.currentUserId : null;
+  const [ownerUserId, setOwnerUserId] = React.useState(() => defaultOwner('flights'));
 
   // Files
   const [file,        setFile]        = React.useState(null);
@@ -48,9 +51,23 @@ function ScreenAddDoc({ back, onCreated }) {
   React.useEffect(() => {
     setDetails({});
     setSecondary(null);
+    setOwnerUserId(defaultOwner(cat));
   }, [cat]);
 
   const schema = window.DOC_SCHEMAS[cat] || window.DOC_SCHEMAS.visas;
+  // The one or two facts each kind needs up front; the rest folds away.
+  const ESSENTIAL = {
+    flights:   ['dep_airport', 'arr_airport', 'dep_at'],
+    lodging:   ['check_in_at', 'check_out_at'],
+    transport: ['pickup_at'],
+    visas:     ['expires_on'],
+  };
+  const essentialKeys = ESSENTIAL[cat] || [];
+  const essentialFields = schema.fields.filter((f) => essentialKeys.includes(f.key))
+    // a range end whose start isn't essential would render alone — fine
+    .map((f) => (f.col === 2 ? { ...f, col: undefined } : f));
+  const moreFields = schema.fields.filter((f) => !essentialKeys.includes(f.key))
+    .map((f) => (f.col === 2 ? { ...f, col: undefined } : f));
   const CAT_TINT = { flights: 'indigo', lodging: 'clay', visas: 'moss', transport: 'honey' };
   const TINT_FILL = { indigo: 'var(--indigo)', clay: 'var(--clay)', moss: 'var(--moss)', honey: 'var(--honey)' };
   const tint = CAT_TINT[cat] || 'clay';
@@ -65,7 +82,11 @@ function ScreenAddDoc({ back, onCreated }) {
   };
 
   const handleSave = async () => {
-    if (!title.trim()) { setError(window.isRTL ? 'يرجى إدخال عنوان للمستند' : 'Enter a title'); return; }
+    // Flights don't need a typed name: "IST → RUH" is built from the airports.
+    const autoTitle = cat === 'flights' && details.dep_airport && details.arr_airport
+      ? `${String(details.dep_airport).trim().toUpperCase()} → ${String(details.arr_airport).trim().toUpperCase()}` : '';
+    const finalTitle = title.trim() || autoTitle;
+    if (!finalTitle) { setError(window.isRTL ? (cat === 'flights' ? 'اكتب مطار المغادرة والوصول' : 'اكتب الاسم') : 'Enter a name'); return; }
     const rangeErr = window.validateDocRanges?.(schema, details);
     if (rangeErr) { setError(rangeErr); return; }
     const tripId = window.TRIP?.id;
@@ -76,7 +97,7 @@ function ScreenAddDoc({ back, onCreated }) {
     try {
       const costUSD = (cost && schema.showCost) ? window.toUSD(parseFloat(cost), costCur) : null;
       const doc = await window.addDocument(tripId, userId, {
-        title:    title.trim(),
+        title:    finalTitle,
         category: cat,
         kind:     file && file.type?.startsWith('image/') ? 'img' : 'pdf',
         tint,
@@ -97,7 +118,9 @@ function ScreenAddDoc({ back, onCreated }) {
       if (secondary) tasks.push(window.uploadDocumentSecondaryFile(doc.id, tripId, secondary));
       if (coverFile) tasks.push(window.uploadDocCover(doc.id, tripId, coverFile)
         .catch((e) => window.toast?.(e.message || 'Cover upload failed', 'error')));
-      if (logExpense && costUSD) tasks.push(window.linkDocExpense(doc.id, tripId)
+      // Shared booking with a cost → goes into the trip's general budget
+      // automatically. Personal costs stay private ("Your trip cost").
+      if (!ownerUserId && costUSD) tasks.push(window.syncDocExpense(doc.id, tripId)
         .catch((e) => window.toast?.(e.message || 'Expense link failed', 'error')));
       if (tasks.length) await Promise.allSettled(tasks);
       await window.loadDocuments(tripId);
@@ -133,7 +156,7 @@ function ScreenAddDoc({ back, onCreated }) {
 
       <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-        {/* Category */}
+        {/* 1 — What is it? */}
         <DocStep title={window.isRTL ? 'نوع المستند' : 'What is it?'}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {(window.DOC_CATEGORIES || []).map((c) => {
@@ -144,11 +167,10 @@ function ScreenAddDoc({ back, onCreated }) {
               const emoji = window.DOC_SCHEMAS[c.key]?.emoji || '📄';
               return (
                 <button key={c.key} onClick={() => setCat(c.key)} style={{
-                  padding: '13px 14px', borderRadius: 14, textAlign: 'start',
+                  padding: '13px 14px', borderRadius: 14, textAlign: 'start', minHeight: 48,
                   background: active ? color : 'var(--cream-2)',
                   color: active ? '#fff' : 'var(--ink)',
                   border: active ? 'none' : '0.5px solid var(--hairline)',
-                  boxShadow: active ? '0 6px 16px -8px ' + color : 'var(--shadow-xs)',
                   display: 'flex', alignItems: 'center', gap: 10,
                   flexDirection: 'row', transition: 'all 160ms',
                 }}>
@@ -160,98 +182,94 @@ function ScreenAddDoc({ back, onCreated }) {
           </div>
         </DocStep>
 
-        {/* Who is this for? — only on group trips. null = everyone. */}
-        {isGroupTrip && (
-          <DocStep title={window.isRTL ? 'لمن هذا المستند؟' : "Who's this for?"}
-                   hint={window.isRTL
-                     ? 'بطاقة الصعود والتأشيرة تخص مسافراً واحداً — وحده يصله تذكير سمارت تراك. الحجوزات المشتركة اتركها للجميع.'
-                     : 'Boarding passes & visas belong to one traveler — only they get the Smart Track reminder. Leave shared bookings on Everyone.'}>
-            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', flexDirection: 'row' }}>
-              {[{ id: null, name: window.isRTL ? 'الجميع' : 'Everyone' }, ...members].map((o) => {
-                const active = ownerUserId === o.id;
-                return (
-                  <button key={o.id || 'all'} onClick={() => setOwnerUserId(o.id)} style={{
-                    padding: '9px 14px', borderRadius: 999, fontSize: 13, fontWeight: 500,
-                    background: active ? 'var(--ink)' : 'var(--cream-2)',
-                    color: active ? 'var(--cream)' : 'var(--ink-soft)',
-                    border: '0.5px solid var(--hairline)', transition: 'all 150ms',
-                  }}>{o.id ? o.name.split(' ')[0] : o.name}</button>
-                );
-              })}
-            </div>
-          </DocStep>
-        )}
-
-        {/* Details — title + structured fields grouped in one inset card */}
-        <DocStep title={window.isRTL ? 'التفاصيل' : 'Details'}>
-          <div style={groupCard}>
-            <label style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink-mute)', display: 'block', marginBottom: 6, textAlign: 'start' }}>
-              {schema.titleLabel()}
-            </label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)}
-              placeholder={schema.titlePlaceholder()}
-              style={docFieldStyle} />
-            {schema.fields.length > 0 && (
-              <div style={{ marginTop: 12 }}>
-                <DocFieldGrid fields={schema.fields} values={details} onChange={setDetails} />
-              </div>
-            )}
-          </div>
-        </DocStep>
-
-        {/* Primary file */}
-        <DocStep title={schema.primaryFileLabel()} optional
-                hint={window.isRTL ? 'الصيغ المدعومة: PDF أو صور — بحد أقصى 25 ميغابايت' : 'PDF or image · up to 25 MB'}>
+        {/* 2 — The file first: it's what you open at the airport */}
+        <DocStep title={schema.primaryFileLabel()}
+                hint={window.isRTL ? 'صوّر الحجز أو ارفع ملف PDF' : 'Snap it or upload a PDF'}>
           <FilePicker file={file} setFile={setFile} pickerRef={fileRef} tint={TINT_FILL[tint]} />
         </DocStep>
-
-        {/* Secondary file (flights only) */}
         {schema.secondaryFile && (
           <DocStep title={schema.secondaryFile.label()} optional>
             <FilePicker file={secondary} setFile={setSecondary} pickerRef={secondaryRef} tint={TINT_FILL[tint]} />
           </DocStep>
         )}
 
-        {/* Cost + log to expenses — grouped */}
-        {schema.showCost && (
-          <DocStep title={window.isRTL ? 'التكلفة' : 'Cost'} optional>
-            <div style={groupCard}>
-              <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
-                <NumberField value={cost} onChange={setCost} placeholder="0"
-                  style={{ ...docFieldStyle, flex: 1 }} />
-                <select value={costCur} onChange={(e) => setCostCur(e.target.value)} style={{
-                  ...docFieldStyle, width: 'auto', minWidth: 84, fontFamily: 'var(--mono)',
-                }}>
-                  {window.currencyOptions(tripLocal, tripHome)
-                    .map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <label style={{
-                marginTop: 10, padding: '12px 14px', borderRadius: 12,
-                background: 'var(--cream)', border: '0.5px solid var(--hairline-2)',
-                display: 'flex', alignItems: 'center', gap: 10, flexDirection: 'row',
-                cursor: 'pointer',
-              }}>
-                <input type="checkbox" checked={logExpense} onChange={(e) => setLogExpense(e.target.checked)}
-                  style={{ width: 18, height: 18, accentColor: 'var(--clay)' }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink)' }}>
-                    {window.isRTL ? 'إدراج تلقائي في ميزانية ومصروفات الرحلة' : 'Add to expenses'}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 1 }}>
-                    {window.isRTL ? 'عند التفعيل، ستتم إضافة هذا المبلغ تلقائياً لعملياتك المالية' : 'Auto-logged in your trip budget'}
-                  </div>
-                </div>
-              </label>
+        {/* 3 — Mine or everyone's (group trips) */}
+        {isGroupTrip && (
+          <DocStep title={window.isRTL ? 'لمن؟' : "Who's it for?"}
+                   hint={ownerUserId
+                     ? (window.isRTL ? 'لك أنت فقط — ما يشوفه أحد غيرك.' : 'Only you can see it.')
+                     : (window.isRTL ? 'يشوفه كل أعضاء الرحلة.' : 'Everyone on the trip sees it.')}>
+            <div style={{ display: 'flex', padding: 3, borderRadius: 14, background: 'var(--cream-2)', border: '0.5px solid var(--hairline)' }}>
+              {[{ id: window.currentUserId, l: window.isRTL ? 'لي أنا' : 'Just me' },
+                { id: null, l: window.isRTL ? 'مشترك للجميع' : 'Everyone' }].map((o) => {
+                const active = ownerUserId === o.id;
+                return (
+                  <button key={o.id || 'all'} onClick={() => setOwnerUserId(o.id)} style={{
+                    flex: 1, minHeight: 42, borderRadius: 11, fontSize: 14, fontWeight: 600,
+                    background: active ? 'var(--ink)' : 'transparent',
+                    color: active ? 'var(--cream)' : 'var(--ink-soft)', transition: 'all 150ms',
+                  }}>{o.l}</button>
+                );
+              })}
             </div>
           </DocStep>
         )}
 
-        {/* Cover photo */}
-        <DocStep title={window.isRTL ? 'صورة الغلاف' : 'Cover photo'} optional
-                 hint={window.isRTL
-                   ? 'صورة صغيرة تظهر في القائمة بدل الأيقونة الافتراضية'
-                   : 'A small image shown in the list instead of the default icon'}>
+        {/* 4 — Only what matters for this kind of document */}
+        <DocStep title={window.isRTL ? 'الأساسيات' : 'Essentials'}>
+          <div style={groupCard}>
+            <label style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink-mute)', display: 'block', marginBottom: 6, textAlign: 'start' }}>
+              {cat === 'flights' ? (window.isRTL ? 'اسم الرحلة (اختياري)' : 'Name (optional)') : schema.titleLabel()}
+            </label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)}
+              placeholder={cat === 'flights' ? (window.isRTL ? 'يتكتب تلقائياً: IST → RUH' : 'Auto: IST → RUH') : schema.titlePlaceholder()}
+              style={docFieldStyle} />
+            {essentialFields.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <DocFieldGrid fields={essentialFields} values={details} onChange={setDetails} />
+              </div>
+            )}
+          </div>
+        </DocStep>
+
+        {/* 5 — Cost: shared → general budget; mine → my trip cost (private) */}
+        {schema.showCost && (
+          <DocStep title={window.isRTL ? 'التكلفة' : 'Cost'} optional
+                   hint={ownerUserId
+                     ? (window.isRTL ? 'تظهر لك في «تكلفة رحلتك» ولا تدخل في ميزانية القروب.' : 'Shows in your trip cost only.')
+                     : (window.isRTL ? 'تنخصم من الميزانية العامة للرحلة، مو من مصروف اليوم.' : "Counts in the trip's general budget, not today's.")}>
+            <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
+              <NumberField value={cost} onChange={setCost} placeholder="0"
+                style={{ ...docFieldStyle, flex: 1, minWidth: 0, fontFamily: 'var(--mono)' }} />
+              <select value={costCur} onChange={(e) => setCostCur(e.target.value)} style={{
+                ...docFieldStyle, width: 'auto', minWidth: 84, fontFamily: 'var(--mono)',
+              }}>
+                {window.currencyOptions(tripLocal, tripHome)
+                  .map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </DocStep>
+        )}
+
+        {/* 6 — Everything else, folded */}
+        {(
+          <button onClick={() => setMoreOpen((v) => !v)} style={{
+            width: '100%', minHeight: 46, borderRadius: 14,
+            background: 'transparent', border: '0.5px dashed var(--hairline-2)',
+            color: 'var(--ink-soft)', fontSize: 13.5, fontWeight: 500,
+          }}>
+            {moreOpen
+              ? (window.isRTL ? 'إخفاء التفاصيل' : 'Hide details')
+              : (window.isRTL ? 'تفاصيل أكثر (اختياري)' : 'More details (optional)')}
+          </button>
+        )}
+        {moreOpen && moreFields.length > 0 && (
+          <div style={groupCard}>
+            <DocFieldGrid fields={moreFields} values={details} onChange={setDetails} />
+          </div>
+        )}
+        {moreOpen && (
+        <DocStep title={window.isRTL ? 'صورة الغلاف' : 'Cover photo'} optional>
           <input ref={coverRef} type="file" accept="image/*" style={{ display: 'none' }}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) setCoverToCrop(f); e.target.value = ''; }} />
           {coverPreview ? (
@@ -293,6 +311,7 @@ function ScreenAddDoc({ back, onCreated }) {
             </button>
           )}
         </DocStep>
+        )}
 
         {error && (
           <div style={{

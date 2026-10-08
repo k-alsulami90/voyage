@@ -161,6 +161,7 @@ window.clearAllMockData = () => {
   window.TRIP          = null;
   window.MEMBERS       = [];
   window.EXPENSES      = [];
+  window.MY_PERSONAL_EXPENSES = [];
   window.DOCS          = [];
   window.AUDIT         = [];
   window.LIFETIME_STATS = null;
@@ -587,7 +588,7 @@ window.loadExpenses = async (tripId) => {
   // (the stored receipt_url is a now-dead public url).
   const signed = await window._signDocPaths(rows.map((r) => r.receipt_path));
 
-  window.EXPENSES = rows.map((r) => ({
+  const mapped = rows.map((r) => ({
     id:        r.id,
     who:       r.created_by,
     cat:       r.category,
@@ -600,7 +601,14 @@ window.loadExpenses = async (tripId) => {
     splitWith: Array.isArray(r.split_with) ? r.split_with.filter(Boolean) : [],
     receiptPath: r.receipt_path || null,
     receiptUrl:  (r.receipt_path ? signed.get(r.receipt_path) : null) || null,
+    isPersonal: !!r.is_personal,
   }));
+  // Personal expenses (shopping etc.) are the logger's own: RLS only ever
+  // returns MY personal rows, and they never enter the group's numbers.
+  // Keeping them in a separate list means every existing group sum
+  // (budget, today, cards, analytics, balances) stays group-only for free.
+  window.EXPENSES = mapped.filter((e) => !e.isPersonal);
+  window.MY_PERSONAL_EXPENSES = mapped.filter((e) => e.isPersonal);
 
   window.recomputeExpenseDerived(tripId);
 
@@ -1004,7 +1012,7 @@ window.loadLifetimeStats = async () => {
   } catch (_) {}
 
   const trips = window.TRIPS || [];
-  const expenses = data || [];
+  const expenses = (data || []).filter((e) => !e.is_personal);
 
   // ── Totals
   const totalSpentUSD = expenses.reduce((s, e) => s + (parseFloat(e.amount_usd) || 0), 0);
@@ -1239,11 +1247,15 @@ window.addExpense = async (tripId, userId, fields) => {
     local_currency: fields.localCurrency,
     note:           fields.note || null,
   };
+  if (fields.isPersonal) basePayload.is_personal = true;
   // Try with split_with first; if the column doesn't exist (migration not run),
   // gracefully fall back to a payload without it.
   let { data, error } = await window.sb.from('expenses')
     .insert({ ...basePayload, split_with: fields.splitWith || [] })
     .select().single();
+  if (error && /is_personal/i.test(error.message || '')) {
+    throw new Error(window.isRTL ? 'المصاريف الشخصية تحتاج تحديث قاعدة البيانات (ملف 020)' : 'Personal expenses need migration 020');
+  }
   if (error && /split_with/i.test(error.message || '')) {
     ({ data, error } = await window.sb.from('expenses').insert(basePayload).select().single());
   }
@@ -1309,6 +1321,8 @@ window.linkDocExpense = async (docId, tripId) => {
     amount_local: doc.cost_local != null ? Number(doc.cost_local) : null,
     local_currency: doc.cost_currency || null,
     note: doc.subtitle || null,
+    // A shared booking is the whole group's cost.
+    split_with: (window.MEMBERS || []).map((m) => m.id).filter((id) => id !== window.currentUserId),
   }).select().single();
   if (expErr) throw expErr;
 
@@ -1320,6 +1334,42 @@ window.linkDocExpense = async (docId, tripId) => {
   await window.loadExpenses(tripId);
   await window.loadDocuments(tripId);
   return exp.id;
+};
+
+// Keep a document's cost and the trip budget in step, automatically:
+//   shared doc with a cost  -> one linked expense (general budget)
+//   personal doc / no cost  -> no linked expense (personal cost stays private)
+window.syncDocExpense = async (docId, tripId) => {
+  const { data: doc } = await window.sb.from('documents').select('*').eq('id', docId).single();
+  if (!doc) return;
+  const wantsExpense = !doc.owner_user_id && doc.cost_usd != null && Number(doc.cost_usd) > 0;
+  if (!wantsExpense) {
+    if (doc.linked_expense_id) await window.unlinkDocExpense(docId, tripId);
+    return;
+  }
+  if (!doc.linked_expense_id) { await window.linkDocExpense(docId, tripId); return; }
+  await window.sb.from('expenses').update({
+    amount_usd: Number(doc.cost_usd),
+    amount_local: doc.cost_local != null ? Number(doc.cost_local) : null,
+    local_currency: doc.cost_currency || null,
+  }).eq('id', doc.linked_expense_id);
+  window.LIFETIME_STATS = null;
+  await window.loadExpenses(tripId);
+};
+
+// "General budget" spend = bookings, not day-to-day money: anything logged
+// before the trip starts, or any expense that came from a document's cost
+// (hotel, flight, rental). It counts in the trip total but never against
+// today's allowance or the cards.
+window.isGeneralBudgetExpense = (e, trip) => {
+  trip = trip || window.TRIP;
+  if (trip?.startDate && e.createdAt && window.localISO(e.createdAt) < trip.startDate) return true;
+  return window._docLinkedExpenseIds().has(e.id);
+};
+window._docLinkedExpenseIds = () => {
+  const set = new Set();
+  Object.values(window.DOCS_BY_CAT || {}).forEach((list) => (list || []).forEach((d) => { if (d.linkedExpenseId) set.add(d.linkedExpenseId); }));
+  return set;
 };
 
 window.unlinkDocExpense = async (docId, tripId) => {
@@ -1573,6 +1623,7 @@ window.updateExpense = async (expenseId, tripId, fields) => {
   };
   // Payer can be changed on edit (it was silently ignored before).
   if (fields.paidBy) baseUpdate.created_by = fields.paidBy;
+  if (typeof fields.isPersonal === 'boolean') baseUpdate.is_personal = fields.isPersonal;
   let { error } = await window.sb.from('expenses')
     .update({ ...baseUpdate, split_with: fields.splitWith || [] })
     .eq('id', expenseId);

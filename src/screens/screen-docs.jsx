@@ -3,7 +3,7 @@
 
 function ScreenDocs({ go, openSheet, openDoc, loading }) {
   // All hooks declared at the top — never conditional, never after early returns
-  const [view, setView]           = React.useState('grid');    // 'grid' | 'list'
+  const [view, setView]           = React.useState('list');    // 'grid' | 'list' — list first: the time/route is what you scan for
   const [filter, setFilter]       = React.useState('all');     // 'all' | category key
   const [sortBy, setSortBy]       = React.useState('newest');  // 'newest' | 'name' | 'category'
   const [showSearch, setShowSearch] = React.useState(false);
@@ -511,22 +511,22 @@ function DocRowList({ doc, last, onOpen }) {
         }} />
       ) : (
         <div style={{
-          width: 40, height: 40, borderRadius: 11, flexShrink: 0,
-          background: tint, color: '#fff',
+          width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+          background: tint, color: '#fff', fontSize: 21,
           display: 'grid', placeItems: 'center',
           boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
         }}>
-          <Icon size={18} stroke="#fff" />
+          {window.DOC_SCHEMAS?.[doc.category]?.emoji || <Icon size={18} stroke="#fff" />}
         </div>
       )}
 
       <div style={{ flex: 1, minWidth: 0, textAlign: 'start' }}>
         <div style={{
-          fontSize: 13.5, fontWeight: 500, color: 'var(--ink)',
+          fontSize: 14.5, fontWeight: 600, color: 'var(--ink)',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>{doc.title || '—'}</div>
+        }}>{doc.ownerUserId ? '🔒 ' : ''}{doc.title || '—'}</div>
         <div style={{
-          fontSize: 11, color: 'var(--ink-mute)', marginTop: 2,
+          fontSize: 12.5, color: 'var(--ink-soft)', marginTop: 3,
           display: 'flex', alignItems: 'center', gap: 6,
           overflow: 'hidden',
         }}>

@@ -52,7 +52,7 @@ function ScreenAnalytics({ go, loading }) {
   // Anything logged before the trip starts (hotels, flights) is PREPAID:
   // it belongs in the total, not in the per-day pace. Same rule as the
   // Today card, so both screens tell the same story.
-  const isPrepaid   = (e) => !!(trip?.startDate && e.createdAt && window.localISO(e.createdAt) < trip.startDate);
+  const isPrepaid   = (e) => window.isGeneralBudgetExpense(e, trip);
   const prepaidUSD  = expenses.filter(isPrepaid).reduce((s, e) => s + (e.usd || 0), 0);
   const onTripUSD   = totalUSD - prepaidUSD;
   const dailyAvg    = onTripUSD / daysElapsed;
