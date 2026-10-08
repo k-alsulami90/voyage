@@ -920,7 +920,7 @@ const tabBtn = (active) => ({
   transition: 'color 220ms',
 });
 const navLabel = (active) => ({
-  fontSize: window.isRTL ? 9.5 : 10.5,
+  fontSize: 11.5,
   fontWeight: active ? 600 : 500,
   letterSpacing: '-0.005em',
   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',

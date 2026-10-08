@@ -218,11 +218,11 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
             }}>
               {['en', 'ar'].map((l) => (
                 <button key={l} onClick={() => onLangChange?.(l)} style={{
-                  padding: '5px 14px', borderRadius: 999, fontSize: 12, fontWeight: 500,
+                  minHeight: 38, minWidth: 52, padding: '0 14px', borderRadius: 999, fontSize: 13.5, fontWeight: 600,
                   background: lang === l ? 'var(--ink)' : 'transparent',
                   color: lang === l ? 'var(--cream)' : 'var(--ink-soft)',
                   transition: 'all 180ms',
-                }}>{l === 'en' ? 'EN' : 'عر'}</button>
+                }}>{l === 'en' ? 'English' : 'عربي'}</button>
               ))}
             </div>
           </div>

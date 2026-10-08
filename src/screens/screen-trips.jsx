@@ -373,6 +373,13 @@ function ScreenTrips({ goTrip, go }) {
 // ── CURRENT trip card — large hero, live "Day N of M", live progress ──
 function CurrentTripCard({ trip, onOpen }) {
   const { dayN, totalDays, daysRemaining } = trip.state;
+  // Real % of budget used. The trip row's budgetPct was a stub (always 0):
+  // use the live expenses when this trip is loaded, else the per-trip
+  // total from lifetime stats.
+  const spentUSD = (window.TRIP?.id === trip.id && window.isTripDataReady?.(trip.id))
+    ? (window.EXPENSES || []).reduce((s, e) => s + (e.usd || 0), 0)
+    : ((window.LIFETIME_STATS?.tripSpend || []).find((x) => x.id === trip.id)?.spent || 0);
+  const budgetPct = trip.budgetPlannedUSD > 0 ? Math.round((spentUSD / trip.budgetPlannedUSD) * 100) : 0;
   return (
     <button onClick={onOpen} className="press-soft" style={{
       width: '100%', textAlign: 'start', borderRadius: 28,
@@ -441,15 +448,15 @@ function CurrentTripCard({ trip, onOpen }) {
                is leading-edge in both LTR and RTL. */}
             <div style={{
               width: '100%', height: '100%',
-              background: trip.budgetPct > 100 ? 'var(--clay-deep)' : 'var(--clay)',
-              transform: `scaleX(${Math.min(trip.budgetPct, 100) / 100})`,
+              background: budgetPct > 100 ? 'var(--clay-deep)' : 'var(--clay)',
+              transform: `scaleX(${Math.min(budgetPct, 100) / 100})`,
               transformOrigin: window.isRTL ? 'right center' : 'left center',
               transition: 'transform 380ms cubic-bezier(.2,.8,.2,1)',
               willChange: 'transform',
             }} />
           </div>
         </div>
-        <div className="mono" style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{trip.budgetPct}%</div>
+        <div className="mono" style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{budgetPct}%</div>
         <span className="icon-flip"><IconChevron size={14} stroke="var(--ink-mute)" /></span>
       </div>
       <div style={{ height: 12 }} />

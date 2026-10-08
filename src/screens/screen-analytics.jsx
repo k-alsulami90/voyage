@@ -49,12 +49,21 @@ function ScreenAnalytics({ go, loading }) {
   const totalUSD    = expenses.reduce((s, e) => s + (e.usd || 0), 0);
   const daysElapsed = Math.max(trip?.daysIn || 1, 1);
   const daysTotal   = Math.max(trip?.daysTotal || daysElapsed, 1);
-  const dailyAvg    = totalUSD / daysElapsed;
-  const dailyPlan   = (trip?.budget?.plannedUSD || 0) / daysTotal;
+  // Anything logged before the trip starts (hotels, flights) is PREPAID:
+  // it belongs in the total, not in the per-day pace. Same rule as the
+  // Today card, so both screens tell the same story.
+  const isPrepaid   = (e) => !!(trip?.startDate && e.createdAt && window.localISO(e.createdAt) < trip.startDate);
+  const prepaidUSD  = expenses.filter(isPrepaid).reduce((s, e) => s + (e.usd || 0), 0);
+  const onTripUSD   = totalUSD - prepaidUSD;
+  const dailyAvg    = onTripUSD / daysElapsed;
+  const todayB      = window.computeTodayBudget?.(trip, expenses);
+  const dailyPlan   = todayB
+    ? todayB.planPerDay                                   // cards trips: the cards' money per day
+    : Math.max(0, (trip?.budget?.plannedUSD || 0) - prepaidUSD) / daysTotal;
   const burnPct     = dailyPlan > 0 ? ((dailyAvg / dailyPlan) * 100 - 100) : 0;
 
   // Group by date string
-  const byDate = expenses.reduce((acc, e) => {
+  const byDate = expenses.filter((e) => !isPrepaid(e)).reduce((acc, e) => {
     const d = e.when || 'Unknown';
     acc[d] = (acc[d] || 0) + (e.usd || 0);
     return acc;
@@ -71,7 +80,7 @@ function ScreenAnalytics({ go, loading }) {
   // Category totals for pie
   const catTotals = cats.map((c) => ({
     key:   c.key,
-    label: c.label,
+    label: window.catLabel(c.key, c.label),
     color: c.color,
     value: expenses.filter((e) => e.cat === c.key).reduce((s, e) => s + (e.usd || 0), 0),
   })).filter((c) => c.value > 0);
@@ -171,11 +180,11 @@ function ScreenAnalytics({ go, loading }) {
               }}>
                 {window.isRTL ? (
                   dailyPlan > 0 ? (
-                    <>معدل إنفاقك اليومي <AnaNum>{fmtC(dailyAvg)}</AnaNum>، بينما المخطط له <AnaNum dim>{fmtC(dailyPlan)}</AnaNum> (أي بنسبة إنجاز{' '}
+                    <>تصرفون يومياً <AnaNum>{fmtC(dailyAvg)}</AnaNum>، والخطة <AnaNum dim>{fmtC(dailyPlan)}</AnaNum>{' '}
                     <span style={{
                       color: burnPct > 0 ? 'oklch(0.78 0.13 30)' : 'oklch(0.78 0.13 145)',
                       fontWeight: 600,
-                    }}>{burnPct > 0 ? '+' : ''}{burnPct.toFixed(0)}%</span>).</>
+                    }}>({burnPct > 0 ? 'أعلى' : 'أقل'} بـ {Math.abs(burnPct).toFixed(0)}٪)</span>.</>
                   ) : (
                     <>معدل إنفاقك اليومي حالياً: <AnaNum>{fmtC(dailyAvg)}</AnaNum>.</>
                   )
@@ -210,10 +219,11 @@ function ScreenAnalytics({ go, loading }) {
               running += dailyByISO[iso] || 0;
               cumByDay.push(running);
             });
-            const cumMax = Math.max(running, trip?.budget?.plannedUSD || 0, 1);
-            const plannedY = trip?.budget?.plannedUSD
-              ? 100 - (trip.budget.plannedUSD / cumMax) * 100
-              : null;
+            // The running line covers on-trip spend only (prepaid excluded),
+            // so its cap is the on-trip budget, not the full trip budget.
+            const capUSD = dailyPlan * daysTotal;
+            const cumMax = Math.max(running, capUSD, 1);
+            const plannedY = capUSD > 0 ? 100 - (capUSD / cumMax) * 100 : null;
             const barWidth = 18;
             const barGap   = 5;
             const slot = barWidth + barGap;
@@ -263,13 +273,15 @@ function ScreenAnalytics({ go, loading }) {
                        over the bars. */}
                     <svg width={totalWidth} height={BARS_H}
                       viewBox={`0 0 ${totalWidth} ${BARS_H}`}
-                      style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: 1 }}>
+                      style={{ position: 'absolute', insetInlineStart: 0, top: 0, pointerEvents: 'none', zIndex: 1 }}>
                       <polyline
                         fill="none"
                         stroke="var(--clay)" strokeWidth="1.75"
                         strokeLinecap="round" strokeLinejoin="round"
                         points={cumByDay.map((c, i) => {
-                          const x = i * slot + barWidth / 2;
+                          // Bars run right-to-left in Arabic; mirror the line with them.
+                          const x0 = i * slot + barWidth / 2;
+                          const x = window.isRTL ? (allDays.length * slot - barGap) - x0 : x0;
                           const y = BARS_H - (c / cumMax) * (BARS_H - 4);
                           return `${x},${y}`;
                         }).join(' ')}
@@ -446,7 +458,7 @@ function ScreenAnalytics({ go, loading }) {
                                   width: 8, height: 8, borderRadius: 2,
                                   background: c?.color || 'rgba(255,255,255,0.4)', flexShrink: 0,
                                 }} />
-                                <span style={{ flex: 1, fontSize: 12, opacity: 0.85 }}>{c?.label || k}</span>
+                                <span style={{ flex: 1, fontSize: 12, opacity: 0.85 }}>{window.catLabel(k, c?.label)}</span>
                                 <span className="mono" style={{ fontSize: 11.5, opacity: 0.72 }}>
                                   {Math.round(pct)}%
                                 </span>
@@ -555,7 +567,7 @@ function ScreenAnalytics({ go, loading }) {
       )}
 
       {/* CONTRIBUTOR BREAKDOWN */}
-      {contribs.length > 0 && (
+      {contribs.length > 0 && !todayB && (
         <div style={{ padding: '22px 14px 0' }}>
           <SectionLabel>{window.isRTL ? 'نسب وتحليلات الدفع' : "Who's paying"}</SectionLabel>
           <div style={{
@@ -666,7 +678,7 @@ function ScreenAnalytics({ go, loading }) {
                         : Object.entries(catMix)
                             .sort((a, b) => b[1] - a[1])
                             .slice(0, 3)
-                            .map(([k]) => cats.find((c) => c.key === k)?.label || k)
+                            .map(([k]) => window.catLabel(k, cats.find((c) => c.key === k)?.label))
                             .join(' · ')}
                     </div>
                   </div>
@@ -705,12 +717,12 @@ function ScreenAnalytics({ go, loading }) {
                 <>
                   أنفقت حتى الآن <AnaNum solid>{fmtC(totalUSD)}</AnaNum> من أصل <AnaNum solid dim>{fmtC(trip.budget.plannedUSD)}</AnaNum>
                   بمعدل <AnaNum solid>{fmtC(dailyAvg)}</AnaNum> يومياً.
-                  وبهذه الوتيرة، يُتوقع أن تنهي رحلتك بإجمالي إنفاق <AnaNum solid>{fmtC(dailyAvg * daysTotal)}</AnaNum>.
+                  وبهذه الوتيرة، يُتوقع أن تنهي رحلتك بإجمالي إنفاق <AnaNum solid>{fmtC(prepaidUSD + dailyAvg * daysTotal)}</AnaNum>.
                 </>
               ) : (
                 <>
                   أنفقت حتى الآن <AnaNum solid>{fmtC(totalUSD)}</AnaNum> بمعدل <AnaNum solid>{fmtC(dailyAvg)}</AnaNum> يومياً.
-                  وبهذه الوتيرة، يُتوقع أن تنهي رحلتك بإجمالي إنفاق <AnaNum solid>{fmtC(dailyAvg * daysTotal)}</AnaNum>.
+                  وبهذه الوتيرة، يُتوقع أن تنهي رحلتك بإجمالي إنفاق <AnaNum solid>{fmtC(prepaidUSD + dailyAvg * daysTotal)}</AnaNum>.
                 </>
               )
             ) : (
@@ -718,12 +730,12 @@ function ScreenAnalytics({ go, loading }) {
                 <>
                   Spent <AnaNum solid>{fmtC(totalUSD)}</AnaNum> of <AnaNum solid dim>{fmtC(trip.budget.plannedUSD)}</AnaNum> planned,
                   averaging <AnaNum solid>{fmtC(dailyAvg)}</AnaNum> a day.
-                  At this pace you'll end on <AnaNum solid>{fmtC(dailyAvg * daysTotal)}</AnaNum>.
+                  At this pace you'll end on <AnaNum solid>{fmtC(prepaidUSD + dailyAvg * daysTotal)}</AnaNum>.
                 </>
               ) : (
                 <>
                   Spent <AnaNum solid>{fmtC(totalUSD)}</AnaNum>, averaging <AnaNum solid>{fmtC(dailyAvg)}</AnaNum> a day.
-                  At this pace you'll end on <AnaNum solid>{fmtC(dailyAvg * daysTotal)}</AnaNum>.
+                  At this pace you'll end on <AnaNum solid>{fmtC(prepaidUSD + dailyAvg * daysTotal)}</AnaNum>.
                 </>
               )
             )}

@@ -383,6 +383,20 @@ const TRANSLATIONS = {
 window.LANG = 'en';
 window.isRTL = false;
 
+// Category name in the current language (data.jsx labels are English only).
+window.catLabel = (key, fallback) => {
+  const v = window.t ? window.t(key) : '';
+  return v && v !== key ? v : (fallback || key);
+};
+
+// Document badge (flight / hotel / visa …) in the current language.
+window.docKindLabel = (kind) => {
+  const k = String(kind || 'doc').toLowerCase();
+  const ar = { flight: 'طيران', flights: 'طيران', hotel: 'فندق', lodging: 'سكن', visa: 'تأشيرة', visas: 'تأشيرة',
+    car: 'سيارة', rental: 'سيارة', train: 'قطار', bus: 'باص', transport: 'تنقل', pdf: 'PDF', img: 'صورة', image: 'صورة', doc: 'مستند' };
+  return window.isRTL ? (ar[k] || 'مستند') : k.toUpperCase();
+};
+
 // Calendar day (YYYY-MM-DD) in the user's LOCAL timezone. Never use
 // toISOString().slice(0,10) for a calendar day: that is the UTC date, which
 // for Gulf users (UTC+3) lands on the PREVIOUS day before 03:00 and shifts
@@ -430,20 +444,37 @@ window.t = function(key, vars) {
   return s;
 };
 
-// Format any date-ish input as YY/MM/DD (e.g. "25/11/12")
+// Human dates: "5 أكتوبر" / "Oct 5" (year added only when it isn't this
+// year). Replaces the old YY/MM/DD ("26/10/05"), which read ambiguously.
+// Date-only strings ("2026-10-05") are parsed as LOCAL days, not UTC.
+window._toDate = function(input) {
+  if (input instanceof Date) return input;
+  if (typeof input === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input)) {
+    const [y, m, d] = input.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return new Date(input);
+};
+window._dateLocale = () => (window.isRTL ? 'ar-u-nu-latn' : 'en-US');
 window.fmtDate = function(input) {
   if (!input) return '';
-  const d = (input instanceof Date) ? input : new Date(input);
+  const d = window._toDate(input);
   if (isNaN(d.getTime())) return String(input);
-  const yy = String(d.getFullYear()).slice(-2);
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yy}/${mm}/${dd}`;
+  const opts = { day: 'numeric', month: 'short' };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+  if (window.isRTL) opts.month = 'long';
+  return d.toLocaleDateString(window._dateLocale(), opts);
 };
-// Range helper: "25/11/08 → 25/11/27"
+// Range: "5 – 14 أكتوبر" when both ends share the month, else "28 سبتمبر – 3 أكتوبر".
 window.fmtDateRange = function(a, b) {
-  const arrow = window.isRTL ? '←' : '→';
-  return `${window.fmtDate(a)} ${arrow} ${window.fmtDate(b)}`;
+  const da = window._toDate(a), db = window._toDate(b);
+  if (!a || !b || isNaN(da) || isNaN(db)) return window.fmtDate(a || b);
+  const sameMonth = da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth();
+  if (sameMonth) {
+    const tail = window.fmtDate(db);                 // "14 أكتوبر" / "Oct 14"
+    return window.isRTL ? `${da.getDate()} – ${tail}` : tail.replace(/(\d+)/, `${da.getDate()} – $1`);
+  }
+  return `${window.fmtDate(da)} – ${window.fmtDate(db)}`;
 };
 
 // Canonical trip day math — ONE source of truth for "Day N of M" so the

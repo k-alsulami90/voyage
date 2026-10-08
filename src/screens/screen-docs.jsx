@@ -188,21 +188,6 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
           {visible.map((d) => (
             <DocTileGrid key={d.id} doc={d} onOpen={() => openDoc?.(d, cats.find((c) => c.key === d.category))} />
           ))}
-          {/* Add tile — fixed dashed slot */}
-          <button onClick={() => openSheet?.('addDoc')} style={{
-            aspectRatio: '0.78', borderRadius: 16,
-            border: '1.5px dashed var(--hairline-2)', background: 'transparent',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
-            color: 'var(--ink-mute)',
-          }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: 10, background: 'var(--cream-2)',
-              display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
-            }}><IconPlus size={18} stroke="var(--ink-soft)" /></div>
-            <div style={{ fontSize: 11.5, fontWeight: 500 }}>
-              {window.isRTL ? 'إضافة مستند' : 'Add'}
-            </div>
-          </button>
         </div>
       ) : (
         <div style={{
@@ -234,19 +219,21 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
         </div>
       ))}
 
-      {/* Floating "Add" FAB — always visible so the user can add a doc
-         to any category, including filters that currently show empty. */}
+      {/* "Add document" — a LABELED pill in ink, so it can't be confused
+         with the tab bar's clay "+" (which always adds an expense). */}
       <button onClick={() => openSheet?.('addDoc')} style={{
           position: 'fixed',
           bottom: 'calc(env(safe-area-inset-bottom) + 86px)',
-          insetInlineEnd: 22,
-          width: 54, height: 54, borderRadius: 999,
-          background: 'var(--clay)', color: '#fff',
-          display: 'grid', placeItems: 'center',
-          boxShadow: '0 12px 24px oklch(0.62 0.13 35 / 0.4)',
+          left: '50%', translate: '-50% 0',   // `translate`, not transform: the press-scale on :active must not undo the centring
+          minHeight: 46, padding: '0 20px', borderRadius: 999,
+          background: 'var(--ink)', color: 'var(--cream)',
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap',
+          boxShadow: '0 10px 22px oklch(0.22 0.025 250 / 0.35)',
           zIndex: 30,
         }}>
-        <IconPlus size={24} stroke="#fff" />
+        <IconDoc size={17} stroke="currentColor" />
+        {window.isRTL ? 'إضافة مستند' : 'Add document'}
       </button>
     </div>
   );
@@ -395,7 +382,9 @@ function fmtDocCost(doc) {
   if (doc.costCurrency && doc.costLocal != null) {
     return `${doc.costCurrency} ${Math.round(doc.costLocal).toLocaleString()}`;
   }
-  return `$${Math.round(doc.costUSD).toLocaleString()}`;
+  // No original currency stored → show it in the home currency like every
+  // other amount in the app (was a hardcoded "$").
+  return window.fmtMoney(doc.costUSD, { in: 'home' });
 }
 
 // First name of the traveler a doc belongs to, or null when it's shared
@@ -455,9 +444,9 @@ function DocTileGrid({ doc, onOpen }) {
           position: 'absolute', top: 8, insetInlineEnd: 8,
           padding: '2px 6px', borderRadius: 6,
           background: 'rgba(0,0,0,0.55)', color: '#fff',
-          fontSize: 9, fontFamily: 'var(--mono)', letterSpacing: '0.06em',
+          fontSize: 10.5, fontFamily: window.isRTL ? 'var(--sans)' : 'var(--mono)', letterSpacing: window.isRTL ? 0 : '0.06em',
           fontWeight: 600,
-        }}>{(doc.kind || 'doc').toUpperCase()}</div>
+        }}>{window.docKindLabel(doc.kind)}</div>
       </div>
 
       {/* Bottom: metadata block — fixed height for layout stability */}

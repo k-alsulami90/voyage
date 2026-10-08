@@ -6,6 +6,7 @@ function ScreenPlan({ go, openSheet, loading }) {
   const items = window.ITINERARY || [];
   const [editingItem, setEditingItem] = React.useState(null);
   const [addingForDay, setAddingForDay] = React.useState(null);
+  const [showPast, setShowPast] = React.useState(false);
 
   const dataReady = trip && window.isTripDataReady?.(trip.id);
   if (loading || !trip || !dataReady) {
@@ -79,8 +80,27 @@ function ScreenPlan({ go, openSheet, loading }) {
               {window.isRTL ? 'الانتقال إلى إعدادات الرحلة' : 'Open trip settings'}
             </button>
           </div>
-        ) : days.map((d, idx) => {
+        ) : (() => {
+          // During the trip, open on TODAY: days already behind you fold
+          // into one row instead of a stack of empty "add activity" cards.
+          const todayIso = window.localISO();
+          const pastCount = days.filter((d) => isoDay(d) < todayIso).length;
+          const foldPast = pastCount > 0 && pastCount < days.length;
+          return (<>
+            {foldPast && (
+              <button onClick={() => setShowPast((v) => !v)} style={{
+                width: 'calc(100% - 16px)', margin: '6px 8px 14px', minHeight: 44, borderRadius: 14,
+                background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+                fontSize: 13, fontWeight: 500, color: 'var(--ink-soft)',
+              }}>
+                {showPast
+                  ? (window.isRTL ? 'إخفاء الأيام السابقة' : 'Hide past days')
+                  : (window.isRTL ? `الأيام السابقة (${pastCount})` : `Past days (${pastCount})`)}
+              </button>
+            )}
+            {days.map((d, idx) => {
           const iso = isoDay(d);
+          if (foldPast && !showPast && iso < todayIso) return null;
           const dayItems = (itemsByDay[iso] || []).slice().sort((a, b) => {
             if (a.startTime && !b.startTime) return -1;
             if (!a.startTime && b.startTime) return 1;
@@ -96,9 +116,12 @@ function ScreenPlan({ go, openSheet, loading }) {
               onAdd={() => setAddingForDay(iso)}
               onTapItem={(it) => setEditingItem(it)}
               openSheet={openSheet}
+              isToday={iso === todayIso}
             />
           );
         })}
+          </>);
+        })()}
       </div>
 
       {/* Add sheet */}
@@ -148,7 +171,7 @@ function fmtTime(hms) {
   return d.toLocaleTimeString(window.isRTL ? 'ar' : 'en', { hour: 'numeric', minute: '2-digit' });
 }
 
-function PlanDay({ date, dayNumber, items, onAdd, onTapItem, openSheet }) {
+function PlanDay({ date, dayNumber, items, onAdd, onTapItem, openSheet, isToday }) {
   const { weekday, datePart } = fmtDayLabel(date, dayNumber);
   return (
     <div style={{ marginTop: 18 }}>
@@ -164,6 +187,12 @@ function PlanDay({ date, dayNumber, items, onAdd, onTapItem, openSheet }) {
           <span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>
             · {weekday} {datePart}
           </span>
+          {isToday && (
+            <span style={{
+              fontSize: 11.5, fontWeight: 700, color: 'var(--moss)', padding: '2px 8px', borderRadius: 999,
+              background: 'oklch(0.50 0.08 155 / 0.12)', alignSelf: 'center',
+            }}>{window.isRTL ? 'الآن' : 'Today'}</span>
+          )}
         </div>
         {/* Day-header Add button. Padding bumped from 5px 10px to
            7px 12px so the chip clears the iOS thumb-zone floor for
