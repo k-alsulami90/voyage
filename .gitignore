@@ -36,3 +36,6 @@ skills-lock.json
 # Avoid Vercel running npm install on every deploy
 package.json
 package-lock.json
+
+# Production build output (scripts/build.mjs, run by Vercel)
+out/
