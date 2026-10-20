@@ -13,6 +13,12 @@
 // (edit / delete) fixes every number.
 // ════════════════════════════════════════════════════════════════════
 
+// Splitting individual expenses between people ("who owes whom") is
+// switched off: the group runs on one shared budget and settles up outside
+// the app. Expenses are still saved as shared by everyone, so turning this
+// back on later loses nothing.
+window.SHOW_SPLIT = false;
+
 window.walletsOf = (trip) => {
   const w = trip && trip.wallets;
   if (!w || !w.enabled) return null;

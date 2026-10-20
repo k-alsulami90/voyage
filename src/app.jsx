@@ -1496,9 +1496,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
       }}>
         {detailsOpen
           ? (window.isRTL ? 'إخفاء التفاصيل' : 'Hide details')
-          : wallets
-            ? (window.isRTL ? 'تفاصيل أكثر (الاسم، ملاحظة، إيصال)' : 'More details (name, note, receipt)')
-            : (window.isRTL ? 'تفاصيل أكثر (الاسم، التقسيم، ملاحظة، إيصال)' : 'More details (name, split, note, receipt)')}
+          : (window.isRTL ? 'تفاصيل أكثر (الاسم، ملاحظة، إيصال)' : 'More details (name, note, receipt)')}
       </button>
       {detailsOpen && (<>
       {/* Title / Vendor */}
@@ -1514,7 +1512,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
       </div>
 
       {/* Split with — only on shared trips WITHOUT cards (cards = one group budget, nothing to split) */}
-      {isShared && !wallets && !isPersonal && (
+      {window.SHOW_SPLIT && isShared && !wallets && !isPersonal && (
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--ink-mute)', marginBottom: 6, textTransform: 'uppercase' }}>
             {t('splitWithLabel')}

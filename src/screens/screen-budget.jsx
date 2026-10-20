@@ -524,7 +524,7 @@ function ScreenBudget({ go, openSheet, loading }) {
                       {e.note && <span style={{ opacity: 0.7 }}>· {e.note}</span>}
                     </div>
                     {/* Split badge — show on shared expenses */}
-                    {!window.walletsOf?.(window.TRIP) && (e.splitWith && e.splitWith.length > 0) && (() => {
+                    {window.SHOW_SPLIT && !window.walletsOf?.(window.TRIP) && (e.splitWith && e.splitWith.length > 0) && (() => {
                       const totalSharers = e.splitWith.length + 1;
                       const userIsInSplit = e.who === window.currentUserId
                         || e.splitWith.includes(window.currentUserId);

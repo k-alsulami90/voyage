@@ -22,7 +22,7 @@ const TRANSLATIONS = {
     sharedBudget:'SHARED BUDGET', leftOnPace:'left · on pace',
     upNext:'Up next', quickActions:'Quick actions',
     add:'Add', upload:'Upload', invite:'Invite', plan:'Plan',
-    recentActivity:'Recent activity', splitting:'splitting', daysLeft:'DAYS LEFT',
+    recentActivity:'Recent activity', splitting:'travelers', daysLeft:'DAYS LEFT',
     budget:'Budget', totalSpent:'TOTAL SPENT', ofPlanned:'of',
     expenses:'Expenses', auditLog:'Audit log',
     lodging:'Lodging', food:'Food', transit:'Transit', culture:'Culture', misc:'Misc',

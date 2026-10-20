@@ -174,7 +174,7 @@ function ScreenHub({ go, openSheet, loading }) {
          outside the app, so "X owes you" is noise here. */}
       {window.walletsOf?.(trip) && <window.TodayBudgetCard onManage={() => go('settings')} />}
 
-      {!window.walletsOf?.(trip) && (window.MEMBERS || []).length > 1 && (() => {
+      {window.SHOW_SPLIT && !window.walletsOf?.(trip) && (window.MEMBERS || []).length > 1 && (() => {
         const balance = window.computeUserBalance?.(
           window.currentUserId,
           window.EXPENSES || [],
