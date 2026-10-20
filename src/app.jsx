@@ -1609,7 +1609,9 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
           {t('receiptLabel')}
         </div>
         <input
-          ref={receiptInputRef} type="file" accept="image/*" capture="environment"
+          /* No `capture`: it forced the camera. Without it the phone offers
+             camera, photo library AND files (PDF invoices included). */
+          ref={receiptInputRef} type="file" accept="image/*,application/pdf"
           style={{ display: 'none' }}
           onChange={(e) => {
             const f = e.target.files && e.target.files[0];
@@ -1624,6 +1626,12 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
             background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
             flexDirection: 'row',
           }}>
+            {(receiptFile ? receiptFile.type === 'application/pdf' : window.isPdfPath?.(receiptPath)) ? (
+              <a href={previewSrc || receiptUrl} target="_blank" rel="noopener noreferrer" style={{
+                width: 58, height: 58, borderRadius: 10, flexShrink: 0, display: 'grid', placeItems: 'center',
+                background: 'var(--clay)', color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none',
+              }}>PDF</a>
+            ) : (
             <img
               src={previewSrc || receiptUrl}
               alt="receipt"
@@ -1634,6 +1642,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
                 cursor: 'zoom-in', flexShrink: 0,
               }}
             />
+            )}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--ink)' }}>
                 {receiptFile ? receiptFile.name : (window.isRTL ? 'الإيصال المرفق حالياً' : 'Current receipt')}

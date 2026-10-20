@@ -547,7 +547,14 @@ function ScreenBudget({ go, openSheet, loading }) {
                       );
                     })()}
                   </div>
-                  {e.receiptUrl && (
+                  {e.receiptUrl && window.isPdfPath?.(e.receiptPath) && (
+                    <a href={e.receiptUrl} target="_blank" rel="noopener noreferrer"
+                      onClick={(ev) => ev.stopPropagation()} style={{
+                        width: 32, height: 32, borderRadius: 8, flexShrink: 0, display: 'grid', placeItems: 'center',
+                        background: 'var(--clay)', color: '#fff', fontSize: 9.5, fontWeight: 700, textDecoration: 'none',
+                      }}>PDF</a>
+                  )}
+                  {e.receiptUrl && !window.isPdfPath?.(e.receiptPath) && (
                     <img
                       src={e.receiptUrl}
                       alt="receipt"

@@ -68,7 +68,7 @@ const TRANSLATIONS = {
     receiptReplace:'Replace',
     receiptRemove:'Remove',
     receiptUploading:'Uploading…',
-    receiptHint:'Optional · take a photo or pick from library',
+    receiptHint:'Optional · photo, library or PDF file',
     receiptOpenFull:'Open full size',
 
     // Settle up — keep the language about INVOICES and SETTLING, not
@@ -260,7 +260,7 @@ const TRANSLATIONS = {
     receiptReplace:'استبدال',
     receiptRemove:'حذف',
     receiptUploading:'جاري الرفع…',
-    receiptHint:'اختياري · صورة من الكاميرا أو المعرض',
+    receiptHint:'اختياري · كاميرا، صور، أو ملف PDF',
     receiptOpenFull:'فتح بالحجم الكامل',
 
     // ── Settle up ──

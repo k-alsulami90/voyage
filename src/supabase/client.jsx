@@ -762,6 +762,8 @@ window.loadDocuments = async (tripId) => {
 // with path `{tripId}/receipts/{expenseId}.{ext}` so existing storage RLS
 // (member-of-trip check via storage.foldername(name)[1]) keeps working.
 // Returns the public URL of the uploaded file.
+window.isPdfPath = (p) => /\.pdf$/i.test(p || '');
+
 window.uploadReceipt = async (expenseId, tripId, file) => {
   if (!file || !expenseId || !tripId) throw new Error('Missing receipt args');
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
