@@ -251,7 +251,7 @@ function ScreenAddDoc({ back, onCreated }) {
               </select>
             </div>
             {parseFloat(cost) > 0 && (
-              <PaymentFields details={details} setDetails={setDetails} shared={!ownerUserId} />
+              <PaymentFields details={details} setDetails={setDetails} shared={!ownerUserId} cost={cost} currency={costCur} />
             )}
           </DocStep>
         )}
@@ -681,7 +681,7 @@ window.docFieldStyle = docFieldStyle;
 // Stored in details (paid / paid_by / paid_on). A shared booking only
 // enters the trip budget once it's marked paid; the expense is dated the
 // day it was paid and attributed to whoever paid it.
-function PaymentFields({ details, setDetails, shared, legacyPaid }) {
+function PaymentFields({ details, setDetails, shared, legacyPaid, cost, currency }) {
   const ar = window.isRTL;
   const members = window.MEMBERS || [];
   const paid = details.paid === true || (details.paid === undefined && !!legacyPaid);
@@ -689,6 +689,21 @@ function PaymentFields({ details, setDetails, shared, legacyPaid }) {
   const markPaid = (v) => set(v
     ? { paid: true, paid_by: details.paid_by || window.currentUserId, paid_on: details.paid_on || window.localISO() }
     : { paid: false });
+  // Several people paid parts of it: details.payers = { userId: amount }
+  // (amounts in the booking's own currency).
+  const multi = !!(details.payers && typeof details.payers === 'object');
+  const payers = details.payers || {};
+  const costNum = parseFloat(cost) || 0;
+  const sumPaid = Object.values(payers).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+  const fmtN = (n) => `${Math.round(n * 100) / 100 === Math.round(n) ? Math.round(n).toLocaleString('en-US') : n.toLocaleString('en-US', { maximumFractionDigits: 2 })}${currency ? ' ' + currency : ''}`;
+  const setPayer = (id, v) => {
+    const next = { ...payers, [id]: v };
+    if (!v) delete next[id];
+    // The biggest payer is the one the budget line is filed under.
+    const top = Object.entries(next).sort((a, b) => (parseFloat(b[1]) || 0) - (parseFloat(a[1]) || 0))[0];
+    set({ payers: next, paid_by: top ? top[0] : (details.paid_by || window.currentUserId) });
+  };
+  const nameOf = (m) => m.id === window.currentUserId ? (ar ? 'أنا' : 'Me') : (m.name || '').split(' ')[0];
   const seg = (active) => ({
     flex: 1, minHeight: 42, borderRadius: 11, fontSize: 14, fontWeight: 600,
     background: active ? 'var(--ink)' : 'transparent', color: active ? 'var(--cream)' : 'var(--ink-soft)',
@@ -706,8 +721,36 @@ function PaymentFields({ details, setDetails, shared, legacyPaid }) {
       )}
       {paid && shared && members.length > 1 && (
         <>
-          <div style={{ fontSize: 13, color: 'var(--ink-mute)', margin: '12px 2px 6px' }}>{ar ? 'مين دفع؟' : 'Who paid?'}</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '12px 2px 6px' }}>
+            <div style={{ fontSize: 13, color: 'var(--ink-mute)' }}>{ar ? 'مين دفع؟' : 'Who paid?'}</div>
+            <div style={{ display: 'flex', padding: 2, borderRadius: 10, background: 'var(--cream-2)', border: '0.5px solid var(--hairline)' }}>
+              <button type="button" onClick={() => set({ payers: null })} style={{ ...seg(!multi), minHeight: 30, fontSize: 12, padding: '0 10px', borderRadius: 8, whiteSpace: 'nowrap' }}>{ar ? 'شخص واحد' : 'One person'}</button>
+              <button type="button" onClick={() => set({ payers: costNum ? { [details.paid_by || window.currentUserId]: String(costNum) } : {} })} style={{ ...seg(multi), minHeight: 30, fontSize: 12, padding: '0 10px', borderRadius: 8, whiteSpace: 'nowrap' }}>{ar ? 'أكثر من شخص' : 'Several'}</button>
+            </div>
+          </div>
+          {multi && (
+            <div style={{ display: 'grid', gap: 6 }}>
+              {members.map((m) => (
+                <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Avatar m={m} size={28} />
+                  <span style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)' }}>{nameOf(m)}</span>
+                  <NumberField value={payers[m.id] || ''} onChange={(v) => setPayer(m.id, v)} placeholder="0"
+                    style={{ ...docFieldStyle, width: 120, textAlign: 'end' }} />
+                </div>
+              ))}
+              {costNum > 0 && (
+                <div style={{ fontSize: 12.5, marginTop: 2, fontWeight: 600,
+                  color: Math.abs(sumPaid - costNum) < 0.01 ? 'var(--moss)' : 'var(--clay-deep)' }}>
+                  {Math.abs(sumPaid - costNum) < 0.01
+                    ? (ar ? `✓ المجموع ${fmtN(sumPaid)} = التكلفة` : `✓ Total ${fmtN(sumPaid)} matches the cost`)
+                    : sumPaid < costNum
+                      ? (ar ? `المجموع ${fmtN(sumPaid)} — باقي ${fmtN(costNum - sumPaid)} من التكلفة` : `Total ${fmtN(sumPaid)} — ${fmtN(costNum - sumPaid)} left`)
+                      : (ar ? `المجموع ${fmtN(sumPaid)} أكثر من التكلفة بـ ${fmtN(sumPaid - costNum)}` : `Total ${fmtN(sumPaid)} is ${fmtN(sumPaid - costNum)} over the cost`)}
+                </div>
+              )}
+            </div>
+          )}
+          {!multi && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {members.map((m) => {
               const on = (details.paid_by || window.currentUserId) === m.id;
               return (
@@ -718,11 +761,11 @@ function PaymentFields({ details, setDetails, shared, legacyPaid }) {
                   fontSize: 13, fontWeight: 500,
                 }}>
                   <Avatar m={m} size={28} />
-                  {m.id === window.currentUserId ? (ar ? 'أنا' : 'Me') : (m.name || '').split(' ')[0]}
+                  {nameOf(m)}
                 </button>
               );
             })}
-          </div>
+          </div>}
         </>
       )}
       {paid && (

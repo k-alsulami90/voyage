@@ -432,7 +432,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
                   </select>
                 </div>
                 {parseFloat(cost) > 0 && (
-                  <window.PaymentFields details={details} setDetails={setDetails} shared={!ownerUserId} legacyPaid={!!doc.linkedExpenseId} />
+                  <window.PaymentFields details={details} setDetails={setDetails} shared={!ownerUserId} legacyPaid={!!doc.linkedExpenseId} cost={cost} currency={costCur} />
                 )}
               </div>
             )}
@@ -489,13 +489,20 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
                 const paid = window.isDocPaid(doc);
                 const d = doc.details || {};
                 const payer = (window.MEMBERS || []).find((m) => m.id === d.paid_by);
-                const payerName = payer ? (payer.id === window.currentUserId ? (ar ? 'أنت' : 'you') : (payer.name || '').split(' ')[0]) : null;
+                const nm = (m) => m.id === window.currentUserId ? (ar ? 'أنت' : 'you') : (m.name || '').split(' ')[0];
+                const multi = d.payers && typeof d.payers === 'object' && Object.keys(d.payers).length > 1;
+                const payerName = multi
+                  ? Object.entries(d.payers).map(([id, v]) => {
+                      const m = (window.MEMBERS || []).find((x) => x.id === id);
+                      return m ? `${nm(m)} ${(parseFloat(v) || 0).toLocaleString('en-US')}` : null;
+                    }).filter(Boolean).join(' · ')
+                  : (payer ? nm(payer) : null);
                 const when = d.paid_on ? window.fmtDate(d.paid_on) : null;
                 return (
                   <>
                     <div style={{ fontSize: 12.5, color: paid ? 'var(--moss)' : 'var(--clay-deep)', marginTop: 3, fontWeight: 600 }}>
                       {paid
-                        ? (ar ? `✓ مدفوع${payerName && !doc.ownerUserId ? ` — دفعه ${payerName}` : ''}${when ? ` في ${when}` : ''}`
+                        ? (ar ? `✓ مدفوع${payerName && !doc.ownerUserId ? ` — ${multi ? 'دفعوه' : 'دفعه'} ${payerName}` : ''}${when ? ` في ${when}` : ''}`
                               : `✓ Paid${payerName && !doc.ownerUserId ? ` by ${payerName}` : ''}${when ? ` on ${when}` : ''}`)
                         : (ar ? '⏳ لم يُدفع بعد' : '⏳ Not paid yet')}
                     </div>

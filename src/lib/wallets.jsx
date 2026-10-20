@@ -597,4 +597,76 @@ function UnpaidBookingsNote() {
   );
 }
 
-Object.assign(window, { TodayBudgetCard, WalletsSetup, MyTripCostCard, TripPaceCard, PersonalLimitCard, MyBudgetView, UnpaidBookingsNote });
+// ── Shared bookings: each person's share vs what they actually paid ────
+// Hotels, rentals, activities booked for everyone are split equally
+// (total ÷ travelers). Whoever paid — one person, or several with their own
+// amounts — has that deducted from their share. Bookings only: day-to-day
+// expenses and the cards are not part of this.
+window.bookingShares = () => {
+  const members = window.MEMBERS || [];
+  const docs = Object.values(window.DOCS_BY_CAT || {}).flat()
+    .filter((d) => d && !d.ownerUserId && d.costUSD > 0);
+  const totalUSD = docs.reduce((s, d) => s + d.costUSD, 0);
+  const paidBy = {};
+  docs.forEach((d) => {
+    if (!window.isDocPaid(d)) return;
+    const det = d.details || {};
+    const payers = det.payers && typeof det.payers === 'object' ? det.payers : null;
+    if (payers && Object.keys(payers).length) {
+      const base = d.costLocal > 0 ? d.costLocal : d.costUSD;
+      Object.entries(payers).forEach(([id, v]) => {
+        paidBy[id] = (paidBy[id] || 0) + (parseFloat(v) || 0) / base * d.costUSD;
+      });
+    } else if (det.paid_by) {
+      paidBy[det.paid_by] = (paidBy[det.paid_by] || 0) + d.costUSD;
+    }
+  });
+  const share = totalUSD / Math.max(1, members.length);
+  return {
+    docs, totalUSD, share,
+    rows: members.map((m) => ({ member: m, paid: paidBy[m.id] || 0, left: share - (paidBy[m.id] || 0) })),
+  };
+};
+
+function BookingSharesCard() {
+  const ar = window.isRTL;
+  const members = window.MEMBERS || [];
+  if (members.length < 2) return null;
+  const { docs, totalUSD, share, rows } = window.bookingShares();
+  if (!docs.length) return null;
+  const fmtC = (usd) => window.fmtMoney(usd, { in: 'home' });
+  const me = window.currentUserId;
+  return (
+    <div style={{ padding: '0 14px 16px' }}>
+      <div style={{ background: 'var(--cream-2)', borderRadius: 22, padding: '16px 18px', border: '0.5px solid var(--hairline)' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{ar ? 'الحجوزات المشتركة' : 'Shared bookings'}</div>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-mute)', marginTop: 2, lineHeight: 1.5 }}>
+          {ar ? `نصيب كل شخص ${fmtC(share)} — المجموع ${fmtC(totalUSD)} على ${members.length} أشخاص`
+              : `Each person's share ${fmtC(share)} (${fmtC(totalUSD)} ÷ ${members.length})`}
+        </div>
+        <div style={{ borderTop: '0.5px solid var(--hairline)', marginTop: 10, paddingTop: 4 }}>
+          {rows.map(({ member: m, paid, left }) => {
+            const done = Math.abs(left) < 0.5;
+            return (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0' }}>
+                <Avatar m={m} size={28} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>{m.id === me ? (ar ? 'أنت' : 'You') : (m.name || '').split(' ')[0]}</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-mute)' }}>{ar ? `${m.id === me ? 'دفعت' : 'دفع'} ${fmtC(paid)}` : `Paid ${fmtC(paid)}`}</div>
+                </div>
+                <span style={{ fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap',
+                  color: done ? 'var(--moss)' : left > 0 ? 'var(--clay-deep)' : 'var(--moss)' }}>
+                  {done ? (ar ? '✓ مكتمل' : '✓ Settled')
+                    : left > 0 ? (ar ? `${m.id === me ? 'باقي عليك' : 'باقي عليه'} ${fmtC(left)}` : `Owes ${fmtC(left)}`)
+                    : (ar ? `${m.id === me ? 'دفعت' : 'دفع'} زيادة ${fmtC(-left)}` : `Paid ${fmtC(-left)} extra`)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { BookingSharesCard, TodayBudgetCard, WalletsSetup, MyTripCostCard, TripPaceCard, PersonalLimitCard, MyBudgetView, UnpaidBookingsNote });
