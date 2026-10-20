@@ -239,7 +239,7 @@ function ScreenAddDoc({ back, onCreated }) {
           <DocStep title={window.isRTL ? 'التكلفة' : 'Cost'} optional
                    hint={ownerUserId
                      ? (window.isRTL ? 'تظهر لك في «تكلفة رحلتك» ولا تدخل في ميزانية القروب.' : 'Shows in your trip cost only.')
-                     : (window.isRTL ? 'تنخصم من الميزانية العامة للرحلة، مو من مصروف اليوم.' : "Counts in the trip's general budget, not today's.")}>
+                     : (window.isRTL ? 'إذا اندفعت، تنخصم من الميزانية العامة للرحلة (مو من مصروف اليوم).' : "Once paid, it counts in the trip's general budget (not today's).")}>
             <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
               <NumberField value={cost} onChange={setCost} placeholder="0"
                 style={{ ...docFieldStyle, flex: 1, minWidth: 0, fontFamily: 'var(--mono)' }} />
@@ -250,6 +250,9 @@ function ScreenAddDoc({ back, onCreated }) {
                   .map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
+            {parseFloat(cost) > 0 && (
+              <PaymentFields details={details} setDetails={setDetails} shared={!ownerUserId} />
+            )}
           </DocStep>
         )}
 
@@ -672,3 +675,64 @@ window.FilePicker = FilePicker;
 window.toLocalDateTimeInput = toLocalDateTimeInput;
 window.fromLocalDateTimeInput = fromLocalDateTimeInput;
 window.docFieldStyle = docFieldStyle;
+
+
+// ── Paid or not, who paid, when ────────────────────────────────────────
+// Stored in details (paid / paid_by / paid_on). A shared booking only
+// enters the trip budget once it's marked paid; the expense is dated the
+// day it was paid and attributed to whoever paid it.
+function PaymentFields({ details, setDetails, shared, legacyPaid }) {
+  const ar = window.isRTL;
+  const members = window.MEMBERS || [];
+  const paid = details.paid === true || (details.paid === undefined && !!legacyPaid);
+  const set = (patch) => setDetails({ ...details, ...patch });
+  const markPaid = (v) => set(v
+    ? { paid: true, paid_by: details.paid_by || window.currentUserId, paid_on: details.paid_on || window.localISO() }
+    : { paid: false });
+  const seg = (active) => ({
+    flex: 1, minHeight: 42, borderRadius: 11, fontSize: 14, fontWeight: 600,
+    background: active ? 'var(--ink)' : 'transparent', color: active ? 'var(--cream)' : 'var(--ink-soft)',
+  });
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ display: 'flex', padding: 3, borderRadius: 14, background: 'var(--cream-2)', border: '0.5px solid var(--hairline)' }}>
+        <button type="button" onClick={() => markPaid(false)} style={seg(!paid)}>{ar ? 'لم يُدفع بعد' : 'Not paid yet'}</button>
+        <button type="button" onClick={() => markPaid(true)} style={seg(paid)}>{ar ? 'مدفوع ✓' : 'Paid ✓'}</button>
+      </div>
+      {!paid && (
+        <div style={{ fontSize: 12.5, color: 'var(--ink-mute)', marginTop: 8, lineHeight: 1.5 }}>
+          {ar ? 'ما ينحسب في الميزانية لين تسجّل إنه اندفع.' : "Won't count in the budget until it's marked paid."}
+        </div>
+      )}
+      {paid && shared && members.length > 1 && (
+        <>
+          <div style={{ fontSize: 13, color: 'var(--ink-mute)', margin: '12px 2px 6px' }}>{ar ? 'مين دفع؟' : 'Who paid?'}</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {members.map((m) => {
+              const on = (details.paid_by || window.currentUserId) === m.id;
+              return (
+                <button type="button" key={m.id} onClick={() => set({ paid_by: m.id })} style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px 4px 4px', minHeight: 40,
+                  borderRadius: 999, background: on ? 'var(--statement)' : 'var(--cream-2)',
+                  color: on ? 'var(--statement-fg)' : 'var(--ink)', border: on ? 'none' : '0.5px solid var(--hairline)',
+                  fontSize: 13, fontWeight: 500,
+                }}>
+                  <Avatar m={m} size={28} />
+                  {m.id === window.currentUserId ? (ar ? 'أنا' : 'Me') : (m.name || '').split(' ')[0]}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+      {paid && (
+        <>
+          <div style={{ fontSize: 13, color: 'var(--ink-mute)', margin: '12px 2px 6px' }}>{ar ? 'متى اندفع؟' : 'Paid on'}</div>
+          <input type="date" value={details.paid_on || window.localISO()} max={window.localISO()}
+            onChange={(e) => set({ paid_on: e.target.value })} style={{ ...docFieldStyle }} />
+        </>
+      )}
+    </div>
+  );
+}
+window.PaymentFields = PaymentFields;

@@ -431,6 +431,9 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
                       .map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
+                {parseFloat(cost) > 0 && (
+                  <window.PaymentFields details={details} setDetails={setDetails} shared={!ownerUserId} legacyPaid={!!doc.linkedExpenseId} />
+                )}
               </div>
             )}
           </div>
@@ -481,12 +484,49 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
               <div className="mono" style={{ fontSize: 18, fontWeight: 600, color: 'var(--ink)' }}>
                 {window.fmtMoney(doc.costUSD, { in: 'home' })}
               </div>
-              <div style={{ fontSize: 12, color: doc.ownerUserId ? 'var(--ink-mute)' : 'var(--moss)', marginTop: 3 }}>
-                {doc.ownerUserId
-                  ? (window.isRTL ? '🔒 تكلفتك — تظهر لك في «تكلفة رحلتك» فقط' : '🔒 Your cost — only in your trip cost')
-                  : (window.isRTL ? '✓ من الميزانية العامة للرحلة' : "✓ In the trip's general budget")}
-              </div>
+              {(() => {
+                const ar = window.isRTL;
+                const paid = window.isDocPaid(doc);
+                const d = doc.details || {};
+                const payer = (window.MEMBERS || []).find((m) => m.id === d.paid_by);
+                const payerName = payer ? (payer.id === window.currentUserId ? (ar ? 'أنت' : 'you') : (payer.name || '').split(' ')[0]) : null;
+                const when = d.paid_on ? window.fmtDate(d.paid_on) : null;
+                return (
+                  <>
+                    <div style={{ fontSize: 12.5, color: paid ? 'var(--moss)' : 'var(--clay-deep)', marginTop: 3, fontWeight: 600 }}>
+                      {paid
+                        ? (ar ? `✓ مدفوع${payerName && !doc.ownerUserId ? ` — دفعه ${payerName}` : ''}${when ? ` في ${when}` : ''}`
+                              : `✓ Paid${payerName && !doc.ownerUserId ? ` by ${payerName}` : ''}${when ? ` on ${when}` : ''}`)
+                        : (ar ? '⏳ لم يُدفع بعد' : '⏳ Not paid yet')}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 2 }}>
+                      {doc.ownerUserId
+                        ? (ar ? '🔒 تكلفتك — تظهر لك في «تكلفة رحلتك» فقط' : '🔒 Your cost — only in your trip cost')
+                        : paid
+                          ? (ar ? 'محسوب في الميزانية العامة للرحلة' : "Counted in the trip's general budget")
+                          : (ar ? 'ما ينحسب في الميزانية لين يندفع' : "Not in the budget until it's paid")}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
+            {!window.isDocPaid(doc) && (
+              <button onClick={async () => {
+                // One tap: paid by me, today. Who/when can be changed in Edit.
+                setLinking(true);
+                try {
+                  await window.updateDocument(doc.id, { details: { ...(doc.details || {}), paid: true,
+                    paid_by: (doc.details || {}).paid_by || window.currentUserId, paid_on: window.localISO() } });
+                  await window.syncDocExpense(doc.id, window.TRIP?.id);
+                  await window.loadDocuments(window.TRIP?.id);
+                  window.toast?.(window.isRTL ? 'تم تسجيل الدفع' : 'Marked as paid', 'success');
+                } catch (e) { window.toast?.(e.message || 'Failed', 'error'); }
+                setLinking(false);
+              }} disabled={linking} style={{
+                minHeight: 40, padding: '0 14px', borderRadius: 12, flexShrink: 0,
+                background: 'var(--ink)', color: 'var(--cream)', fontSize: 13, fontWeight: 600,
+              }}>{linking ? '…' : (window.isRTL ? 'تم الدفع' : 'Mark paid')}</button>
+            )}
           </div>
         </div>
       )}

@@ -568,4 +568,27 @@ function MyBudgetView({ openSheet }) {
   );
 }
 
-Object.assign(window, { TodayBudgetCard, WalletsSetup, MyTripCostCard, TripPaceCard, PersonalLimitCard, MyBudgetView });
+// Shared bookings with a cost that nobody has paid yet: not in the budget,
+// but worth seeing so they don't surprise you later.
+function UnpaidBookingsNote() {
+  const ar = window.isRTL;
+  const unpaid = Object.values(window.DOCS_BY_CAT || {}).flat()
+    .filter((d) => d && !d.ownerUserId && d.costUSD > 0 && !window.isDocPaid(d));
+  if (!unpaid.length) return null;
+  const total = unpaid.reduce((s, d) => s + (d.costUSD || 0), 0);
+  return (
+    <div style={{ padding: '0 14px 16px' }}>
+      <div style={{ borderRadius: 18, padding: '12px 16px', background: 'oklch(0.62 0.13 35 / 0.08)', border: '0.5px solid oklch(0.62 0.13 35 / 0.3)' }}>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--clay-deep)' }}>
+          {ar ? `⏳ حجوزات لم تُدفع بعد: ${window.fmtMoney(total, { in: 'home' })}` : `⏳ Unpaid bookings: ${window.fmtMoney(total, { in: 'home' })}`}
+        </div>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-soft)', marginTop: 3, lineHeight: 1.5 }}>
+          {unpaid.map((d) => d.title).join(' · ')}
+          {ar ? ' — تنحسب في الميزانية لما تسجّل إنها اندفعت.' : ' — they count once marked paid.'}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { TodayBudgetCard, WalletsSetup, MyTripCostCard, TripPaceCard, PersonalLimitCard, MyBudgetView, UnpaidBookingsNote });

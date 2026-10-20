@@ -283,6 +283,12 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
         </div>
       </div>
 
+      {/* MY DETAILS — name + password, editable */}
+      <MyDetailsSection me={me} email={email} onProfile={(p) => {
+        setProfile(p);
+        window.ACCOUNT = { ...(window.ACCOUNT || {}), profile: p };
+      }} />
+
       {/* PRIVACY — explainer card only (no stub settings) */}
       <div style={{ padding: '18px 14px 0' }}>
         <SectionLabel>{t('privacy')}</SectionLabel>
@@ -601,3 +607,127 @@ function ProfileEditRows({ me }) {
 }
 
 Object.assign(window, { ScreenAppSettings, InstallCard, ProfileEditRows });
+
+
+// ── My details: change name, change password ──────────────────────────
+// Name updates the profile (initials follow). Password asks for the
+// CURRENT one first and re-checks it with Supabase before setting the new
+// one, so a borrowed unlocked phone can't silently take over the account.
+function MyDetailsSection({ me, email, onProfile }) {
+  const ar = window.isRTL;
+  const [open, setOpen] = React.useState(null); // 'name' | 'password' | null
+  const shell = document.getElementById('app-shell') || document.body;
+  return (
+    <div style={{ padding: '18px 14px 0' }}>
+      <SectionLabel>{ar ? 'بياناتي' : 'My details'}</SectionLabel>
+      <div style={{ background: 'var(--cream-2)', borderRadius: 22, margin: '0 8px', overflow: 'hidden', border: '0.5px solid var(--hairline)' }}>
+        <ActionRow last={false} onClick={() => setOpen('name')}
+          icon={<IconUsers size={16} stroke="var(--ink)" />}
+          label={ar ? 'الاسم' : 'Name'} sub={me.name} />
+        <ActionRow onClick={() => setOpen('password')}
+          icon={<span style={{ fontSize: 15 }}>🔑</span>}
+          label={ar ? 'كلمة المرور' : 'Password'} sub={ar ? 'تغيير كلمة المرور' : 'Change your password'} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderTop: '0.5px solid var(--hairline)' }}>
+          <div style={{ width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', background: 'var(--cream)', border: '0.5px solid var(--hairline)', fontSize: 15 }}>@</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13.5, color: 'var(--ink)', fontWeight: 500 }}>{ar ? 'البريد الإلكتروني' : 'Email'}</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 1 }}>{email || '—'}</div>
+          </div>
+        </div>
+      </div>
+      {open && ReactDOM.createPortal(
+        <Sheet open onClose={() => setOpen(null)} height={open === 'password' ? 0.72 : 0.5}
+          title={open === 'name' ? (ar ? 'تعديل الاسم' : 'Edit name') : (ar ? 'تغيير كلمة المرور' : 'Change password')}>
+          {open === 'name'
+            ? <EditNameForm me={me} onDone={(p) => { if (p) onProfile(p); setOpen(null); }} />
+            : <ChangePasswordForm email={email} onDone={() => setOpen(null)} />}
+        </Sheet>, shell)}
+    </div>
+  );
+}
+
+const detailField = {
+  width: '100%', padding: '13px 14px', borderRadius: 14, fontSize: 16,
+  border: '0.5px solid var(--hairline-2)', background: 'var(--cream-2)', color: 'var(--ink)',
+  outline: 'none', fontFamily: 'var(--sans)', textAlign: 'start', boxSizing: 'border-box',
+};
+const detailLabel = { fontSize: 13, color: 'var(--ink-mute)', margin: '14px 2px 6px' };
+const detailBtn = (busy) => ({
+  marginTop: 20, width: '100%', minHeight: 50, borderRadius: 16,
+  background: 'var(--ink)', color: 'var(--cream)', fontSize: 15, fontWeight: 600, opacity: busy ? 0.6 : 1,
+});
+
+function EditNameForm({ me, onDone }) {
+  const ar = window.isRTL;
+  const [name, setName] = React.useState(me.name === 'You' ? '' : (me.name || ''));
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState(null);
+  const save = async () => {
+    const clean = name.trim().replace(/\s+/g, ' ');
+    if (clean.length < 2) { setErr(ar ? 'اكتب اسمك' : 'Enter your name'); return; }
+    setBusy(true); setErr(null);
+    const initials = clean.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+    try {
+      const { error } = await window.sb.from('profiles').update({ name: clean, initials }).eq('id', window.currentUserId);
+      if (error) throw error;
+      // Keep every list that shows this member in step.
+      (window.MEMBERS || []).forEach((m) => { if (m.id === window.currentUserId) { m.name = clean; m.initials = initials; } });
+      window.notifyDataChange?.();
+      window.toast?.(ar ? 'تم تحديث الاسم' : 'Name updated', 'success');
+      onDone({ ...me, name: clean, initials });
+    } catch (e) { setErr(e.message || 'Failed'); setBusy(false); }
+  };
+  return (
+    <div style={{ padding: '4px 22px 28px' }}>
+      <div style={detailLabel}>{ar ? 'الاسم الذي يظهر لأصحابك في الرحلات' : 'The name your trip mates see'}</div>
+      <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" style={detailField} />
+      {err && <div style={{ color: 'var(--clay-deep)', fontSize: 13, marginTop: 10 }}>{err}</div>}
+      <button disabled={busy} onClick={save} style={detailBtn(busy)}>{busy ? '…' : (ar ? 'حفظ' : 'Save')}</button>
+    </div>
+  );
+}
+
+function ChangePasswordForm({ email, onDone }) {
+  const ar = window.isRTL;
+  const [cur, setCur] = React.useState('');
+  const [next, setNext] = React.useState('');
+  const [again, setAgain] = React.useState('');
+  const [show, setShow] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState(null);
+  const save = async () => {
+    setErr(null);
+    if (!cur) { setErr(ar ? 'اكتب كلمة المرور الحالية' : 'Enter your current password'); return; }
+    if (next.length < 8) { setErr(ar ? 'كلمة المرور الجديدة لازم تكون 8 أحرف على الأقل' : 'New password needs at least 8 characters'); return; }
+    if (next !== again) { setErr(ar ? 'كلمتا المرور الجديدتان غير متطابقتين' : "The new passwords don't match"); return; }
+    if (next === cur) { setErr(ar ? 'كلمة المرور الجديدة نفس الحالية' : 'New password is the same as the current one'); return; }
+    setBusy(true);
+    try {
+      // 1) Prove the current password (re-authenticates this same user).
+      const { error: authErr } = await window.sb.auth.signInWithPassword({ email, password: cur });
+      if (authErr) { setErr(ar ? 'كلمة المرور الحالية غير صحيحة' : 'Current password is incorrect'); setBusy(false); return; }
+      // 2) Set the new one.
+      const { error } = await window.sb.auth.updateUser({ password: next });
+      if (error) throw error;
+      window.toast?.(ar ? 'تم تغيير كلمة المرور' : 'Password changed', 'success');
+      onDone();
+    } catch (e) { setErr(e.message || 'Failed'); setBusy(false); }
+  };
+  const type = show ? 'text' : 'password';
+  return (
+    <div style={{ padding: '4px 22px 28px' }}>
+      <div style={detailLabel}>{ar ? 'كلمة المرور الحالية' : 'Current password'}</div>
+      <input type={type} value={cur} onChange={(e) => setCur(e.target.value)} autoComplete="current-password" style={detailField} />
+      <div style={detailLabel}>{ar ? 'كلمة المرور الجديدة (8 أحرف على الأقل)' : 'New password (8+ characters)'}</div>
+      <input type={type} value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" style={detailField} />
+      <div style={detailLabel}>{ar ? 'أعد كتابة الجديدة' : 'Repeat the new password'}</div>
+      <input type={type} value={again} onChange={(e) => setAgain(e.target.value)} autoComplete="new-password" style={detailField} />
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontSize: 13, color: 'var(--ink-soft)', minHeight: 36 }}>
+        <input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} style={{ width: 18, height: 18 }} />
+        {ar ? 'إظهار كلمات المرور' : 'Show passwords'}
+      </label>
+      {err && <div style={{ color: 'var(--clay-deep)', fontSize: 13, marginTop: 10 }}>{err}</div>}
+      <button disabled={busy} onClick={save} style={detailBtn(busy)}>{busy ? '…' : (ar ? 'تغيير كلمة المرور' : 'Change password')}</button>
+    </div>
+  );
+}

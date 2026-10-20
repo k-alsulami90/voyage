@@ -231,6 +231,9 @@ function ScreenBudget({ go, openSheet, loading }) {
         </div>
       </div>
 
+      {/* Bookings not paid yet — visible, but outside the budget */}
+      <window.UnpaidBookingsNote />
+
       {/* PACE — the one piece of analysis worth keeping on screen */}
       <window.TripPaceCard />
 

@@ -358,7 +358,7 @@ function StatusDot({ status }) {
   const map = {
     synced:  { color: 'var(--moss)',     label: window.isRTL ? 'تم الحفظ' : 'Synced' },
     link:    { color: 'var(--indigo)',   label: window.isRTL ? 'رابط ويب' : 'Link' },
-    pending: { color: 'var(--ink-mute)', label: window.isRTL ? 'بانتظار الرفع' : 'No file' },
+    pending: { color: 'var(--ink-mute)', label: window.isRTL ? 'بدون ملف' : 'No file' },
   };
   const s = map[status];
   return (
@@ -474,11 +474,11 @@ function DocTileGrid({ doc, onOpen }) {
           <StatusDot status={status} />
           {fmtDocCost(doc) && (
             <span className="mono" style={{
-              fontSize: 10, fontWeight: 600,
-              color: doc.linkedExpenseId ? 'var(--moss)' : 'var(--ink-soft)',
+              fontSize: 11, fontWeight: 600,
+              color: window.isDocPaid(doc) ? 'var(--moss)' : 'var(--clay-deep)',
               display: 'inline-flex', alignItems: 'center', gap: 3,
             }}>
-              {doc.linkedExpenseId && <IconCheck size={10} stroke="currentColor" />}
+              {window.isDocPaid(doc) ? <IconCheck size={10} stroke="currentColor" /> : '⏳'}
               {fmtDocCost(doc)}
             </span>
           )}
@@ -535,11 +535,13 @@ function DocRowList({ doc, last, onOpen }) {
           </span>
           {fmtDocCost(doc) && (
             <span className="mono" style={{
-              fontSize: 10, fontWeight: 600, flexShrink: 0,
-              color: doc.linkedExpenseId ? 'var(--moss)' : 'var(--ink-soft)',
+              fontSize: 11.5, fontWeight: 600, flexShrink: 0,
+              color: window.isDocPaid(doc) ? 'var(--moss)' : 'var(--clay-deep)',
               display: 'inline-flex', alignItems: 'center', gap: 3,
             }}>
-              · {doc.linkedExpenseId && <IconCheck size={10} stroke="currentColor" />}{fmtDocCost(doc)}
+              · {window.isDocPaid(doc)
+                  ? <IconCheck size={10} stroke="currentColor" />
+                  : <span>{window.isRTL ? 'غير مدفوع' : 'unpaid'}</span>} {fmtDocCost(doc)}
             </span>
           )}
           {docOwnerName(doc) && (

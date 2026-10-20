@@ -1300,6 +1300,25 @@ window.updateDocument = async (docId, fields) => {
 
 // Toggle "Add to expenses" — creates an expense linked to this document.
 // Uses the doc's own cost columns and an automatic title like "Flight: …".
+// Payment state lives in the document's details (no schema change):
+//   details.paid     true | false
+//   details.paid_by  user id of whoever paid (shared docs)
+//   details.paid_on  'YYYY-MM-DD'
+// Docs saved before this existed: a linked expense means it was paid.
+window.isDocPaid = (doc) => {
+  const d = (doc && doc.details) || {};
+  if (d.paid === true) return true;
+  if (d.paid === false) return false;
+  return !!(doc && (doc.linked_expense_id || doc.linkedExpenseId));
+};
+// The expense row's timestamp = the day it was paid (noon local, so it
+// never slips a day across time zones).
+window._paidAtISO = (paidOn) => {
+  if (!paidOn || !/^\d{4}-\d{2}-\d{2}$/.test(paidOn)) return new Date().toISOString();
+  const [y, m, d] = paidOn.split('-').map(Number);
+  return new Date(y, m - 1, d, 12, 0, 0).toISOString();
+};
+
 window.linkDocExpense = async (docId, tripId) => {
   if (!window.sb || !tripId) throw new Error('Missing context');
   const { data: doc, error: docErr } = await window.sb.from('documents')
@@ -1314,7 +1333,8 @@ window.linkDocExpense = async (docId, tripId) => {
 
   const { data: exp, error: expErr } = await window.sb.from('expenses').insert({
     trip_id: tripId,
-    created_by: window.currentUserId,
+    created_by: (doc.details && doc.details.paid_by) || window.currentUserId,
+    created_at: window._paidAtISO(doc.details && doc.details.paid_on),
     title: (titlePrefix + (doc.title || 'Document')).slice(0, 100),
     category: expenseCat,
     amount_usd: Number(doc.cost_usd),
@@ -1322,7 +1342,8 @@ window.linkDocExpense = async (docId, tripId) => {
     local_currency: doc.cost_currency || null,
     note: doc.subtitle || null,
     // A shared booking is the whole group's cost.
-    split_with: (window.MEMBERS || []).map((m) => m.id).filter((id) => id !== window.currentUserId),
+    split_with: (window.MEMBERS || []).map((m) => m.id)
+      .filter((id) => id !== ((doc.details && doc.details.paid_by) || window.currentUserId)),
   }).select().single();
   if (expErr) throw expErr;
 
@@ -1342,13 +1363,19 @@ window.linkDocExpense = async (docId, tripId) => {
 window.syncDocExpense = async (docId, tripId) => {
   const { data: doc } = await window.sb.from('documents').select('*').eq('id', docId).single();
   if (!doc) return;
-  const wantsExpense = !doc.owner_user_id && doc.cost_usd != null && Number(doc.cost_usd) > 0;
+  // Only a PAID shared booking moves the budget.
+  const wantsExpense = !doc.owner_user_id && doc.cost_usd != null && Number(doc.cost_usd) > 0
+    && window.isDocPaid(doc);
   if (!wantsExpense) {
     if (doc.linked_expense_id) await window.unlinkDocExpense(docId, tripId);
     return;
   }
   if (!doc.linked_expense_id) { await window.linkDocExpense(docId, tripId); return; }
+  const payer = (doc.details && doc.details.paid_by) || null;
   await window.sb.from('expenses').update({
+    ...(payer ? { created_by: payer,
+      split_with: (window.MEMBERS || []).map((m) => m.id).filter((id) => id !== payer) } : {}),
+    ...((doc.details && doc.details.paid_on) ? { created_at: window._paidAtISO(doc.details.paid_on) } : {}),
     amount_usd: Number(doc.cost_usd),
     amount_local: doc.cost_local != null ? Number(doc.cost_local) : null,
     local_currency: doc.cost_currency || null,
