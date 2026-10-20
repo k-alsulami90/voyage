@@ -1095,9 +1095,12 @@ function ShareSheet() {
 
 const CAT_META = {
   lodging:  { emoji: '🏨', label_en: 'Lodging',   label_ar: 'الإقامة' },
-  food:     { emoji: '🍜', label_en: 'Food',       label_ar: 'الطعام' },
-  transit:  { emoji: '🚅', label_en: 'Transit',    label_ar: 'المواصلات' },
-  culture:  { emoji: '🎌', label_en: 'Culture',    label_ar: 'الثقافة' },
+  food:     { emoji: '🍽️', label_en: 'Food',       label_ar: 'الطعام' },
+  transit:  { emoji: '🚕', label_en: 'Transit',    label_ar: 'المواصلات' },
+  // key stays 'culture' in the database; shown as activities & fun.
+  culture:  { emoji: '🎟️', label_en: 'Activities', label_ar: 'فعاليات وترفيه' },
+  shopping: { emoji: '🛍️', label_en: 'Shopping',   label_ar: 'تسوق' },
+  wellness: { emoji: '💆', label_en: 'Spa & care', label_ar: 'سبا وعناية' },
   misc:     { emoji: '📎', label_en: 'Misc',       label_ar: 'متنوع' },
 };
 // Expose so any screen-file can pick the same category glyph instead of

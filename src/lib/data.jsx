@@ -25,7 +25,9 @@ const CATEGORIES = [
   { key: 'lodging',  label: 'Lodging',   color: 'var(--clay)',      pct: 38, amt: 1088.40 },
   { key: 'food',     label: 'Food',      color: 'var(--honey)',     pct: 22, amt: 630.15 },
   { key: 'transit',  label: 'Transit',   color: 'var(--moss)',      pct: 18, amt: 515.58 },
-  { key: 'culture',  label: 'Culture',   color: 'var(--indigo)',    pct: 14, amt: 401.00 },
+  { key: 'culture',  label: 'Activities', color: 'var(--indigo)',   pct: 14, amt: 401.00 },
+  { key: 'shopping', label: 'Shopping',  color: '#C4728A',          pct: 0,  amt: 0 },
+  { key: 'wellness', label: 'Spa & care', color: '#5E9C9A',         pct: 0,  amt: 0 },
   { key: 'misc',     label: 'Misc',      color: 'var(--ink-mute)',  pct: 8,  amt: 229.19 },
 ];
 

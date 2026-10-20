@@ -325,7 +325,7 @@ function CategoryStack({ stats }) {
   const fmt = (n) => window.fmtMoney(n, { in: 'home' });
   const CAT_COLOR = {
     lodging: 'var(--clay)', food: 'var(--honey)', transit: 'var(--moss)',
-    culture: 'var(--indigo)', misc: 'var(--ink-mute)',
+    culture: 'var(--indigo)', shopping: '#C4728A', wellness: '#5E9C9A', misc: 'var(--ink-mute)',
   };
   const cats = stats.byCategory.slice(0, 5);
   const total = cats.reduce((s, c) => s + c.value, 0);

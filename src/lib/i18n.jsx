@@ -25,7 +25,7 @@ const TRANSLATIONS = {
     recentActivity:'Recent activity', splitting:'travelers', daysLeft:'DAYS LEFT',
     budget:'Budget', totalSpent:'TOTAL SPENT', ofPlanned:'of',
     expenses:'Expenses', auditLog:'Audit log',
-    lodging:'Lodging', food:'Food', transit:'Transit', culture:'Culture', misc:'Misc',
+    lodging:'Lodging', food:'Food', transit:'Transit', culture:'Activities & fun', shopping:'Shopping', wellness:'Spa & care', misc:'Misc',
     // Document categories (separate from expense categories above)
     docFlights:'Flights', docLodging:'Hotels', docVisas:'Visas', docTransport:'Rentals',
     // Dynamic trip card states
@@ -217,7 +217,7 @@ const TRANSLATIONS = {
     recentActivity:'أحدث العمليات', splitting:'مشاركة', daysLeft:'أيام متبقية',
     budget:'الميزانية', totalSpent:'إجمالي الإنفاق', ofPlanned:'من',
     expenses:'قائمة المصروفات', auditLog:'سجل التعديلات والمراجعة',
-    lodging:'السكن والإقامة', food:'المطاعم والمقاهي', transit:'المواصلات والتنقل', culture:'الأنشطة والثقافة', misc:'مصروفات متنوعة',
+    lodging:'السكن والإقامة', food:'المطاعم والمقاهي', transit:'المواصلات والتنقل', culture:'فعاليات وترفيه', shopping:'التسوق والهدايا', wellness:'سبا وعناية', misc:'مصروفات متنوعة',
     // Document categories
     docFlights:'تذاكر الطيران', docLodging:'ححوزات السكن', docVisas:'التأشيرات', docTransport:'وسائل النقل والمسارات',
     // Dynamic trip card states
