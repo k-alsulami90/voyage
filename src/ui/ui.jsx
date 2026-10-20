@@ -174,7 +174,12 @@ const TintCard = ({ tint = 'clay', children }) => {
 // Full-screen modal sheet
 const Sheet = ({ open, onClose, children, title, height = 0.7 }) => {
   if (!open) return null;
-  return (
+  // Always render into the app shell, not where the Sheet is declared: a
+  // sheet opened from inside a scrolled screen (e.g. "add activity" on
+  // day 9 of the Plan) was positioned against the scrolled content and
+  // opened off-screen at the top.
+  const host = document.getElementById('app-shell');
+  const sheet = (
     <div style={{
       position: 'absolute', inset: 0, zIndex: 100,
       display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
@@ -213,6 +218,7 @@ const Sheet = ({ open, onClose, children, title, height = 0.7 }) => {
       `}</style>
     </div>
   );
+  return host ? ReactDOM.createPortal(sheet, host) : sheet;
 };
 
 // Swipeable row (drag horizontally to reveal actions)
