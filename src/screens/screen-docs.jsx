@@ -97,6 +97,9 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
       )}
 
       {/* CATEGORY FILTER + VIEW TOGGLE row */}
+      {/* Your next bookings as wallet passes — tap to fan out, tap one to open */}
+      {totalCount > 0 && <window.PassStack docs={allDocs} onOpen={(d) => openDoc?.(d, cats.find((c) => c.key === d.category))} />}
+
       <div style={{
         padding: '0 14px 12px',
         display: 'flex', flexDirection: 'column', gap: 10,

@@ -479,6 +479,11 @@ textarea:focus-visible,
 .v-list.v-deck > * { animation-name: v-deal; animation-duration: 900ms; animation-timing-function: cubic-bezier(.16, 1, .3, 1); transform-origin: 50% 0; }
 @keyframes v-flip-in { from { opacity: 0; transform: perspective(1000px) rotateX(28deg) translate3d(0, 40px, -40px) scale(0.93); } }
 .v-flip-in { animation: v-flip-in 1000ms cubic-bezier(.16, 1, .3, 1) 60ms backwards; transform-origin: 50% 100%; }
+/* Passport stamps land with a thud; 3D bars rise from the baseline. */
+@keyframes v-stamp { 0% { opacity: 0; transform: rotate(var(--r, 0deg)) scale(2.1); } 55% { opacity: 0.95; transform: rotate(var(--r, 0deg)) scale(0.94); } 100% { opacity: 0.86; transform: rotate(var(--r, 0deg)) scale(1); } }
+.v-stamp { animation: v-stamp 520ms cubic-bezier(.3, .8, .35, 1) backwards; }
+@keyframes v-barup { from { transform: scaleY(0); opacity: 0; } }
+.v-bar { transform-box: fill-box; transform-origin: 50% 100%; animation: v-barup 900ms cubic-bezier(.16, 1, .3, 1) backwards; }
 /* A screen you go BACK to (or reveal by swiping) stays as it was. */
 .v-screen.v-calm > * > *, .v-screen.v-calm .v-list > *, .v-screen.v-calm .v-grow, .v-screen.v-calm .v-dash, .v-screen.v-calm .v-flip-in { animation: none; }
 /* Progress fills grow from their start edge. */
@@ -492,5 +497,5 @@ textarea:focus-visible,
 @keyframes v-pop { 0% { transform: scale(0.9); } 45% { transform: scale(1.2); } 75% { transform: scale(1.0); } 100% { transform: scale(1.06); } }
 .v-pop { animation: v-pop 520ms cubic-bezier(.3, .7, .4, 1); }
 @media (prefers-reduced-motion: reduce) {
-  .v-screen > * > *, .v-list > *, .v-grow, .v-dash, .v-pop, .v-flip-in { animation: none !important; }
+  .v-screen > * > *, .v-list > *, .v-grow, .v-dash, .v-pop, .v-flip-in, .v-stamp, .v-bar { animation: none !important; }
 }

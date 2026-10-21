@@ -106,6 +106,17 @@ function ScreenInsights({ go, goTrip }) {
     }}>
       {HeaderEl}
 
+      {/* The whole planet: every country you've travelled to, arced from home */}
+      <div style={{ margin: '0 14px 6px', borderRadius: 28, overflow: 'hidden', background: 'var(--statement)',
+        boxShadow: 'var(--shadow-card)', display: 'flex', justifyContent: 'center', position: 'relative' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(60% 50% at 50% 40%, oklch(0.45 0.10 35 / 0.35) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <window.Globe width={380} height={350} radius={142} cy={178}
+          pins={window.tripPins(window.TRIPS)} homeCode={window.homeCountryCode()} />
+        <div style={{ position: 'absolute', bottom: 12, insetInline: 0, textAlign: 'center', fontSize: 11.5, color: 'var(--statement-sub)', pointerEvents: 'none' }}>
+          {window.isRTL ? 'اسحب الكرة لتدويرها' : 'Drag to spin'}
+        </div>
+      </div>
+
       <YearHero year={heroYear} />
       <LedgerSentence row={heroYearRow} />
 

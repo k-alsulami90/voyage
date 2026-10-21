@@ -400,3 +400,279 @@ function WalletCarousel({ cards, members, fmt }) {
   );
 }
 window.WalletCarousel = WalletCarousel;
+
+// ── Scroll depth: items turn in 3D as they move through a scroller ─────
+// axis 'y' → a gentle drum (rows tip as they leave the middle);
+// axis 'x' → a concave row (side items angle toward the centre).
+function bindDepthScroll(scroller, items, { axis = 'y', rot = 9, scale = 0.04, persp = 1100 } = {}) {
+  if (!scroller || window.vReduce?.()) return () => {};
+  let raf = 0;
+  const paint = () => {
+    raf = 0;
+    const r = scroller.getBoundingClientRect();
+    const mid = axis === 'y' ? r.top + r.height / 2 : r.left + r.width / 2;
+    const span = axis === 'y' ? r.height : r.width;
+    items().forEach((el) => {
+      const b = el.getBoundingClientRect();
+      const c = axis === 'y' ? b.top + b.height / 2 : b.left + b.width / 2;
+      const t = Math.max(-1, Math.min(1, (c - mid) / span));
+      el.style.transform = axis === 'y'
+        ? `perspective(${persp}px) rotateX(${(-t * rot).toFixed(2)}deg) scale(${(1 - Math.abs(t) * scale).toFixed(4)})`
+        : `perspective(${persp}px) rotateY(${(-t * rot).toFixed(2)}deg) scale(${(1 - Math.abs(t) * scale).toFixed(4)})`;
+    });
+  };
+  const on = () => { if (!raf) raf = requestAnimationFrame(paint); };
+  scroller.addEventListener('scroll', on, { passive: true });
+  window.addEventListener('resize', on);
+  paint(); setTimeout(paint, 400);
+  return () => { scroller.removeEventListener('scroll', on); window.removeEventListener('resize', on); if (raf) cancelAnimationFrame(raf); };
+}
+// Horizontal row: pass as a callback ref; its children get the depth.
+function useDepthRowRef(opts) {
+  const off = React.useRef(null);
+  return React.useCallback((el) => {
+    if (off.current) { off.current(); off.current = null; }
+    if (el) off.current = bindDepthScroll(el, () => Array.from(el.children), { axis: 'x', rot: 22, scale: 0.08, ...opts });
+  }, []);
+}
+Object.assign(window, { bindDepthScroll, useDepthRowRef });
+
+// ── PassportCard: your traveller profile as a passport that flips ──────
+// Front: the data page (photo, name, totals, machine-readable lines).
+// Back: a stamp for every country you've travelled to.
+const _INKS = ['#9b2335', '#1f3a7a', '#2e6b4a', '#6a3d8f', '#a05a14'];
+function PassportCard({ me, email, stats }) {
+  const ar = !!window.isRTL;
+  const [flipped, setFlipped] = React.useState(false);
+  const tilt = useTiltRef({ max: 5 });
+  const flip = window.vSpring ? window.vSpring(0.78, 0.62) : { duration: 600, easing: 'ease' };
+  const stamps = [];
+  (window.TRIPS || []).slice().sort((a, b) => String(a.startDate).localeCompare(String(b.startDate))).forEach((tr) => {
+    (tr.countries || []).forEach((c) => { if (stamps.length < 9) stamps.push({ code: String(c).toUpperCase(), title: tr.title || '', date: tr.startDate }); });
+  });
+  const latin = String((email || '').split('@')[0] || 'TRAVELER').toUpperCase().replace(/[^A-Z]/g, '') || 'TRAVELER';
+  const mrz1 = ('P<VOY' + latin + '<<' + 'VOYAGE').padEnd(36, '<').slice(0, 36);
+  const mrz2 = (`${String(stats.totalTrips).padStart(2, '0')}T${String(stats.totalDays).padStart(3, '0')}D${String(stats.countries).padStart(2, '0')}C<SAU<<` + (window.localISO?.() || '').replace(/-/g, '')).padEnd(36, '<').slice(0, 36);
+  const paper = 'linear-gradient(135deg, #f6efdc 0%, #ebdfc4 100%)';
+  const guilloche = 'repeating-linear-gradient(45deg, rgba(120,90,40,0.06) 0 1px, transparent 1px 8px), repeating-linear-gradient(-45deg, rgba(40,70,120,0.05) 0 1px, transparent 1px 8px)';
+  const face = { position: 'absolute', inset: 0, borderRadius: 22, overflow: 'hidden', backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', color: '#2b2418', boxShadow: '0 22px 40px -18px rgba(40,25,10,0.55), inset 0 0 0 1px rgba(90,70,40,0.18)' };
+  const label = { fontSize: 9.5, letterSpacing: '0.04em', color: 'rgba(60,45,25,0.6)' };
+  const value = { fontSize: 14, fontWeight: 600, color: '#231c12' };
+  return (
+    <div style={{ padding: '0 14px 6px' }}>
+      <div ref={tilt} role="button" aria-label={ar ? 'جواز السفر — اضغط للقلب' : 'Passport — tap to flip'}
+        onClick={() => { setFlipped((f) => !f); window.haptic?.(); }}
+        style={{ position: 'relative', borderRadius: 22, perspective: '1100px', cursor: 'pointer', willChange: 'transform' }}>
+        <div style={{ position: 'relative', height: 226, transformStyle: 'preserve-3d',
+          transition: `transform ${flip.duration}ms ${flip.easing}`, transform: `rotateY(${flipped ? (ar ? -180 : 180) : 0}deg)` }}>
+          {/* FRONT — data page */}
+          <div style={{ ...face, background: `${guilloche}, ${paper}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px 0' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', color: '#1f3a7a' }}>{ar ? 'جواز سفر · PASSPORT' : 'PASSPORT'}</span>
+              <span className="serif-italic" style={{ fontSize: 16, color: '#1f3a7a' }}>voyage</span>
+            </div>
+            <div style={{ display: 'flex', gap: 14, padding: '10px 16px 0' }}>
+              <div style={{ position: 'relative', width: 72, height: 90, borderRadius: 10, flexShrink: 0, overflow: 'hidden',
+                background: `linear-gradient(150deg, oklch(0.78 0.09 ${me.hue || 35}) 0%, oklch(0.48 0.13 ${me.hue || 35}) 100%)`,
+                display: 'grid', placeItems: 'center', color: '#fff', fontSize: 28, fontWeight: 700, boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.35)' }}>
+                {me.initials}
+                {/* holographic security sheen */}
+                <div style={{ position: 'absolute', inset: 0, background: 'conic-gradient(from 210deg, rgba(255,0,150,0.18), rgba(0,200,255,0.18), rgba(120,255,120,0.15), rgba(255,220,0,0.16), rgba(255,0,150,0.18))', mixBlendMode: 'overlay' }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 6 }}>
+                <div><div style={label}>{ar ? 'الاسم / Name' : 'Name'}</div><div style={{ ...value, fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{me.name}</div></div>
+                <div><div style={label}>{ar ? 'البريد / Email' : 'Email'}</div><div style={{ ...value, fontSize: 12, fontWeight: 500, direction: 'ltr', textAlign: ar ? 'right' : 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{email || '—'}</div></div>
+                <div style={{ display: 'flex', gap: 14 }}>
+                  {[[stats.totalTrips, ar ? 'رحلات' : 'Trips'], [stats.totalDays, ar ? 'أيام' : 'Days'], [stats.countries, ar ? 'دول' : 'Countries']].map(([n, l]) => (
+                    <div key={l}><div style={label}>{l}</div><div className="mono" style={{ ...value, fontSize: 17 }}><window.CountUp value={n} format={(v) => String(Math.round(v))} /></div></div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="mono" dir="ltr" style={{ direction: 'ltr', unicodeBidi: 'bidi-override', textAlign: 'left', position: 'absolute', insetInline: 0, bottom: 0, padding: '7px 16px 10px', fontSize: 10.5, letterSpacing: '0.16em', lineHeight: 1.45, color: '#3a3121', background: 'rgba(255,255,255,0.35)', borderTop: '1px solid rgba(90,70,40,0.15)', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+              {mrz1}<br />{mrz2}
+            </div>
+          </div>
+          {/* BACK — stamps page */}
+          <div style={{ ...face, transform: `rotateY(${ar ? -180 : 180}deg)`, background: `${guilloche}, linear-gradient(135deg, #f8f2e2 0%, #efe4cb 100%)` }}>
+            <div style={{ padding: '12px 16px 0', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(60,45,25,0.6)' }}>{ar ? 'أختام الرحلات · VISAS' : 'STAMPS · VISAS'}</div>
+            {stamps.length === 0 && (
+              <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: 13, color: 'rgba(60,45,25,0.6)', padding: 24, textAlign: 'center' }}>
+                {ar ? 'ما فيه أختام بعد — أول رحلة بتنختم هنا' : 'No stamps yet — your first trip lands here'}
+              </div>
+            )}
+            {stamps.map((s, i) => {
+              const col = i % 3, row = Math.floor(i / 3), ink = _INKS[i % _INKS.length];
+              const rot = ((i * 37) % 31) - 15, round = i % 2 === 0;
+              const d = s.date ? new Date(s.date + 'T00:00:00') : null;
+              const when = d ? d.toLocaleDateString('en', { month: 'short', year: 'numeric' }).toUpperCase() : '';
+              return (
+                <div key={i} className={flipped ? 'v-stamp' : undefined} style={{
+                  position: 'absolute', top: 34 + (3 - Math.ceil(stamps.length / 3)) * 31 + row * 62 + ((i * 13) % 9), left: `${6 + col * 31 + ((i * 7) % 5)}%`,
+                  width: 82, height: 54, transform: `rotate(${rot}deg)`, '--r': `${rot}deg`, color: ink, opacity: 0.86, mixBlendMode: 'multiply',
+                  border: `2px solid ${ink}`, borderRadius: round ? 999 : 8, boxShadow: `inset 0 0 0 3px #f5ecd8, inset 0 0 0 4.5px ${ink}`,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.05,
+                  animationDelay: `${200 + i * 110}ms`, direction: 'ltr',
+                }}>
+                  <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: '0.06em' }}>{s.code}</span>
+                  <span style={{ fontSize: 8, fontWeight: 700, maxWidth: 70, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title.toUpperCase()}</span>
+                  <span style={{ fontSize: 7.5, fontWeight: 600, letterSpacing: '0.08em' }}>{when}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      <div style={{ textAlign: 'center', fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 8 }}>
+        {flipped ? (ar ? 'اضغط لترجع لصفحة البيانات' : 'Tap to flip back') : (ar ? 'اضغط على الجواز لتشوف أختام رحلاتك' : 'Tap the passport to see your stamps')}
+      </div>
+    </div>
+  );
+}
+window.PassportCard = PassportCard;
+
+// ── PassStack: your next bookings as wallet passes ─────────────────────
+const _PASS_BG = {
+  flights: 'linear-gradient(135deg, #2b4a8f 0%, #172447 100%)',
+  lodging: 'linear-gradient(135deg, #c0603f 0%, #6d2a1d 100%)',
+  transport: 'linear-gradient(135deg, #b48a2e 0%, #5d4315 100%)',
+  visas: 'linear-gradient(135deg, #2f7656 0%, #163a2a 100%)',
+};
+function _passWhen(d) {
+  const x = d.details || {};
+  return d.category === 'flights' ? x.dep_at : d.category === 'lodging' ? x.check_in_at
+    : d.category === 'transport' ? x.pickup_at : d.category === 'visas' ? x.expires_on : null;
+}
+function PassStack({ docs, onOpen }) {
+  const ar = !!window.isRTL;
+  const today = window.localISO ? window.localISO() : new Date().toISOString().slice(0, 10);
+  const dated = docs.filter((d) => _passWhen(d)).map((d) => ({ d, w: String(_passWhen(d)) }));
+  let pick = dated.filter((x) => x.w.slice(0, 10) >= today).sort((a, b) => a.w.localeCompare(b.w));
+  const upcoming = pick.length > 0;
+  if (!upcoming) pick = dated.sort((a, b) => b.w.localeCompare(a.w));
+  pick = pick.slice(0, 4);
+  const [open, setOpen] = React.useState(false);
+  if (!pick.length) return null;
+  const n = pick.length, H = 138, GAP = 12, PEEK = 13;
+  const sp = window.vSpring ? window.vSpring(0.8, 0.5) : { duration: 500, easing: 'ease' };
+  const tr = `transform ${sp.duration}ms ${sp.easing}, height ${sp.duration}ms ${sp.easing}, filter ${sp.duration}ms ease`;
+  const daysTo = (w) => Math.round((new Date(w.slice(0, 10) + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000);
+  const rel = (w) => { const k = daysTo(w); return k === 0 ? (ar ? 'اليوم' : 'Today') : k === 1 ? (ar ? 'بكرة' : 'Tomorrow') : k > 0 ? (ar ? `بعد ${k} أيام` : `In ${k} days`) : (ar ? 'مضى' : 'Past'); };
+  const time = (w) => (w.length > 11 ? w.slice(11, 16) : '');
+  return (
+    <div style={{ padding: '0 14px 14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 4px 8px' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{upcoming ? (ar ? 'حجوزاتك الجاية' : 'Up next') : (ar ? 'آخر الحجوزات' : 'Recent')}</div>
+        {n > 1 && <button onClick={() => { setOpen((o) => !o); window.haptic?.(); }} style={{ fontSize: 12.5, color: 'var(--ink-soft)', fontWeight: 500, minHeight: 32, padding: '0 6px' }}>
+          {open ? (ar ? 'تجميع' : 'Stack') : (ar ? `عرض الكل (${n})` : `Show all (${n})`)}</button>}
+      </div>
+      <div onClick={() => { if (!open && n > 1) { setOpen(true); window.haptic?.(); } }} style={{
+        position: 'relative', height: open ? n * H + (n - 1) * GAP : H + (n - 1) * PEEK, transition: tr, perspective: '1200px',
+      }}>
+        {pick.map(({ d, w }, i) => {
+          const x = d.details || {};
+          const y = open ? i * (H + GAP) : (n - 1 - i) * PEEK;
+          const sc = open ? 1 : 1 - i * 0.05;
+          return (
+            <div key={d.id} onClick={(e) => { if (open || n === 1) { e.stopPropagation(); onOpen(d); } }} style={{
+              position: 'absolute', top: 0, left: 0, right: 0, height: H, borderRadius: 18, color: '#fff', overflow: 'hidden',
+              background: _PASS_BG[d.category] || _PASS_BG.flights, zIndex: n - i, transformOrigin: '50% 0',
+              transform: `translate3d(0, ${y}px, ${open ? 0 : -i * 30}px) scale(${sc}) rotateX(${open ? 0 : i * 4}deg)`,
+              filter: `brightness(${open ? 1 : 1 - i * 0.12})`, transition: tr,
+              boxShadow: '0 16px 30px -14px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2)', cursor: 'pointer',
+            }}>
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(115deg, rgba(255,255,255,0.16), rgba(255,255,255,0) 40%)', pointerEvents: 'none' }} />
+              {/* perforation + notches between body and stub */}
+              <div style={{ position: 'absolute', top: 10, bottom: 10, insetInlineEnd: '27%', borderInlineStart: '2px dashed rgba(255,255,255,0.28)' }} />
+              <div style={{ position: 'absolute', top: -9, insetInlineEnd: 'calc(27% - 9px)', width: 18, height: 18, borderRadius: 99, background: 'var(--cream)' }} />
+              <div style={{ position: 'absolute', bottom: -9, insetInlineEnd: 'calc(27% - 9px)', width: 18, height: 18, borderRadius: 99, background: 'var(--cream)' }} />
+              {/* body */}
+              <div style={{ position: 'absolute', top: 0, bottom: 0, insetInlineStart: 0, insetInlineEnd: '27%', padding: '13px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 11.5, opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {d.category === 'flights' ? `✈︎ ${x.airline || (ar ? 'بطاقة صعود' : 'Boarding pass')}` : d.category === 'lodging' ? (ar ? '🏨 إقامة' : '🏨 Stay') : d.category === 'transport' ? `🚗 ${x.vendor || (ar ? 'تنقل' : 'Transport')}` : (ar ? '🛂 تأشيرة' : '🛂 Visa')}
+                  {d.ownerUserId ? ' · 🔒' : ''}
+                </div>
+                {d.category === 'flights' && x.dep_airport && x.arr_airport ? (
+                  <div dir="ltr" style={{ direction: 'ltr', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: ar ? 'flex-end' : 'flex-start' }}>
+                    <div><div className="mono" style={{ fontSize: 30, fontWeight: 800, lineHeight: 1 }}>{String(x.dep_airport).toUpperCase().slice(0, 3)}</div><div style={{ fontSize: 11, opacity: 0.75, marginTop: 3 }}>{time(String(x.dep_at || ''))}</div></div>
+                    <div style={{ flex: '0 0 auto', opacity: 0.85, fontSize: 16 }}>——✈——</div>
+                    <div><div className="mono" style={{ fontSize: 30, fontWeight: 800, lineHeight: 1 }}>{String(x.arr_airport).toUpperCase().slice(0, 3)}</div><div style={{ fontSize: 11, opacity: 0.75, marginTop: 3 }}>{time(String(x.arr_at || ''))}</div></div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 21, fontWeight: 700, lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.title}</div>
+                )}
+                <div style={{ fontSize: 12, opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {d.category === 'lodging' && x.check_in_at ? `${window.fmtDate(x.check_in_at)} → ${x.check_out_at ? window.fmtDate(x.check_out_at) : ''}`
+                    : d.category === 'transport' && x.pickup_at ? `${window.fmtDate(x.pickup_at)}${x.dropoff_at ? ' → ' + window.fmtDate(x.dropoff_at) : ''}`
+                    : d.category === 'visas' ? `${x.visa_type || ''}${x.expires_on ? (ar ? ' · ينتهي ' : ' · expires ') + window.fmtDate(x.expires_on) : ''}`
+                    : d.title}
+                </div>
+              </div>
+              {/* stub */}
+              <div style={{ position: 'absolute', top: 0, bottom: 0, insetInlineEnd: 0, width: '27%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, textAlign: 'center' }}>
+                <div className="mono" style={{ fontSize: 24, fontWeight: 800, lineHeight: 1 }}>{new Date(w.slice(0, 10) + 'T00:00:00').getDate()}</div>
+                <div style={{ fontSize: 11, opacity: 0.8 }}>{new Date(w.slice(0, 10) + 'T00:00:00').toLocaleDateString(ar ? 'ar' : 'en', { month: 'short' })}</div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: 'rgba(255,255,255,0.18)', marginTop: 4 }}>{rel(w)}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+window.PassStack = PassStack;
+
+// ── Bars3D: daily spend as 3D columns that rise, with the plan line ─────
+function Bars3D({ days, max, today, fmt, planPerDay }) {
+  const ar = !!window.isRTL;
+  const [sel, setSel] = React.useState(null);
+  const W = 320, H = 118, base = 96, top = 14;
+  const n = Math.max(1, days.length), slot = W / n, bw = Math.min(26, slot * 0.58), dx = Math.min(9, bw * 0.42), dy = dx * 0.62;
+  const peak = Math.max(max, planPerDay || 0, 1);
+  const hOf = (v) => Math.max(3, (v / peak) * (base - top - dy));
+  const order = ar ? days.slice().reverse() : days;
+  const planY = planPerDay ? base - hOf(planPerDay) : null;
+  const s = sel != null ? days.find((d) => d.k === sel) : null;
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ height: 18, fontSize: 12, color: 'var(--ink-soft)', textAlign: 'center' }}>
+        {s ? <>{ar ? `اليوم ${s.n}: ` : `Day ${s.n}: `}<b className="mono">{fmt(s.v)}</b></> : (ar ? 'اضغط على يوم لتشوف صرفه' : 'Tap a day')}
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: 'block', overflow: 'visible', direction: 'ltr' }}>
+        <defs>
+          <linearGradient id="v3d-front" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--ink-soft)" /><stop offset="1" stopColor="var(--ink)" /></linearGradient>
+          <linearGradient id="v3d-hot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#e08a5f" /><stop offset="1" stopColor="var(--clay-deep)" /></linearGradient>
+        </defs>
+        <line x1="0" y1={base} x2={W} y2={base} stroke="var(--hairline-2)" strokeWidth="1" />
+        {order.map((d, i) => {
+          const x = i * slot + (slot - bw - dx) / 2, h = hOf(d.v), y = base - h;
+          const hot = d.k === today || (planPerDay && d.v > planPerDay);
+          const front = hot ? 'url(#v3d-hot)' : 'url(#v3d-front)';
+          const on = sel === d.k;
+          return (
+            <g key={d.k} style={{ opacity: d.v ? 1 : 0.35, cursor: 'pointer' }}
+              onClick={() => { setSel(on ? null : d.k); window.haptic?.(); }}>
+              <rect x={i * slot} y={0} width={slot} height={H} fill="transparent" />
+              <g className="v-bar" style={{ animationDelay: `${120 + i * 55}ms` }}>
+              {/* side */}
+              <polygon points={`${x + bw},${y} ${x + bw + dx},${y - dy} ${x + bw + dx},${base - dy} ${x + bw},${base}`} fill={hot ? 'var(--clay-deep)' : 'var(--ink)'} opacity="0.75" />
+              {/* front */}
+              <rect x={x} y={y} width={bw} height={h} fill={front} rx="1.5" />
+              {/* top */}
+              <polygon points={`${x},${y} ${x + dx},${y - dy} ${x + bw + dx},${y - dy} ${x + bw},${y}`} fill={hot ? '#f2b08e' : 'var(--ink-mute)'} />
+              {on && <rect x={x - 2} y={y - dy - 3} width={bw + dx + 4} height={h + dy + 5} rx="4" fill="none" stroke="var(--clay)" strokeWidth="1.5" />}
+              </g>
+              <text x={x + bw / 2} y={H - 4} textAnchor="middle" fontSize="10" fill="var(--ink-mute)">{d.n}</text>
+            </g>
+          );
+        })}
+        {planY != null && <>
+          <line x1="0" y1={planY} x2={W} y2={planY} stroke="var(--moss)" strokeWidth="1.2" strokeDasharray="4 4" />
+          <text x={ar ? W - 2 : 2} y={planY - 5} textAnchor="start" fontSize="9.5" fill="var(--moss)" style={{ direction: ar ? 'rtl' : 'ltr', unicodeBidi: 'plaintext' }}>{ar ? 'الخطة اليومية' : 'Daily plan'}</text>
+        </>}
+      </svg>
+    </div>
+  );
+}
+window.Bars3D = Bars3D;

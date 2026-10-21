@@ -411,19 +411,9 @@ function TripPaceCard() {
             ? <>تصرفون يومياً <b className="mono">{fmtC(avg)}</b>. {ended ? 'خلصت الرحلة على' : 'بهالوتيرة بتخلصون على'} <b className="mono">{fmtC(ended ? generalUSD + dailyUSD : projection)}</b>{planned > 0 && <>، <span style={{ color: good ? 'var(--moss)' : 'var(--clay-deep)', fontWeight: 600 }}>{good ? 'أقل' : 'أعلى'} من الميزانية بـ {fmtC(Math.abs(ended ? planned - generalUSD - dailyUSD : diff))}</span></>}.</>
             : <>You spend <b>{fmtC(avg)}</b> a day. {ended ? 'You finished on' : "At this pace you'll finish on"} <b>{fmtC(ended ? generalUSD + dailyUSD : projection)}</b>{planned > 0 && <>, <span style={{ color: good ? 'var(--moss)' : 'var(--clay-deep)', fontWeight: 600 }}>{fmtC(Math.abs(ended ? planned - generalUSD - dailyUSD : diff))} {good ? 'under' : 'over'} budget</span></>}.</>}
         </div>
-        {/* day bars — row direction follows the language */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 54, marginTop: 12 }}>
-          {days.map((d) => (
-            <div key={d.k} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: 0 }}>
-              <div title={fmtC(d.v)} style={{
-                width: '100%', maxWidth: 22, borderRadius: 5,
-                height: Math.max(3, (d.v / max) * 40),
-                background: d.k === today ? 'var(--clay)' : 'var(--ink-mute)', opacity: d.v ? 1 : 0.25,
-              }} />
-              <span style={{ fontSize: 10.5, color: 'var(--ink-mute)' }}>{d.n}</span>
-            </div>
-          ))}
-        </div>
+        {/* day spend as 3D columns; the dashed line is the daily plan */}
+        <window.Bars3D days={days} max={max} today={today} fmt={fmtC}
+          planPerDay={planned > 0 ? Math.max(0, (planned - generalUSD) / Math.max(1, totalDays)) : 0} />
         {generalUSD > 0 && (
           <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 8 }}>
             {ar ? `الحجوزات (${fmtC(generalUSD)}) محسوبة مرة وحدة، مو ضمن الصرف اليومي.` : `Bookings (${fmtC(generalUSD)}) count once, not per day.`}

@@ -2,6 +2,11 @@
 // Each day is a section; activities sort by start_time then sort_order.
 
 function ScreenPlan({ go, openSheet, loading }) {
+  const drumRoot = React.useRef(null);
+  React.useEffect(() => {
+    const root = drumRoot.current; if (!root || !window.bindDepthScroll) return;
+    return window.bindDepthScroll(root.closest('.v-screen'), () => Array.from(root.querySelectorAll('.v-drum')), { axis: 'y', rot: 11, scale: 0.05 });
+  });
   const trip = window.TRIP;
   const items = window.ITINERARY || [];
   const [editingItem, setEditingItem] = React.useState(null);
@@ -48,7 +53,7 @@ function ScreenPlan({ go, openSheet, loading }) {
         onBack={() => go('hub')}
       />
 
-      <div style={{ padding: '8px 14px 24px' }}>
+      <div ref={drumRoot} style={{ padding: '8px 14px 24px' }}>
         {days.length === 0 ? (
           <div style={{
             padding: '48px 24px', textAlign: 'center',
@@ -174,7 +179,7 @@ function fmtTime(hms) {
 function PlanDay({ date, dayNumber, items, onAdd, onTapItem, openSheet, isToday }) {
   const { weekday, datePart } = fmtDayLabel(date, dayNumber);
   return (
-    <div style={{ marginTop: 18 }}>
+    <div className="v-drum" style={{ marginTop: 18, transformOrigin: '50% 50%' }}>
       {/* Day header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',

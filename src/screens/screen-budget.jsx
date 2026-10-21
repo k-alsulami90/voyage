@@ -1,6 +1,8 @@
 // Budget screen — donut chart, currency toggle, expense list with swipe + audit log
 
 function ScreenBudget({ go, openSheet, loading }) {
+  const heroTilt = window.useTiltRef({ max: 5 });
+  const catRow = window.useDepthRowRef({ rot: 24 });
   const trip = window.TRIP;
   // Default display currency = home. Toggle switches between home and local.
   const [displayMode, setDisplayMode] = React.useState('home'); // 'home' | 'local'
@@ -110,7 +112,7 @@ function ScreenBudget({ go, openSheet, loading }) {
 
       {/* DONUT + STAT — overlapping */}
       <div style={{ padding: '6px 14px 0', position: 'relative' }}>
-        <div style={{
+        <div ref={heroTilt} style={{
           background: 'var(--statement)', color: 'var(--statement-fg)',
           borderRadius: 28, padding: '22px 22px 26px',
           position: 'relative', overflow: 'hidden',
@@ -208,9 +210,9 @@ function ScreenBudget({ go, openSheet, loading }) {
 
         {/* Category cards row */}
         <div style={{
-          marginTop: 12, display: 'flex', gap: 9, overflowX: 'auto', padding: '0 4px 8px',
+          marginTop: 12, display: 'flex', gap: 9, overflowX: 'auto', padding: '0 4px 8px', perspective: '900px',
           flexDirection: 'row',
-        }} className="no-scrollbar">
+        }} className="no-scrollbar" ref={catRow}>
           {cats.map((c) => (
             <div key={c.key} style={{
               flexShrink: 0, minWidth: 110,

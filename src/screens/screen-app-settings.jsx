@@ -112,63 +112,8 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
       {/* iOS Large Title */}
       <LargeTitleHeader title={t('account')} />
 
-      {/* PROFILE CARD — overflow avatar + dark backdrop */}
-      <div style={{ padding: '0 14px 14px' }}>
-        <div style={{
-          position: 'relative', borderRadius: 28,
-          padding: window.isRTL ? '22px 100px 20px 22px' : '22px 22px 20px 100px',
-          background: 'linear-gradient(140deg, oklch(0.32 0.04 30) 0%, oklch(0.20 0.04 280) 100%)',
-          color: '#fff', boxShadow: 'var(--shadow-card)', overflow: 'visible',
-        }}>
-          {/* Overflowing avatar — bleeds off left (or right in RTL) */}
-          <div style={{
-            position: 'absolute', top: '50%',
-            insetInlineStart: -10,
-            transform: 'translateY(-50%) rotate(-4deg)',
-            width: 86, height: 86, borderRadius: 22, overflow: 'hidden',
-            background: `linear-gradient(140deg, oklch(0.78 0.09 ${me.hue}) 0%, oklch(0.50 0.13 ${me.hue}) 100%)`,
-            display: 'grid', placeItems: 'center',
-            color: '#fff', fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 32,
-            boxShadow: '0 10px 22px rgba(0,0,0,0.4)',
-            border: '4px solid var(--cream)',
-          }}>{me.initials}</div>
-
-          {/* Profile card content. Was a hero-metric template -- uppercase
-             mono "PRO TRAVELER" eyebrow (marketing-tier phrase implying a
-             non-pro tier that doesn't exist) + 22px serif name + 3 mono
-             uppercase stat pills ("5 TRIPS", "28 DAYS", "3 CTRY"). Same
-             eyebrow pattern as the rest of the chain. The dark card
-             surface stays -- it's a justified single profile anchor --
-             but the content is now: name as the headline, email below,
-             and ONE inline sentence with the lifetime totals in
-             sentence-case sans with mono numbers for tabular alignment. */}
-          <div style={{ position: 'relative' }}>
-            <div className="serif" style={{ fontSize: 22, lineHeight: 1.05 }}>{me.name}</div>
-            <div style={{ fontSize: 11.5, opacity: 0.78, marginTop: 2 }}>{email || (window.isRTL ? 'جارٍ تحميل البيانات…' : 'Loading…')}</div>
-            <div style={{
-              marginTop: 10, fontSize: 12, color: 'rgba(255,251,244,0.78)',
-            }}>
-              {window.isRTL ? (
-                <>
-                  سجل الترحال: خضت <ProfileNum>{window.arPlural(stat.totalTrips, { one: 'رحلة واحدة', two: 'رحلتين', few: `${stat.totalTrips} رحلات`, many: `${stat.totalTrips} رحلة`, other: `${stat.totalTrips} رحلة` })}</ProfileNum>
-                  {' · '}
-                  على مدار <ProfileNum>{window.arPlural(stat.totalDays, { one: 'يوم واحد', two: 'يومين', few: `${stat.totalDays} أيام`, many: `${stat.totalDays} يوماً`, other: `${stat.totalDays} يوماً` })}</ProfileNum>
-                  {' · '}
-                  شملت <ProfileNum>{window.arPlural(stat.countries, { one: 'دولة واحدة', two: 'دولتين', few: `${stat.countries} دول ووجهات`, many: `${stat.countries} دولة`, other: `${stat.countries} دولة` })}</ProfileNum>
-                </>
-              ) : (
-                <>
-                  <ProfileNum>{stat.totalTrips}</ProfileNum> {stat.totalTrips === 1 ? 'trip' : 'trips'}
-                  {' · '}
-                  <ProfileNum>{stat.totalDays}</ProfileNum> {stat.totalDays === 1 ? 'day' : 'days'}
-                  {' · '}
-                  <ProfileNum>{stat.countries}</ProfileNum> {stat.countries === 1 ? 'country' : 'countries'}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* PROFILE — your traveller passport: data page, flip for stamps */}
+      <window.PassportCard me={me} email={email} stats={stat} />
 
       {/* INSTALL APP — only shows if installable or iOS Safari (manual nudge) */}
       <InstallCard />
