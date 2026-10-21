@@ -27,6 +27,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Tajawal:wght@300;400;500;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Markazi+Text:wght@400;500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="tokens.css" />
+<script>
+  // In-app "always animate" switch (Account): overrides iOS Reduce Motion
+  // for this app on this device. Set before anything paints.
+  try { if (localStorage.getItem('voyage:motion') === 'full') document.documentElement.classList.add('motion-full'); } catch (_) {}
+</script>
 <style>
   /* The <html> canvas paints behind the fixed <body>. On iOS PWA cold
      launch the body is briefly shorter than the screen, and the strip
@@ -343,17 +348,6 @@
   @keyframes splash-fade-in { to { opacity: 1; } }
 
   /* Reduced motion — skip animations, show final state immediately */
-  @media (prefers-reduced-motion: reduce) {
-    #splash *,
-    #splash::before, #splash::after {
-      animation: none !important;
-    }
-    .splash-mark, .splash-wordmark, .splash-rule, .splash-tagline,
-    .splash-dots, .splash-stars { opacity: 1; transform: none; }
-    .splash-rule { width: 160px; }
-    .splash-progress::after { width: 100%; }
-    .splash-wordmark { -webkit-text-fill-color: #f5ecd9; background: none; }
-  }
 </style>
 </head>
 <body>
@@ -376,7 +370,10 @@
     var cv = document.getElementById('intro3d'), sp = document.getElementById('splash');
     if (!cv || !cv.getContext) return;
     var ctx = cv.getContext('2d');
-    var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // The intro always plays (it's the app's signature moment), even with
+    // iOS "Reduce Motion" on — the rest of the app follows that setting
+    // unless the in-app "always animate" switch is on.
+    var reduce = false;
     var W = 0, H = 0, dpr = 1;
     function size() {
       dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -411,6 +408,11 @@
     var lerp = function (a, b, t) { return a + (b - a) * t; };
     var t0 = performance.now(), raf = 0, trail = [];
     function frame(now) {
+      try { draw(now); } catch (e) { /* keep going: a frozen intro is worse than a skipped detail */ }
+      var gone = sp && sp.classList.contains('splash-leave');
+      if (!(gone && (now - t0) > 4000)) raf = requestAnimationFrame(frame);
+    }
+    function draw(now) {
       var t = reduce ? 2.0 : (now - t0) / 1000, m = Math.min(W, H);
       var zoom = reduce ? 0 : easeIn((t - ZOOM_AT) / ZOOM_LEN);
       if (!brandGone && brand && t > ZOOM_AT - 0.1 && !reduce) { brandGone = true; brand.style.transition = 'opacity 320ms ease, transform 600ms cubic-bezier(.5,0,.75,0)'; brand.style.opacity = '0'; brand.style.transform = 'scale(1.25)'; }
@@ -473,8 +475,6 @@
       // vignette
       var vg = ctx.createRadialGradient(W / 2, H / 2, m * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
       vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.45)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
-      var gone = sp && sp.classList.contains('splash-leave');
-      if (!reduce && !(gone && t > 4)) raf = requestAnimationFrame(frame);
     }
     raf = requestAnimationFrame(frame);
   })();

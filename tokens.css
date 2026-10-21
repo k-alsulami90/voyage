@@ -412,10 +412,8 @@ textarea:focus-visible,
 /* Respect reduced motion — kill the pulses, the press scale, and the
    screen-enter settle for users who asked for less motion. */
 @media (prefers-reduced-motion: reduce) {
-  @keyframes pulse      { 0%, 100% { opacity: 1; transform: none; } }
-  @keyframes pulse-fade { 0%, 100% { opacity: 1; } }
-  .screen-enter { animation: none; }
-  button:active, .press-soft:active, [role="button"]:active { transform: none; }
+  html:not(.motion-full) .screen-enter { animation: none; }
+  html:not(.motion-full) button:active, html:not(.motion-full) .press-soft:active, html:not(.motion-full) [role="button"]:active { transform: none; }
 }
 
 /* Pull-to-refresh indicator */
@@ -501,7 +499,7 @@ textarea:focus-visible,
 @keyframes v-pop { 0% { transform: scale(0.9); } 45% { transform: scale(1.2); } 75% { transform: scale(1.0); } 100% { transform: scale(1.06); } }
 .v-pop { animation: v-pop 520ms cubic-bezier(.3, .7, .4, 1); }
 @media (prefers-reduced-motion: reduce) {
-  .v-screen > * > *, .v-list > *, .v-grow, .v-dash, .v-pop, .v-flip-in, .v-stamp, .v-bar { animation: none !important; }
+  html:not(.motion-full) :is(.v-screen > * > *, .v-list > *, .v-grow, .v-dash, .v-pop, .v-flip-in, .v-stamp, .v-bar) { animation: none !important; }
 }
 
 
@@ -518,4 +516,4 @@ textarea:focus-visible,
 .v-draw { animation: v-draw 1100ms cubic-bezier(.16, 1, .3, 1) 120ms backwards; }
 @keyframes v-wash { from { opacity: 0; } }
 .v-wash { animation: v-wash 900ms ease 400ms backwards; }
-@media (prefers-reduced-motion: reduce) { .v-draw, .v-wash { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { html:not(.motion-full) :is(.v-draw, .v-wash) { animation: none !important; } }

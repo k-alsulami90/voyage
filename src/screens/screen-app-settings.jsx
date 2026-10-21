@@ -18,6 +18,33 @@ function AppToggle({ on, onChange }) {
   );
 }
 
+function MotionRow() {
+  const ar = window.isRTL;
+  const sysReduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const [full, setFull] = React.useState(() => document.documentElement.classList.contains('motion-full'));
+  const toggle = (v) => {
+    setFull(v);
+    document.documentElement.classList.toggle('motion-full', v);
+    try { if (v) localStorage.setItem('voyage:motion', 'full'); else localStorage.removeItem('voyage:motion'); } catch (_) {}
+    window.haptic?.();
+    window.toast?.(v ? (ar ? 'الحركة والمؤثرات شغّالة ✨' : 'Motion on ✨') : (ar ? 'رجعنا لإعداد الجهاز' : 'Following the device setting'), 'success');
+  };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexDirection: 'row', padding: '13px 16px', borderTop: '0.5px solid var(--hairline)' }}>
+      <div style={{ width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--cream)', border: '0.5px solid var(--hairline)', fontSize: 15 }}>✨</div>
+      <div style={{ flex: 1, textAlign: 'start' }}>
+        <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>{ar ? 'الحركة والمؤثرات دائماً' : 'Always animate'}</div>
+        <div style={{ fontSize: 11.5, color: sysReduce ? 'var(--clay-deep)' : 'var(--ink-mute)', marginTop: 2, lineHeight: 1.45 }}>
+          {sysReduce
+            ? (ar ? '«تقليل الحركة» مفعّل في جهازك، وهو اللي موقف المؤثرات. فعّل هذا لتشتغل في التطبيق.' : 'Reduce Motion is on in your device — turn this on to keep the app’s motion.')
+            : (ar ? 'المؤثرات شغّالة حسب إعداد جهازك.' : 'Motion follows your device setting.')}
+        </div>
+      </div>
+      <AppToggle on={full} onChange={toggle} />
+    </div>
+  );
+}
+
 function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkToggle, onLangChange }) {
   // Seed from the global account cache (primed at hydrate, refreshed on
   // every visit) so a return to this screen paints the real name / email
@@ -141,6 +168,9 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
             </div>
             <AppToggle on={dark} onChange={onDarkToggle} />
           </div>
+
+          {/* Motion row — overrides iOS "Reduce Motion" for this app */}
+          <MotionRow />
 
           {/* Language row */}
           <div style={{

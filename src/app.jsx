@@ -791,7 +791,7 @@ function RouteNav({ tabs, active, onChange, onAdd }) {
   // The plane follows VISUAL order, which flips under RTL.
   const pos = window.isRTL ? (N - 1 - activeIndex) : activeIndex;
   const reduce = typeof window !== 'undefined' && window.matchMedia
-    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false;
+    ? (window.vReduce ? window.vReduce() : window.matchMedia('(prefers-reduced-motion: reduce)').matches) : false;
   // The plane flies on a slightly under-damped spring: it overshoots a
   // touch and settles, like something with mass.
   const fly = window.vSpring ? window.vSpring(0.72, 0.5) : { duration: 260, easing: 'cubic-bezier(.2,.8,.2,1)' };

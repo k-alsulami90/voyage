@@ -14,7 +14,8 @@
 //   ScreenStage                → screen layers + transitions + swipe-back
 //   Overlay                    → full-screen modal that slides up / drags down
 
-const vReduce = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+const vReduce = () => !document.documentElement.classList.contains('motion-full')
+  && !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 window.vReduce = vReduce;
 const vProject = (v, d = 0.998) => (v / 1000) * d / (1 - d);   // Apple's momentum projection
 

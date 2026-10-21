@@ -179,7 +179,7 @@ const TintCard = ({ tint = 'clay', children }) => {
 // and exit share the same path (up from / down to the bottom edge).
 //   spring: damping ratio ζ + response T (Apple's parameters)
 //   release: project the resting point from velocity, then decide.
-const _reduceMotion = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+const _reduceMotion = () => (window.vReduce ? window.vReduce() : !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches));
 const _project = (v, d = 0.998) => (v / 1000) * d / (1 - d);
 const _rubber = (over, dim, c = 0.55) => (over * dim * c) / (dim + c * Math.abs(over));
 
