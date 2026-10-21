@@ -166,6 +166,10 @@ function ScreenTrips({ goTrip, go }) {
          not via tile frames. */}
       {stats && stats.totalTrips > 0 && (
         <div style={{ padding: '0 14px' }}>
+          <div style={{
+            position: 'relative', overflow: 'hidden', borderRadius: 26,
+            background: 'var(--statement)', boxShadow: 'var(--shadow-card)',
+          }}>
           <button onClick={() => go('insights')}
             aria-label={window.isRTL
               ? `افتح الإحصائيات — ${stats.totalTrips} رحلات، ${stats.totalDays} يوم سفر`
@@ -173,10 +177,9 @@ function ScreenTrips({ goTrip, go }) {
             style={{
             all: 'unset', cursor: 'pointer',
             width: '100%', boxSizing: 'border-box',
-            background: 'var(--statement)', color: 'var(--statement-fg)',
-            borderRadius: 26, padding: '20px 22px',
-            position: 'relative', overflow: 'hidden',
-            boxShadow: 'var(--shadow-card)',
+            background: 'transparent', color: 'var(--statement-fg)',
+            padding: '20px 22px 6px',
+            position: 'relative', zIndex: 2,
             display: 'block',
           }}>
             {/* Subtle single-direction glow — replaces the dual-aurora
@@ -247,6 +250,22 @@ function ScreenTrips({ goTrip, go }) {
               </div>
             </div>
           </button>
+          {/* Your travels on a live 3D globe: pins for every country, arcs
+             from home. Drag to spin it; it drifts on its own when idle. */}
+          <div style={{ position: 'relative', height: 236, marginTop: -4, display: 'flex', justifyContent: 'center',
+            WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 18%)', maskImage: 'linear-gradient(to bottom, transparent 0, #000 18%)' }}>
+            <window.Globe width={380} height={236} radius={158} cy={196}
+              pins={window.tripPins(window.TRIPS)} homeCode={window.homeCountryCode()} />
+          </div>
+          <div style={{ position: 'absolute', bottom: 12, insetInlineStart: 18, zIndex: 3, display: 'flex', gap: 12,
+            fontSize: 11, color: 'var(--statement-sub)', pointerEvents: 'none' }}>
+            {[['rgb(255,214,170)', window.isRTL ? 'زرتها' : 'Visited'], ['rgb(255,140,90)', window.isRTL ? 'قادمة' : 'Upcoming'], ['rgb(120,215,160)', window.isRTL ? 'الآن' : 'Now']].map(([c, l]) => (
+              <span key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 7, height: 7, borderRadius: 99, background: c, boxShadow: `0 0 8px ${c}` }} />{l}
+              </span>
+            ))}
+          </div>
+          </div>
         </div>
       )}
 
@@ -312,9 +331,9 @@ function ScreenTrips({ goTrip, go }) {
         return (
           <div style={{ padding: '4px 14px 0' }}>
             <SectionLabel>{t('currentlyTraveling')}</SectionLabel>
-            <div className="v-list" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="v-list v-deck" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {live.map((tr) => (
-                <CurrentTripCard key={tr.id} trip={tr} onOpen={() => goTrip(tr.id)} />
+                <window.Tilt key={tr.id} max={7} radius={28}><CurrentTripCard trip={tr} onOpen={() => goTrip(tr.id)} /></window.Tilt>
               ))}
             </div>
           </div>
@@ -325,9 +344,9 @@ function ScreenTrips({ goTrip, go }) {
       {upcoming.length > 0 && (scope === 'all') && (
         <div style={{ padding: '24px 0 0' }}>
           <SectionLabel>{t('upcoming')}</SectionLabel>
-          <div style={{ display: 'flex', gap: 12, padding: '0 22px 4px', overflowX: 'auto' }} className="no-scrollbar v-list">
+          <div style={{ display: 'flex', gap: 12, padding: '0 22px 4px', overflowX: 'auto' }} className="no-scrollbar v-list v-deck">
             {upcoming.map((trip) => (
-              <UpcomingTripCard key={trip.id} trip={trip} onOpen={() => goTrip(trip.id)} />
+              <window.Tilt key={trip.id} max={8} radius={24} style={{ flexShrink: 0 }}><UpcomingTripCard trip={trip} onOpen={() => goTrip(trip.id)} /></window.Tilt>
             ))}
           </div>
         </div>

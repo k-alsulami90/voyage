@@ -162,23 +162,8 @@ function TodayBudgetCard({ onManage }) {
           </div>
         )}
 
-        {/* Cards */}
-        <div style={{ marginTop: 12, borderTop: '0.5px solid var(--hairline)', paddingTop: 6 }}>
-          {b.cards.map((c) => {
-            const m = members.find((x) => x.id === c.id) || { id: c.id, name: '?' };
-            return (
-              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0' }}>
-                <Avatar m={m} size={26} />
-                <span style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)' }}>
-                  {ar ? `بطاقة ${_first(m)}` : `${_first(m)}'s card`}
-                </span>
-                <span className="mono" style={{ fontSize: 14, fontWeight: 600, color: c.left < 0 ? 'var(--clay-deep)' : 'var(--ink)' }}>
-                  {fmtC(c.left)}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+        {/* The group's cards — physical 3D cards: swipe or tap to flip through */}
+        <window.WalletCarousel cards={b.cards} members={members} fmt={fmtC} />
       </div>
     </div>
   );

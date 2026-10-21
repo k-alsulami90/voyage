@@ -5,6 +5,7 @@ function ScreenHub({ go, openSheet, loading }) {
   // Hero parallax: the cover drifts slower than the page and swells a
   // little when you pull past the top — the screen feels like it has depth.
   const heroImgRef = React.useRef(null);
+  const heroTilt = window.useTiltRef({ max: 6 });
   React.useEffect(() => {
     const img = heroImgRef.current; if (!img || window.vReduce?.()) return;
     const sc = img.closest('.v-screen'); if (!sc) return;
@@ -91,7 +92,7 @@ function ScreenHub({ go, openSheet, loading }) {
 
       {/* HERO — big illustration card with trip name bleeding off bottom */}
       <div style={{ position: 'relative', padding: '0 14px', paddingTop: 110 }}>
-        <div style={{
+        <div ref={heroTilt} className="v-flip-in" style={{
           position: 'relative', height: 230, borderRadius: 32,
           overflow: 'hidden', boxShadow: 'var(--shadow-lg)',
         }}>

@@ -90,7 +90,9 @@ function haptic() {
   } catch (_) {}
 }
 
-Object.assign(window, { vSpring, vCurve, vAnimate, vSpringTo, vProject, haptic });
+// Progressive resistance past an edge (Apple's rubber-band).
+const vRubber = (over, dim, c = 0.55) => (over * dim * c) / (dim + c * Math.abs(over));
+Object.assign(window, { vSpring, vCurve, vAnimate, vSpringTo, vProject, vRubber, haptic });
 
 // ── CountUp: numbers roll to their new value ───────────────────────────
 // First time an `id` appears this session it counts up from 0; after that
@@ -100,7 +102,9 @@ window.__vCount = window.__vCount || {};
 function CountUp({ id, value, format, className, style }) {
   const target = Number(value) || 0;
   const seen = id != null ? window.__vCount[id] : undefined;
-  const startRef = React.useRef(seen != null ? seen : (vReduce() ? target : 0));
+  // Counts up from zero each time it appears (the screen feels alive);
+  // while mounted, later changes roll from the current value.
+  const startRef = React.useRef(vReduce() ? target : 0);
   const curRef = React.useRef(startRef.current);
   const fmtRef = React.useRef(format); fmtRef.current = format;
   const spanRef = React.useRef(null);
