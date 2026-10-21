@@ -257,6 +257,11 @@ function ScreenTrips({ goTrip, go }) {
             <window.Globe width={380} height={236} radius={158} cy={196}
               pins={window.tripPins(window.TRIPS)} homeCode={window.homeCountryCode()} />
           </div>
+          {window.tripPins(window.TRIPS).length === 0 && (
+            <div style={{ position: 'absolute', top: 128, insetInline: 18, zIndex: 3, textAlign: 'center', fontSize: 12, color: 'var(--statement-fg)', opacity: 0.85, pointerEvents: 'none' }}>
+              {window.isRTL ? 'اكتب اسم المدينة أو الدولة في عنوان الرحلة لتظهر هنا' : 'Put the city or country in a trip name to pin it here'}
+            </div>
+          )}
           <div style={{ position: 'absolute', bottom: 12, insetInlineStart: 18, zIndex: 3, display: 'flex', gap: 12,
             fontSize: 11, color: 'var(--statement-sub)', pointerEvents: 'none' }}>
             {[['rgb(255,214,170)', window.isRTL ? 'زرتها' : 'Visited'], ['rgb(255,140,90)', window.isRTL ? 'قادمة' : 'Upcoming'], ['rgb(120,215,160)', window.isRTL ? 'الآن' : 'Now']].map(([c, l]) => (

@@ -53,7 +53,7 @@ const _vec = (lat, lng) => {
 
 function Globe({ width = 340, height = 240, radius = 150, cx, cy, pins = [], homeCode, onReady }) {
   const ref = React.useRef(null);
-  const pinsKey = pins.map((p) => p.code + p.kind).join('|');
+  const pinsKey = pins.map((p) => (p.key || p.code) + p.kind + (p.label || '')).join('|');
   React.useEffect(() => {
     const cv = ref.current; if (!cv) return;
     const reduce = window.vReduce?.();
@@ -64,9 +64,12 @@ function Globe({ width = 340, height = 240, radius = 150, cx, cy, pins = [], hom
     const dots = _globeDots();
     const home = countryLatLng(homeCode) || [24, 45];
     const homeV = _vec(home[0], home[1]);
-    const P = pins.map((p) => { const ll = countryLatLng(p.code); return ll && { ...p, v: _vec(ll[0], ll[1]) }; }).filter(Boolean);
+    const P = pins.map((p) => {
+      const ll = p.lat != null ? [p.lat, p.lng] : countryLatLng(p.code);
+      return ll && { ...p, ll, v: _vec(ll[0], ll[1]) };
+    }).filter(Boolean);
     // great-circle arcs, lifted off the surface in proportion to length
-    const arcs = P.filter((p) => p.code !== homeCode).map((p) => {
+    const arcs = P.filter((p) => Math.abs(p.ll[0] - home[0]) + Math.abs(p.ll[1] - home[1]) > 3).map((p) => {
       const a = homeV, b = p.v;
       const dot = Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]));
       const om = Math.acos(dot), so = Math.sin(om) || 1, pts = [];
@@ -79,8 +82,13 @@ function Globe({ width = 340, height = 240, radius = 150, cx, cy, pins = [], hom
     });
 
     // view state: yaw (lam) around the pole, fixed pitch looking a bit north
-    const target = home[1] * Math.PI / 180 - 0.18;
-    const S = { lam: reduce ? target : target - 2.4, phi: 0.42, vel: 0, drag: null, auto: !reduce, arcT: reduce ? 1 : 0, t0: performance.now() };
+    let sx = Math.cos(home[1] * Math.PI / 180), sy = Math.sin(home[1] * Math.PI / 180), lat = home[0];
+    P.forEach((p) => { sx += Math.cos(p.ll[1] * Math.PI / 180); sy += Math.sin(p.ll[1] * Math.PI / 180); lat += p.ll[0]; });
+    const spread = Math.hypot(sx, sy) / (P.length + 1);
+    const midLng = spread > 0.55 ? Math.atan2(sy, sx) : home[1] * Math.PI / 180;
+    const target = midLng - 0.05;
+    const tilt = Math.max(0.15, Math.min(0.85, (lat / (P.length + 1)) * Math.PI / 180));
+    const S = { lam: reduce ? target : target - 2.4, phi: tilt, vel: 0, drag: null, auto: !reduce, arcT: reduce ? 1 : 0, t0: performance.now() };
     let entrance = null;
     if (!reduce && window.vSpringTo) {
       entrance = window.vSpringTo({ from: S.lam, to: target, damping: 1, response: 1.15, onUpdate: (x) => { S.lam = x; }, onDone: () => { entrance = null; } });
@@ -158,6 +166,29 @@ function Globe({ width = 340, height = 240, radius = 150, cx, cy, pins = [], hom
       };
       drawPin(homeV, 'rgba(255,255,255,A)', false, 2.6);
       P.forEach((p) => drawPin(p.v, p.kind === 'upcoming' ? 'rgba(255,140,90,A)' : p.kind === 'live' ? 'rgba(120,215,160,A)' : 'rgba(255,214,170,A)', p.kind === 'live' || p.kind === 'upcoming', 3.4));
+      // place names
+      const boxes = [];
+      ctx.font = '600 11px -apple-system, "SF Arabic", "Geeza Pro", system-ui, sans-serif';
+      ctx.textBaseline = 'middle';
+      P.map((p) => ({ p, q: project(p.v[0], p.v[1], p.v[2]) })).filter((o) => o.q[2] > 0.22).sort((a, b) => b.q[2] - a.q[2]).forEach(({ p, q }) => {
+        const label = p.label || p.code; if (!label) return;
+        const X = CX + q[0] * R, Y = CY - q[1] * R;
+        const rtl = /[\u0600-\u06FF]/.test(label);
+        ctx.direction = rtl ? 'rtl' : 'ltr';
+        const w = ctx.measureText(label).width + 12, h = 18;
+        const right = X + 8 + w < width - 4;
+        const bx = right ? X + 8 : X - 8 - w, by = Y - h - 4;
+        if (boxes.some((b) => bx < b[0] + b[2] && bx + w > b[0] && by < b[1] + b[3] && by + h > b[1])) return;
+        boxes.push([bx, by, w, h]);
+        const a = Math.min(1, (q[2] - 0.22) * 3);
+        ctx.globalAlpha = a;
+        ctx.fillStyle = 'rgba(12,16,30,0.62)';
+        ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(bx, by, w, h, 9); else ctx.rect(bx, by, w, h); ctx.fill();
+        ctx.fillStyle = p.kind === 'upcoming' ? '#ffb48f' : p.kind === 'live' ? '#9fe6bd' : '#fff1de';
+        ctx.textAlign = rtl ? 'right' : 'left';
+        ctx.fillText(label, rtl ? bx + w - 6 : bx + 6, by + h / 2 + 0.5);
+        ctx.globalAlpha = 1;
+      });
     };
 
     // loop: only while on screen and the app is visible
@@ -213,6 +244,55 @@ function Globe({ width = 340, height = 240, radius = 150, cx, cy, pins = [], hom
 }
 window.Globe = Globe;
 
+// ── Gazetteer: find where a trip went from its name ───────────────────
+// Trips often carry no country code, so the globe reads the trip's title
+// and subtitle ("إسطنبول", "Istanbul & Bursa", "لندن") against a curated
+// list of destinations and every country name (Arabic + English).
+const _CITIES = 'إسطنبول|اسطنبول|istanbul@41.01,28.98;طرابزون|trabzon@41.0,39.72;أنطاليا|انطاليا|antalya@36.9,30.7;بورصة|bursa@40.19,29.06;سبانجا|سابانجا|sapanca@40.69,30.27;أوزنجول|اوزنجول|uzungol@40.62,40.29;بودروم|bodrum@37.03,27.43;كابادوكيا|cappadocia@38.64,34.83;أنقرة|ankara@39.93,32.86;إزمير|izmir@38.42,27.14;لندن|london@51.51,-0.13;مانشستر|manchester@53.48,-2.24;إدنبرة|ادنبره|edinburgh@55.95,-3.19;اسكتلندا|scotland@56.49,-4.2;باريس|paris@48.86,2.35;نيس|nice@43.7,7.27;ميلانو|milan|milano@45.46,9.19;روما|rome|roma@41.9,12.5;فلورنسا|florence@43.77,11.26;البندقية|venice@45.44,12.33;مدريد|madrid@40.42,-3.7;برشلونة|barcelona@41.39,2.17;ماربيا|ماربيلا|marbella@36.51,-4.88;جنيف|geneva@46.2,6.14;زيورخ|zurich@47.38,8.54;إنترلاكن|انترلاكن|interlaken@46.69,7.86;لوزيرن|لوسيرن|lucerne|luzern@47.05,8.31;فيينا|vienna@48.21,16.37;زيلامسي|زيل امسي|zell am see@47.32,12.8;ميونخ|munich@48.14,11.58;برلين|berlin@52.52,13.4;فرانكفورت|frankfurt@50.11,8.68;أمستردام|امستردام|amsterdam@52.37,4.9;براغ|prague@50.08,14.44;بودابست|budapest@47.5,19.04;أثينا|athens@37.98,23.73;سانتوريني|santorini@36.39,25.46;ميكونوس|mykonos@37.45,25.33;لشبونة|lisbon@38.72,-9.14;موسكو|moscow@55.76,37.62;سانت بطرسبرغ|بطرسبرغ|st petersburg|saint petersburg@59.93,30.34;سراييفو|sarajevo@43.86,18.41;تبليسي|tbilisi@41.72,44.79;باتومي|batumi@41.64,41.64;باكو|baku@40.41,49.87;قبالا|gabala|qabala@40.98,47.85;دبي|dubai@25.2,55.27;أبوظبي|ابوظبي|abu dhabi@24.45,54.38;الدوحة|doha@25.29,51.53;المنامة|manama@26.23,50.59;مسقط|muscat@23.59,58.41;صلالة|salalah@17.02,54.09;القاهرة|cairo@30.04,31.24;شرم الشيخ|sharm el sheikh|sharm@27.92,34.33;الغردقة|hurghada@27.26,33.81;الإسكندرية|alexandria@31.2,29.92;بيروت|beirut@33.89,35.5;مراكش|marrakech|marrakesh@31.63,-8.0;الدار البيضاء|casablanca@33.57,-7.59;كوالالمبور|كوالا لمبور|kuala lumpur@3.14,101.69;لنكاوي|langkawi@6.35,99.8;بينانج|penang@5.41,100.33;جاكرتا|jakarta@-6.2,106.85;بالي|bali@-8.34,115.09;باندونق|باندونغ|bandung@-6.92,107.62;بانكوك|bangkok@13.76,100.5;بوكيت|phuket@7.88,98.39;سنغافورة|singapore@1.35,103.82;ماليه|male@4.18,73.51;كولومبو|colombo@6.93,79.86;طوكيو|tokyo@35.68,139.69;كيوتو|kyoto@35.01,135.77;أوساكا|اوساكا|osaka@34.69,135.5;سيول|seoul@37.57,126.98;بكين|beijing@39.9,116.4;شنغهاي|shanghai@31.23,121.47;هونغ كونغ|هونج كونج|hong kong@22.32,114.17;نيويورك|new york@40.71,-74.01;لوس أنجلوس|لوس انجلوس|los angeles@34.05,-118.24;ميامي|miami@25.76,-80.19;لاس فيغاس|لاس فيجاس|las vegas@36.17,-115.14;سان فرانسيسكو|san francisco@37.77,-122.42;واشنطن|washington@38.9,-77.04;تورنتو|toronto@43.65,-79.38;فانكوفر|vancouver@49.28,-123.12;كانكون|cancun@21.16,-86.85;ريو دي جانيرو|rio de janeiro@-22.91,-43.17;سيدني|sydney@-33.87,151.21;ملبورن|melbourne@-37.81,144.96;كيب تاون|cape town@-33.92,18.42;زنجبار|zanzibar@-6.17,39.2;نيروبي|nairobi@-1.29,36.82;مكة|makkah|mecca@21.42,39.83;المدينة المنورة|madinah|medina@24.47,39.61;الرياض|riyadh@24.71,46.68;جدة|jeddah@21.49,39.19;أبها|ابها|abha@18.22,42.5;العلا|alula|al ula@26.61,37.92;الطائف|taif@21.27,40.42;كشمير|kashmir@34.08,74.8;إسلام آباد|اسلام اباد|islamabad@33.68,73.05;هاواي|hawaii@20.8,-156.33';
+const _COUNTRIES = 'AF~أفغانستان~Afghanistan~أفغانستان|Afghanistan;AL~ألبانيا~Albania~ألبانيا|Albania;DZ~الجزائر~Algeria~الجزائر|Algeria;AS~ساموا الأمريكية~American Samoa~ساموا الأمريكية|American Samoa;AD~أندورا~Andorra~أندورا|Andorra;AO~أنغولا~Angola~أنغولا|Angola;AI~أنغويلا~Anguilla~أنغويلا|Anguilla;AQ~القارة القطبية الجنوبية~Antarctica~القارة القطبية الجنوبية|Antarctica;AG~أنتيغوا وباربودا~Antigua and Barbuda~أنتيغوا وباربودا|Antigua and Barbuda;AR~الأرجنتين~Argentina~الأرجنتين|Argentina;AM~أرمينيا~Armenia~أرمينيا|Armenia;AW~أروبا~Aruba~أروبا|Aruba;AU~أستراليا~Australia~أستراليا|Australia;AT~النمسا~Austria~النمسا|Austria;AZ~أذربيجان~Azerbaijan~أذربيجان|Azerbaijan|اذربيجان|azerbaijan;BS~باهاماس~Bahamas~باهاماس|Bahamas;BH~البحرين~Bahrain~البحرين|Bahrain;BD~بنغلاديش~Bangladesh~بنغلاديش|Bangladesh;BB~باربادوس~Barbados~باربادوس|Barbados;BY~روسيا البيضاء~Belarus~روسيا البيضاء|Belarus;BE~بلجيكا~Belgium~بلجيكا|Belgium;BZ~بليز~Belize~بليز|Belize;BJ~بنين~Benin~بنين|Benin;BM~برمودا~Bermuda~برمودا|Bermuda;BT~بوتان~Bhutan~بوتان|Bhutan;BO~بوليفيا~Bolivia~بوليفيا|Bolivia;BA~البوسنة والهرسك~Bosnia and Herzegovina~البوسنة والهرسك|Bosnia and Herzegovina|البوسنه|bosnia;BW~بوتسوانا~Botswana~بوتسوانا|Botswana;BV~جزيرة بوفيه~Bouvet Island~جزيرة بوفيه|Bouvet Island;BR~البرازيل~Brazil~البرازيل|Brazil;IO~إقليم المحيط الهندي البريطاني~British Indian Ocean Territory~إقليم المحيط الهندي البريطاني|British Indian Ocean Territory;BN~بروناي~Brunei Darussalam~بروناي|Brunei Darussalam;BG~بلغاريا~Bulgaria~بلغاريا|Bulgaria;BF~بوركينا فاسو~Burkina Faso~بوركينا فاسو|Burkina Faso;BI~بوروندي~Burundi~بوروندي|Burundi;KH~كمبوديا~Cambodia~كمبوديا|Cambodia;CM~الكاميرون~Cameroon~الكاميرون|Cameroon;CA~كندا~Canada~كندا|Canada;CV~الرأس الأخضر~Cape Verde~الرأس الأخضر|Cape Verde;KY~جزر كايمان~Cayman Islands~جزر كايمان|Cayman Islands;CF~جمهورية أفريقيا الوسطى~Central African Republic~جمهورية أفريقيا الوسطى|Central African Republic;TD~تشاد~Chad~تشاد|Chad;CL~تشيلي~Chile~تشيلي|Chile;CN~الصين~People’s Republic of China~الصين|People’s Republic of China|China;CX~جزيرة عيد الميلاد~Christmas Island~جزيرة عيد الميلاد|Christmas Island;CC~جزر كوكوس~Cocos (Keeling) Islands~جزر كوكوس|Cocos (Keeling) Islands;CO~كولومبيا~Colombia~كولومبيا|Colombia;KM~جزر القمر~Comoros~جزر القمر|Comoros;CG~جمهورية الكونغو~Republic of the Congo~جمهورية الكونغو|Republic of the Congo|Congo;CD~جمهورية الكونغو الديمقراطية~Democratic Republic of the Congo~جمهورية الكونغو الديمقراطية|Democratic Republic of the Congo|Congo;CK~جزر كوك~Cook Islands~جزر كوك|Cook Islands;CR~كوستاريكا~Costa Rica~كوستاريكا|Costa Rica;CI~ساحل العاج~Cote d’Ivoire~ساحل العاج|Cote d’Ivoire|Côte d’Ivoire|Ivory Coast;HR~كرواتيا~Croatia~كرواتيا|Croatia;CU~كوبا~Cuba~كوبا|Cuba;CY~قبرص~Cyprus~قبرص|Cyprus;CZ~جمهورية التشيك~Czech Republic~جمهورية التشيك|Czech Republic|Czechia|التشيك|czech;DK~الدنمارك~Denmark~الدنمارك|Denmark;DJ~جيبوتي~Djibouti~جيبوتي|Djibouti;DM~دومينيكا~Dominica~دومينيكا|Dominica;DO~جمهورية الدومينيكان~Dominican Republic~جمهورية الدومينيكان|Dominican Republic;EC~الإكوادور~Ecuador~الإكوادور|Ecuador;EG~مصر~Egypt~مصر|Egypt;SV~السلفادور~El Salvador~السلفادور|El Salvador;GQ~غينيا الاستوائية~Equatorial Guinea~غينيا الاستوائية|Equatorial Guinea;ER~إريتريا~Eritrea~إريتريا|Eritrea;EE~إستونيا~Estonia~إستونيا|Estonia;ET~إثيوبيا~Ethiopia~إثيوبيا|Ethiopia;FK~جزر فوكلاند~Falkland Islands (Malvinas)~جزر فوكلاند|Falkland Islands (Malvinas);FO~جزر فارو~Faroe Islands~جزر فارو|Faroe Islands;FJ~فيجي~Fiji~فيجي|Fiji;FI~فنلندا~Finland~فنلندا|Finland;FR~فرنسا~France~فرنسا|France;GF~غويانا الفرنسية~French Guiana~غويانا الفرنسية|French Guiana;PF~بولينزيا الفرنسية~French Polynesia~بولينزيا الفرنسية|French Polynesia;TF~أراض فرنسية جنوبية وأنتارتيكية~French Southern Territories~أراض فرنسية جنوبية وأنتارتيكية|French Southern Territories;GA~الغابون~Gabon~الغابون|Gabon;GM~غامبيا~Republic of The Gambia~غامبيا|Republic of The Gambia|The Gambia|Gambia;GE~جورجيا~Georgia~جورجيا|Georgia;DE~ألمانيا~Germany~ألمانيا|Germany;GH~غانا~Ghana~غانا|Ghana;GI~جبل طارق~Gibraltar~جبل طارق|Gibraltar;GR~اليونان~Greece~اليونان|Greece;GL~جرينلاند~Greenland~جرينلاند|Greenland;GD~غرينادا~Grenada~غرينادا|Grenada;GP~غوادلوب~Guadeloupe~غوادلوب|Guadeloupe;GU~غوام~Guam~غوام|Guam;GT~غواتيمالا~Guatemala~غواتيمالا|Guatemala;GN~غينيا~Guinea~غينيا|Guinea;GW~غينيا بيساو~Guinea-Bissau~غينيا بيساو|Guinea-Bissau;GY~غيانا~Guyana~غيانا|Guyana;HT~هايتي~Haiti~هايتي|Haiti;HM~جزيرة هيرد وجزر ماكدونالد~Heard Island and McDonald Islands~جزيرة هيرد وجزر ماكدونالد|Heard Island and McDonald Islands;VA~الفاتيكان~Holy See (Vatican City State)~الفاتيكان|Holy See (Vatican City State);HN~هندوراس~Honduras~هندوراس|Honduras;HK~هونغ كونغ~Hong Kong~هونغ كونغ|Hong Kong;HU~المجر~Hungary~المجر|Hungary;IS~آيسلندا~Iceland~آيسلندا|Iceland;IN~الهند~India~الهند|India;ID~إندونيسيا~Indonesia~إندونيسيا|Indonesia|اندونيسيا;IR~إيران~Islamic Republic of Iran~إيران|Islamic Republic of Iran|Iran;IQ~العراق~Iraq~العراق|Iraq;IE~أيرلندا~Ireland~أيرلندا|Ireland;IL~إسرائيل~Israel~إسرائيل|Israel;IT~إيطاليا~Italy~إيطاليا|Italy;JM~جامايكا~Jamaica~جامايكا|Jamaica;JP~اليابان~Japan~اليابان|Japan;JO~الأردن~Jordan~الأردن|Jordan;KZ~كازاخستان~Kazakhstan~كازاخستان|Kazakhstan;KE~كينيا~Kenya~كينيا|Kenya;KI~كيريباتي~Kiribati~كيريباتي|Kiribati;KP~كوريا الشمالية~North Korea~كوريا الشمالية|North Korea;KR~كوريا الجنوبية~South Korea~كوريا الجنوبية|South Korea|Korea, Republic of|Republic of Korea|كوريا|korea;KW~الكويت~Kuwait~الكويت|Kuwait;KG~قيرغيزستان~Kyrgyzstan~قيرغيزستان|Kyrgyzstan;LA~لاوس~Lao People’s Democratic Republic~لاوس|Lao People’s Democratic Republic;LV~لاتفيا~Latvia~لاتفيا|Latvia;LB~لبنان~Lebanon~لبنان|Lebanon;LS~ليسوتو~Lesotho~ليسوتو|Lesotho;LR~ليبيريا~Liberia~ليبيريا|Liberia;LY~ليبيا~Libya~ليبيا|Libya;LI~ليختنشتاين~Liechtenstein~ليختنشتاين|Liechtenstein;LT~ليتوانيا~Lithuania~ليتوانيا|Lithuania;LU~لوكسمبورغ~Luxembourg~لوكسمبورغ|Luxembourg;MO~ماكاو~Macao~ماكاو|Macao;MK~مقدونيا الشمالية~The Republic of North Macedonia~مقدونيا الشمالية|The Republic of North Macedonia|North Macedonia;MG~مدغشقر~Madagascar~مدغشقر|Madagascar;MW~مالاوي~Malawi~مالاوي|Malawi;MY~ماليزيا~Malaysia~ماليزيا|Malaysia;MV~جزر المالديف~Maldives~جزر المالديف|Maldives|المالديف;ML~مالي~Mali~مالي|Mali;MT~مالطا~Malta~مالطا|Malta;MH~جزر مارشال~Marshall Islands~جزر مارشال|Marshall Islands;MQ~مارتينيك~Martinique~مارتينيك|Martinique;MR~موريتانيا~Mauritania~موريتانيا|Mauritania;MU~موريشيوس~Mauritius~موريشيوس|Mauritius;YT~مايوت~Mayotte~مايوت|Mayotte;MX~المكسيك~Mexico~المكسيك|Mexico;FM~ولايات ميكرونيسيا المتحدة~Micronesia, Federated States of~ولايات ميكرونيسيا المتحدة|Micronesia, Federated States of;MD~مولدوفا~Moldova, Republic of~مولدوفا|Moldova, Republic of;MC~موناكو~Monaco~موناكو|Monaco;MN~منغوليا~Mongolia~منغوليا|Mongolia;MS~مونتسرات~Montserrat~مونتسرات|Montserrat;MA~المغرب~Morocco~المغرب|Morocco;MZ~موزمبيق~Mozambique~موزمبيق|Mozambique;MM~بورما~Myanmar~بورما|Myanmar;NA~ناميبيا~Namibia~ناميبيا|Namibia;NR~ناورو~Nauru~ناورو|Nauru;NP~نيبال~Nepal~نيبال|Nepal;NL~هولندا~Netherlands~هولندا|Netherlands|The Netherlands|Netherlands (Kingdom of the)|holland;NC~كاليدونيا الجديدة~New Caledonia~كاليدونيا الجديدة|New Caledonia;NZ~نيوزيلندا~New Zealand~نيوزيلندا|New Zealand;NI~نيكاراغوا~Nicaragua~نيكاراغوا|Nicaragua;NE~النيجر~Niger~النيجر|Niger;NG~نيجيريا~Nigeria~نيجيريا|Nigeria;NU~نييوي~Niue~نييوي|Niue;NF~جزيرة نورفولك~Norfolk Island~جزيرة نورفولك|Norfolk Island;MP~جزر ماريانا الشمالية~Northern Mariana Islands~جزر ماريانا الشمالية|Northern Mariana Islands;NO~النرويج~Norway~النرويج|Norway;OM~عمان~Oman~عمان|Oman;PK~باكستان~Pakistan~باكستان|Pakistan;PW~بالاو~Palau~بالاو|Palau;PS~فلسطين~State of Palestine~فلسطين|State of Palestine|Palestine;PA~بنما~Panama~بنما|Panama;PG~بابوا غينيا الجديدة~Papua New Guinea~بابوا غينيا الجديدة|Papua New Guinea;PY~باراغواي~Paraguay~باراغواي|Paraguay;PE~بيرو~Peru~بيرو|Peru;PH~الفلبين~Philippines~الفلبين|Philippines;PN~جزر بيتكيرن~Pitcairn~جزر بيتكيرن|Pitcairn|Pitcairn Islands;PL~بولندا~Poland~بولندا|Poland;PT~البرتغال~Portugal~البرتغال|Portugal;PR~بورتوريكو~Puerto Rico~بورتوريكو|Puerto Rico;QA~قطر~Qatar~قطر|Qatar;RE~لا ريونيون~Reunion~لا ريونيون|Reunion;RO~رومانيا~Romania~رومانيا|Romania;RU~روسيا~Russian Federation~روسيا|Russian Federation|Russia;RW~رواندا~Rwanda~رواندا|Rwanda;SH~سانت هيلينا وأسينشين وتريستان دا كونا~Saint Helena~سانت هيلينا وأسينشين وتريستان دا كونا|Saint Helena;KN~سانت كيتس ونيفيس~Saint Kitts and Nevis~سانت كيتس ونيفيس|Saint Kitts and Nevis;LC~سانت لوسيا~Saint Lucia~سانت لوسيا|Saint Lucia;PM~سان بيير وميكلون~Saint Pierre and Miquelon~سان بيير وميكلون|Saint Pierre and Miquelon;VC~سانت فينسنت والغرينادين~Saint Vincent and the Grenadines~سانت فينسنت والغرينادين|Saint Vincent and the Grenadines;WS~ساموا~Samoa~ساموا|Samoa;SM~سان مارينو~San Marino~سان مارينو|San Marino;ST~ساو تومي وبرينسيب~Sao Tome and Principe~ساو تومي وبرينسيب|Sao Tome and Principe;SA~السعودية~Saudi Arabia~السعودية|Saudi Arabia|السعوديه;SN~السنغال~Senegal~السنغال|Senegal;SC~سيشل~Seychelles~سيشل|Seychelles;SL~سيراليون~Sierra Leone~سيراليون|Sierra Leone;SG~سنغافورة~Singapore~سنغافورة|Singapore;SK~سلوفاكيا~Slovakia~سلوفاكيا|Slovakia;SI~سلوفينيا~Slovenia~سلوفينيا|Slovenia;SB~جزر سليمان~Solomon Islands~جزر سليمان|Solomon Islands;SO~الصومال~Somalia~الصومال|Somalia;ZA~جنوب أفريقيا~South Africa~جنوب أفريقيا|South Africa;GS~جورجيا الجنوبية وجزر ساندويتش الجنوبية~South Georgia and the South Sandwich Islands~جورجيا الجنوبية وجزر ساندويتش الجنوبية|South Georgia and the South Sandwich Islands;ES~إسبانيا~Spain~إسبانيا|Spain;LK~سريلانكا~Sri Lanka~سريلانكا|Sri Lanka;SD~السودان~Sudan~السودان|Sudan;SR~سورينام~Suriname~سورينام|Suriname;SJ~سفالبارد ويان ماين~Svalbard and Jan Mayen~سفالبارد ويان ماين|Svalbard and Jan Mayen;SZ~سوازيلاند~Eswatini~سوازيلاند|Eswatini;SE~السويد~Sweden~السويد|Sweden;CH~سويسرا~Switzerland~سويسرا|Switzerland;SY~سوريا~Syrian Arab Republic~سوريا|Syrian Arab Republic;TW~تايوان~Taiwan, Province of China~تايوان|Taiwan, Province of China|Taiwan;TJ~طاجيكستان~Tajikistan~طاجيكستان|Tajikistan;TZ~تانزانيا~United Republic of Tanzania~تانزانيا|United Republic of Tanzania|Tanzania;TH~تايلاند~Thailand~تايلاند|Thailand|تايلند;TL~تيمور الشرقية~Timor-Leste~تيمور الشرقية|Timor-Leste;TG~توغو~Togo~توغو|Togo;TK~توكيلاو~Tokelau~توكيلاو|Tokelau;TO~تونغا~Tonga~تونغا|Tonga;TT~ترينيداد وتوباغو~Trinidad and Tobago~ترينيداد وتوباغو|Trinidad and Tobago;TN~تونس~Tunisia~تونس|Tunisia;TR~تركيا~Türkiye~تركيا|Türkiye|Turkey;TM~تركمانستان~Turkmenistan~تركمانستان|Turkmenistan;TC~جزر توركس وكايكوس~Turks and Caicos Islands~جزر توركس وكايكوس|Turks and Caicos Islands;TV~توفالو~Tuvalu~توفالو|Tuvalu;UG~أوغندا~Uganda~أوغندا|Uganda;UA~أوكرانيا~Ukraine~أوكرانيا|Ukraine;AE~الإمارات العربية المتحدة~United Arab Emirates~الإمارات العربية المتحدة|United Arab Emirates|UAE|الامارات|emirates;GB~المملكة المتحدة~United Kingdom~المملكة المتحدة|United Kingdom|UK|Great Britain|بريطانيا|انجلترا|انكلترا|england|uk|britain;US~الولايات المتحدة~United States of America~الولايات المتحدة|United States of America|United States|USA|U.S.A.|US|U.S.|امريكا|america;UM~جزر الولايات المتحدة~United States Minor Outlying Islands~جزر الولايات المتحدة|United States Minor Outlying Islands;UY~الأوروغواي~Uruguay~الأوروغواي|Uruguay;UZ~أوزبكستان~Uzbekistan~أوزبكستان|Uzbekistan;VU~فانواتو~Vanuatu~فانواتو|Vanuatu;VE~فنزويلا~Venezuela~فنزويلا|Venezuela;VN~فيتنام~Vietnam~فيتنام|Vietnam;VG~جزر العذراء البريطانية~Virgin Islands, British~جزر العذراء البريطانية|Virgin Islands, British;VI~جزر العذراء الأمريكية~Virgin Islands, U.S.~جزر العذراء الأمريكية|Virgin Islands, U.S.;WF~والس وفوتونا~Wallis and Futuna~والس وفوتونا|Wallis and Futuna;EH~الصحراء الغربية~Western Sahara~الصحراء الغربية|Western Sahara;YE~اليمن~Yemen~اليمن|Yemen;ZM~زامبيا~Zambia~زامبيا|Zambia;ZW~زيمبابوي~Zimbabwe~زيمبابوي|Zimbabwe;AX~جزر أولاند~Åland Islands~جزر أولاند|Åland Islands|Aland Islands;BQ~الجزر الكاريبية الهولندية~Bonaire, Sint Eustatius and Saba~الجزر الكاريبية الهولندية|Bonaire, Sint Eustatius and Saba;CW~كوراساو~Curaçao~كوراساو|Curaçao;GG~غيرنزي~Guernsey~غيرنزي|Guernsey;IM~جزيرة مان~Isle of Man~جزيرة مان|Isle of Man;JE~جيرزي~Jersey~جيرزي|Jersey;ME~الجبل الأسود~Montenegro~الجبل الأسود|Montenegro;BL~سان بارتيلمي~Saint Barthélemy~سان بارتيلمي|Saint Barthélemy;MF~سانت مارتن (الجزء الفرنسي)~Saint Martin (French part)~سانت مارتن (الجزء الفرنسي)|Saint Martin (French part);RS~صربيا~Serbia~صربيا|Serbia;SX~سانت مارتن (الجزء الهولندي)~Sint Maarten (Dutch part)~سانت مارتن (الجزء الهولندي)|Sint Maarten (Dutch part);SS~جنوب السودان~South Sudan~جنوب السودان|South Sudan;XK~كوسوفو~Kosovo~كوسوفو|Kosovo';
+const _norm = (s) => String(s || '').toLowerCase()
+  .replace(/[ً-ْـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي')
+  .replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim();
+let _gaz = null;
+function _gazetteer() {
+  if (_gaz) return _gaz;
+  const isLatin = (s) => /^[a-z0-9 ]+$/.test(s);
+  const entry = (names) => names.map((n) => ({ n: _norm(n), latin: isLatin(_norm(n)) })).filter((x) => x.n.length >= 2);
+  const cities = _CITIES.split(';').map((s) => {
+    const [names, ll] = s.split('@'); const list = names.split('|'); const [lat, lng] = ll.split(',').map(Number);
+    return { names: entry(list), ar: list.find((x) => !isLatin(_norm(x))) || list[0], en: list.find((x) => isLatin(_norm(x))) || list[0], lat, lng };
+  });
+  const countries = _COUNTRIES.split(';').map((s) => {
+    const [code, ar, en, names] = s.split('~');
+    return { code, ar, en, names: entry(names.split('|')) };
+  });
+  return (_gaz = { cities, countries });
+}
+// Whole-word for Latin names and short Arabic names (with a one-letter
+// prefix allowed: بـ / و / لـ / فـ), substring for longer Arabic ones.
+function _hit(text, tokens, x) {
+  if (x.latin) return new RegExp(`(^| )${x.n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( |$)`).test(text);
+  if (x.n.length <= 4 && !x.n.includes(' ')) return tokens.some((t) => t === x.n || (t.length === x.n.length + 1 && 'بولف'.includes(t[0]) && t.slice(1) === x.n));
+  return text.includes(x.n);
+}
+// Every place a trip went: cities first, else countries, else its codes.
+function tripPlaces(trip) {
+  const ar = !!window.isRTL, g = _gazetteer();
+  const text = _norm([trip.title, trip.sub, trip.subtitle].filter(Boolean).join(' '));
+  const tokens = text.split(' ');
+  const out = [];
+  g.cities.forEach((c) => { if (c.names.some((x) => _hit(text, tokens, x))) out.push({ key: 'c:' + c.en, lat: c.lat, lng: c.lng, label: ar ? c.ar : c.en }); });
+  if (!out.length) g.countries.forEach((c) => {
+    if (c.names.some((x) => _hit(text, tokens, x))) { const ll = countryLatLng(c.code); if (ll) out.push({ key: 'k:' + c.code, lat: ll[0], lng: ll[1], label: ar ? c.ar : c.en }); }
+  });
+  if (!out.length) (trip.countries || []).forEach((code) => {
+    const ll = countryLatLng(code), c = g.countries.find((x) => x.code === String(code).toUpperCase());
+    if (ll) out.push({ key: 'k:' + String(code).toUpperCase(), lat: ll[0], lng: ll[1], label: c ? (ar ? c.ar : c.en) : code });
+  });
+  return out;
+}
+window.tripPlaces = tripPlaces;
+
 // Pins for every country in your trips: live > upcoming > past.
 window.tripPins = (trips) => {
   const rank = { live: 3, upcoming: 2, past: 1 }, by = {};
@@ -221,12 +301,9 @@ window.tripPins = (trips) => {
     const kind = t.startDate && t.endDate
       ? (today < t.startDate ? 'upcoming' : today > t.endDate ? 'past' : 'live')
       : 'upcoming';
-    (t.countries || []).forEach((c) => {
-      const k = String(c).toUpperCase();
-      if (!by[k] || rank[kind] > rank[by[k]]) by[k] = kind;
-    });
+    tripPlaces(t).forEach((p) => { if (!by[p.key] || rank[kind] > rank[by[p.key].kind]) by[p.key] = { ...p, kind }; });
   });
-  return Object.keys(by).map((code) => ({ code, kind: by[code] }));
+  return Object.values(by);
 };
 window.homeCountryCode = () => HOME_BY_CURRENCY[window.USER_DEFAULT_CURRENCY || 'SAR'] || 'SA';
 
@@ -281,8 +358,50 @@ function Tilt({ children, style, className, max, radius = 24 }) {
 }
 Object.assign(window, { bindTilt, useTiltRef, Tilt });
 
+// One payment card, drawn as a physical card (used by the carousel and
+// by the filtered Expenses view).
+function WalletCardFace({ c, m, fmt, style }) {
+  const ar = !!window.isRTL;
+  const hue = m.hue != null ? m.hue : 200;
+  const pct = c.amountUSD > 0 ? Math.max(0, Math.min(1, c.spent / c.amountUSD)) : 0;
+  const name = (m.name || '').split(' ')[0];
+  return (
+    <div style={{
+      position: 'relative', width: '100%', height: '100%', borderRadius: 20,
+      padding: '16px 18px', color: '#fff', overflow: 'hidden',
+      background: `linear-gradient(135deg, hsl(${hue} 46% 38%) 0%, hsl(${(hue + 38) % 360} 52% 22%) 100%)`,
+      boxShadow: '0 18px 36px -12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.25)',
+      display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box', ...style,
+    }}>
+              {/* sheen + pattern */}
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(115deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 38%), radial-gradient(120% 90% at 100% 100%, rgba(255,255,255,0.10), transparent 60%)', pointerEvents: 'none' }} />
+              <div style={{ position: 'absolute', width: 220, height: 220, borderRadius: '50%', insetInlineEnd: -80, top: -110, border: '1px solid rgba(255,255,255,0.12)', pointerEvents: 'none' }} />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 34, height: 25, borderRadius: 6, background: 'linear-gradient(135deg,#f3dca0,#b8954a)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.18)' }} />
+                  <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.92 }}>{ar ? `بطاقة ${name}` : `${name}'s card`}</span>
+                </div>
+                <span className="serif-italic" style={{ fontSize: 15, opacity: 0.8 }}>voyage</span>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <div style={{ fontSize: 11.5, opacity: 0.75 }}>{ar ? 'المتبقي' : 'Left'}</div>
+                <div className="mono" style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.01em', direction: 'ltr', textAlign: ar ? 'right' : 'left' }}>
+                  <window.CountUp value={c.left} format={fmt} />
+                </div>
+                <div style={{ height: 4, borderRadius: 99, background: 'rgba(255,255,255,0.22)', marginTop: 8, overflow: 'hidden' }}>
+                  <div className="v-grow" style={{ width: `${pct * 100}%`, height: '100%', borderRadius: 99, background: c.left < 0 ? '#ffb4a2' : '#fff' }} />
+                </div>
+                <div style={{ fontSize: 11, opacity: 0.75, marginTop: 5 }}>
+                  {ar ? `صُرف ${fmt(c.spent)} من ${fmt(c.amountUSD)}` : `${fmt(c.spent)} of ${fmt(c.amountUSD)} spent`}
+                </div>
+              </div>
+    </div>
+  );
+}
+window.WalletCardFace = WalletCardFace;
+
 // ── WalletCarousel: the group's cards in 3D cover-flow ─────────────────
-function WalletCarousel({ cards, members, fmt }) {
+function WalletCarousel({ cards, members, fmt, onOpenCard }) {
   const ar = !!window.isRTL, s = ar ? -1 : 1, n = cards.length;
   const wrapRef = React.useRef(null), cardEls = React.useRef([]), dotEls = React.useRef([]);
   const st = React.useRef({ p: 0, cancel: null, drag: null }).current;
@@ -330,6 +449,7 @@ function WalletCarousel({ cards, members, fmt }) {
       if (!g.moved) {                       // a tap: bring that card forward
         const hit = cardEls.current.findIndex((c) => c && c.contains(e.target));
         if (hit >= 0 && hit !== Math.round(st.p)) { go(hit); window.haptic?.(); }
+        else if (hit >= 0 && onOpenCard) { window.haptic?.(); onOpenCard(cards[hit].id); }
         return;
       }
       const a = g.hist[0], b = g.hist[g.hist.length - 1];
@@ -353,40 +473,11 @@ function WalletCarousel({ cards, members, fmt }) {
     <div style={{ marginTop: 14 }}>
       <div ref={wrapRef} style={{ position: 'relative', height: 178, perspective: '1000px', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none' }}>
         {cards.map((c, i) => {
-          const m = members.find((x) => x.id === c.id) || { id: c.id, name: '?', hue: 200 };
-          const hue = m.hue != null ? m.hue : 200;
-          const pct = c.amountUSD > 0 ? Math.max(0, Math.min(1, c.spent / c.amountUSD)) : 0;
-          const name = (m.name || '').split(' ')[0];
           return (
             <div key={c.id} ref={(el) => { cardEls.current[i] = el; }} style={{
-              position: 'absolute', top: 4, left: '11%', width: '78%', height: 168, borderRadius: 20,
-              padding: '16px 18px', color: '#fff', overflow: 'hidden', willChange: 'transform',
-              background: `linear-gradient(135deg, hsl(${hue} 46% 38%) 0%, hsl(${(hue + 38) % 360} 52% 22%) 100%)`,
-              boxShadow: '0 18px 36px -12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.25)',
-              display: 'flex', flexDirection: 'column', justifyContent: 'space-between', backfaceVisibility: 'hidden',
+              position: 'absolute', top: 4, left: '11%', width: '78%', height: 168, willChange: 'transform', backfaceVisibility: 'hidden',
             }}>
-              {/* sheen + pattern */}
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(115deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 38%), radial-gradient(120% 90% at 100% 100%, rgba(255,255,255,0.10), transparent 60%)', pointerEvents: 'none' }} />
-              <div style={{ position: 'absolute', width: 220, height: 220, borderRadius: '50%', insetInlineEnd: -80, top: -110, border: '1px solid rgba(255,255,255,0.12)', pointerEvents: 'none' }} />
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 34, height: 25, borderRadius: 6, background: 'linear-gradient(135deg,#f3dca0,#b8954a)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.18)' }} />
-                  <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.92 }}>{ar ? `بطاقة ${name}` : `${name}'s card`}</span>
-                </div>
-                <span className="serif-italic" style={{ fontSize: 15, opacity: 0.8 }}>voyage</span>
-              </div>
-              <div style={{ position: 'relative' }}>
-                <div style={{ fontSize: 11.5, opacity: 0.75 }}>{ar ? 'المتبقي' : 'Left'}</div>
-                <div className="mono" style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.01em', direction: 'ltr', textAlign: ar ? 'right' : 'left' }}>
-                  <window.CountUp value={c.left} format={fmt} />
-                </div>
-                <div style={{ height: 4, borderRadius: 99, background: 'rgba(255,255,255,0.22)', marginTop: 8, overflow: 'hidden' }}>
-                  <div className="v-grow" style={{ width: `${pct * 100}%`, height: '100%', borderRadius: 99, background: c.left < 0 ? '#ffb4a2' : '#fff' }} />
-                </div>
-                <div style={{ fontSize: 11, opacity: 0.75, marginTop: 5 }}>
-                  {ar ? `صُرف ${fmt(c.spent)} من ${fmt(c.amountUSD)}` : `${fmt(c.spent)} of ${fmt(c.amountUSD)} spent`}
-                </div>
-              </div>
+              <WalletCardFace c={c} m={members.find((x) => x.id === c.id) || { id: c.id, name: '?', hue: 200 }} fmt={fmt} />
             </div>
           );
         })}
@@ -396,6 +487,8 @@ function WalletCarousel({ cards, members, fmt }) {
           {cards.map((c, i) => <span key={c.id} ref={(el) => { dotEls.current[i] = el; }} style={{ height: 6, width: 6, borderRadius: 99, background: 'var(--ink)', opacity: 0.35 }} />)}
         </div>
       )}
+      {onOpenCard && <div style={{ textAlign: 'center', fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 6 }}>
+        {window.isRTL ? 'اضغط على البطاقة لتشوف مصاريفها' : 'Tap a card to see its spending'}</div>}
     </div>
   );
 }

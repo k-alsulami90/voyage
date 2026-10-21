@@ -139,6 +139,7 @@ const APP_TABS = ['trips', 'appSettings'];
 function parentOf(r) {
   if (!r) return null;
   if (r.scope === 'trip') {
+    if (r.name === 'analytics') return { scope: 'trip', name: 'budget', tripId: r.tripId };
     return r.name === 'hub' ? { scope: 'app', name: 'trips' } : { scope: 'trip', name: 'hub', tripId: r.tripId };
   }
   if (r.scope === 'app' && r.name === 'insights') return { scope: 'app', name: 'trips' };

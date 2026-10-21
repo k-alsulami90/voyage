@@ -6,14 +6,18 @@ function ScreenBudget({ go, openSheet, loading }) {
   const trip = window.TRIP;
   // Default display currency = home. Toggle switches between home and local.
   const [displayMode, setDisplayMode] = React.useState('home'); // 'home' | 'local'
+  // Arriving from a card on Today: open filtered to that person's card.
+  const arrival = React.useRef(undefined);
+  if (arrival.current === undefined) { arrival.current = window.__expFilter || null; window.__expFilter = null; }
   const [filter, setFilter]   = React.useState('all');     // category
-  const [paidBy, setPaidBy]   = React.useState('all');     // member.id or 'all'
+  const [paidBy, setPaidBy]   = React.useState(arrival.current?.paidBy || 'all');     // member.id or 'all'
   const [dayFilter, setDayFilter] = React.useState('all'); // 'all' | day number
   const [search, setSearch]   = React.useState('');
   const [showSearch, setShowSearch] = React.useState(false);
   const [showFilters, setShowFilters] = React.useState(false);
   // Two views: the group's trip budget, and my own (private) budget.
   const [tab, setTabState] = React.useState(() => {
+    if (arrival.current?.paidBy) return 'trip';
     try { return sessionStorage.getItem('voyage:expTab') || 'trip'; } catch (_) { return 'trip'; }
   });
   const setTab = (v) => { setTabState(v); try { sessionStorage.setItem('voyage:expTab', v); } catch (_) {} };
@@ -74,8 +78,16 @@ function ScreenBudget({ go, openSheet, loading }) {
 
   return (
     <div data-screen-label="02 Budget" style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>
-      {/* Header */}
-      <Header title={t('budgetNav')} onBack={() => go('hub')} />
+      {/* Header — the travel analysis opens from the chart icon */}
+      <Header title={t('budgetNav')} onBack={() => go('hub')} action={
+        <button onClick={() => go('analytics')} aria-label={window.isRTL ? 'تحليل السفر' : 'Travel analysis'} style={{
+          height: 36, padding: '0 12px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 6,
+          background: 'var(--ink)', color: 'var(--cream)', fontSize: 12.5, fontWeight: 600,
+        }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>
+          {window.isRTL ? 'التحليل' : 'Analysis'}
+        </button>
+      } />
       <ExpensesSwitch active={tab} onChange={setTab} />
       {tab === 'mine' ? <window.MyBudgetView openSheet={openSheet} /> : <>
 
@@ -110,6 +122,10 @@ function ScreenBudget({ go, openSheet, loading }) {
         </div>
       )}
 
+      {paidBy !== 'all' ? (
+        <window.PersonFocus memberId={paidBy} conv={conv} onClear={() => { setPaidBy('all'); setFilter('all'); }}
+          activeCat={filter} onPickCat={setFilter} />
+      ) : (<>
       {/* DONUT + STAT — overlapping */}
       <div style={{ padding: '6px 14px 0', position: 'relative' }}>
         <div ref={heroTilt} style={{
@@ -240,6 +256,8 @@ function ScreenBudget({ go, openSheet, loading }) {
       {/* PACE — the one piece of analysis worth keeping on screen */}
       <window.TripPaceCard />
 
+      </>)}
+
       {/* FILTER + LIST */}
       <div style={{ padding: '18px 14px 0' }}>
         <div style={{
@@ -281,7 +299,7 @@ function ScreenBudget({ go, openSheet, loading }) {
         {/* Category chips + filter toggle */}
         <div style={{ display: 'flex', gap: 6, padding: '0 4px 10px', overflowX: 'auto', flexDirection: 'row', alignItems: 'center' }} className="no-scrollbar">
           <Chip active={filter === 'all'} onClick={() => setFilter('all')}>
-            {t('all')} · {window.EXPENSES.length}
+            {t('all')} · {paidBy === 'all' ? window.EXPENSES.length : window.EXPENSES.filter((x) => x.who === paidBy).length}
           </Chip>
           {cats.map((c) => (
             <Chip key={c.key} active={filter === c.key} onClick={() => setFilter(c.key)}>{t(c.key) || c.label}</Chip>
@@ -358,7 +376,7 @@ function ScreenBudget({ go, openSheet, loading }) {
         )}
 
         {/* Filter summary — totals + count for whatever's currently filtered */}
-        {(paidBy !== 'all' || dayFilter !== 'all' || filter !== 'all' || search)
+        {(dayFilter !== 'all' || (filter !== 'all' && paidBy === 'all') || search)
           && filteredExpenses.length > 0 && (() => {
           const total = filteredExpenses.reduce((s, e) => s + (e.usd || 0), 0);
           const labels = [];
@@ -465,7 +483,23 @@ function ScreenBudget({ go, openSheet, loading }) {
 
         {/* Expense rows — swipeable with delete */}
         <div className="v-list" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 4px' }}>
-          {filteredExpenses.map((e) => {
+          {(() => {
+            const groups = [];
+            filteredExpenses.slice().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).forEach((e) => {
+              const k = e.createdAt ? window.localISO(e.createdAt) : '';
+              const g = groups[groups.length - 1];
+              if (g && g.k === k) g.items.push(e); else groups.push({ k, items: [e] });
+            });
+            return groups;
+          })().flatMap((g) => [
+            <div key={'day-' + g.k} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '10px 6px 2px' }}>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-soft)' }}>
+                {g.k ? new Date(g.k + 'T00:00:00').toLocaleDateString(window.isRTL ? 'ar' : 'en', { weekday: 'long' }) + ' · ' + window.fmtDate(g.k) : ''}
+                {g.k && dayOf(g.k + 'T12:00:00') > 0 && trip.startDate && g.k >= trip.startDate ? <span style={{ fontWeight: 500, color: 'var(--ink-mute)' }}>{window.isRTL ? ` · يوم ${dayOf(g.k + 'T12:00:00')}` : ` · Day ${dayOf(g.k + 'T12:00:00')}`}</span> : null}
+              </span>
+              <span className="mono" style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-soft)' }}>{conv(g.items.reduce((s2, x) => s2 + (x.usd || 0), 0))}</span>
+            </div>,
+            ...g.items.map((e) => {
             const m = window.MEMBERS.find((x) => x.id === e.who) || { name: 'Unknown', hue: 200, initials: '?' };
             const c = cats.find((x) => x.key === e.cat) || { color: 'var(--ink-mute)' };
             const localAmt = e.jpy > 0 ? `¥${e.jpy.toLocaleString()}` : null;
@@ -582,7 +616,7 @@ function ScreenBudget({ go, openSheet, loading }) {
                 </div>
               </SwipeRow>
             );
-          })}
+          })])}
         </div>
       </div>
 

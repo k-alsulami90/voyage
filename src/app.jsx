@@ -526,7 +526,7 @@ function App() {
     } else {
       const Screen = {
         hub: window.ScreenHub, plan: window.ScreenPlan, budget: window.ScreenBudget, docs: window.ScreenDocs,
-        analytics: window.ScreenBudget, settings: window.ScreenSettings,
+        analytics: window.ScreenAnalytics, settings: window.ScreenSettings,
       }[route.name] || window.ScreenHub;
       screenNode = <Screen go={go} goTrip={goTrip} openSheet={openSheet} openDoc={openDoc} loading={tripLoading} />;
     }

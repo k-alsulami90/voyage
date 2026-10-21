@@ -163,7 +163,7 @@ function TodayBudgetCard({ onManage }) {
         )}
 
         {/* The group's cards — physical 3D cards: swipe or tap to flip through */}
-        <window.WalletCarousel cards={b.cards} members={members} fmt={fmtC} />
+        <window.WalletCarousel cards={b.cards} members={members} fmt={fmtC} onOpenCard={(id) => window.openCardExpenses(id)} />
       </div>
     </div>
   );
@@ -573,3 +573,88 @@ function UnpaidBookingsNote() {
 }
 
 Object.assign(window, { TodayBudgetCard, WalletsSetup, MyTripCostCard, TripPaceCard, PersonalLimitCard, MyBudgetView, UnpaidBookingsNote });
+
+// ── Card → its expenses ────────────────────────────────────────────────
+window.openCardExpenses = (memberId) => {
+  window.__expFilter = { paidBy: memberId };
+  const tid = window.TRIP?.id;
+  if (tid) window.navigateRoute?.({ scope: 'trip', name: 'budget', tripId: tid });
+};
+
+// Expenses filtered to one person/card: their card up top, what it went
+// on (tap a category to narrow the list), and a way back to everyone.
+function PersonFocus({ memberId, conv, onClear, activeCat, onPickCat }) {
+  const ar = window.isRTL;
+  const trip = window.TRIP;
+  const m = (window.MEMBERS || []).find((x) => x.id === memberId) || { id: memberId, name: '?', hue: 200 };
+  const first = (m.name || '').split(' ')[0];
+  const mine = (window.EXPENSES || []).filter((e) => e.who === memberId);
+  const total = mine.reduce((s, e) => s + (e.usd || 0), 0);
+  const days = new Set(mine.map((e) => window.localISO(e.createdAt))).size;
+  const b = window.walletsOf?.(trip) ? window.computeTodayBudget?.(trip, window.EXPENSES || [], window.localISO()) : null;
+  const card = b && (b.cards || []).find((c) => c.id === memberId);
+  const byCat = {};
+  mine.forEach((e) => { byCat[e.cat] = (byCat[e.cat] || 0) + (e.usd || 0); });
+  const cats = Object.entries(byCat).sort((a, b2) => b2[1] - a[1]);
+  const top = cats[0];
+  const tilt = window.useTiltRef ? window.useTiltRef({ max: 6 }) : undefined;
+  const fmtC = (usd) => window.fmtMoney(usd, { in: 'home' });
+  const tile = (label, value) => (
+    <div style={{ flex: 1, minWidth: 0, background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', borderRadius: 16, padding: '10px 12px' }}>
+      <div style={{ fontSize: 11, color: 'var(--ink-mute)' }}>{label}</div>
+      <div className="mono" style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
+    </div>
+  );
+  return (
+    <div style={{ padding: '6px 14px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 4px 10px' }}>
+        <div className="serif" style={{ fontSize: 20, color: 'var(--ink)' }}>{card ? (ar ? `بطاقة ${first}` : `${first}'s card`) : (ar ? `مدفوعات ${first}` : `Paid by ${first}`)}</div>
+        <button onClick={onClear} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 999,
+          background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-soft)' }}>
+          ✕ {ar ? 'كل المصاريف' : 'Everyone'}
+        </button>
+      </div>
+      {card ? (
+        <div ref={tilt} style={{ height: 186, borderRadius: 20, position: 'relative' }} className="v-flip-in">
+          <window.WalletCardFace c={card} m={m} fmt={fmtC} />
+        </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px', borderRadius: 22, background: 'var(--statement)', color: 'var(--statement-fg)' }}>
+          <Avatar m={m} size={46} />
+          <div>
+            <div style={{ fontSize: 12.5, opacity: 0.75 }}>{ar ? 'إجمالي ما دفعه' : 'Total paid'}</div>
+            <div className="mono" style={{ fontSize: 26, fontWeight: 700 }}><window.CountUp value={total} format={conv} /></div>
+          </div>
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        {tile(ar ? 'العمليات' : 'Payments', String(mine.length))}
+        {tile(ar ? 'متوسط اليوم' : 'Per day', conv(days ? total / days : 0))}
+        {tile(ar ? 'الأكثر' : 'Most on', top ? `${window.CAT_META?.[top[0]]?.emoji || ''} ${t(top[0]) || top[0]}` : '—')}
+      </div>
+      {cats.length > 0 && (
+        <div style={{ marginTop: 12, background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', borderRadius: 20, padding: '14px 16px' }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>{ar ? 'وين راحت؟' : 'Where it went'}</div>
+          {cats.map(([k, v], i) => {
+            const on = activeCat === k;
+            return (
+              <button key={k} onClick={() => { onPickCat(on ? 'all' : k); window.haptic?.(); }} style={{ display: 'block', width: '100%', textAlign: 'start', padding: '7px 0', background: 'transparent' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: on ? 'var(--clay-deep)' : 'var(--ink)', fontWeight: on ? 700 : 500 }}>
+                  <span>{window.CAT_META?.[k]?.emoji}</span>
+                  <span style={{ flex: 1 }}>{t(k) || k}</span>
+                  <span className="mono" style={{ fontWeight: 700 }}>{conv(v)}</span>
+                  <span style={{ fontSize: 11, color: 'var(--ink-mute)', width: 34, textAlign: 'end' }}>{Math.round((v / (total || 1)) * 100)}%</span>
+                </div>
+                <div style={{ height: 6, borderRadius: 99, background: 'var(--cream)', marginTop: 6, overflow: 'hidden' }}>
+                  <div className="v-grow" style={{ width: `${(v / (cats[0][1] || 1)) * 100}%`, height: '100%', borderRadius: 99, background: on ? 'var(--clay)' : (window.CATEGORIES || []).find((c) => c.key === k)?.color || 'var(--ink-mute)', animationDelay: `${140 + i * 70}ms` }} />
+                </div>
+              </button>
+            );
+          })}
+          {activeCat !== 'all' && <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 6 }}>{ar ? 'اضغط التصنيف مرة ثانية لإلغاء التصفية' : 'Tap again to clear'}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+window.PersonFocus = PersonFocus;
