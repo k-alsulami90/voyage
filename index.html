@@ -122,7 +122,7 @@
       radial-gradient(ellipse 60% 50% at 15% 20%, rgba(255,138,92,0.35) 0%, transparent 55%),
       radial-gradient(ellipse 55% 45% at 85% 90%, rgba(107,123,255,0.30) 0%, transparent 55%),
       #0a0f1e;
-    transition: opacity 600ms cubic-bezier(.32,.72,0,1), visibility 0s linear 600ms;
+    transition: opacity 480ms cubic-bezier(.4,0,.2,1), transform 520ms cubic-bezier(.5,0,.75,0), visibility 0s linear 520ms;
     will-change: opacity;
   }
   #intro3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -132,6 +132,7 @@
   .intro-brand .splash-tagline { animation-delay: 1.9s; }
   #splash.splash-leave {
     opacity: 0; visibility: hidden; pointer-events: none;
+    transform: scale(1.18);
   }
 
   /* Aurora + stars removed — they were the biggest mobile GPU drain.
@@ -404,10 +405,15 @@
       { r: ridge(), base: 0.92, amp: 0.14, sp: 70, top: '#0d1124', bot: '#06080f', rim: 'rgba(255,140,110,0.15)', d: 0.36 }
     ];
     var ease = function (x) { x = Math.max(0, Math.min(1, x)); return 1 - Math.pow(1 - x, 3); };
+    var easeIn = function (x) { x = Math.max(0, Math.min(1, x)); return x * x * x; };
+    var ZOOM_AT = 2.3, ZOOM_LEN = 0.85;          // orbit, then dive into the Earth
+    var brand = document.querySelector('#splash .intro-brand'), brandGone = false;
     var lerp = function (a, b, t) { return a + (b - a) * t; };
     var t0 = performance.now(), raf = 0, trail = [];
     function frame(now) {
-      var t = reduce ? 3.2 : (now - t0) / 1000, m = Math.min(W, H);
+      var t = reduce ? 2.0 : (now - t0) / 1000, m = Math.min(W, H);
+      var zoom = reduce ? 0 : easeIn((t - ZOOM_AT) / ZOOM_LEN);
+      if (!brandGone && brand && t > ZOOM_AT - 0.1 && !reduce) { brandGone = true; brand.style.transition = 'opacity 320ms ease, transform 600ms cubic-bezier(.5,0,.75,0)'; brand.style.opacity = '0'; brand.style.transform = 'scale(1.25)'; }
       // sky
       var sky = ctx.createLinearGradient(0, 0, 0, H);
       sky.addColorStop(0, '#04060f'); sky.addColorStop(0.45, '#0b1330'); sky.addColorStop(0.72, '#2a2347'); sky.addColorStop(1, '#5a3448');
@@ -416,10 +422,13 @@
       sun.addColorStop(0, 'rgba(255,160,110,' + (0.42 * ease(t / 1.6)) + ')'); sun.addColorStop(1, 'rgba(255,160,110,0)');
       ctx.fillStyle = sun; ctx.fillRect(0, 0, W, H);
       // stars
-      for (i = 0; i < S.length; i++) { var s = S[i], a = (0.35 + 0.65 * Math.abs(Math.sin(t * 1.6 + s[3]))) * ease(t / 0.5) * (1 - s[1] * 0.6);
-        ctx.fillStyle = 'rgba(255,248,235,' + a.toFixed(3) + ')'; ctx.fillRect(s[0] * W + Math.sin(t * 0.2 + s[3]) * 3, s[1] * H, s[2], s[2]); }
+      for (i = 0; i < S.length; i++) { var s = S[i], a = (0.35 + 0.65 * Math.abs(Math.sin(t * 1.6 + s[3]))) * ease(t / 0.5) * (1 - s[1] * 0.6) * (1 - zoom);
+        var sx0 = s[0] * W + Math.sin(t * 0.2 + s[3]) * 3, sy0 = s[1] * H, k2 = 1 + zoom * 2.2;
+        ctx.fillStyle = 'rgba(255,248,235,' + a.toFixed(3) + ')'; ctx.fillRect(W / 2 + (sx0 - W / 2) * k2, H * 0.3 + (sy0 - H * 0.3) * k2, s[2] * (1 + zoom * 2), s[2] * (1 + zoom * 2)); }
       // earth: camera approaches and swings from the south pole to the north
       var R = m * lerp(0.15, 0.30, ease(t / 1.7)), CX = W / 2, CY = lerp(H * 0.48, H * 0.30, ease((t - 0.7) / 1.5));
+      R = lerp(R, Math.max(W, H) * 2.6, zoom); CY = lerp(CY, H * 0.5, Math.min(1, zoom * 1.6));
+      var ds = Math.min(6, R / (m * 0.30));
       var lam = 0.75 + 4.4 * (1 - Math.exp(-t * 1.25)) + 0.18 * t, phi = lerp(-0.75, 0.42, ease(t / 1.9));
       var cl = Math.cos(lam), sl = Math.sin(lam), cp = Math.cos(phi), spp = Math.sin(phi);
       var glow = ctx.createRadialGradient(CX, CY, R * 0.9, CX, CY, R * 1.35);
@@ -432,7 +441,8 @@
         var yy = D[i + 1] * cp - Zp * spp, dd = dot[Math.min(3, (z * 4) | 0)];
         // lit from the upper-left: dim the dots on the night side
         var lit = 0.45 + 0.55 * Math.max(0, (-Xp * 0.55 + yy * 0.45 + z * 0.7));
-        ctx.globalAlpha = Math.min(1, lit); ctx.drawImage(dd.c, CX + Xp * R - dd.s / 2, CY - yy * R - dd.s / 2, dd.s, dd.s); }
+        var sz = dd.s * ds, gx = CX + Xp * R, gy = CY - yy * R; if (gx < -sz || gx > W + sz || gy < -sz || gy > H + sz) continue;
+        ctx.globalAlpha = Math.min(1, lit); ctx.drawImage(dd.c, gx - sz / 2, gy - sz / 2, sz, sz); }
       ctx.globalAlpha = 1;
       var shade = ctx.createLinearGradient(CX - R, CY - R, CX + R, CY + R);
       shade.addColorStop(0, 'rgba(0,0,0,0)'); shade.addColorStop(0.55, 'rgba(2,4,12,0.05)'); shade.addColorStop(1, 'rgba(2,4,12,0.55)');
@@ -443,16 +453,16 @@
       var hidden = function (p) { return p[2] < 0 && (p[0] * p[0] + p[1] * p[1]) < 1; };
       ctx.lineCap = 'round';
       for (var k = 1; k < 34; k++) { var p1 = orb(th2 - k * 0.045), p2 = orb(th2 - (k - 1) * 0.045); if (hidden(p1) || hidden(p2)) continue;
-        ctx.strokeStyle = 'rgba(255,220,190,' + ((1 - k / 34) * 0.8 * ease(t / 0.6)).toFixed(3) + ')'; ctx.lineWidth = 2.2 * (1 - k / 40);
+        ctx.strokeStyle = 'rgba(255,220,190,' + ((1 - k / 34) * 0.8 * ease(t / 0.6) * Math.max(0, 1 - zoom * 3)).toFixed(3) + ')'; ctx.lineWidth = 2.2 * (1 - k / 40);
         ctx.beginPath(); ctx.moveTo(CX + p1[0] * R, CY - p1[1] * R); ctx.lineTo(CX + p2[0] * R, CY - p2[1] * R); ctx.stroke(); }
       var pp = orb(th2), pn = orb(th2 + 0.02);
-      if (!hidden(pp)) { var ang = Math.atan2(-(pn[1] - pp[1]), pn[0] - pp[0]), px = CX + pp[0] * R, py = CY - pp[1] * R, sc = 0.85 + 0.35 * (pp[2] / Ro);
+      if (!hidden(pp) && zoom < 0.3) { var ang = Math.atan2(-(pn[1] - pp[1]), pn[0] - pp[0]), px = CX + pp[0] * R, py = CY - pp[1] * R, sc = 0.85 + 0.35 * (pp[2] / Ro);
         var pg = ctx.createRadialGradient(px, py, 0, px, py, 16); pg.addColorStop(0, 'rgba(255,230,200,0.55)'); pg.addColorStop(1, 'rgba(255,230,200,0)');
         ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(px, py, 16, 0, 6.2832); ctx.fill();
         ctx.save(); ctx.translate(px, py); ctx.rotate(ang); ctx.scale(sc, sc); ctx.fillStyle = '#fff6ea';
         ctx.beginPath(); ctx.moveTo(9, 0); ctx.lineTo(-7, -6); ctx.lineTo(-3, 0); ctx.lineTo(-7, 6); ctx.closePath(); ctx.fill(); ctx.restore(); }
       // mountains rise, far to near, sliding at depth-dependent speeds
-      for (var li = 0; li < R4.length; li++) { var Lr = R4[li], rise = ease((t - 0.55 - Lr.d) / 1.25), off = (1 - rise) * H * 0.42, shift = t * Lr.sp;
+      for (var li = 0; li < R4.length; li++) { var Lr = R4[li], rise = ease((t - 0.55 - Lr.d) / 1.25), off = (1 - rise) * H * 0.42 + zoom * H * (0.75 + li * 0.12), shift = t * Lr.sp;
         var g2 = ctx.createLinearGradient(0, H * (Lr.base - Lr.amp), 0, H); g2.addColorStop(0, Lr.top); g2.addColorStop(1, Lr.bot);
         ctx.beginPath(); ctx.moveTo(0, H + 2); var x, yv, first = true, pts = [];
         for (x = -4; x <= W + 8; x += 5) { yv = H * Lr.base - Lr.r(x + shift) * H * Lr.amp + off; pts.push(x, yv); ctx.lineTo(x, yv); }
@@ -559,7 +569,7 @@
     // (otherwise on fast networks the splash flashes for 200ms).
     // Maximum show time so a stuck app doesn't hide the splash forever.
     (function () {
-      var SPLASH_MIN_MS = 2700;
+      var SPLASH_MIN_MS = 2950;   // the whole intro: orbit, then the dive into the Earth
       var SPLASH_MAX_MS = 6000;
       var mountedAt = Date.now();
       var splash = document.getElementById('splash');
@@ -568,15 +578,9 @@
         if (dismissed || !splash) return;
         dismissed = true;
         var elapsed = Date.now() - mountedAt;
-        var wait = skipped ? 0 : Math.max(0, SPLASH_MIN_MS - elapsed);
-        leaveTimer = setTimeout(function () { splash.classList.add('splash-leave'); }, wait);
+        var wait = Math.max(0, SPLASH_MIN_MS - elapsed);
+        setTimeout(function () { splash.classList.add('splash-leave'); }, wait);
       }
-      // Tap to skip the intro (only once the app is ready underneath).
-      var skipped = false, leaveTimer = 0;
-      if (splash) splash.addEventListener('click', function () {
-        skipped = true;
-        if (dismissed) { clearTimeout(leaveTimer); splash.classList.add('splash-leave'); }
-      });
       // Expose so React can call it the moment its first screen renders
       window.__hideSplash = hideSplash;
       // Safety net: dismiss after MAX_MS no matter what
@@ -632,6 +636,7 @@
   <script type="text/babel" src="src/screens/screen-trip-search.jsx"></script>
   <script type="text/babel" src="src/lib/docs-schema.jsx"></script>
   <script type="text/babel" src="src/screens/screen-settings.jsx"></script>
+  <script type="text/babel" src="src/screens/screen-analysis.jsx"></script>
   <script type="text/babel" src="src/app.jsx"></script>
 
   <!-- ── PWA: service worker + install prompt ── -->

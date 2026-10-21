@@ -126,136 +126,19 @@ function ScreenBudget({ go, openSheet, loading }) {
         <window.PersonFocus memberId={paidBy} conv={conv} onClear={() => { setPaidBy('all'); setFilter('all'); }}
           activeCat={filter} onPickCat={setFilter} />
       ) : (<>
-      {/* DONUT + STAT — overlapping */}
-      <div style={{ padding: '6px 14px 0', position: 'relative' }}>
-        <div ref={heroTilt} style={{
-          background: 'var(--statement)', color: 'var(--statement-fg)',
-          borderRadius: 28, padding: '22px 22px 26px',
-          position: 'relative', overflow: 'hidden',
-          boxShadow: 'var(--shadow-card)',
-        }}>
-          {/* Beam */}
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: 'radial-gradient(60% 50% at 80% 0%, oklch(0.40 0.06 35 / 0.6) 0%, transparent 60%)',
-            pointerEvents: 'none',
-          }} />
-          <div style={{
-            display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-            flexDirection: 'row',
-            position: 'relative',
-          }}>
-            {/* Editorial sentence replaces the previous uppercase-mono
-               eyebrow + 44px serif headline + small "of planned" line
-               (the hero-metric template from the bans list, same one
-               removed from Hub in v72). The donut to the right carries
-               the visual % indicator; the sentence carries the precise
-               numbers. Money math gets the weight via type, not via
-               size escalation. */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                fontSize: 17, lineHeight: 1.5, color: 'var(--statement-sub)', fontWeight: 400,
-              }}>
-                {window.isRTL ? (
-                  planned > 0 ? (
-                    <>أنفقت <BudgetNum><window.CountUp id={'spent-' + (window.TRIP?.id || '')} value={realSpent} format={conv} /></BudgetNum> من أصل <BudgetNum dim>{conv(planned)}</BudgetNum>.</>
-                  ) : (
-                    <>إجمالي ما أنفقته حتى الآن: <BudgetNum>{conv(realSpent)}</BudgetNum>.</>
-                  )
-                ) : (
-                  planned > 0 ? (
-                    <>Spent <BudgetNum><window.CountUp id={'spent-' + (window.TRIP?.id || '')} value={realSpent} format={conv} /></BudgetNum> of <BudgetNum dim>{conv(planned)}</BudgetNum> planned.</>
-                  ) : (
-                    <>Spent <BudgetNum>{conv(realSpent)}</BudgetNum> so far.</>
-                  )
-                )}
-              </div>
-              {/* Currency toggle — Home ↔ Local (only shown if they differ) */}
-              {!sameHomeLocal && (
-                <div style={{
-                  marginTop: 14, display: 'inline-flex', padding: 3,
-                  background: 'rgba(255,255,255,0.08)', borderRadius: 999,
-                  border: '0.5px solid rgba(255,255,255,0.1)',
-                  flexDirection: 'row',
-                }}>
-                  {[['home', home], ['local', local]].map(([m, code]) => (
-                    <button key={m} onClick={() => setDisplayMode(m)} style={{
-                      padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 500,
-                      background: displayMode === m ? 'var(--cream)' : 'transparent',
-                      color: displayMode === m ? 'var(--ink)' : 'var(--cream)',
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      flexDirection: 'row',
-                    }}>
-                      {displayMode !== m && <IconSwap size={11} stroke="currentColor" />}
-                      {code}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Donut */}
-            <div style={{ position: 'relative', width: 150, height: 150, flexShrink: 0 }}>
-              <svg width="150" height="150" viewBox="0 0 150 150" style={{ transform: 'rotate(-90deg)' }}>
-                <circle cx="75" cy="75" r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="14" />
-                {cats.map((c, i) => {
-                  const len = (c.pct / 100) * C;
-                  const dasharray = `${len} ${C - len}`;
-                  const el = (
-                    <circle key={c.key} cx="75" cy="75" r={R} fill="none"
-                            stroke={c.color} strokeWidth="14" strokeLinecap="butt"
-                            strokeDasharray={dasharray} strokeDashoffset={-offset}
-                            className="v-dash" style={{ animationDelay: `${120 + i * 110}ms` }} />
-                  );
-                  offset += len + 2; // small gap
-                  return el;
-                })}
-              </svg>
-              <div style={{
-                position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', textAlign: 'center',
-              }}>
-                <div className="mono" style={{ fontSize: 32, lineHeight: 1, fontWeight: 600, letterSpacing: '-0.02em' }}>
-                  <window.CountUp id={'spent-pct-' + (window.TRIP?.id || '')} value={planned > 0 ? Math.min((realSpent / planned) * 100, 999) : 0} format={(v) => String(Math.round(v))} /><span style={{ fontSize: 16, opacity: 0.65 }}>%</span>
-                </div>
-                <div style={{ fontSize: 11, opacity: 0.62, marginTop: 3 }}>{t('used')}</div>
-              </div>
-            </div>
+      {/* One summary: spent, budget meter split by category (tap to filter), pace */}
+      <window.ExpenseSummary trip={trip} expenses={expenses} conv={conv} activeCat={filter} onPickCat={setFilter}
+        currencyToggle={!sameHomeLocal ? (
+          <div style={{ display: 'inline-flex', padding: 3, background: 'rgba(255,255,255,0.08)', borderRadius: 999, border: '0.5px solid rgba(255,255,255,0.1)' }}>
+            {[['home', home], ['local', local]].map(([m, code]) => (
+              <button key={m} onClick={() => setDisplayMode(m)} style={{
+                padding: '4px 11px', borderRadius: 999, fontSize: 11.5, fontWeight: 600,
+                background: displayMode === m ? 'var(--cream)' : 'transparent',
+                color: displayMode === m ? 'var(--ink)' : 'var(--cream)',
+              }}>{code}</button>
+            ))}
           </div>
-        </div>
-
-        {/* Category cards row */}
-        <div style={{
-          marginTop: 12, display: 'flex', gap: 9, overflowX: 'auto', padding: '0 4px 8px', perspective: '900px',
-          flexDirection: 'row',
-        }} className="no-scrollbar" ref={catRow}>
-          {cats.map((c) => (
-            <div key={c.key} style={{
-              flexShrink: 0, minWidth: 110,
-              background: 'var(--cream-2)', borderRadius: 18, padding: '12px 14px',
-              boxShadow: 'var(--shadow-sm)', border: '0.5px solid var(--hairline)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row' }}>
-                <span style={{ width: 7, height: 7, borderRadius: 2, background: c.color }} />
-                <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--ink-soft)' }}>{t(c.key) || c.label}</span>
-              </div>
-              <div className="mono" style={{ fontSize: 17, marginTop: 4, color: 'var(--ink)', fontWeight: 500 }}>
-                {conv(c.amt)}
-              </div>
-              <div style={{ fontSize: 10.5, color: 'var(--ink-mute)', marginTop: 1, fontFamily: 'var(--mono)' }}>
-                {c.pct}{t('ofTotal')}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Bookings not paid yet — visible, but outside the budget */}
-      <window.UnpaidBookingsNote />
-
-      {/* PACE — the one piece of analysis worth keeping on screen */}
-      <window.TripPaceCard />
-
+        ) : null} />
       </>)}
 
       {/* FILTER + LIST */}
@@ -296,14 +179,17 @@ function ScreenBudget({ go, openSheet, loading }) {
           </div>
         )}
 
-        {/* Category chips + filter toggle */}
-        <div style={{ display: 'flex', gap: 6, padding: '0 4px 10px', overflowX: 'auto', flexDirection: 'row', alignItems: 'center' }} className="no-scrollbar">
-          <Chip active={filter === 'all'} onClick={() => setFilter('all')}>
-            {t('all')} · {paidBy === 'all' ? window.EXPENSES.length : window.EXPENSES.filter((x) => x.who === paidBy).length}
-          </Chip>
-          {cats.map((c) => (
-            <Chip key={c.key} active={filter === c.key} onClick={() => setFilter(c.key)}>{t(c.key) || c.label}</Chip>
-          ))}
+        {/* Active category (picked in the summary) + filters */}
+        <div style={{ display: 'flex', gap: 6, padding: '0 4px 10px', flexDirection: 'row', alignItems: 'center' }}>
+          {filter !== 'all' && (
+            <button onClick={() => setFilter('all')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 999,
+              background: 'var(--ink)', color: 'var(--cream)', fontSize: 12, fontWeight: 600 }}>
+              <span style={{ width: 8, height: 8, borderRadius: 3, background: `var(--cat-${filter})` }} />{t(filter) || filter} ✕
+            </button>
+          )}
+          <span style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>
+            {window.isRTL ? `${filteredExpenses.length} مصروف` : `${filteredExpenses.length} expenses`}
+          </span>
           <div style={{ flex: 1 }} />
           {/* Was a Unicode "⚙" dingbat that rendered inconsistently
              across platforms (filled vs outlined, weight, even color

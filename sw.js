@@ -31,6 +31,7 @@ const SHELL_FILES = [
   '/src/ui/ui.jsx',
   '/src/lib/motion.jsx',
   '/src/lib/depth.jsx',
+  '/src/screens/screen-analysis.jsx',
   '/src/lib/wallets.jsx',
   // supabase
   '/src/supabase/client.jsx',
