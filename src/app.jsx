@@ -501,31 +501,37 @@ function App() {
     setSheet(s);
   };
   const openDoc = (doc, category) => setDocView({ doc, category, prevRoute: route });
+  // Swipe-back lands here (stable identity: the stage binds its gesture once).
+  const navigateTo = React.useCallback((r) => setRoute(r), []);
 
-  // Resolve screen
-  let screenNode;
-  if (route.scope === 'auth') {
-    const authMode = ['signup', 'forgot', 'reset'].includes(route.name) ? route.name : 'signin';
-    screenNode = <window.ScreenAuth mode={authMode} go={go} />;
-  } else if (route.scope === 'app') {
-    if (route.name === 'onboarding') {
-      screenNode = <window.ScreenOnboarding
-        onComplete={(alsoCreateTrip) => {
-          setRoute({ scope: 'app', name: 'trips' });
-          if (alsoCreateTrip) setSheet('addTrip');
-        }}
-      />;
+  // Resolve a screen for a route. A function (not one node) because the
+  // stage briefly renders two routes at once while they transition.
+  const renderScreen = (route) => {
+    let screenNode;
+    if (route.scope === 'auth') {
+      const authMode = ['signup', 'forgot', 'reset'].includes(route.name) ? route.name : 'signin';
+      screenNode = <window.ScreenAuth mode={authMode} go={go} />;
+    } else if (route.scope === 'app') {
+      if (route.name === 'onboarding') {
+        screenNode = <window.ScreenOnboarding
+          onComplete={(alsoCreateTrip) => {
+            setRoute({ scope: 'app', name: 'trips' });
+            if (alsoCreateTrip) setSheet('addTrip');
+          }}
+        />;
+      }
+      else if (route.name === 'insights') screenNode = <window.ScreenInsights go={go} goTrip={goTrip} />;
+      else if (route.name === 'appSettings') screenNode = <window.ScreenAppSettings go={go} onSignOut={async () => { await window.sbSignOut(); }} dark={tw.dark} lang={tw.lang} onDarkToggle={(v) => setTweak('dark', v)} onLangChange={(v) => setTweak('lang', v)} />;
+      else screenNode = <window.ScreenTrips go={go} goTrip={goTrip} />;
+    } else {
+      const Screen = {
+        hub: window.ScreenHub, plan: window.ScreenPlan, budget: window.ScreenBudget, docs: window.ScreenDocs,
+        analytics: window.ScreenBudget, settings: window.ScreenSettings,
+      }[route.name] || window.ScreenHub;
+      screenNode = <Screen go={go} goTrip={goTrip} openSheet={openSheet} openDoc={openDoc} loading={tripLoading} />;
     }
-    else if (route.name === 'insights') screenNode = <window.ScreenInsights go={go} goTrip={goTrip} />;
-    else if (route.name === 'appSettings') screenNode = <window.ScreenAppSettings go={go} onSignOut={async () => { await window.sbSignOut(); }} dark={tw.dark} lang={tw.lang} onDarkToggle={(v) => setTweak('dark', v)} onLangChange={(v) => setTweak('lang', v)} />;
-    else screenNode = <window.ScreenTrips go={go} goTrip={goTrip} />;
-  } else {
-    const Screen = {
-      hub: window.ScreenHub, plan: window.ScreenPlan, budget: window.ScreenBudget, docs: window.ScreenDocs,
-      analytics: window.ScreenBudget, settings: window.ScreenSettings,
-    }[route.name] || window.ScreenHub;
-    screenNode = <Screen go={go} goTrip={goTrip} openSheet={openSheet} openDoc={openDoc} loading={tripLoading} />;
-  }
+    return screenNode;
+  };
 
   // ── Loading screen while session is being resolved ──
   if (session === undefined) {
@@ -551,49 +557,36 @@ function App() {
   }
 
   const appShell = (
-    <div id="app-shell" style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>
-      {/* Keyed by the full route so the scroller remounts on every
-         navigation — that replays the `screen-enter` settle and starts the
-         new screen at the top. The inner screens already remount per route
-         (different component per tab), so this loses no extra state. */}
-      <div style={{
-        position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden',
-        WebkitOverflowScrolling: 'touch',           // iOS momentum scroll
-        overscrollBehavior: 'contain',              // don't bounce parent
-      }}
-           ref={scrollerRef}
-           className="no-scrollbar screen-enter"
-           key={route.scope + ':' + route.name + ':' + (route.tripId || '')}>
-        {screenNode}
-      </div>
+    <div id="app-shell" style={{ position: 'relative', height: '100%', overflow: 'hidden', background: '#000' }}>
+      {/* Screens: layered so navigation can transition (push / pop /
+         tab / fade) and be swiped back from the leading edge. The tab bar
+         lives inside so the whole app recedes when a modal comes up. */}
+      <window.ScreenStage route={route} render={renderScreen} scrollerRef={scrollerRef}
+        onNavigate={navigateTo} dimmed={!!docView || showAddDoc || showSettleUp || showSearch}>
+        {/* Nav layers — hidden during onboarding (it has its own flow) */}
+        {route.scope === 'app' && route.name !== 'onboarding' &&
+          <AppNav active={route.name === 'insights' ? 'trips' : route.name} onChange={go} onAdd={() => {
+            // During a trip, "+" logs an expense on it; otherwise it plans a trip.
+            const live = window.activeTripNow?.();
+            if (live) { pendingSheetRef.current = 'addExpense'; goTrip(live.id); }
+            else openSheet('addTrip');
+          }} />}
+        {route.scope === 'trip' && (
+          <TripNav active={route.name} onChange={go} onAdd={() => openSheet('addExpense')} />
+        )}
+      </window.ScreenStage>
 
-      {/* Doc detail overlay — slides over */}
-      {docView && (
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 80, overflow: 'auto',
-          animation: 'slideUpFull 280ms cubic-bezier(.2,.8,.2,1)',
-        }} className="no-scrollbar">
+      {/* Doc detail — slides up, drag down to close */}
+      <window.Overlay open={!!docView} onClose={() => setDocView(null)} z={80}>
+        {docView && (
           <window.ScreenDocDetail
             doc={docView.doc}
             category={docView.category}
             back={() => setDocView(null)}
             go={go}
             openSheet={openSheet} />
-          <style>{`@keyframes slideUpFull { from { transform: translateY(100%) } to { transform: translateY(0) } }`}</style>
-        </div>
-      )}
-
-      {/* Nav layers — hidden during onboarding (it has its own flow) */}
-      {route.scope === 'app' && route.name !== 'onboarding' &&
-        <AppNav active={route.name === 'insights' ? 'trips' : route.name} onChange={go} onAdd={() => {
-          // During a trip, "+" logs an expense on it; otherwise it plans a trip.
-          const live = window.activeTripNow?.();
-          if (live) { pendingSheetRef.current = 'addExpense'; goTrip(live.id); }
-          else openSheet('addTrip');
-        }} />}
-      {route.scope === 'trip' && (
-        <TripNav active={route.name} onChange={go} onAdd={() => openSheet('addExpense')} />
-      )}
+        )}
+      </window.Overlay>
 
       <Sheet open={sheet === 'addTrip'} onClose={() => setSheet(null)} title={window.isRTL ? 'التخطيط لرحلة جديدة' : 'New trip'} height={0.88}>
         <AddTripSheet onDone={() => setSheet(null)} onCreated={(tripId) => {
@@ -614,39 +607,28 @@ function App() {
         <AddExpenseSheet existing={editingExpense} onDone={() => { setSheet(null); setEditingExpense(null); }} />
       </Sheet>
       {/* Full-screen Add Document page */}
-      {showAddDoc && (
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 85, overflow: 'auto',
-          animation: 'slideUpFull 280ms cubic-bezier(.2,.8,.2,1)',
-        }} className="no-scrollbar">
+      <window.Overlay open={showAddDoc} onClose={() => setShowAddDoc(false)} z={85} dismissible={false}>
+        {showAddDoc && (
           <window.ScreenAddDoc
             back={() => setShowAddDoc(false)}
             onCreated={() => setShowAddDoc(false)} />
-        </div>
-      )}
+        )}
+      </window.Overlay>
       {/* Full-screen Settle Up */}
-      {showSettleUp && (
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 85, overflow: 'auto',
-          animation: 'slideUpFull 280ms cubic-bezier(.2,.8,.2,1)',
-        }} className="no-scrollbar">
-          <window.ScreenSettleUp back={() => setShowSettleUp(false)} />
-        </div>
-      )}
+      <window.Overlay open={showSettleUp} onClose={() => setShowSettleUp(false)} z={85}>
+        {showSettleUp && <window.ScreenSettleUp back={() => setShowSettleUp(false)} />}
+      </window.Overlay>
       {/* Full-screen Trip Search */}
-      {showSearch && (
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 86, overflowY: 'auto', overflowX: 'hidden',
-          animation: 'slideUpFull 240ms cubic-bezier(.2,.8,.2,1)',
-        }} className="no-scrollbar">
+      <window.Overlay open={showSearch} onClose={() => setShowSearch(false)} z={86}>
+        {showSearch && (
           <window.ScreenTripSearch
             back={() => setShowSearch(false)}
             openSheet={openSheet}
             openDoc={openDoc}
             go={go}
           />
-        </div>
-      )}
+        )}
+      </window.Overlay>
       {joining && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 250,
@@ -780,7 +762,7 @@ const navBtn = (active) => ({
 
 // Scroll-to-top: tap the currently-active tab to smooth-scroll to top.
 function scrollActiveToTop() {
-  const scroller = document.querySelector('[class="no-scrollbar"]:not(.ptr-indicator)') || document.querySelector('.no-scrollbar');
+  const scroller = window.__activeScroller || document.querySelector('.v-screen');
   if (!scroller) return;
   scroller.scrollTo?.({ top: 0, behavior: 'smooth' });
 }
@@ -810,7 +792,10 @@ function RouteNav({ tabs, active, onChange, onAdd }) {
   const pos = window.isRTL ? (N - 1 - activeIndex) : activeIndex;
   const reduce = typeof window !== 'undefined' && window.matchMedia
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false;
-  const glide = reduce ? 'none' : 'transform 260ms cubic-bezier(.2,.8,.2,1)';
+  // The plane flies on a slightly under-damped spring: it overshoots a
+  // touch and settles, like something with mass.
+  const fly = window.vSpring ? window.vSpring(0.72, 0.5) : { duration: 260, easing: 'cubic-bezier(.2,.8,.2,1)' };
+  const glide = reduce ? 'none' : `transform ${fly.duration}ms ${fly.easing}`;
   const slot = `${100 / N}%`;
 
   return (
@@ -844,9 +829,9 @@ function RouteNav({ tabs, active, onChange, onAdd }) {
           const isActive = active === tab.k;
           return (
             <button key={tab.k} aria-label={tab.l} aria-current={isActive ? 'page' : undefined}
-              onClick={() => isActive ? scrollActiveToTop() : onChange(tab.k)}
+              onClick={() => { if (isActive) { scrollActiveToTop(); return; } window.__navIntent = 'tab'; onChange(tab.k); }}
               style={tabBtn(isActive)}>
-              <span style={{
+              <span className={isActive ? 'v-pop' : undefined} style={{
                 display: 'grid', placeItems: 'center',
                 transform: isActive ? 'scale(1.06)' : 'scale(1)',
                 transition: 'transform 200ms cubic-bezier(.2,.8,.2,1)',

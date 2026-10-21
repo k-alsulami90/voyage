@@ -312,7 +312,7 @@ function ScreenTrips({ goTrip, go }) {
         return (
           <div style={{ padding: '4px 14px 0' }}>
             <SectionLabel>{t('currentlyTraveling')}</SectionLabel>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="v-list" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {live.map((tr) => (
                 <CurrentTripCard key={tr.id} trip={tr} onOpen={() => goTrip(tr.id)} />
               ))}
@@ -325,7 +325,7 @@ function ScreenTrips({ goTrip, go }) {
       {upcoming.length > 0 && (scope === 'all') && (
         <div style={{ padding: '24px 0 0' }}>
           <SectionLabel>{t('upcoming')}</SectionLabel>
-          <div style={{ display: 'flex', gap: 12, padding: '0 22px 4px', overflowX: 'auto' }} className="no-scrollbar">
+          <div style={{ display: 'flex', gap: 12, padding: '0 22px 4px', overflowX: 'auto' }} className="no-scrollbar v-list">
             {upcoming.map((trip) => (
               <UpcomingTripCard key={trip.id} trip={trip} onOpen={() => goTrip(trip.id)} />
             ))}
@@ -337,7 +337,7 @@ function ScreenTrips({ goTrip, go }) {
       {past.length > 0 && (scope === 'all' || past.some((x) => scope === (x.shared ? 'shared' : 'private'))) && (
         <div style={{ padding: '24px 14px 0' }}>
           <SectionLabel>{t('pastTrips')}</SectionLabel>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 8px' }}>
+          <div className="v-list" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 8px' }}>
             {trips.filter((tr) => tr.state.kind === 'past').map((trip) => (
               <PastTripCard key={trip.id} trip={trip} onOpen={() => goTrip(trip.id)} />
             ))}

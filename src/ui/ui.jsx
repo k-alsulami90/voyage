@@ -263,6 +263,7 @@ const Sheet = ({ open, onClose, children, title, height = 0.7 }) => {
     st.v = v;
     const landing = st.y + _project(v);
     if (landing > st.H * 0.5 || v > 1100) {
+      window.haptic?.();
       springTo(st.H, { damping: 1, response: 0.3, velocity: v, done: () => onCloseRef.current && onCloseRef.current() });
     } else {
       springTo(0, { damping: 0.8, response: 0.3, velocity: v });   // momentum → a touch of bounce
@@ -462,14 +463,20 @@ function ToastHost() {
   React.useEffect(() => {
     const handler = (item) => {
       setItems((prev) => [...prev, item]);
+      if (item.type === 'success' || item.type === 'error') window.haptic?.();
+      // Leave along the path it came in on, then unmount.
+      setTimeout(() => {
+        setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, leaving: true } : x)));
+      }, item.durationMs);
       setTimeout(() => {
         setItems((prev) => prev.filter((x) => x.id !== item.id));
-      }, item.durationMs);
+      }, item.durationMs + 260);
     };
     window._toastSubs.add(handler);
     return () => { window._toastSubs.delete(handler); };
   }, []);
   if (items.length === 0) return null;
+  const toastSpring = window.vSpring ? window.vSpring(0.72, 0.42) : { duration: 260, easing: 'ease-out' };
   return (
     <div style={{
       position: 'fixed', zIndex: 9999,
@@ -492,7 +499,9 @@ function ToastHost() {
             flexDirection: 'row',
             boxShadow: '0 12px 28px rgba(0,0,0,0.22)',
             pointerEvents: 'auto', fontSize: 13, fontWeight: 500,
-            animation: 'toast-in 220ms cubic-bezier(.2,.8,.2,1)',
+            animation: t.leaving
+              ? 'toast-out 240ms cubic-bezier(.4,0,1,1) forwards'
+              : `toast-in ${toastSpring.duration}ms ${toastSpring.easing} both`,
           }}>
             <div style={{
               width: 22, height: 22, borderRadius: 999, flexShrink: 0,
@@ -503,7 +512,8 @@ function ToastHost() {
           </div>
         );
       })}
-      <style>{`@keyframes toast-in { from { transform: translateY(-12px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }`}</style>
+      <style>{`@keyframes toast-in { from { transform: translateY(-28px) scale(0.92); opacity: 0 } 40% { opacity: 1 } to { transform: none; opacity: 1 } }
+        @keyframes toast-out { to { transform: translateY(-22px) scale(0.96); opacity: 0 } }`}</style>
     </div>
   );
 }

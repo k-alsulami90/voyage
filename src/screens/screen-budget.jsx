@@ -140,13 +140,13 @@ function ScreenBudget({ go, openSheet, loading }) {
               }}>
                 {window.isRTL ? (
                   planned > 0 ? (
-                    <>أنفقت <BudgetNum>{conv(realSpent)}</BudgetNum> من أصل <BudgetNum dim>{conv(planned)}</BudgetNum>.</>
+                    <>أنفقت <BudgetNum><window.CountUp id={'spent-' + (window.TRIP?.id || '')} value={realSpent} format={conv} /></BudgetNum> من أصل <BudgetNum dim>{conv(planned)}</BudgetNum>.</>
                   ) : (
                     <>إجمالي ما أنفقته حتى الآن: <BudgetNum>{conv(realSpent)}</BudgetNum>.</>
                   )
                 ) : (
                   planned > 0 ? (
-                    <>Spent <BudgetNum>{conv(realSpent)}</BudgetNum> of <BudgetNum dim>{conv(planned)}</BudgetNum> planned.</>
+                    <>Spent <BudgetNum><window.CountUp id={'spent-' + (window.TRIP?.id || '')} value={realSpent} format={conv} /></BudgetNum> of <BudgetNum dim>{conv(planned)}</BudgetNum> planned.</>
                   ) : (
                     <>Spent <BudgetNum>{conv(realSpent)}</BudgetNum> so far.</>
                   )
@@ -180,13 +180,14 @@ function ScreenBudget({ go, openSheet, loading }) {
             <div style={{ position: 'relative', width: 150, height: 150, flexShrink: 0 }}>
               <svg width="150" height="150" viewBox="0 0 150 150" style={{ transform: 'rotate(-90deg)' }}>
                 <circle cx="75" cy="75" r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="14" />
-                {cats.map((c) => {
+                {cats.map((c, i) => {
                   const len = (c.pct / 100) * C;
                   const dasharray = `${len} ${C - len}`;
                   const el = (
                     <circle key={c.key} cx="75" cy="75" r={R} fill="none"
                             stroke={c.color} strokeWidth="14" strokeLinecap="butt"
-                            strokeDasharray={dasharray} strokeDashoffset={-offset} />
+                            strokeDasharray={dasharray} strokeDashoffset={-offset}
+                            className="v-dash" style={{ animationDelay: `${120 + i * 110}ms` }} />
                   );
                   offset += len + 2; // small gap
                   return el;
@@ -197,7 +198,7 @@ function ScreenBudget({ go, openSheet, loading }) {
                 alignItems: 'center', justifyContent: 'center', textAlign: 'center',
               }}>
                 <div className="mono" style={{ fontSize: 32, lineHeight: 1, fontWeight: 600, letterSpacing: '-0.02em' }}>
-                  {planned > 0 ? Math.min(Math.round((realSpent / planned) * 100), 999) : 0}<span style={{ fontSize: 16, opacity: 0.65 }}>%</span>
+                  <window.CountUp id={'spent-pct-' + (window.TRIP?.id || '')} value={planned > 0 ? Math.min((realSpent / planned) * 100, 999) : 0} format={(v) => String(Math.round(v))} /><span style={{ fontSize: 16, opacity: 0.65 }}>%</span>
                 </div>
                 <div style={{ fontSize: 11, opacity: 0.62, marginTop: 3 }}>{t('used')}</div>
               </div>
@@ -461,7 +462,7 @@ function ScreenBudget({ go, openSheet, loading }) {
         )}
 
         {/* Expense rows — swipeable with delete */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 4px' }}>
+        <div className="v-list" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 4px' }}>
           {filteredExpenses.map((e) => {
             const m = window.MEMBERS.find((x) => x.id === e.who) || { name: 'Unknown', hue: 200, initials: '?' };
             const c = cats.find((x) => x.key === e.cat) || { color: 'var(--ink-mute)' };

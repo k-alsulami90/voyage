@@ -184,7 +184,7 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
           display: 'grid',
           gridTemplateColumns: 'repeat(2, 1fr)',
           gap: 12,
-        }}>
+        }} className="v-list">
           {visible.map((d) => (
             <DocTileGrid key={d.id} doc={d} onOpen={() => openDoc?.(d, cats.find((c) => c.key === d.category))} />
           ))}
@@ -196,7 +196,7 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
           background: 'var(--cream-2)', borderRadius: 18,
           margin: '0 14px',
           border: '0.5px solid var(--hairline)', overflow: 'hidden',
-        }}>
+        }} className="v-list">
           {visible.map((d, i) => (
             <window.SwipeRow key={d.id}
               actions={[{ key: 'delete', bg: 'var(--clay)', icon: <window.IconTrash size={18} stroke="#fff" /> }]}

@@ -124,14 +124,14 @@ function TodayBudgetCard({ onManage }) {
         </div>
         <div style={{ marginTop: 2, display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
           <span className="mono" style={{ fontSize: 32, fontWeight: 700, color: over ? 'var(--clay-deep)' : 'var(--ink)' }}>
-            {fmtC(bigValue)}
+            <window.CountUp id={'today-big-' + (window.TRIP?.id || '')} value={bigValue} format={fmtC} />
           </span>
           {sub && <span style={{ fontSize: 13, color: 'var(--ink-mute)' }}>{sub}</span>}
         </div>
 
         {b.phase === 'during' && (
           <div style={{ height: 6, borderRadius: 999, background: 'var(--cream)', marginTop: 10, overflow: 'hidden' }}>
-            <div style={{
+            <div className="v-grow" style={{
               width: `${(over ? 1 : pctToday) * 100}%`, height: '100%', borderRadius: 999,
               background: over ? 'var(--clay)' : 'var(--moss)', transition: 'width 300ms cubic-bezier(.2,.8,.2,1)',
             }} />
@@ -356,7 +356,7 @@ function MyTripCostCard({ openSheet }) {
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{ar ? 'تكلفة رحلتك' : 'Your trip cost'}</div>
           <span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>🔒 {ar ? 'تظهر لك فقط' : 'only you'}</span>
         </div>
-        <div className="mono" style={{ fontSize: 26, fontWeight: 700, color: 'var(--ink)', margin: '4px 0 6px' }}>{fmtC(total)}</div>
+        <div className="mono" style={{ fontSize: 26, fontWeight: 700, color: 'var(--ink)', margin: '4px 0 6px' }}><window.CountUp id={'mycost-' + (window.TRIP?.id || '')} value={total} format={fmtC} /></div>
         <div style={{ borderTop: '0.5px solid var(--hairline)', paddingTop: 4 }}>
           {row(ar ? 'نصيبك من مصاريف الرحلة' : 'Your share of the trip',
                share, ar ? `${fmtC(groupTotal)} ÷ ${members.length}` : `${fmtC(groupTotal)} ÷ ${members.length}`)}

@@ -2,6 +2,25 @@
 // Overlapping & interlocking cards: hero image + tilted stat cards + glass pills
 
 function ScreenHub({ go, openSheet, loading }) {
+  // Hero parallax: the cover drifts slower than the page and swells a
+  // little when you pull past the top — the screen feels like it has depth.
+  const heroImgRef = React.useRef(null);
+  React.useEffect(() => {
+    const img = heroImgRef.current; if (!img || window.vReduce?.()) return;
+    const sc = img.closest('.v-screen'); if (!sc) return;
+    let raf = 0;
+    const paint = () => {
+      raf = 0;
+      const y = sc.scrollTop;
+      const shift = Math.max(-40, Math.min(48, y * 0.28));
+      const swell = y < 0 ? 1 + Math.min(0.18, -y / 500) : 1;
+      img.style.transform = `translate3d(0, ${shift}px, 0) scale(${swell})`;
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(paint); };
+    sc.addEventListener('scroll', onScroll, { passive: true });
+    paint();
+    return () => { sc.removeEventListener('scroll', onScroll); if (raf) cancelAnimationFrame(raf); };
+  });
   const trip    = window.TRIP;
   const dataReady = trip && window.isTripDataReady?.(trip.id);
   // Show skeleton until expenses for THIS trip are actually loaded —
@@ -76,16 +95,20 @@ function ScreenHub({ go, openSheet, loading }) {
           position: 'relative', height: 230, borderRadius: 32,
           overflow: 'hidden', boxShadow: 'var(--shadow-lg)',
         }}>
-          {(trip.coverUrl || trip.coverImageUrl) ? (
-            <div style={{
-              position: 'absolute', inset: 0,
-              backgroundImage: `url(${trip.coverUrl || trip.coverImageUrl})`,
-              backgroundSize: 'cover', backgroundPosition: 'center',
-            }}>
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 55%)' }} />
-            </div>
-          ) : (
-            <CoverArt kind={trip.cover || 'kyoto'} />
+          {/* Cover sits on a taller layer that drifts with scroll (parallax). */}
+          <div ref={heroImgRef} style={{ position: 'absolute', inset: '-52px 0', willChange: 'transform' }}>
+            {(trip.coverUrl || trip.coverImageUrl) ? (
+              <div style={{
+                position: 'absolute', inset: 0,
+                backgroundImage: `url(${trip.coverUrl || trip.coverImageUrl})`,
+                backgroundSize: 'cover', backgroundPosition: 'center',
+              }} />
+            ) : (
+              <CoverArt kind={trip.cover || 'kyoto'} />
+            )}
+          </div>
+          {(trip.coverUrl || trip.coverImageUrl) && (
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 55%)', pointerEvents: 'none' }} />
           )}
 
           {/* Inner labels — top-leading countries chip */}
@@ -344,7 +367,7 @@ function ScreenHub({ go, openSheet, loading }) {
               }}>
                 {window.isRTL ? (
                   planned > 0 ? (
-                    <>أنفقت <HubBudgetNum>{fmtC(spent)}</HubBudgetNum> من أصل <HubBudgetNum dim>{fmtC(planned)}</HubBudgetNum>.</>
+                    <>أنفقت <HubBudgetNum><window.CountUp id={'hub-spent-' + (trip?.id || '')} value={spent} format={fmtC} /></HubBudgetNum> من أصل <HubBudgetNum dim>{fmtC(planned)}</HubBudgetNum>.</>
                   ) : (
                     <>إجمالي ما أنفقته حتى الآن: <HubBudgetNum>{fmtC(spent)}</HubBudgetNum>.</>
                   )

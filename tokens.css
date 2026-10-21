@@ -445,3 +445,47 @@ textarea:focus-visible,
   animation: slideDown 240ms cubic-bezier(.32,.72,0,1) forwards;
 }
 @keyframes slideDown { to { transform: translateY(0); } }
+
+
+/* ── Motion (driven by src/lib/motion.jsx) ─────────────────────────────
+   Screens: sections rise into place in a short cascade when they mount.
+   Lists: rows ripple in, and a newly added row rises into its slot.
+   Fill-mode `backwards` only: once done, the element is untouched (no
+   lingering transform to fight swipe rows or fixed buttons). */
+.v-elevated { box-shadow: 0 0 44px rgba(0, 0, 0, 0.22); }
+@keyframes v-rise { from { opacity: 0; transform: translate3d(0, 16px, 0); } }
+.v-screen > * > * { animation: v-rise 620ms cubic-bezier(.16, 1, .3, 1) backwards; }
+.v-screen > * > *:nth-child(2) { animation-delay: 45ms; }
+.v-screen > * > *:nth-child(3) { animation-delay: 90ms; }
+.v-screen > * > *:nth-child(4) { animation-delay: 135ms; }
+.v-screen > * > *:nth-child(5) { animation-delay: 180ms; }
+.v-screen > * > *:nth-child(6) { animation-delay: 225ms; }
+.v-screen > * > *:nth-child(7) { animation-delay: 270ms; }
+.v-screen > * > *:nth-child(8) { animation-delay: 315ms; }
+.v-screen > * > *:nth-child(n+9) { animation-delay: 330ms; }
+.v-list > * { animation: v-rise 560ms cubic-bezier(.16, 1, .3, 1) 60ms backwards; }
+.v-list > *:nth-child(2) { animation-delay: 32ms; }
+.v-list > *:nth-child(3) { animation-delay: 64ms; }
+.v-list > *:nth-child(4) { animation-delay: 96ms; }
+.v-list > *:nth-child(5) { animation-delay: 128ms; }
+.v-list > *:nth-child(6) { animation-delay: 160ms; }
+.v-list > *:nth-child(7) { animation-delay: 192ms; }
+.v-list > *:nth-child(8) { animation-delay: 224ms; }
+.v-list > *:nth-child(9) { animation-delay: 256ms; }
+.v-list > *:nth-child(10) { animation-delay: 288ms; }
+.v-list > *:nth-child(n+11) { animation-delay: 340ms; }
+/* A screen you go BACK to (or reveal by swiping) stays as it was. */
+.v-screen.v-calm > * > *, .v-screen.v-calm .v-list > *, .v-screen.v-calm .v-grow, .v-screen.v-calm .v-dash { animation: none; }
+/* Progress fills grow from their start edge. */
+@keyframes v-grow { from { transform: scaleX(0); } }
+.v-grow { animation: v-grow 950ms cubic-bezier(.16, 1, .3, 1) 140ms backwards; transform-origin: left center; }
+[dir="rtl"] .v-grow { transform-origin: right center; }
+/* Donut segments draw themselves in sequence. */
+@keyframes v-dash { from { stroke-dasharray: 0 1000; } }
+.v-dash { animation: v-dash 1100ms cubic-bezier(.16, 1, .3, 1) backwards; }
+/* Tab icon: a small physical pop when it becomes the active one. */
+@keyframes v-pop { 0% { transform: scale(0.9); } 45% { transform: scale(1.2); } 75% { transform: scale(1.0); } 100% { transform: scale(1.06); } }
+.v-pop { animation: v-pop 520ms cubic-bezier(.3, .7, .4, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .v-screen > * > *, .v-list > *, .v-grow, .v-dash, .v-pop { animation: none !important; }
+}
