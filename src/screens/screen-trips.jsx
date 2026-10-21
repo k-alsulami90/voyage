@@ -104,14 +104,10 @@ function ScreenTrips({ goTrip, go }) {
   const matchesScope  = (t) => scope === 'all' || (scope === 'shared' ? t.shared : !t.shared);
   const matchesSearch = (t) => !search || (t.title || '').toLowerCase().includes(search.toLowerCase());
 
+  // Every section reads from the same filtered list, so the private /
+  // shared chips and search apply everywhere (ALL live trips are kept — a
+  // traveler can be on two overlapping trips at once).
   const trips    = enrichedTrips.filter((t) => matchesScope(t) && matchesSearch(t));
-  // ALL current trips — a traveler can have two overlapping live trips at
-  // once (e.g. a long regional trip + a short side trip). Previously this
-  // was a singular `.find`, so the second concurrent trip showed in no
-  // section at all and silently disappeared from the home screen.
-  const current  = enrichedTrips.filter((t) => t.state.kind === 'current');
-  const upcoming = enrichedTrips.filter((t) => t.state.kind === 'upcoming');
-  const past     = enrichedTrips.filter((t) => t.state.kind === 'past');
 
   // Smart Track events, stale-while-revalidate.
   //
@@ -140,159 +136,48 @@ function ScreenTrips({ goTrip, go }) {
   }
   const nextEvent  = events[0] || null;
 
+  const ar = window.isRTL;
+  const Section = window.HubSection;
+  const countWord = (n, one, two, few, many) => (n === 1 ? one : n === 2 ? two : (n >= 3 && n <= 10) ? few : many);
+  const tripsWord = (n) => ar ? `${n} ${countWord(n, 'رحلة', 'رحلتان', 'رحلات', 'رحلة')}` : `${n} ${n === 1 ? 'trip' : 'trips'}`;
+  const live  = trips.filter((tr) => tr.state.kind === 'current');
+  const soon  = trips.filter((tr) => tr.state.kind === 'upcoming')
+    .sort((a, b) => String(a.startDate || '').localeCompare(String(b.startDate || '')));
+  const done  = trips.filter((tr) => tr.state.kind === 'past')
+    .sort((a, b) => String(b.endDate || '').localeCompare(String(a.endDate || '')));
+
   return (
     <div data-screen-label="00 Trips Home" style={{
-      background: 'var(--cream)', minHeight: '100%', paddingBottom: 100,
+      background: 'var(--cream)', minHeight: '100%', paddingBottom: 110,
     }}>
-      {/* Header — no duplicate Insights button. The bottom tab bar already
-         carries Insights as a labeled tab; the duplicate sparkle button
-         here was unlabeled and stole focus on a first-time visit. */}
       <LargeTitleHeader
         title={t('yourTravels')}
         subtitle={(() => {
-          // Real first name + today's weekday (was a hardcoded "HEY MIRA · SUNDAY").
           const first = (window.ACCOUNT?.profile?.name || '').trim().split(/\s+/)[0];
-          const day = new Date().toLocaleDateString(window.isRTL ? 'ar' : 'en-US', { weekday: 'long' });
-          const hi = window.isRTL ? 'مرحباً' : 'Hi';
+          const day = new Date().toLocaleDateString(ar ? 'ar' : 'en-US', { weekday: 'long' });
+          const hi = ar ? 'مرحباً' : 'Hi';
           return first ? `${hi} ${first} · ${day}` : `${hi} · ${day}`;
         })()}
       />
 
-      {/* GLOBAL INSIGHTS CARD — editorial composition.
-         Card surface stays (visual anchor for the page) but the structural
-         slop inside it is gone: no 56px hero-metric serif number, no
-         identical 3-tile mini KPI grid, no uppercase mono eyebrow. The
-         body reads as a sentence; numbers carry hierarchy via weight,
-         not via tile frames. */}
-      {stats && stats.totalTrips > 0 && (
-        <div style={{ padding: '0 14px' }}>
-          <div style={{
-            position: 'relative', overflow: 'hidden', borderRadius: 26,
-            background: 'var(--statement)', boxShadow: 'var(--shadow-card)',
-          }}>
-          <button onClick={() => go('insights')}
-            aria-label={window.isRTL
-              ? `افتح الإحصائيات — ${stats.totalTrips} رحلات، ${stats.totalDays} يوم سفر`
-              : `Open insights — ${stats.totalTrips} trips, ${stats.totalDays} travel days`}
-            style={{
-            all: 'unset', cursor: 'pointer',
-            width: '100%', boxSizing: 'border-box',
-            background: 'transparent', color: 'var(--statement-fg)',
-            padding: '20px 22px 6px',
-            position: 'relative', zIndex: 2,
-            display: 'block',
-          }}>
-            {/* Subtle single-direction glow — replaces the dual-aurora
-               SaaS-dashboard gradient. One warm wash, low chroma, off
-               to one corner. */}
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: 'radial-gradient(70% 60% at 100% 0%, oklch(0.45 0.10 35 / 0.42) 0%, transparent 65%)',
-              pointerEvents: 'none',
-            }} />
+      {/* YOUR TRAVEL RECORD — total spend, the globe of places, three counts */}
+      {stats && stats.totalTrips > 0 && <TripsHero stats={stats} onInsights={() => go('insights')} />}
 
-            <div style={{ position: 'relative' }}>
-              {/* Editorial sentence. No eyebrow above it — the sentence
-                 IS the section label. */}
-              <div style={{
-                fontSize: 17, lineHeight: 1.45,
-                color: 'var(--statement-sub)',
-                fontWeight: 400,
-              }}>
-                {window.isRTL ? (
-                  <>
-                    خضت <NumSpan>{window.arPlural(stats.totalTrips, { one: 'رحلة واحدة', two: 'رحلتين', few: `${stats.totalTrips} رحلات`, many: `${stats.totalTrips} رحلة`, other: `${stats.totalTrips} رحلة` })}</NumSpan>
-                    {' · '}
-                    على مدار <NumSpan>{window.arPlural(stats.totalDays, { one: 'يوم واحد', two: 'يومين', few: `${stats.totalDays} أيام`, many: `${stats.totalDays} يوماً`, other: `${stats.totalDays} يوماً` })}</NumSpan> من السفر
-                    {' · '}
-                    شملت <NumSpan>{window.arPlural(stats.countries, { one: 'دولة واحدة', two: 'دولتين', few: `${stats.countries} دول`, many: `${stats.countries} دولة`, other: `${stats.countries} دولة` })}</NumSpan>
-                  </>
-                ) : (
-                  <>
-                    <NumSpan>{stats.totalTrips}</NumSpan> {stats.totalTrips === 1 ? 'trip' : 'trips'}
-                    {' · '}
-                    <NumSpan>{stats.totalDays}</NumSpan> travel days
-                    {' · '}
-                    <NumSpan>{stats.countries}</NumSpan> {stats.countries === 1 ? 'country' : 'countries'}
-                  </>
-                )}
-              </div>
-
-              {/* Headline row — spend on the left, "See insights" on the
-                 right. The chevron affordance ships even when spend is
-                 $0 (new trip with no expenses logged yet) so the card
-                 doesn't *look* untappable in that state. */}
-              <div style={{
-                marginTop: 10,
-                display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-                gap: 8, flexDirection: 'row',
-              }}>
-                {stats.totalSpentUSD > 0 ? (
-                  <div className="mono" style={{
-                    fontSize: 26, fontWeight: 600,
-                    color: 'var(--statement-fg)', letterSpacing: '-0.02em',
-                  }}>
-                    {window.fmtMoney(stats.totalSpentUSD, { in: 'home' })}
-                  </div>
-                ) : (
-                  // Keep the row anchored even with no spend yet — empty
-                  // span pushes the affordance to the trailing edge.
-                  <span />
-                )}
-                <div style={{
-                  fontSize: 12, color: 'var(--statement-sub)',
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                  flexDirection: 'row',
-                }}>
-                  {window.isRTL ? 'عرض الإحصائيات' : 'See insights'}
-                  <span className="icon-flip"><IconChevron size={12} stroke="currentColor" /></span>
-                </div>
-              </div>
-            </div>
-          </button>
-          {/* Your travels on a live 3D globe: pins for every country, arcs
-             from home. Drag to spin it; it drifts on its own when idle. */}
-          <div style={{ position: 'relative', height: 236, marginTop: -4, display: 'flex', justifyContent: 'center',
-            WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 18%)', maskImage: 'linear-gradient(to bottom, transparent 0, #000 18%)' }}>
-            <window.Globe width={380} height={236} radius={158} cy={196}
-              pins={window.tripPins(window.TRIPS)} homeCode={window.homeCountryCode()} />
-          </div>
-          {window.tripPins(window.TRIPS).length === 0 && (
-            <div style={{ position: 'absolute', top: 128, insetInline: 18, zIndex: 3, textAlign: 'center', fontSize: 12, color: 'var(--statement-fg)', opacity: 0.85, pointerEvents: 'none' }}>
-              {window.isRTL ? 'اكتب اسم المدينة أو الدولة في عنوان الرحلة لتظهر هنا' : 'Put the city or country in a trip name to pin it here'}
-            </div>
-          )}
-          <div style={{ position: 'absolute', bottom: 12, insetInlineStart: 18, zIndex: 3, display: 'flex', gap: 12,
-            fontSize: 11, color: 'var(--statement-sub)', pointerEvents: 'none' }}>
-            {[['rgb(255,214,170)', window.isRTL ? 'زرتها' : 'Visited'], ['rgb(255,140,90)', window.isRTL ? 'قادمة' : 'Upcoming'], ['rgb(120,215,160)', window.isRTL ? 'الآن' : 'Now']].map(([c, l]) => (
-              <span key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ width: 7, height: 7, borderRadius: 99, background: c, boxShadow: `0 0 8px ${c}` }} />{l}
-              </span>
-            ))}
-          </div>
-          </div>
-        </div>
-      )}
-
-      {/* SCOPE FILTER — chips for private vs shared */}
-      <div style={{ padding: '20px 22px 10px' }}>
-        <div style={{ display: 'flex', gap: 6, flexDirection: 'row' }}>
+      {/* FILTER — private / shared + search */}
+      <div style={{ padding: '22px 20px 0' }}>
+        <div style={{ display: 'flex', gap: 6, flexDirection: 'row', alignItems: 'center' }}>
           {[
             { k: 'all',     l: t('all'),     n: window.TRIPS.length },
             { k: 'private', l: t('private'), n: window.TRIPS.filter((x) => !x.shared).length },
             { k: 'shared',  l: t('shared'),  n: window.TRIPS.filter((x) => x.shared).length },
-          ].map((s) => (
-            <Chip key={s.k} active={scope === s.k} onClick={() => setScope(s.k)}>
-              {s.l} · {s.n}
+          ].map((sc) => (
+            <Chip key={sc.k} active={scope === sc.k} onClick={() => setScope(sc.k)}>
+              {sc.l} · {sc.n}
             </Chip>
           ))}
           <div style={{ flex: 1 }} />
-          {/* Was 30x30 which is below the iOS HIG thumb-zone floor.
-             38x38 keeps it close to the chip row visually but gives
-             distracted-mobile users (Casey) a target they can actually
-             hit one-handed without mis-tapping a chip. */}
           <button onClick={() => { setShowSearch(!showSearch); setSearch(''); }}
-            aria-label={window.isRTL ? 'بحث عن رحلة' : 'Search trips'} style={{
+            aria-label={ar ? 'بحث عن رحلة' : 'Search trips'} style={{
             width: 38, height: 38, borderRadius: 999,
             background: showSearch ? 'var(--sel)' : 'var(--cream-2)',
             border: '0.5px solid var(--hairline)', display: 'grid', placeItems: 'center',
@@ -302,23 +187,20 @@ function ScreenTrips({ goTrip, go }) {
         {showSearch && (
           <div style={{ marginTop: 10 }}>
             <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder={window.isRTL ? 'ابحث عن رحلة...' : 'Search trips...'}
+              placeholder={ar ? 'ابحث عن رحلة...' : 'Search trips...'}
               style={{
-                width: '100%', padding: '10px 14px', borderRadius: 12,
+                width: '100%', padding: '11px 14px', borderRadius: 14,
                 border: '1px solid var(--hairline-2)', background: 'var(--cream-2)',
-                color: 'var(--ink)', fontSize: 13.5, outline: 'none',
+                color: 'var(--ink)', fontSize: 16, outline: 'none',
                 textAlign: 'start',
               }} />
           </div>
         )}
       </div>
 
-      {/* SMART TRACK — next time-anchored event (flight, check-in, pickup).
-         One event → a single hero card. Two or more in the 24h window →
-         a peeking, swipe-to-flip deck (SmartTrackStack). */}
-      {nextEvent && scope === 'all' && (
-        <div style={{ padding: '4px 14px 0' }}>
-          <SectionLabel>{window.isRTL ? 'الحدث القادم' : 'Up next'}</SectionLabel>
+      {/* UP NEXT — flight, check-in, pickup in the next 24h */}
+      {nextEvent && scope === 'all' && !search && (
+        <Section title={ar ? 'التالي' : 'Up next'} sub={smartTripCandidate?.title}>
           {events.length > 1 ? (
             <SmartTrackStack events={events.slice(0, 5)} trip={smartTripCandidate}
               onOpen={() => goTrip(smartTripCandidate.id)} />
@@ -326,50 +208,48 @@ function ScreenTrips({ goTrip, go }) {
             <SmartTrackCard event={nextEvent} trip={smartTripCandidate}
               onOpenTrip={() => goTrip(smartTripCandidate.id)} />
           )}
-        </div>
+        </Section>
       )}
 
-      {/* CURRENT TRIP — live progress card */}
-      {(() => {
-        const live = current.filter((tr) => scope === 'all' || scope === (tr.shared ? 'shared' : 'private'));
-        if (live.length === 0) return null;
-        return (
-          <div style={{ padding: '4px 14px 0' }}>
-            <SectionLabel>{t('currentlyTraveling')}</SectionLabel>
-            <div className="v-list v-deck" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {live.map((tr) => (
-                <window.Tilt key={tr.id} max={7} radius={28}><CurrentTripCard trip={tr} onOpen={() => goTrip(tr.id)} /></window.Tilt>
+      {/* NOW — the trip you're on */}
+      {live.length > 0 && (
+        <Section title={ar ? (live.length > 1 ? 'رحلاتك الحالية' : 'رحلتك الحالية') : (live.length > 1 ? 'On now' : 'On now')}>
+          <div className="v-list v-deck" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {live.map((tr) => (
+              <window.Tilt key={tr.id} max={7} radius={28}><CurrentTripCard trip={tr} onOpen={() => goTrip(tr.id)} /></window.Tilt>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* COMING UP — one trip fills the width; more scroll sideways */}
+      {soon.length > 0 && (
+        <Section title={ar ? 'القادمة' : 'Coming up'} sub={tripsWord(soon.length)}>
+          {soon.length === 1 ? (
+            <window.Tilt max={6} radius={24}><UpcomingTripCard trip={soon[0]} onOpen={() => goTrip(soon[0].id)} wide /></window.Tilt>
+          ) : (
+            <div className="no-scrollbar v-list v-deck" style={{
+              display: 'flex', gap: 12, overflowX: 'auto', margin: '0 -14px', padding: '0 14px 6px',
+              scrollSnapType: 'x mandatory', scrollPaddingInline: 14,
+            }}>
+              {soon.map((trip) => (
+                <div key={trip.id} style={{ flexShrink: 0, width: '82%', scrollSnapAlign: 'start' }}>
+                  <window.Tilt max={6} radius={24}><UpcomingTripCard trip={trip} onOpen={() => goTrip(trip.id)} wide /></window.Tilt>
+                </div>
               ))}
             </div>
-          </div>
-        );
-      })()}
-
-      {/* UPCOMING — countdown cards in horizontal scroller */}
-      {upcoming.length > 0 && (scope === 'all') && (
-        <div style={{ padding: '24px 0 0' }}>
-          <SectionLabel>{t('upcoming')}</SectionLabel>
-          <div style={{ display: 'flex', gap: 12, padding: '0 22px 4px', overflowX: 'auto' }} className="no-scrollbar v-list v-deck">
-            {upcoming.map((trip) => (
-              <window.Tilt key={trip.id} max={8} radius={24} style={{ flexShrink: 0 }}><UpcomingTripCard trip={trip} onOpen={() => goTrip(trip.id)} /></window.Tilt>
-            ))}
-          </div>
-        </div>
+          )}
+        </Section>
       )}
 
-      {/* PAST — completed rows with total spend */}
-      {past.length > 0 && (scope === 'all' || past.some((x) => scope === (x.shared ? 'shared' : 'private'))) && (
-        <div style={{ padding: '24px 14px 0' }}>
-          <SectionLabel>{t('pastTrips')}</SectionLabel>
-          <div className="v-list" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 8px' }}>
-            {trips.filter((tr) => tr.state.kind === 'past').map((trip) => (
-              <PastTripCard key={trip.id} trip={trip} onOpen={() => goTrip(trip.id)} />
-            ))}
-          </div>
-        </div>
+      {/* BEFORE — finished trips, newest first, one list */}
+      {done.length > 0 && (
+        <Section title={ar ? 'السابقة' : 'Past trips'} sub={tripsWord(done.length)}>
+          <PastTripList trips={done} onOpen={(id) => goTrip(id)} />
+        </Section>
       )}
 
-      {/* Empty state — no trips yet */}
+      {/* Empty state — no trips (or nothing matches the filter) */}
       {trips.length === 0 && (
         <div style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -380,16 +260,88 @@ function ScreenTrips({ goTrip, go }) {
             display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
           }}><IconCompass size={28} stroke="var(--ink-mute)" /></div>
           <div className="serif" style={{ fontSize: 22, color: 'var(--ink)' }}>
-            {window.isRTL ? 'لا توجد رحلات بعد' : 'No trips yet'}
+            {search || scope !== 'all'
+              ? (ar ? 'ما فيه رحلات تطابق' : 'No matching trips')
+              : (ar ? 'لا توجد رحلات بعد' : 'No trips yet')}
           </div>
-          <div style={{ fontSize: 13.5, color: 'var(--ink-mute)', lineHeight: 1.5, maxWidth: 220 }}>
-            {window.isRTL ? 'ستظهر تفاصيل رحلاتك هنا بمجرد إنشائها' : 'Your trips will appear here once created'}
+          <div style={{ fontSize: 13.5, color: 'var(--ink-mute)', lineHeight: 1.5, maxWidth: 240 }}>
+            {search || scope !== 'all'
+              ? (ar ? 'جرّب كلمة ثانية أو اختر «الكل»' : 'Try another word or pick “All”')
+              : (ar ? 'اضغط + تحت لإنشاء أول رحلة' : 'Tap + below to create your first trip')}
           </div>
         </div>
       )}
+    </div>
+  );
+}
 
-      {/* Crew-privacy notice removed from the home page per user request —
-         the same message lives in App Settings (tripScopedCollab/Sub). */}
+// ── Your travel record: total spend, the globe, three counts ──────────
+function TripsHero({ stats, onInsights }) {
+  const ar = window.isRTL;
+  const pins = window.tripPins(window.TRIPS);
+  const pick = (n, one, two, few, many) => (n === 1 ? one : n === 2 ? two : (n >= 3 && n <= 10) ? few : many);
+  const items = [
+    { n: stats.totalTrips || 0, l: ar ? pick(stats.totalTrips, 'رحلة', 'رحلتان', 'رحلات', 'رحلة') : ((stats.totalTrips === 1) ? 'trip' : 'trips') },
+    { n: stats.totalDays || 0, l: ar ? pick(stats.totalDays, 'يوم سفر', 'يوما سفر', 'أيام سفر', 'يوم سفر') : 'travel days' },
+    { n: stats.countries || 0, l: ar ? pick(stats.countries, 'دولة', 'دولتان', 'دول', 'دولة') : ((stats.countries === 1) ? 'country' : 'countries') },
+  ];
+  const fmt = (v) => window.fmtMoney(v, { in: 'home' });
+  return (
+    <div style={{ padding: '0 14px' }}>
+      <div style={{
+        position: 'relative', overflow: 'hidden', borderRadius: 28,
+        background: 'var(--statement)', color: 'var(--statement-fg)', boxShadow: 'var(--shadow-card)',
+      }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(70% 60% at 100% 0%, oklch(0.45 0.10 35 / 0.42) 0%, transparent 65%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'relative', zIndex: 2, padding: '18px 20px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12.5, color: 'var(--statement-sub)' }}>{ar ? 'صرفت على السفر' : 'Spent on travel'}</div>
+            <div className="mono" style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-0.02em', marginTop: 2, whiteSpace: 'nowrap' }}>
+              <window.CountUp id="trips-hero-total" value={stats.totalSpentUSD || 0} format={fmt} />
+            </div>
+          </div>
+          <button onClick={onInsights} style={{
+            flexShrink: 0, minHeight: 36, padding: '0 13px', borderRadius: 999,
+            background: 'rgba(255,255,255,0.10)', border: '0.5px solid rgba(255,255,255,0.18)',
+            color: 'var(--statement-fg)', fontSize: 12.5, fontWeight: 600,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>
+            {ar ? 'التحليل' : 'Insights'}
+          </button>
+        </div>
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', gap: 12, padding: '8px 20px 0', fontSize: 11, color: 'var(--statement-sub)', pointerEvents: 'none' }}>
+          {[['rgb(255,214,170)', ar ? 'زرتها' : 'Visited'], ['rgb(255,140,90)', ar ? 'قادمة' : 'Upcoming'], ['rgb(120,215,160)', ar ? 'الآن' : 'Now']].map(([c, l]) => (
+            <span key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 7, height: 7, borderRadius: 99, background: c, boxShadow: `0 0 8px ${c}` }} />{l}
+            </span>
+          ))}
+        </div>
+        {/* Your travels on a live 3D globe: drag to spin it */}
+        <div style={{ position: 'relative', height: 220, marginTop: -14, display: 'flex', justifyContent: 'center',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 24%)', maskImage: 'linear-gradient(to bottom, transparent 0, #000 24%)' }}>
+          <window.Globe width={380} height={220} radius={156} cy={196} pins={pins} homeCode={window.homeCountryCode()} />
+          {pins.length === 0 && (
+            <div style={{ position: 'absolute', top: 96, insetInline: 18, textAlign: 'center', fontSize: 12, color: 'var(--statement-fg)', opacity: 0.85, pointerEvents: 'none' }}>
+              {ar ? 'اكتب اسم المدينة أو الدولة في عنوان الرحلة لتظهر هنا' : 'Put the city or country in a trip name to pin it here'}
+            </div>
+          )}
+        </div>
+        <div style={{
+          position: 'relative', zIndex: 2, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          borderTop: '0.5px solid rgba(255,255,255,0.12)', background: 'rgba(0,0,0,0.22)',
+          backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+        }}>
+          {items.map((it, i) => (
+            <div key={i} style={{ padding: '11px 6px 13px', textAlign: 'center', borderInlineStart: i ? '0.5px solid rgba(255,255,255,0.10)' : 'none' }}>
+              <div className="mono" style={{ fontSize: 20, fontWeight: 700 }}>
+                <window.CountUp id={'trips-hero-n' + i} value={it.n} format={(v) => String(Math.round(v))} />
+              </div>
+              <div style={{ fontSize: 11.5, color: 'var(--statement-sub)', marginTop: 1 }}>{it.l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -438,9 +390,9 @@ function CurrentTripCard({ trip, onOpen }) {
           fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: 0,
           fontWeight: 600,
         }}>{t('dayOfTotal', { n: dayN, total: totalDays })}</div>
-        {/* Title overlay */}
+        {/* Title overlay — sits above the budget bar that overlaps the cover */}
         <div style={{
-          position: 'absolute', bottom: 14, insetInlineStart: 18, insetInlineEnd: 18,
+          position: 'absolute', bottom: 32, insetInlineStart: 18, insetInlineEnd: 18,
           color: '#fff', textShadow: '0 4px 14px rgba(0,0,0,0.4)',
         }}>
           <div className="serif-italic" style={{ fontSize: 36, lineHeight: 1 }}>{trip.title}</div>
@@ -489,57 +441,62 @@ function CurrentTripCard({ trip, onOpen }) {
 }
 
 // ── UPCOMING trip card — countdown to launch ──
-function UpcomingTripCard({ trip, onOpen }) {
-  const { daysUntil } = trip.state;
-  const countdownLabel =
-    daysUntil === 0 ? t('startingToday') :
-    daysUntil === 1 ? t('dayAway') :
-    t('daysAway', { n: daysUntil });
+function UpcomingTripCard({ trip, onOpen, wide }) {
+  const ar = window.isRTL;
+  const { daysUntil, totalDays } = trip.state;
+  const countdownLabel = ar
+    ? (daysUntil === 0 ? 'تبدأ اليوم' : daysUntil === 1 ? 'بكرة' : daysUntil === 2 ? 'بعد يومين'
+      : daysUntil <= 10 ? `بعد ${daysUntil} أيام` : `بعد ${daysUntil} يوماً`)
+    : (daysUntil === 0 ? t('startingToday') : daysUntil === 1 ? t('dayAway') : t('daysAway', { n: daysUntil }));
+  const lenLabel = totalDays ? (ar
+    ? window.arPlural(totalDays, { one: 'يوم واحد', two: 'يومان', few: `${totalDays} أيام`, many: `${totalDays} يوماً`, other: `${totalDays} يوم` })
+    : `${totalDays} days`) : null;
+  const planned = trip.budgetPlannedUSD || trip.budget?.plannedUSD || 0;
   return (
     <button onClick={onOpen} className="press-soft" style={{
-      flexShrink: 0, width: 220, textAlign: 'start',
-      borderRadius: 22, overflow: 'hidden',
+      flexShrink: 0, width: wide ? '100%' : 220, textAlign: 'start', display: 'block',
+      borderRadius: 24, overflow: 'hidden',
       background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
       boxShadow: 'var(--shadow-card)',
     }}>
-      <div style={{ height: 140, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ height: wide ? 150 : 140, position: 'relative', overflow: 'hidden' }}>
         <CoverArt kind={trip.cover} imageUrl={trip.coverUrl || trip.coverImageUrl} />
-        {/* Countdown badge — top center */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 60%)' }} />
+        {/* Countdown */}
         <div className="glass" style={{
-          position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+          position: 'absolute', top: 12, insetInlineStart: 12,
           padding: '5px 12px', borderRadius: 999,
-          background: 'rgba(0,0,0,0.45)', color: '#fff',
-          fontSize: 11, fontWeight: 600, letterSpacing: '0.02em',
-          backdropFilter: 'blur(8px)',
+          background: 'rgba(0,0,0,0.45)', color: '#fff', border: '0.5px solid rgba(255,255,255,0.18)',
+          fontSize: 12, fontWeight: 600, backdropFilter: 'blur(8px)',
           display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap',
         }}>
-          <IconClock size={11} stroke="#fff" />
+          <IconClock size={12} stroke="#fff" />
           {countdownLabel}
         </div>
-        {/* Country badge */}
         {trip.country && (
           <div className="glass" style={{
-            position: 'absolute', top: 12, insetInlineStart: 10,
-            padding: '4px 9px', borderRadius: 999, fontSize: 10.5,
-            color: '#fff', background: 'rgba(0,0,0,0.40)',
-            fontFamily: 'var(--mono)', letterSpacing: 0, fontWeight: 600,
+            position: 'absolute', top: 12, insetInlineEnd: 12,
+            padding: '4px 9px', borderRadius: 999, fontSize: 11,
+            color: '#fff', background: 'rgba(0,0,0,0.40)', border: '0.5px solid rgba(255,255,255,0.18)',
+            fontFamily: 'var(--mono)', fontWeight: 600,
           }}>{trip.country}</div>
         )}
-        {trip.shared && (
-          <div style={{ position: 'absolute', bottom: -10, insetInlineEnd: 14 }}>
-            <AvatarStack members={window.MEMBERS.slice(0, trip.members)} size={22} />
-          </div>
-        )}
-      </div>
-      <div style={{ padding: '14px 14px 12px' }}>
-        <div className="serif" style={{ fontSize: 22, lineHeight: 1, color: 'var(--ink)' }}>{trip.title}</div>
-        <div style={{
-          fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 4,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-        }}>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trip.dates}</span>
-          <BalancePill tripId={trip.id} />
+        <div style={{ position: 'absolute', insetInline: 16, bottom: 12, color: '#fff' }}>
+          <div className="serif-italic" style={{ fontSize: wide ? 30 : 24, lineHeight: 1.05, textShadow: '0 2px 10px rgba(0,0,0,0.35)' }}>{trip.title}</div>
         </div>
+      </div>
+      <div style={{ padding: '12px 16px 13px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{trip.dates}</div>
+          <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {[lenLabel, planned > 0 ? `${ar ? 'الميزانية' : 'Budget'} ${window.fmtTripMoney ? window.fmtTripMoney(planned, trip) : window.fmtMoney(planned, { in: 'home' })}` : null].filter(Boolean).join(' · ')}
+          </div>
+        </div>
+        {trip.shared && (window.MEMBERS || []).length > 0 && trip.members > 0 && (
+          <AvatarStack members={window.MEMBERS.slice(0, Math.min(trip.members, 4))} size={24} />
+        )}
+        <BalancePill tripId={trip.id} />
+        <span className="icon-flip" style={{ display: 'inline-flex' }}><IconChevron size={14} stroke="var(--ink-mute)" /></span>
       </div>
     </button>
   );
@@ -552,6 +509,7 @@ function UpcomingTripCard({ trip, onOpen }) {
 // reads window.TRIP -- the last-opened trip's currency was leaking
 // into every trip card.
 function BalancePill({ tripId, big = false }) {
+  if (!window.SHOW_SPLIT) return null;   // "who owes whom" is switched off
   const balance = window.LIFETIME_STATS?.balanceByTrip?.[tripId];
   if (!balance || Math.abs(balance) < 0.5) return null;
   const trip = (window.TRIPS || []).find((t) => t.id === tripId);
@@ -571,74 +529,57 @@ function BalancePill({ tripId, big = false }) {
   );
 }
 
-// ── PAST trip card — completed badge + total spend ──
-function PastTripCard({ trip, onOpen }) {
-  const { totalDays } = trip.state;
-  // Real spent for this trip comes from LIFETIME_STATS.tripSpend (sum
-  // of amount_usd across this trip's expenses). The old formula
-  // `budgetPlannedUSD * budgetPct/100` was a stub estimate -- budgetPct
-  // never gets populated on real data (only set in mock data.jsx), so
-  // the displayed value was always 0 until a fluke side-effect of
-  // opening another trip set it. Now we look up the authoritative
-  // per-trip total directly.
-  const tripStat = (window.LIFETIME_STATS?.tripSpend || [])
-    .find((t) => t.id === trip.id);
-  const spent = tripStat?.spent || 0;
+// ── PAST trips — one inset-grouped list, newest first ──
+// Spend per trip comes from LIFETIME_STATS.tripSpend (the authoritative
+// per-trip total), shown in that trip's own currency.
+function PastTripList({ trips, onOpen }) {
+  const ar = window.isRTL;
   return (
-    <button onClick={onOpen} className="press-soft" style={{
-      display: 'flex', alignItems: 'center', gap: 12,
-      padding: '12px 14px', borderRadius: 18, textAlign: 'start', width: '100%',
-      background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+    <div className="v-list" style={{
+      background: 'var(--cream-2)', borderRadius: 22, overflow: 'hidden',
+      border: '0.5px solid var(--hairline)', boxShadow: 'var(--shadow-xs)',
     }}>
-      <div style={{
-        width: 54, height: 54, borderRadius: 14, overflow: 'hidden',
-        flexShrink: 0, position: 'relative',
-      }}>
-        <CoverArt kind={trip.cover} imageUrl={trip.coverUrl || trip.coverImageUrl} />
-        {/* Completed check overlay */}
-        <div style={{
-          position: 'absolute', bottom: 4, insetInlineEnd: 4,
-          width: 20, height: 20, borderRadius: 999,
-          background: 'var(--moss)', display: 'grid', placeItems: 'center',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.3)', border: '1.5px solid #fff',
-        }}><IconCheck size={11} stroke="#fff" /></div>
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span className="serif" style={{ fontSize: 17, lineHeight: 1.1, color: 'var(--ink)' }}>{trip.title}</span>
-          {trip.shared && (
-            <RoleBadgeMini icon={<IconUsers size={10} stroke="var(--ink-soft)" />} label={`${trip.members}`} />
-          )}
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{
-            padding: '2px 8px', borderRadius: 999,
-            background: 'oklch(0.50 0.08 155 / 0.14)',
-            color: 'var(--moss)',
-            fontSize: 10.5, fontWeight: 500,
-            flexShrink: 0,
-          }}>{t('completed')}</span>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {t('lastedDays', { n: totalDays })} · {trip.dates}
-          </span>
-        </div>
-        {spent > 0 && (
-          <div style={{
-            fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 3,
-            display: 'flex', alignItems: 'baseline', gap: 5, flexDirection: 'row',
+      {trips.map((trip, i) => {
+        const { totalDays } = trip.state;
+        const spent = (window.LIFETIME_STATS?.tripSpend || []).find((x) => x.id === trip.id)?.spent || 0;
+        const days = totalDays ? (ar
+          ? window.arPlural(totalDays, { one: 'يوم واحد', two: 'يومان', few: `${totalDays} أيام`, many: `${totalDays} يوماً`, other: `${totalDays} يوم` })
+          : `${totalDays} days`) : null;
+        return (
+          <button key={trip.id} onClick={() => onOpen(trip.id)} style={{
+            display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'start',
+            paddingInlineStart: 12, background: 'transparent',
           }}>
-            <span className="mono" style={{ fontWeight: 600, color: 'var(--ink)' }}>
-              {window.fmtTripMoney(spent, trip)}
+            <span style={{ width: 52, height: 52, borderRadius: 14, overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
+              <CoverArt kind={trip.cover} imageUrl={trip.coverUrl || trip.coverImageUrl} />
             </span>
-            <span style={{ color: 'var(--ink-mute)' }}>{t('spentTotal').toLowerCase()}</span>
-          </div>
-        )}
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-        <BalancePill tripId={trip.id} />
-        <span className="icon-flip"><IconChevron size={14} stroke="var(--ink-mute)" /></span>
-      </div>
-    </button>
+            <span style={{
+              flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10,
+              paddingTop: 12, paddingBottom: 12, paddingInlineEnd: 14,
+              borderTop: i ? '0.5px solid var(--hairline)' : 'none',
+            }}>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{trip.title}</span>
+                  {trip.shared && <RoleBadgeMini icon={<IconUsers size={10} stroke="var(--ink-soft)" />} label={`${trip.members}`} />}
+                </span>
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--ink-mute)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {[trip.dates, days].filter(Boolean).join(' · ')}
+                </span>
+              </span>
+              {spent > 0 && (
+                <span style={{ textAlign: 'end', flexShrink: 0 }}>
+                  <span className="mono" style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{window.fmtTripMoney(spent, trip)}</span>
+                  <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-mute)' }}>{ar ? 'صرفتوا' : 'spent'}</span>
+                </span>
+              )}
+              <BalancePill tripId={trip.id} />
+              <span className="icon-flip" style={{ display: 'inline-flex', flexShrink: 0 }}><IconChevron size={14} stroke="var(--ink-mute)" /></span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

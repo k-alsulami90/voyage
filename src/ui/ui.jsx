@@ -45,7 +45,7 @@ const RoleBadge = ({ role }) => {
       fontSize: 11, fontWeight: 600, letterSpacing: '-0.005em',
     }}>
       <span style={{ width: 6, height: 6, borderRadius: 999, background: s.dot }} />
-      {role}
+      {window.isRTL ? ({ Admin: 'مدير', Editor: 'محرر', Viewer: 'مشاهد' }[role] || role) : role}
     </span>
   );
 };
@@ -600,6 +600,131 @@ function LargeTitleHeader({ title, subtitle, action, onBack }) {
     </>
   );
 }
+
+// ── Settings kit — iOS inset-grouped lists ──────────────────
+// One look for every settings-like page (Account, Trip settings): a small
+// header over a rounded group, rows with a coloured icon tile, hairlines
+// that start after the icon, a value / control at the end, and a chevron
+// only on rows that open something. The tile colours are fixed so they
+// read the same in light and dark (like iOS Settings).
+const SET_TINT = {
+  indigo: 'oklch(0.55 0.17 275)', blue: 'oklch(0.60 0.15 245)', sky: 'oklch(0.64 0.12 225)',
+  green: 'oklch(0.60 0.14 155)', teal: 'oklch(0.60 0.10 195)', orange: 'oklch(0.70 0.16 55)',
+  yellow: 'oklch(0.76 0.15 80)', red: 'oklch(0.62 0.20 25)', pink: 'oklch(0.64 0.18 0)',
+  purple: 'oklch(0.58 0.18 305)', gray: 'oklch(0.58 0.012 250)', slate: 'oklch(0.45 0.02 250)',
+  clay: 'oklch(0.62 0.13 35)',
+};
+
+function SetIcon({ tint, children }) {
+  return (
+    <span aria-hidden="true" style={{
+      width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+      display: 'grid', placeItems: 'center', color: '#fff',
+      background: tint || SET_TINT.gray,
+      boxShadow: 'inset 0 0 0 0.5px rgba(255,255,255,0.16)',
+    }}>{children}</span>
+  );
+}
+
+function SetGroup({ title, action, onAction, footer, children, style }) {
+  return (
+    <section style={{ padding: '24px 14px 0', ...style }}>
+      {(title || action) && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '0 16px 8px', minHeight: 22 }}>
+          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--ink-soft)', letterSpacing: '-0.005em' }}>{title}</h3>
+          {action && (
+            <button onClick={onAction} style={{ minHeight: 30, padding: '0 2px', background: 'transparent', fontSize: 13.5, fontWeight: 600, color: 'var(--clay-deep)' }}>{action}</button>
+          )}
+        </div>
+      )}
+      <div className="set-list" style={{
+        background: 'var(--cream-2)', borderRadius: 20, overflow: 'hidden',
+        border: '0.5px solid var(--hairline)', boxShadow: 'var(--shadow-xs)',
+      }}>{children}</div>
+      {footer && <div style={{ fontSize: 12, color: 'var(--ink-mute)', padding: '8px 16px 0', lineHeight: 1.55 }}>{footer}</div>}
+    </section>
+  );
+}
+
+// A row. `onClick` makes it a button with a chevron (rotated while `open`);
+// `right` puts a control at the end instead (switch, segmented…);
+// `children` show under the row while `open` (inline editors).
+function SetRow({ icon, tint, lead, label, sub, value, right, onClick, danger, open, children, labelColor }) {
+  const Tag = onClick ? 'button' : 'div';
+  return (
+    <div>
+      <Tag onClick={onClick} style={{
+        display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'start',
+        paddingInlineStart: 14, background: 'transparent', color: 'inherit', cursor: onClick ? 'pointer' : 'default',
+      }}>
+        {lead || (icon && <SetIcon tint={tint}>{icon}</SetIcon>)}
+        <span className="set-sep" style={{
+          flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10,
+          minHeight: 52, paddingTop: 10, paddingBottom: 10, paddingInlineEnd: 14,
+          borderTop: '0.5px solid var(--hairline)',
+        }}>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: 14.5, fontWeight: 500, color: labelColor || (danger ? 'var(--clay-deep)' : 'var(--ink)') }}>{label}</span>
+            {sub && <span style={{ display: 'block', fontSize: 12, color: 'var(--ink-mute)', marginTop: 2, lineHeight: 1.45 }}>{sub}</span>}
+          </span>
+          {value != null && value !== '' && (
+            <span style={{ fontSize: 13.5, color: 'var(--ink-mute)', maxWidth: '50%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</span>
+          )}
+          {right}
+          {onClick && !right && (
+            <span className="icon-flip" style={{ display: 'inline-flex', flexShrink: 0 }}>
+              <span style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 200ms' }}>
+                <IconChevron size={14} stroke="var(--ink-mute)" />
+              </span>
+            </span>
+          )}
+        </span>
+      </Tag>
+      {open && children && (
+        <div style={{ padding: '2px 14px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>{children}</div>
+      )}
+    </div>
+  );
+}
+
+// iOS switch (51×31). Green when on in both themes.
+function SetSwitch({ on, onChange, label, disabled }) {
+  return (
+    <button role="switch" aria-checked={!!on} aria-label={label} disabled={disabled}
+      onClick={(e) => { e.stopPropagation(); onChange?.(!on); window.haptic?.(); }} style={{
+      width: 51, height: 31, borderRadius: 999, flexShrink: 0, position: 'relative', padding: 0,
+      background: on ? 'var(--switch-on)' : 'var(--sand-deep)', transition: 'background 220ms',
+    }}>
+      <span style={{
+        position: 'absolute', top: 2, insetInlineStart: on ? 22 : 2, width: 27, height: 27, borderRadius: 999,
+        background: '#fff', boxShadow: '0 2px 5px rgba(0,0,0,0.22)',
+        transition: 'inset-inline-start 240ms cubic-bezier(.3,.7,.3,1)',
+      }} />
+    </button>
+  );
+}
+
+// Small segmented control for a row's end (Light/Dark, عربي/English).
+function SetSegmented({ value, options, onChange }) {
+  return (
+    <div role="radiogroup" style={{ display: 'inline-flex', padding: 3, borderRadius: 11, background: 'var(--sand)', flexShrink: 0 }}>
+      {options.map((o) => {
+        const on = o.value === value;
+        return (
+          <button key={String(o.value)} role="radio" aria-checked={on}
+            onClick={(e) => { e.stopPropagation(); if (!on) { onChange?.(o.value); window.haptic?.(); } }} style={{
+            minHeight: 32, padding: '0 12px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            background: on ? 'var(--sel)' : 'transparent', color: on ? 'var(--sel-fg)' : 'var(--ink-soft)',
+            transition: 'background 160ms, color 160ms',
+          }}>{o.icon}{o.label}</button>
+        );
+      })}
+    </div>
+  );
+}
+
+Object.assign(window, { SET_TINT, SetIcon, SetGroup, SetRow, SetSwitch, SetSegmented });
 
 // ── ActionSheet (iOS HIG pattern) ───────────────────────────
 // Bottom-sliding sheet of options with a separated Cancel button.

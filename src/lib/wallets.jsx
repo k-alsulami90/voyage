@@ -258,89 +258,87 @@ function WalletsSetup() {
     fontFamily: 'var(--mono)',
   };
 
+  // Only offer "Save" when something actually changed.
+  const snap = (en, cs) => JSON.stringify([!!en, Object.keys(cs).sort().map((k) => [k, Math.round(parseFloat(cs[k]) || 0)])]);
+  const savedCards = {};
+  (raw.cards || []).forEach((c) => { savedCards[c.user_id] = String(Math.round((parseFloat(c.amount_usd) || 0) * rate)); });
+  const dirty = snap(enabled, cards) !== snap(raw.enabled, savedCards);
+
   return (
-    <div style={{ padding: '24px 14px 0' }}>
-      <SectionLabel>{ar ? 'البطاقات والميزانية اليومية' : 'Cards & daily budget'}</SectionLabel>
-      <div style={{ background: 'var(--cream-2)', borderRadius: 22, margin: '0 8px', padding: 16, border: '0.5px solid var(--hairline)' }}>
-        <button onClick={() => setEnabled((v) => !v)} style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: 12, minHeight: 44, background: 'transparent',
-        }}>
-          <div style={{ flex: 1, textAlign: 'start' }}>
-            <div style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 500 }}>{ar ? 'نصرف من بطاقات محددة' : 'We spend from set cards'}</div>
-            <div style={{ fontSize: 12.5, color: 'var(--ink-mute)', marginTop: 2, lineHeight: 1.5 }}>
-              {ar ? 'تعرفون كم باقي في كل بطاقة، وكم تقدرون تصرفون اليوم' : 'See what is left on each card and what you can spend today'}
-            </div>
+    <SetGroup title={ar ? 'البطاقات والميزانية اليومية' : 'Cards & daily budget'}
+      footer={ar ? 'من البطاقات يحسب التطبيق كم باقي لكم كل يوم، وكم باقي في كل بطاقة.' : 'From the cards the app works out what you can spend each day and what is left on each card.'}>
+      <SetRow icon={<IconCard size={16} stroke="#fff" />} tint={SET_TINT.teal}
+        label={ar ? 'نصرف من بطاقات محددة' : 'We spend from set cards'}
+        sub={ar ? 'تعرفون كم باقي في كل بطاقة، وكم تقدرون تصرفون اليوم' : 'See what is left on each card and what you can spend today'}
+        right={<SetSwitch on={enabled} onChange={(v) => setEnabled(v)} label={ar ? 'البطاقات' : 'Cards'} />} />
+
+      {enabled && (
+        <div style={{ padding: '4px 14px 14px' }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-soft)', margin: '6px 2px 8px' }}>
+            {ar ? 'بطاقة مين؟' : 'Whose card?'}
           </div>
-          <span aria-hidden style={{
-            width: 46, height: 28, borderRadius: 999, flexShrink: 0, position: 'relative',
-            background: enabled ? 'var(--moss)' : 'var(--hairline-2)', transition: 'background 180ms',
-          }}>
-            <span style={{
-              position: 'absolute', top: 3, insetInlineStart: enabled ? 21 : 3, width: 22, height: 22,
-              borderRadius: 999, background: '#fff', transition: 'inset-inline-start 180ms',
-            }} />
-          </span>
-        </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {members.map((m) => {
+              const on = m.id in cards;
+              return (
+                <button key={m.id} onClick={() => setCards((p) => {
+                  const n = { ...p }; if (on) delete n[m.id]; else n[m.id] = ''; return n;
+                })} aria-pressed={on} style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '5px 14px 5px 5px', minHeight: 42,
+                  borderRadius: 999, background: on ? 'var(--sel)' : 'var(--cream)',
+                  color: on ? 'var(--sel-fg)' : 'var(--ink)', border: on ? '0.5px solid transparent' : '0.5px solid var(--hairline)',
+                  fontSize: 13.5, fontWeight: 500, transition: 'background 160ms, color 160ms',
+                }}>
+                  <Avatar m={m} size={30} />{_first(m)}
+                </button>
+              );
+            })}
+          </div>
 
-        {enabled && (
-          <>
-            <div style={{ fontSize: 13, color: 'var(--ink-mute)', margin: '14px 0 8px' }}>
-              {ar ? 'بطاقة مين؟' : 'Whose card?'}
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {members.map((m) => {
-                const on = m.id in cards;
-                return (
-                  <button key={m.id} onClick={() => setCards((p) => {
-                    const n = { ...p }; if (on) delete n[m.id]; else n[m.id] = ''; return n;
-                  })} style={{
-                    display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px 6px 6px', minHeight: 44,
-                    borderRadius: 999, background: on ? 'var(--statement)' : 'var(--cream)',
-                    color: on ? 'var(--statement-fg)' : 'var(--ink)', border: on ? 'none' : '0.5px solid var(--hairline)',
-                    fontSize: 13.5, fontWeight: 500,
-                  }}>
-                    <Avatar m={m} size={30} />{_first(m)}
-                  </button>
-                );
-              })}
-            </div>
-
-            {ids.length > 0 && (
-              <>
-                <div style={{ fontSize: 13, color: 'var(--ink-mute)', margin: '16px 0 8px' }}>
-                  {ar ? `كم في كل بطاقة للرحلة؟ (${home})` : `Amount on each card (${home})`}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 }}>
-                  {ids.map((id) => {
-                    const m = members.find((x) => x.id === id) || { name: '?' };
-                    return (
-                      <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <Avatar m={m} size={30} />
-                        <span style={{ width: 76, fontSize: 13.5, color: 'var(--ink)' }}>{_first(m)}</span>
-                        <window.NumberField value={cards[id]} placeholder="0"
-                          onChange={(v) => setCards((p) => ({ ...p, [id]: v }))} style={field} />
-                      </div>
-                    );
-                  })}
-                </div>
-                {totalHome > 0 && (
-                  <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 12, lineHeight: 1.7 }}>
-                    {ar
-                      ? <>المجموع <b className="mono">{Math.round(totalHome).toLocaleString('en')} {home}</b> على {days} أيام، يعني <b className="mono">{Math.round(totalHome / days).toLocaleString('en')} {home}</b> يومياً.</>
-                      : <>Total <b>{Math.round(totalHome).toLocaleString('en')} {home}</b> over {days} days: <b>{Math.round(totalHome / days).toLocaleString('en')} {home}</b> a day.</>}
+          {ids.length > 0 && (
+            <>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-soft)', margin: '16px 2px 8px' }}>
+                {ar ? `كم في كل بطاقة للرحلة؟ (${home})` : `Amount on each card (${home})`}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 }}>
+                {ids.map((id) => {
+                  const m = members.find((x) => x.id === id) || { name: '?' };
+                  return (
+                    <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Avatar m={m} size={30} />
+                      <span style={{ width: 76, fontSize: 13.5, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{_first(m)}</span>
+                      <window.NumberField value={cards[id]} placeholder="0"
+                        onChange={(v) => setCards((p) => ({ ...p, [id]: v }))} style={field} />
+                    </div>
+                  );
+                })}
+              </div>
+              {totalHome > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 8, marginTop: 12 }}>
+                  <div style={{ background: 'var(--well)', borderRadius: 14, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 11.5, color: 'var(--ink-mute)' }}>{ar ? 'المجموع' : 'Total'}</div>
+                    <div className="mono" style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', marginTop: 2 }}>{Math.round(totalHome).toLocaleString('en')} {home}</div>
                   </div>
-                )}
-              </>
-            )}
-          </>
-        )}
+                  <div style={{ background: 'var(--well)', borderRadius: 14, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 11.5, color: 'var(--ink-mute)' }}>{ar ? `يومياً (${days} ${days >= 3 && days <= 10 ? 'أيام' : 'يوم'})` : `Per day (${days})`}</div>
+                    <div className="mono" style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', marginTop: 2 }}>{Math.round(totalHome / days).toLocaleString('en')} {home}</div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
-        <button disabled={saving} onClick={save} style={{
-          marginTop: 16, width: '100%', minHeight: 48, borderRadius: 14,
-          background: 'var(--ink)', color: 'var(--cream)', fontSize: 14.5, fontWeight: 600, opacity: saving ? 0.6 : 1,
-        }}>{saving ? '…' : (ar ? 'حفظ' : 'Save')}</button>
-      </div>
-    </div>
+      {dirty && (
+        <div style={{ padding: enabled ? '0 14px 14px' : '4px 14px 14px' }}>
+          <button disabled={saving} onClick={save} style={{
+            width: '100%', minHeight: 46, borderRadius: 14,
+            background: 'var(--ink)', color: 'var(--cream)', fontSize: 14.5, fontWeight: 600, opacity: saving ? 0.6 : 1,
+          }}>{saving ? '…' : (ar ? 'حفظ' : 'Save')}</button>
+        </div>
+      )}
+    </SetGroup>
   );
 }
 

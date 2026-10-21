@@ -41,6 +41,17 @@ const IconCamera   = (p) => <Ico {...p} d={<><path d="M4 8h3l1.5-2h7L17 8h3a1 1 
 const IconClose    = (p) => <Ico {...p} sw={2} d={<><path d="M6 6l12 12M18 6L6 18"/></>} />;
 // Padlock — body rect + shackle arc. For password / secure-field inputs.
 const IconLock     = (p) => <Ico {...p} d={<><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></>} />;
+const IconMoon     = (p) => <Ico {...p} d={<><path d="M20 14.5A8.5 8.5 0 019.5 4 8.5 8.5 0 1020 14.5z"/></>} />;
+const IconMail     = (p) => <Ico {...p} d={<><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M4 7l8 6 8-6"/></>} />;
+const IconUser     = (p) => <Ico {...p} d={<><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.6 3.6-5.6 7-5.6s6.2 2 7 5.6"/></>} />;
+const IconShield   = (p) => <Ico {...p} d={<><path d="M12 3l7 3v5c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V6z"/><path d="M9 12l2 2 4-4"/></>} />;
+const IconGlobe    = (p) => <Ico {...p} d={<><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/></>} />;
+const IconLogout   = (p) => <Ico {...p} d={<><path d="M14 4h4a2 2 0 012 2v12a2 2 0 01-2 2h-4"/><path d="M10 16l-4-4 4-4"/><path d="M6 12h10"/></>} />;
+const IconCalendar = (p) => <Ico {...p} d={<><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></>} />;
+const IconCard     = (p) => <Ico {...p} d={<><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M3 10h18M7 15h4"/></>} />;
+const IconKey      = (p) => <Ico {...p} d={<><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/></>} />;
+const IconRefresh  = (p) => <Ico {...p} d={<><path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 5v6h-6"/></>} />;
+const IconPalette  = (p) => <Ico {...p} d={<><path d="M12 3a9 9 0 100 18c1.4 0 2-1 1.5-2.1-.6-1.2.2-2.4 1.5-2.4H18a3 3 0 003-3c0-5.6-4-10.5-9-10.5z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10.5" cy="7.5" r="1.2"/><circle cx="15" cy="8" r="1.2"/></>} />;
 
 Object.assign(window, {
   IconHome, IconWallet, IconDoc, IconUsers, IconGear,
@@ -48,5 +59,6 @@ Object.assign(window, {
   IconPin, IconClock, IconCloud, IconUpload, IconImg, IconPdf,
   IconSearch, IconFilter, IconSwap, IconEdit, IconTrash, IconCheck,
   IconLink, IconBell, IconArchive, IconSun, IconCompass, IconSparkle,
-  IconCamera, IconClose, IconLock,
+  IconCamera, IconClose, IconLock, IconMoon, IconMail, IconUser, IconShield,
+  IconGlobe, IconLogout, IconCalendar, IconCard, IconKey, IconRefresh, IconPalette,
 });

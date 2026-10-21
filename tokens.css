@@ -40,7 +40,7 @@
   --sel:        var(--ink);
   --sel-fg:     var(--cream);
   --chip:       rgba(255, 255, 255, 0.6);
-  --switch-on:  var(--ink);
+  --switch-on:  oklch(0.58 0.13 152);
   --bar-glass:  rgba(245, 238, 216, 0.85);
   --well:       var(--cream);               /* figure tiles inside a card */
   --role-editor-fg: oklch(0.34 0.07 155);
@@ -262,6 +262,9 @@ textarea:focus-visible,
     rgba(255,255,255,0) 55%);
   pointer-events: none;
 }
+
+/* Inset-grouped lists: the first row of a group has no top hairline */
+.set-list > :first-child .set-sep { border-top-color: transparent !important; }
 
 /* Hover lifts on cards */
 @media (hover: hover) {

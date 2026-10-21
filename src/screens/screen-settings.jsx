@@ -16,7 +16,7 @@ function ScreenSettings({ go, openSheet }) {
   const [coverUrl,   setCoverUrl]   = React.useState(trip?.coverUrl || trip?.coverImageUrl || null);
   const [uploading,  setUploading]  = React.useState(false);
   const coverInputRef = React.useRef(null);
-  const counts = members.reduce((acc, m) => { acc[m.role] = (acc[m.role] || 0) + 1; return acc; }, {});
+  const [permsOpen, setPermsOpen] = React.useState(false);
 
   const handleCoverUpload = async (file) => {
     if (!file || !trip?.id) return;
@@ -47,227 +47,136 @@ function ScreenSettings({ go, openSheet }) {
     );
   }
 
-  return (
-    <div data-screen-label="05 Trip Settings" style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>
-      <Header title={t('settings')} onBack={() => go('hub')} />
+  const ar = window.isRTL;
+  const span = (trip.startDate && trip.endDate && window.tripDays) ? window.tripDays(trip.startDate, trip.endDate).daysTotal : 0;
+  const daysWord = (n) => ar
+    ? window.arPlural(n, { one: 'يوم واحد', two: 'يومان', few: `${n} أيام`, many: `${n} يوماً`, other: `${n} يوم` })
+    : `${n} ${n === 1 ? 'day' : 'days'}`;
 
-      {/* Trip cover */}
+  return (
+    <div data-screen-label="05 Trip Settings" style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 110 }}>
+      <Header title={ar ? 'إعدادات الرحلة' : 'Trip settings'} onBack={() => go('hub')} />
+
+      {/* Trip cover — tap the pill to change the photo */}
       <div style={{ padding: '0 14px' }}>
         <input ref={coverInputRef} type="file" accept="image/*" style={{ display: 'none' }}
           onChange={(e) => e.target.files[0] && handleCoverUpload(e.target.files[0])} />
-        <div style={{
-          borderRadius: 26, overflow: 'hidden', position: 'relative',
-          boxShadow: 'var(--shadow-card)', height: 170,
+        <div className="v-flip-in" style={{
+          borderRadius: 28, overflow: 'hidden', position: 'relative',
+          boxShadow: 'var(--shadow-card)', height: 180,
         }}>
-          {coverUrl ? (
-            <div style={{
-              position: 'absolute', inset: 0,
-              backgroundImage: `url(${coverUrl})`,
-              backgroundSize: 'cover', backgroundPosition: 'center',
-            }} />
-          ) : (
-            <KyotoHero />
-          )}
-          {/* Dim overlay for readability */}
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 60%)' }} />
-          <div style={{ position: 'absolute', inset: 0, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', color: '#fff' }}>
-            <div className="serif" style={{ fontSize: 30, lineHeight: 1.05 }}>{trip.title || 'Trip'}</div>
-            <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>{trip.dates || ''}</div>
+          <window.CoverArt kind={trip.cover || 'kyoto'} imageUrl={coverUrl} />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.12) 55%, transparent 100%)' }} />
+          <div style={{ position: 'absolute', inset: 0, padding: '18px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', color: '#fff' }}>
+            <div className="serif-italic" style={{ fontSize: 32, lineHeight: 1.05 }}>{trip.title || (ar ? 'رحلة' : 'Trip')}</div>
+            <div style={{ fontSize: 12.5, opacity: 0.9, marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+              {[trip.dates, span ? daysWord(span) : null, (trip.countries || []).join(' · ') || null].filter(Boolean).map((x, i) => (
+                <React.Fragment key={i}>{i > 0 && <span style={{ opacity: 0.6 }}>·</span>}<span>{x}</span></React.Fragment>
+              ))}
+            </div>
           </div>
           <button onClick={() => coverInputRef.current?.click()} className="glass" style={{
-            position: 'absolute', top: 14,
-            insetInlineEnd: 14,
-            padding: '6px 12px', borderRadius: 999, fontSize: 11, fontWeight: 500, color: '#fff',
-            background: uploading ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.18)',
-            display: 'flex', alignItems: 'center', gap: 5,
+            position: 'absolute', top: 14, insetInlineEnd: 14,
+            minHeight: 34, padding: '0 13px', borderRadius: 999, fontSize: 12, fontWeight: 600, color: '#fff',
+            background: uploading ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.32)', border: '0.5px solid rgba(255,255,255,0.25)',
+            display: 'flex', alignItems: 'center', gap: 6,
           }}>
             {uploading ? (
               <span style={{ width: 12, height: 12, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', display: 'inline-block', animation: 'expspin 0.7s linear infinite' }} />
-            ) : <IconUpload size={12} stroke="#fff" />}
-            {uploading ? (window.isRTL ? 'جاري رفع الصورة الآن...' : 'Uploading...') : t('editCover')}
+            ) : <IconCamera size={14} stroke="#fff" />}
+            {uploading ? (ar ? 'جاري الرفع…' : 'Uploading…') : (ar ? 'تغيير الصورة' : 'Change photo')}
           </button>
         </div>
       </div>
 
-      {/* CREW SECTION — embedded, replaces standalone Members tab */}
-      <div style={{ padding: '24px 14px 0' }}>
-        <SectionLabel action={t('invite')} onAction={() => openSheet('share')}>{t('crewSection')} · {members.length}</SectionLabel>
+      {/* TRIP DETAILS — tap a row to edit it in place */}
+      <SetGroup title={ar ? 'تفاصيل الرحلة' : 'Trip details'}>
+        <EditableTripParams trip={trip} />
+      </SetGroup>
 
-        {/* Crew header strip. Was a dark statement card with uppercase
-           mono eyebrow + 20px serif "{N} travelers" hero-metric + a
-           3-cell identical-tile role tally grid. Same pattern removed
-           from 6+ other screens. Now: avatars + invite-plus, with the
-           role counts as one inline sentence in cream-2 below. The
-           per-member role is already visible on every member row, so
-           the tally is just orientation, not a hero metric. */}
-        <div style={{ padding: '0 8px' }}>
-          <div style={{
-            background: 'var(--cream-2)', borderRadius: 16,
-            border: '0.5px solid var(--hairline)',
-            padding: '14px 16px',
-            display: 'flex', alignItems: 'center', gap: 14,
-            flexDirection: 'row',
-          }}>
-            <AvatarStack members={members} size={36} />
-            <button onClick={() => openSheet('share')}
-              aria-label={t('invite')} style={{
-              width: 36, height: 36, borderRadius: '50%',
-              background: 'var(--ink)', color: 'var(--cream)',
-              marginInlineStart: -14, zIndex: 5,
-              display: 'grid', placeItems: 'center',
-              boxShadow: '0 0 0 2px var(--cream-2), 0 4px 8px rgba(34,28,22,0.18)',
-              flexShrink: 0,
-            }}><IconPlus size={18} stroke="currentColor" /></button>
-            <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: 'var(--ink)' }}>
-              <div style={{ fontWeight: 600 }}>
-                {members.length} {t('travelers')}
-              </div>
-              <div style={{
-                fontSize: 12, color: 'var(--ink-mute)', marginTop: 2,
-              }}>
-                {[
-                  counts.Admin > 0 && (window.isRTL
-                    ? window.arPlural(counts.Admin, { one: 'مشرف واحد', two: 'مشرفان', few: `${counts.Admin} مشرفين`, many: `${counts.Admin} مشرفاً`, other: `${counts.Admin} مشرف` })
-                    : `${counts.Admin} ${counts.Admin === 1 ? t('admin') : 'admins'}`),
-                  counts.Editor > 0 && (window.isRTL
-                    ? window.arPlural(counts.Editor, { one: 'محرر واحد', two: 'محرران', few: `${counts.Editor} محررين`, many: `${counts.Editor} محرراً`, other: `${counts.Editor} محرر` })
-                    : `${counts.Editor} ${counts.Editor === 1 ? t('editor') : 'editors'}`),
-                  counts.Viewer > 0 && (window.isRTL
-                    ? window.arPlural(counts.Viewer, { one: 'قارئ واحد', two: 'قارئان', few: `${counts.Viewer} قراء ومستكشفون`, many: `${counts.Viewer} قارئاً`, other: `${counts.Viewer} قارئ` })
-                    : `${counts.Viewer} ${counts.Viewer === 1 ? t('viewer') : 'viewers'}`),
-                ].filter(Boolean).join(' · ')}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Member rows — compact, swipeable */}
-        <div style={{ marginTop: 10, padding: '0 8px', display: 'flex', flexDirection: 'column', gap: 7 }}>
-          {members.map((m) => (
+      {/* TRAVELERS — one list: roles, invite, permissions */}
+      <SetGroup title={ar ? `المسافرون · ${members.length}` : `Travelers · ${members.length}`}
+        footer={members.length > 1 ? (ar ? 'اضغط على الدور لتغييره، واسحب على الاسم لإزالته من الرحلة.' : 'Tap a role to change it; swipe a name to remove it.') : null}>
+        {members.map((m) => {
+          const me = m.id === window.currentUserId;
+          return (
             <SwipeRow key={m.id}
-              actions={[
-                { key: 'remove', bg: 'var(--clay)', icon: <IconTrash size={18} stroke="#fff" /> },
-              ]}
+              actions={me ? [] : [{ key: 'remove', bg: 'var(--clay)', icon: <IconTrash size={18} stroke="#fff" /> }]}
               onAction={async (key) => {
-                if (key !== 'remove' || m.id === window.currentUserId) return;
-                if (!confirm(window.isRTL ? `هل تريد إزالة ${m.name} واستبعاده من هذه الرحلة؟` : `Remove ${m.name} from the trip?`)) return;
+                if (key !== 'remove' || me) return;
+                if (!confirm(ar ? `هل تريد إزالة ${m.name} من هذه الرحلة؟` : `Remove ${m.name} from the trip?`)) return;
                 try {
                   await window.removeMember(trip.id, m.id);
                   setMembers(members.filter((x) => x.id !== m.id));
-                  window.toast?.(window.isRTL ? 'تم استبعاد العضو بنجاح' : 'Removed', 'success');
+                  window.toast?.(ar ? 'تمت الإزالة' : 'Removed', 'success');
                 } catch (err) { window.toast?.(err.message || 'Action failed', 'error'); }
               }}>
-              <div style={{
-                background: 'var(--cream-2)', borderRadius: 16,
-                padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 11,
-                flexDirection: 'row',
-                border: '0.5px solid var(--hairline)',
-              }}>
-                <Avatar m={m} size={36} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink)' }}>{m.name}</div>
-                  <div style={{ fontSize: 10.5, color: 'var(--ink-mute)' }}>
-                    {m.id === window.currentUserId ? (window.isRTL ? 'أنت · مالك السجل' : 'you · owner') : (window.isRTL ? 'صديق في الرحلة' : 'trip member')}
-                  </div>
-                </div>
-                <RoleSelect role={m.role} onChange={async (r) => {
-                  setMembers(members.map((x) => x.id === m.id ? { ...x, role: r } : x));
-                  try { await window.updateMemberRole(trip.id, m.id, r); } catch (err) { console.error(err); }
-                }} />
+              <div style={{ background: 'var(--cream-2)' }}>
+                <SetRow lead={<Avatar m={m} size={32} />} label={m.name}
+                  sub={me ? (ar ? 'أنت' : 'You') : null}
+                  right={<RoleSelect role={m.role} onChange={async (r) => {
+                    setMembers(members.map((x) => x.id === m.id ? { ...x, role: r } : x));
+                    try { await window.updateMemberRole(trip.id, m.id, r); } catch (err) { console.error(err); }
+                  }} />} />
               </div>
             </SwipeRow>
-          ))}
-        </div>
-
-        {/* Permission matrix — collapsed under "View permissions" */}
-        <details style={{ marginTop: 12, padding: '0 8px' }}>
-          <summary style={{
-            cursor: 'pointer', listStyle: 'none',
-            padding: '12px 14px', borderRadius: 14,
-            background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
-            display: 'flex', alignItems: 'center', gap: 8,
-            flexDirection: 'row',
-            fontSize: 12.5, color: 'var(--ink-soft)', fontWeight: 500,
-          }}>
-            <IconChevron size={13} stroke="var(--ink-mute)" />
-            {t('viewPermissions')}
-          </summary>
-          <div style={{
-            background: 'var(--cream-2)', borderRadius: 16,
-            marginTop: 6, padding: '6px 14px',
-            border: '0.5px solid var(--hairline)',
-          }}>
+          );
+        })}
+        <SetRow icon={<IconPlus size={16} stroke="#fff" />} tint={SET_TINT.clay}
+          label={ar ? 'دعوة مسافر' : 'Invite a traveler'} labelColor="var(--clay-deep)" onClick={() => openSheet('share')} />
+        <SetRow icon={<IconShield size={16} stroke="#fff" />} tint={SET_TINT.gray}
+          label={ar ? 'صلاحيات الأدوار' : 'What each role can do'} open={permsOpen} onClick={() => setPermsOpen((v) => !v)}>
+          <div style={{ background: 'var(--cream)', borderRadius: 14, padding: '4px 12px' }}>
             {[
-              { perm: window.isRTL ? 'استعراض وتصفح تفاصيل الرحلة ومستنداتها' : 'View trip & docs',    a: true,  e: true,  v: true  },
-              { perm: window.isRTL ? 'إضافة بنود مصروفات أو مستندات جديدة' : 'Add expenses & docs', a: true,  e: true,  v: false },
-              { perm: window.isRTL ? 'إرسال روابط دعوة لأصدقاء جدد' : 'Invite members',                  a: true,  e: false, v: false },
-              { perm: window.isRTL ? 'تعديل المعطيات والإعدادات العامة للرحلة' : 'Edit trip settings',    a: true,  e: false, v: false },
-              { perm: window.isRTL ? 'أرشفة الرحلة أو حذف سجلها بالكامل' : 'Archive or delete',             a: true,  e: false, v: false },
+              { perm: ar ? 'تشوف الرحلة ومستنداتها' : 'View trip & docs',            a: true, e: true,  v: true  },
+              { perm: ar ? 'تضيف مصاريف ومستندات' : 'Add expenses & docs',           a: true, e: true,  v: false },
+              { perm: ar ? 'تدعو أشخاص جدد' : 'Invite members',                       a: true, e: false, v: false },
+              { perm: ar ? 'تعدّل إعدادات الرحلة' : 'Edit trip settings',              a: true, e: false, v: false },
+              { perm: ar ? 'تحذف الرحلة' : 'Delete the trip',                         a: true, e: false, v: false },
             ].map((row, i) => (
               <div key={row.perm} style={{
-                display: 'grid', gridTemplateColumns: '1fr 30px 30px 30px',
-                padding: '9px 0', alignItems: 'center',
+                display: 'grid', gridTemplateColumns: '1fr 38px 38px 38px', padding: '9px 0', alignItems: 'center',
                 borderTop: i ? '0.5px solid var(--hairline)' : 'none',
               }}>
-                <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{row.perm}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--ink-soft)' }}>{row.perm}</div>
                 {['a', 'e', 'v'].map((k) => (
                   <div key={k} style={{ display: 'grid', placeItems: 'center' }}>
                     {row[k] ? (
-                      <div style={{
-                        width: 16, height: 16, borderRadius: 5, background: 'var(--ink)',
-                        display: 'grid', placeItems: 'center',
-                      }}><IconCheck size={10} stroke="#fff" /></div>
+                      <span style={{ width: 18, height: 18, borderRadius: 6, background: 'var(--moss)', display: 'grid', placeItems: 'center' }}><IconCheck size={11} stroke="#fff" /></span>
                     ) : (
-                      <div style={{
-                        width: 16, height: 16, borderRadius: 5,
-                        border: '1.5px dashed var(--hairline-2)',
-                      }} />
+                      <span style={{ width: 18, height: 18, borderRadius: 6, border: '1.5px dashed var(--hairline-2)' }} />
                     )}
                   </div>
                 ))}
               </div>
             ))}
-            {/* Column labels were uppercase mono 0.1em. Now sentence-case
-               sans, smaller weight, same column width. The grid above
-               still reads as a permission matrix. */}
             <div style={{
-              display: 'grid', gridTemplateColumns: '1fr 30px 30px 30px',
-              padding: '8px 0 4px', borderTop: '0.5px solid var(--hairline)',
-              fontSize: 10.5, color: 'var(--ink-mute)', fontWeight: 500,
+              display: 'grid', gridTemplateColumns: '1fr 38px 38px 38px', padding: '8px 0 6px',
+              borderTop: '0.5px solid var(--hairline)', fontSize: 11, color: 'var(--ink-mute)', fontWeight: 600,
             }}>
-              <div></div>
-              <div style={{ textAlign: 'center' }}>{window.isRTL ? 'مدير' : 'Adm'}</div>
-              <div style={{ textAlign: 'center' }}>{window.isRTL ? 'محرر' : 'Edit'}</div>
-              <div style={{ textAlign: 'center' }}>{window.isRTL ? 'مشاهد' : 'View'}</div>
+              <div />
+              <div style={{ textAlign: 'center' }}>{ar ? 'مدير' : 'Admin'}</div>
+              <div style={{ textAlign: 'center' }}>{ar ? 'محرر' : 'Editor'}</div>
+              <div style={{ textAlign: 'center' }}>{ar ? 'مشاهد' : 'Viewer'}</div>
             </div>
           </div>
-        </details>
+        </SetRow>
+      </SetGroup>
 
-        {/* Active invites */}
-        <InvitesList tripId={trip.id} />
-      </div>
+      {/* Active invite links */}
+      <InvitesList tripId={trip.id} />
 
-      {/* Cards (البطاقات) — whose card carries the trip money and how much */}
+      {/* CARDS — whose card carries the trip money and how much */}
       <window.WalletsSetup key={trip.id} />
 
-      {/* Parameters — now fully editable */}
-      <div style={{ padding: '24px 14px 0' }}>
-        <SectionLabel>{t('tripParameters')}</SectionLabel>
-        <EditableTripParams trip={trip} />
-      </div>
-
-      {/* Lifecycle */}
+      {/* Delete */}
       <LifecycleActions />
 
-      {/* Footer imprint. Trip ID was full UUID rendered as uppercase
-         mono with 0.16em tracking -- spanned the footer like a barcode.
-         Now: short last-8 of the UUID (still uniquely identifies in
-         practice for support reference) in plain mono without tracking
-         or explicit uppercase. */}
+      {/* Footer imprint */}
       <div style={{ textAlign: 'center', padding: '32px 0 20px', color: 'var(--ink-mute)' }}>
         <div className="serif-italic" style={{ fontSize: 18 }}>voyage</div>
         <div className="mono" style={{ fontSize: 10.5, marginTop: 6 }}>
-          {window.isRTL ? 'معرف الرحلة' : 'Trip ID'} · {(trip.id || '—').slice(-8)}
+          {ar ? 'معرف الرحلة' : 'Trip ID'} · {(trip.id || '—').slice(-8)}
         </div>
       </div>
     </div>
@@ -309,76 +218,41 @@ function InvitesList({ tripId }) {
   if (loading) return null;
   if (invites.length === 0) return null;
 
+  const ar = window.isRTL;
   return (
-    <div style={{ marginTop: 18, padding: '0 8px' }}>
-      {/* Was uppercase mono tracked 0.14em — same eyebrow pattern as
-         elsewhere. Now sentence-case sans semibold ink-soft, matching
-         the SectionLabel feel without using the component (we're nested
-         under Crew's SectionLabel already, so this is sub-level). */}
-      <div style={{
-        fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)',
-        margin: '0 6px 8px',
-      }}>{t('activeInvites') || 'Active invites'}</div>
-      <div style={{
-        background: 'var(--cream-2)', borderRadius: 16,
-        border: '0.5px solid var(--hairline)', overflow: 'hidden',
-      }}>
-        {active.map((inv, i) => {
-          const exp = inv.expires_at ? new Date(inv.expires_at) : null;
-          const days = exp ? Math.max(0, Math.round((exp - new Date()) / 86400000)) : null;
-          return (
-            <div key={inv.token} style={{
-              padding: '12px 14px',
-              display: 'flex', alignItems: 'center', gap: 10,
-              flexDirection: 'row',
-              borderTop: i ? '0.5px solid var(--hairline)' : 'none',
-            }}>
-              <RoleBadge role={inv.role} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="mono" style={{
-                  fontSize: 11.5, color: 'var(--ink-soft)',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>{inv.token}</div>
-                {days !== null && (
-                  <div style={{ fontSize: 10.5, color: 'var(--ink-mute)', marginTop: 2 }}>
-                    {window.isRTL
-                      ? `تنتهي صلاحية الرابط خلال ${window.arPlural(days, { one: 'يوم واحد', two: 'يومين', few: `${days} أيام`, many: `${days} يوماً`, other: `${days} يوماً` })}`
-                      : `expires in ${days}d`}
-                  </div>
-                )}
-              </div>
-              <button onClick={() => handleCopy(inv.token)} style={{
-                padding: '6px 10px', borderRadius: 999, fontSize: 11, fontWeight: 500,
-                background: copied === inv.token ? 'var(--moss)' : 'var(--ink)',
-                color: 'var(--cream)',
-              }}>{copied === inv.token ? '✓' : t('copy')}</button>
-              <button onClick={() => handleRevoke(inv.token)} style={{
-                padding: '6px 8px', borderRadius: 999,
-                background: 'transparent', color: 'var(--clay-deep)',
-                border: '0.5px solid var(--hairline)',
-              }}>
-                <IconTrash size={12} stroke="currentColor" />
-              </button>
-            </div>
-          );
-        })}
-        {active.length === 0 && (
-          <div style={{
-            padding: '14px', fontSize: 12, color: 'var(--ink-mute)', textAlign: 'center',
-          }}>{window.isRTL ? 'لا توجد روابط دعوة نشطة حالياً' : 'No active invites'}</div>
-        )}
-      </div>
-      {inactive.length > 0 && (
-        <div style={{
-          marginTop: 8, padding: '0 6px',
-          fontSize: 10.5, color: 'var(--ink-mute)',
-        }}>
-          {window.isRTL
-            ? `${window.arPlural(inactive.length, { one: 'رابط واحد', two: 'رابطان', few: `${inactive.length} روابط`, many: `${inactive.length} رابطاً`, other: `${inactive.length} رابط` })} منتهية الصلاحية أو الملغاة`
-            : `${inactive.length} expired or revoked`}
+    <SetGroup title={ar ? 'روابط الدعوة' : (t('activeInvites') || 'Invite links')}
+      footer={inactive.length > 0 ? (ar
+        ? `${window.arPlural(inactive.length, { one: 'رابط واحد', two: 'رابطان', few: `${inactive.length} روابط`, many: `${inactive.length} رابطاً`, other: `${inactive.length} رابط` })} منتهية أو ملغاة`
+        : `${inactive.length} expired or revoked`) : null}>
+      {active.map((inv) => {
+        const exp = inv.expires_at ? new Date(inv.expires_at) : null;
+        const days = exp ? Math.max(0, Math.round((exp - new Date()) / 86400000)) : null;
+        return (
+          <SetRow key={inv.token} icon={<IconLink size={16} stroke="#fff" />} tint={SET_TINT.blue}
+            label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><RoleBadge role={inv.role} /></span>}
+            sub={days !== null
+              ? (ar ? `ينتهي خلال ${window.arPlural(days, { one: 'يوم واحد', two: 'يومين', few: `${days} أيام`, many: `${days} يوماً`, other: `${days} يوماً` })}` : `expires in ${days}d`)
+              : null}
+            right={(
+              <span style={{ display: 'inline-flex', gap: 6, flexShrink: 0 }}>
+                <button onClick={() => handleCopy(inv.token)} style={{
+                  minHeight: 34, padding: '0 12px', borderRadius: 999, fontSize: 12.5, fontWeight: 600,
+                  background: copied === inv.token ? 'var(--moss)' : 'var(--sel)', color: copied === inv.token ? '#fff' : 'var(--sel-fg)',
+                }}>{copied === inv.token ? '✓' : (ar ? 'نسخ' : t('copy'))}</button>
+                <button onClick={() => handleRevoke(inv.token)} aria-label={ar ? 'إلغاء الرابط' : 'Revoke'} style={{
+                  width: 34, height: 34, borderRadius: 999, display: 'grid', placeItems: 'center',
+                  background: 'transparent', color: 'var(--clay-deep)', border: '0.5px solid var(--hairline-2)',
+                }}><IconTrash size={14} stroke="currentColor" /></button>
+              </span>
+            )} />
+        );
+      })}
+      {active.length === 0 && (
+        <div style={{ padding: '14px 16px', fontSize: 12.5, color: 'var(--ink-mute)', textAlign: 'center' }}>
+          {ar ? 'ما فيه روابط دعوة شغّالة حالياً' : 'No active invites'}
         </div>
       )}
-    </div>
+    </SetGroup>
   );
 }
 
@@ -487,8 +361,6 @@ function RoleSelect({ role, onChange }) {
 }
 
 function LifecycleActions() {
-  const [archived, setArchived] = React.useState(window.TRIP?.status === 'past');
-
   const doDelete = async () => {
     const tripId = window.TRIP?.id;
     if (!tripId) return;
@@ -528,27 +400,13 @@ function LifecycleActions() {
     });
   };
 
+  const ar = window.isRTL;
   return (
-    <div style={{ padding: '20px 14px 0' }}>
-      <SectionLabel>{t('tripLifecycle')}</SectionLabel>
-      <div style={{
-        background: 'var(--cream-2)', borderRadius: 22,
-        margin: '0 8px', overflow: 'hidden',
-        border: '0.5px solid var(--hairline)',
-      }}>
-        <ActionRow
-          icon={<IconArchive size={17} stroke={archived ? 'var(--moss)' : 'var(--ink)'} />}
-          label={archived ? t('archived') : t('archiveTrip')}
-          labelColor={archived ? 'var(--moss)' : undefined}
-          sub={archived ? t('archivedSub') : t('archiveSub')}
-          onClick={() => setArchived(!archived)} />
-        <ActionRow
-          icon={<IconTrash size={17} stroke="var(--clay-deep)" />}
-          label={t('deleteTrip')} labelColor="var(--clay-deep)"
-          sub={t('deleteSub')} last
-          onClick={promptDelete} />
-      </div>
-    </div>
+    <SetGroup title={ar ? 'إدارة الرحلة' : 'Manage'}
+      footer={ar ? 'الحذف نهائي: يمسح الرحلة بمصاريفها ومستنداتها لكل المسافرين.' : 'Deleting is permanent: the trip, its expenses and documents go for everyone.'}>
+      <SetRow icon={<IconTrash size={16} stroke="#fff" />} tint={SET_TINT.red}
+        label={ar ? 'حذف الرحلة' : 'Delete trip'} danger onClick={promptDelete} />
+    </SetGroup>
   );
 }
 
@@ -625,111 +483,99 @@ function EditableTripParams({ trip: tripProp }) {
     } finally { setSaving(false); }
   };
 
-  const rowStyle = {
-    display: 'flex', alignItems: 'center', gap: 12,
-    flexDirection: 'row',
-    padding: '13px 16px', width: '100%', textAlign: 'start',
-  };
-  const iconBox = {
-    width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
-    background: 'var(--cream)', border: '0.5px solid var(--hairline)',
-  };
   const inputStyle = {
-    width: '100%', padding: '10px 12px', borderRadius: 10,
+    width: '100%', padding: '11px 12px', borderRadius: 12,
     border: '0.5px solid var(--hairline-2)', background: 'var(--cream)',
-    color: 'var(--ink)', fontSize: 13, outline: 'none',
+    color: 'var(--ink)', fontSize: 16, outline: 'none',
     textAlign: 'start',
   };
+  const ar = window.isRTL;
+  const COVER_NAMES = {
+    kyoto: ar ? 'جبال وزهر' : 'Blossom peaks', lisbon: ar ? 'بلاط' : 'Tiles', oaxaca: ar ? 'شمس' : 'Sun',
+    lofoten: ar ? 'شفق' : 'Aurora', patagon: ar ? 'قمم' : 'Peaks',
+  };
+  const span = (trip.startDate && trip.endDate && window.tripDays) ? window.tripDays(trip.startDate, trip.endDate).daysTotal : 0;
+  const chip = (on) => ({
+    minHeight: 34, padding: '0 11px', borderRadius: 10, fontSize: 12.5, fontWeight: 600,
+    background: on ? 'var(--sel)' : 'var(--cream)', color: on ? 'var(--sel-fg)' : 'var(--ink-soft)',
+    border: '0.5px solid var(--hairline)',
+  });
 
   // Row is a stable component defined OUTSIDE this scope (see bottom of file).
   // We pass it open-state + setter via props so React keeps inputs mounted
   // across keystrokes (defining components inside parents causes remount).
 
   return (
-    <div style={{
-      background: 'var(--cream-2)', borderRadius: 22, margin: '0 8px',
-      border: '0.5px solid var(--hairline)', overflow: 'hidden',
-    }}>
-      {/* Destination (title + subtitle) */}
-      <EditRow editing={editing} setEditing={setEditing} icon={<IconCompass size={16} stroke="var(--ink)" />} label={t('destination')}
-           value={trip.subtitle || trip.title || '—'} fieldKey="title">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={window.isRTL ? 'اكتب اسماً مميزاً للرحلة' : 'Trip title'} style={inputStyle} />
-        <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder={window.isRTL ? 'اكتب وصفاً مختصراً للرحلة' : 'Subtitle'} style={inputStyle} />
+    <>
+      {/* Name (title + subtitle) */}
+      <EditRow editing={editing} setEditing={setEditing} fieldKey="title"
+        icon={<IconEdit size={16} stroke="#fff" />} tint={SET_TINT.indigo}
+        label={ar ? 'اسم الرحلة' : 'Trip name'} value={trip.title || '—'} sub={trip.subtitle || null}>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={ar ? 'اسم الرحلة' : 'Trip name'} style={inputStyle} />
+        <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder={ar ? 'وصف قصير (اختياري)' : 'Short description (optional)'} style={inputStyle} />
         <SaveCancelBar saving={saving} onSave={() => save({ title: title.trim(), subtitle: subtitle.trim() || null })} onCancel={() => setEditing(null)} />
       </EditRow>
 
       {/* Countries (comma-separated list — supports multi-country trips) */}
-      <EditRow editing={editing} setEditing={setEditing} icon={<IconPin size={16} stroke="var(--ink)" />}
-           label={window.isRTL ? 'الدول المشمولة' : 'Countries'}
-           value={(trip.countries || []).length > 0 ? trip.countries.join(' · ') : (window.isRTL ? 'لم تُحدد دول بعد' : 'Not set')}
-           fieldKey="countries">
-        <div style={{ fontSize: 11, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', letterSpacing: '0.08em' }}>
-          {window.isRTL ? 'افصل بفاصلة — مثال: سويسرا, البرتغال, اسكتلندا' : 'Comma-separated — e.g. Switzerland, Portugal, Scotland'}
+      <EditRow editing={editing} setEditing={setEditing} fieldKey="countries"
+        icon={<IconGlobe size={16} stroke="#fff" />} tint={SET_TINT.sky}
+        label={ar ? 'الدول' : 'Countries'}
+        value={(trip.countries || []).length > 0 ? trip.countries.join(' · ') : (ar ? 'غير محددة' : 'Not set')}>
+        <div style={{ fontSize: 12, color: 'var(--ink-mute)' }}>
+          {ar ? 'افصل بينها بفاصلة — مثال: تركيا, اليونان' : 'Separate with commas — e.g. Turkey, Greece'}
         </div>
         <input value={countries} onChange={(e) => setCountries(e.target.value)}
-          placeholder={window.isRTL ? 'الدول التي زرتها' : 'Countries you visited'}
-          style={inputStyle} />
-        {/* Live preview pills */}
+          placeholder={ar ? 'الدول في هذه الرحلة' : 'Countries on this trip'} style={inputStyle} />
         {countries.trim() && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {countries.split(',').map((c) => c.trim()).filter(Boolean).map((c, i) => (
-              <span key={i} style={{
-                padding: '4px 9px', borderRadius: 999, fontSize: 11, fontWeight: 500,
-                background: 'var(--sand)', color: 'var(--ink-soft)',
-              }}>{c}</span>
+              <span key={i} style={{ padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500, background: 'var(--sand)', color: 'var(--ink-soft)' }}>{c}</span>
             ))}
           </div>
         )}
         <SaveCancelBar saving={saving} onSave={() => {
-          const list = countries.split(',').map((s) => s.trim()).filter(Boolean);
+          const list = countries.split(',').map((x) => x.trim()).filter(Boolean);
           return save({ countries: list, country_code: list[0]?.slice(0, 2)?.toUpperCase() || null });
         }} onCancel={() => setEditing(null)} />
       </EditRow>
 
       {/* Dates */}
-      <EditRow editing={editing} setEditing={setEditing} icon={<IconClock size={16} stroke="var(--ink)" />} label={t('dates')}
-           value={trip.dates || '—'} fieldKey="dates">
+      <EditRow editing={editing} setEditing={setEditing} fieldKey="dates"
+        icon={<IconCalendar size={16} stroke="#fff" />} tint={SET_TINT.red}
+        label={ar ? 'التواريخ' : 'Dates'} value={trip.dates || '—'}
+        sub={span ? (ar ? window.arPlural(span, { one: 'يوم واحد', two: 'يومان', few: `${span} أيام`, many: `${span} يوماً`, other: `${span} يوم` }) : `${span} days`) : null}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <input type="date" value={start} onChange={(e) => setStart(e.target.value)} style={inputStyle} />
-          <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} style={inputStyle} />
+          <label style={{ display: 'grid', gap: 4, fontSize: 12, color: 'var(--ink-mute)' }}>{ar ? 'من' : 'From'}
+            <input type="date" value={start} onChange={(e) => setStart(e.target.value)} style={inputStyle} /></label>
+          <label style={{ display: 'grid', gap: 4, fontSize: 12, color: 'var(--ink-mute)' }}>{ar ? 'إلى' : 'To'}
+            <input type="date" value={end} min={start || undefined} onChange={(e) => setEnd(e.target.value)} style={inputStyle} /></label>
         </div>
         <SaveCancelBar saving={saving} onSave={() => save({ start_date: start, end_date: end })} onCancel={() => setEditing(null)} />
       </EditRow>
 
       {/* Budget — pick currency AND amount; we convert to USD on save */}
-      <EditRow editing={editing} setEditing={setEditing} icon={<IconWallet size={16} stroke="var(--ink)" />} label={t('budgetCap')}
-           value={trip.budget?.plannedUSD ? window.fmtMoney(trip.budget.plannedUSD, { in: 'home' }) : '—'}
-           fieldKey="budget">
-        <div style={paramLabelStyle}>
-          {window.isRTL ? 'عملة الحساب' : 'Currency'}
-        </div>
+      <EditRow editing={editing} setEditing={setEditing} fieldKey="budget"
+        icon={<IconWallet size={16} stroke="#fff" />} tint={SET_TINT.green}
+        label={ar ? 'الميزانية' : 'Budget'}
+        value={trip.budget?.plannedUSD ? window.fmtMoney(trip.budget.plannedUSD, { in: 'home' }) : (ar ? 'بدون' : 'None')}>
+        <div style={paramLabelStyle}>{ar ? 'العملة' : 'Currency'}</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {CURRENCIES.map((c) => (
             <button key={c} onClick={() => {
-              // Convert visible amount when switching currency, so the value stays consistent
+              // Convert the visible amount when switching currency, so the value stays the same
               const n = parseFloat(budgetAmt) || 0;
               if (n > 0) {
                 const usd = n / window.fxRate(budgetCur);
-                const newAmt = Math.round(usd * window.fxRate(c) * 100) / 100;
-                setBudgetAmt(newAmt);
+                setBudgetAmt(Math.round(usd * window.fxRate(c) * 100) / 100);
               }
               setBudgetCur(c);
-            }} style={{
-              padding: '6px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 500,
-              background: budgetCur === c ? 'var(--sel)' : 'var(--cream)',
-              color: budgetCur === c ? 'var(--sel-fg)' : 'var(--ink-soft)',
-              border: '0.5px solid var(--hairline)',
-            }}>{c}</button>
+            }} style={chip(budgetCur === c)}>{c}</button>
           ))}
         </div>
-        <div style={{ ...paramLabelStyle, marginTop: 6 }}>
-          {window.isRTL ? `المبلغ الإجمالي (${budgetCur})` : `Amount (${budgetCur})`}
-        </div>
-        <input type="number" inputMode="decimal" value={budgetAmt}
-          onChange={(e) => setBudgetAmt(e.target.value)}
-          placeholder="0" style={inputStyle} />
+        <div style={{ ...paramLabelStyle, marginTop: 6 }}>{ar ? `المبلغ (${budgetCur})` : `Amount (${budgetCur})`}</div>
+        <input type="number" inputMode="decimal" value={budgetAmt} onChange={(e) => setBudgetAmt(e.target.value)} placeholder="0" style={inputStyle} />
         {parseFloat(budgetAmt) > 0 && (
-          <div style={{ fontSize: 11, color: 'var(--ink-mute)', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ fontSize: 12, color: 'var(--ink-mute)', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {budgetCur !== 'USD' && <span>= {window.fmtMoney(window.toUSD(budgetAmt, budgetCur), { in: 'USD' })}</span>}
             {budgetCur !== homeCur && <span>≈ {window.fmtMoney(window.toUSD(budgetAmt, budgetCur), { in: 'home' })}</span>}
             {budgetCur !== localCur && localCur !== homeCur && <span>≈ {window.fmtMoney(window.toUSD(budgetAmt, budgetCur), { in: 'local' })}</span>}
@@ -740,69 +586,55 @@ function EditableTripParams({ trip: tripProp }) {
         })} onCancel={() => setEditing(null)} />
       </EditRow>
 
-      {/* Destination currency. Home currency is NOT editable here — it is
-         the user's account preference (changed in App Settings) and every
-         trip is shown in it automatically. The exchange rate is automatic
-         (live table), so there is no manual rate field anymore. */}
-      <EditRow editing={editing} setEditing={setEditing} icon={<IconSwap size={16} stroke="var(--ink)" />} label={window.isRTL ? 'عملة الوجهة' : 'Destination currency'}
-           value={`${trip.localCurrency || homeCur}${(trip.localCurrency && trip.localCurrency !== homeCur) ? '  ·  ' + (1 / (window.FX_RATES[trip.localCurrency] || 1) * (window.FX_RATES[homeCur] || 1)).toFixed(2) + ' ' + homeCur : ''}`}
-           fieldKey="currency">
-        <div style={paramLabelStyle}>
-          {window.isRTL ? 'العملة المحلية لوجهة السفر' : 'Local currency at your destination'}
-        </div>
+      {/* Destination currency. Home currency lives in Account; rates are automatic. */}
+      <EditRow editing={editing} setEditing={setEditing} fieldKey="currency"
+        icon={<IconSwap size={16} stroke="#fff" />} tint={SET_TINT.orange}
+        label={ar ? 'عملة الوجهة' : 'Destination currency'}
+        value={`${trip.localCurrency || homeCur}${(trip.localCurrency && trip.localCurrency !== homeCur) ? '  ·  ' + (1 / (window.FX_RATES[trip.localCurrency] || 1) * (window.FX_RATES[homeCur] || 1)).toFixed(2) + ' ' + homeCur : ''}`}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {CURRENCIES.map((c) => (
-            <button key={c} onClick={() => setLocalCur(c)} style={{
-              padding: '6px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 500,
-              background: localCur === c ? 'var(--sel)' : 'var(--cream)',
-              color: localCur === c ? 'var(--sel-fg)' : 'var(--ink-soft)',
-              border: '0.5px solid var(--hairline)',
-            }}>{c}</button>
+            <button key={c} onClick={() => setLocalCur(c)} style={chip(localCur === c)}>{c}</button>
           ))}
         </div>
-        {/* Auto exchange-rate readout (read-only) */}
-        <div style={{
-          marginTop: 10, padding: '10px 12px', borderRadius: 10,
-          background: 'var(--cream)', border: '0.5px solid var(--hairline-2)',
-          fontSize: 12, color: 'var(--ink-soft)', fontFamily: 'var(--mono)',
-        }}>
+        <div style={{ padding: '10px 12px', borderRadius: 12, background: 'var(--cream)', fontSize: 12.5, color: 'var(--ink-soft)', fontFamily: 'var(--mono)' }}>
           {localCur === homeCur
-            ? (window.isRTL ? 'نفس عملتك الرئيسية' : 'Same as your home currency')
+            ? (ar ? 'نفس عملتك الرئيسية' : 'Same as your home currency')
             : `1 ${localCur} ≈ ${(window.FX_RATES[homeCur] / (window.FX_RATES[localCur] || 1)).toFixed(3)} ${homeCur}`}
         </div>
-        <div style={{
-          marginTop: 8, fontSize: 10.5, color: 'var(--ink-mute)',
-          fontFamily: 'var(--mono)', letterSpacing: '0.04em',
-        }}>
-          ⓘ {window.isRTL
-            ? `أسعار الصرف تُحدّث تلقائياً (آخر تحديث ${window.FX_RATES_UPDATED}). عملتك الرئيسية ${homeCur} تُغيّر من إعدادات الحساب.`
-            : `Rates update automatically (last ${window.FX_RATES_UPDATED}). Your home currency ${homeCur} is set in Account settings.`}
+        <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', lineHeight: 1.5 }}>
+          {ar
+            ? `سعر الصرف يتحدّث تلقائياً (آخر تحديث ${window.FX_RATES_UPDATED}). عملتك الرئيسية ${homeCur} تتغير من صفحة الحساب.`
+            : `Rates update automatically (last ${window.FX_RATES_UPDATED}). Your home currency ${homeCur} is set in Account.`}
         </div>
         <SaveCancelBar saving={saving} onSave={() => save({ local_currency: localCur, fx_rate: window.FX_RATES[homeCur] || 1 })} onCancel={() => setEditing(null)} />
       </EditRow>
 
-      {/* Cover style */}
-      <EditRow editing={editing} setEditing={setEditing} icon={<IconSun size={16} stroke="var(--ink)" />} label={t('coverStyle')}
-           value={trip.cover || 'kyoto'} fieldKey="cover" last>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      {/* Cover style — pick by looking at it */}
+      <EditRow editing={editing} setEditing={setEditing} fieldKey="cover"
+        icon={<IconPalette size={16} stroke="#fff" />} tint={SET_TINT.purple}
+        label={ar ? 'شكل الغلاف' : 'Cover style'} value={COVER_NAMES[trip.cover || 'kyoto'] || trip.cover}
+        sub={(trip.coverUrl || trip.coverImageUrl) ? (ar ? 'يظهر لما ما يكون فيه صورة' : 'Shown when there is no photo') : null}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 8 }}>
           {COVERS.map((c) => (
-            <button key={c} onClick={() => setCover(c)} style={{
-              padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500,
-              background: cover === c ? 'var(--sel)' : 'var(--cream)',
-              color: cover === c ? 'var(--sel-fg)' : 'var(--ink-soft)',
-              border: '0.5px solid var(--hairline)',
-            }}>{c}</button>
+            <button key={c} onClick={() => setCover(c)} aria-label={COVER_NAMES[c]} style={{ display: 'grid', gap: 5, justifyItems: 'center', background: 'transparent' }}>
+              <span style={{
+                position: 'relative', width: '100%', aspectRatio: '1 / 1.15', borderRadius: 12, overflow: 'hidden',
+                boxShadow: cover === c ? '0 0 0 2px var(--cream-2), 0 0 0 4px var(--clay)' : '0 0 0 0.5px var(--hairline-2)',
+                transition: 'box-shadow 160ms',
+              }}><window.CoverArt kind={c} /></span>
+              <span style={{ fontSize: 11, fontWeight: cover === c ? 700 : 500, color: cover === c ? 'var(--ink)' : 'var(--ink-mute)', whiteSpace: 'nowrap' }}>{COVER_NAMES[c]}</span>
+            </button>
           ))}
         </div>
         <SaveCancelBar saving={saving} onSave={() => save({ cover_style: cover })} onCancel={() => setEditing(null)} />
       </EditRow>
 
       {err && (
-        <div style={{ padding: '10px 14px', background: 'oklch(0.62 0.13 35 / 0.10)', fontSize: 12, color: 'var(--clay-deep)' }}>
+        <div style={{ padding: '10px 14px', background: 'oklch(0.62 0.13 35 / 0.10)', fontSize: 12.5, color: 'var(--clay-deep)' }}>
           {err}
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -810,11 +642,11 @@ function SaveCancelBar({ saving, onSave, onCancel }) {
   return (
     <div style={{ display: 'flex', gap: 8, marginTop: 4, flexDirection: 'row' }}>
       <button disabled={saving} onClick={onSave} style={{
-        flex: 1, padding: '10px', borderRadius: 10, fontSize: 12.5, fontWeight: 600,
-        background: saving ? 'var(--ink-mute)' : 'var(--ink)', color: 'var(--cream)',
-      }}>{saving ? '…' : (window.isRTL ? 'حفظ التغييرات' : 'Save')}</button>
+        flex: 1, minHeight: 44, borderRadius: 12, fontSize: 14, fontWeight: 600,
+        background: 'var(--ink)', color: 'var(--cream)', opacity: saving ? 0.6 : 1,
+      }}>{saving ? '…' : (window.isRTL ? 'حفظ' : 'Save')}</button>
       <button disabled={saving} onClick={onCancel} style={{
-        padding: '10px 16px', borderRadius: 10, fontSize: 12.5,
+        minHeight: 44, padding: '0 18px', borderRadius: 12, fontSize: 14,
         background: 'var(--cream)', border: '0.5px solid var(--hairline-2)', color: 'var(--ink-soft)',
       }}>{window.isRTL ? 'إلغاء' : 'Cancel'}</button>
     </div>
@@ -822,35 +654,15 @@ function SaveCancelBar({ saving, onSave, onCancel }) {
 }
 
 // Stable module-scope component — must NOT be defined inside EditableTripParams,
-// otherwise inputs unmount on every keystroke.
-function EditRow({ editing, setEditing, icon, label, value, fieldKey, children, last }) {
+// otherwise inputs unmount on every keystroke. A settings row that opens an
+// inline editor under itself.
+function EditRow({ editing, setEditing, icon, tint, label, value, sub, fieldKey, children }) {
   const isOpen = editing === fieldKey;
-  const rowStyle = {
-    display: 'flex', alignItems: 'center', gap: 12, flexDirection: 'row',
-    padding: '13px 16px', width: '100%', textAlign: 'start',
-  };
-  const iconBox = {
-    width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
-    background: 'var(--cream)', border: '0.5px solid var(--hairline)',
-  };
   return (
-    <div style={{ borderTop: fieldKey !== 'title' ? '0.5px solid var(--hairline)' : 'none' }}>
-      <button onClick={() => setEditing(isOpen ? null : fieldKey)} style={rowStyle}>
-        <div style={iconBox}>{icon}</div>
-        <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)' }}>{label}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row' }}>
-          <span style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>{value}</span>
-          <span style={{ transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 200ms', display: 'inline-block' }}>
-            <IconChevron size={13} stroke="var(--ink-mute)" />
-          </span>
-        </div>
-      </button>
-      {isOpen && (
-        <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {children}
-        </div>
-      )}
-    </div>
+    <SetRow icon={icon} tint={tint} label={label} value={value} sub={sub}
+      open={isOpen} onClick={() => setEditing(isOpen ? null : fieldKey)}>
+      {children}
+    </SetRow>
   );
 }
 

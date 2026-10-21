@@ -1,23 +1,6 @@
 // App-level Settings — profile, preferences, account, danger zone.
 // Top-level page, accessed from the app nav.
 
-function AppToggle({ on, onChange }) {
-  return (
-    <button onClick={() => onChange?.(!on)} style={{
-      width: 40, height: 24, borderRadius: 999,
-      background: on ? 'var(--switch-on)' : 'var(--sand-deep)',
-      padding: 2, transition: 'background 200ms', position: 'relative', flexShrink: 0,
-    }}>
-      <div style={{
-        width: 20, height: 20, borderRadius: '50%', background: '#fff',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-        transform: on ? `translateX(${window.isRTL ? -16 : 16}px)` : 'translateX(0)',
-        transition: 'transform 220ms cubic-bezier(.2,.8,.2,1)',
-      }} />
-    </button>
-  );
-}
-
 function MotionRow() {
   const ar = window.isRTL;
   const sysReduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -26,22 +9,15 @@ function MotionRow() {
     setFull(v);
     document.documentElement.classList.toggle('motion-full', v);
     try { if (v) localStorage.setItem('voyage:motion', 'full'); else localStorage.removeItem('voyage:motion'); } catch (_) {}
-    window.haptic?.();
     window.toast?.(v ? (ar ? 'الحركة والمؤثرات شغّالة ✨' : 'Motion on ✨') : (ar ? 'رجعنا لإعداد الجهاز' : 'Following the device setting'), 'success');
   };
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexDirection: 'row', padding: '13px 16px', borderTop: '0.5px solid var(--hairline)' }}>
-      <div style={{ width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--cream)', border: '0.5px solid var(--hairline)', fontSize: 15 }}>✨</div>
-      <div style={{ flex: 1, textAlign: 'start' }}>
-        <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>{ar ? 'الحركة والمؤثرات دائماً' : 'Always animate'}</div>
-        <div style={{ fontSize: 11.5, color: sysReduce ? 'var(--clay-deep)' : 'var(--ink-mute)', marginTop: 2, lineHeight: 1.45 }}>
-          {sysReduce
-            ? (ar ? '«تقليل الحركة» مفعّل في جهازك، وهو اللي موقف المؤثرات. فعّل هذا لتشتغل في التطبيق.' : 'Reduce Motion is on in your device — turn this on to keep the app’s motion.')
-            : (ar ? 'المؤثرات شغّالة حسب إعداد جهازك.' : 'Motion follows your device setting.')}
-        </div>
-      </div>
-      <AppToggle on={full} onChange={toggle} />
-    </div>
+    <SetRow icon={<IconSparkle size={17} stroke="#fff" />} tint={SET_TINT.purple}
+      label={ar ? 'الحركة والمؤثرات دائماً' : 'Always animate'}
+      sub={sysReduce
+        ? (ar ? '«تقليل الحركة» مفعّل في جهازك — شغّل هذا لتبقى المؤثرات في التطبيق' : 'Reduce Motion is on in your device — turn this on to keep the motion')
+        : (ar ? 'المؤثرات شغّالة حسب إعداد جهازك' : 'Motion follows your device setting')}
+      right={<SetSwitch on={full} onChange={toggle} label={ar ? 'الحركة والمؤثرات' : 'Motion'} />} />
   );
 }
 
@@ -132,12 +108,41 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
   const me    = profile || { id: window.currentUserId || 'me', name: 'You', initials: 'ME', hue: 35 };
   const stat  = stats || { totalTrips: 0, totalDays: 0, countries: 0 };
 
+  const ar = window.isRTL;
+  const resetApp = () => {
+    window.actionSheet?.({
+      title: ar ? 'إصلاح التطبيق' : 'Repair the app',
+      message: ar ? 'بياناتك محفوظة في السحابة بأمان. بنمسح النسخة المحفوظة على الجهاز ونعيد تحميل التطبيق.' : 'Your cloud data is safe. The app clears its saved copy on this device and reloads.',
+      actions: [
+        { label: ar ? 'إصلاح وإعادة التحميل' : 'Repair & reload', destructive: true, onPress: async () => {
+          try {
+            if ('caches' in window) {
+              const names = await caches.keys();
+              await Promise.all(names.map((n) => caches.delete(n)));
+            }
+            if ('serviceWorker' in navigator) {
+              const regs = await navigator.serviceWorker.getRegistrations();
+              await Promise.all(regs.map((r) => r.unregister()));
+            }
+            try { sessionStorage.clear(); } catch (_) {}
+          } finally { location.reload(); }
+        }},
+      ],
+    });
+  };
+  const signOut = () => {
+    window.actionSheet?.({
+      title: t('signOut'),
+      message: ar ? 'بتطلع من حسابك، وتقدر ترجع تسجل دخولك أي وقت.' : "You'll be signed out. You can sign back in anytime.",
+      actions: [{ label: t('signOut'), destructive: true, onPress: () => onSignOut?.() }],
+    });
+  };
+
   return (
     <div data-screen-label="App Settings" style={{
-      background: 'var(--cream)', minHeight: '100%', paddingBottom: 100,
+      background: 'var(--cream)', minHeight: '100%', paddingBottom: 110,
     }}>
-      {/* iOS Large Title */}
-      <LargeTitleHeader title={t('account')} />
+      <LargeTitleHeader title={ar ? 'الحساب' : 'Account'} />
 
       {/* PROFILE — your traveller passport: data page, flip for stamps */}
       <window.PassportCard me={me} email={email} stats={stat} />
@@ -145,201 +150,75 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
       {/* INSTALL APP — only shows if installable or iOS Safari (manual nudge) */}
       <InstallCard />
 
-      {/* PREFERENCES */}
-      <div style={{ padding: '12px 14px 0' }}>
-        <SectionLabel>{t('preferences')}</SectionLabel>
-        <div style={{
-          background: 'var(--cream-2)', borderRadius: 22,
-          margin: '0 8px', overflow: 'hidden',
-          border: '0.5px solid var(--hairline)',
-        }}>
-          {/* Dark mode row */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            flexDirection: 'row',
-            padding: '13px 16px',
-          }}>
-            <div style={{
-              width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
-              background: 'var(--cream)', border: '0.5px solid var(--hairline)',
-            }}><IconSun size={16} stroke="var(--ink)" /></div>
-            <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)', textAlign: 'start' }}>
-              {t('appearance')}
-            </div>
-            <AppToggle on={dark} onChange={onDarkToggle} />
-          </div>
-
-          {/* Motion row — overrides iOS "Reduce Motion" for this app */}
-          <MotionRow />
-
-          {/* Language row */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            flexDirection: 'row',
-            padding: '13px 16px',
-            borderTop: '0.5px solid var(--hairline)',
-          }}>
-            <div style={{
-              width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
-              background: 'var(--cream)', border: '0.5px solid var(--hairline)',
-              fontSize: 13, fontWeight: 600, color: 'var(--ink)',
-            }}>Aع</div>
-            <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)', textAlign: 'start' }}>
-              {window.isRTL ? 'لغة الواجهة' : 'Language'}
-            </div>
-            <div style={{
-              display: 'inline-flex', padding: 3, background: 'var(--sand)', borderRadius: 999,
-              flexDirection: 'row',
-            }}>
-              {['en', 'ar'].map((l) => (
-                <button key={l} onClick={() => onLangChange?.(l)} style={{
-                  minHeight: 38, minWidth: 52, padding: '0 14px', borderRadius: 999, fontSize: 13.5, fontWeight: 600,
-                  background: lang === l ? 'var(--sel)' : 'transparent',
-                  color: lang === l ? 'var(--sel-fg)' : 'var(--ink-soft)',
-                  transition: 'all 180ms',
-                }}>{l === 'en' ? 'English' : 'عربي'}</button>
-              ))}
-            </div>
-          </div>
-
-          {/* Trip reminders (push) — only when configured + supported */}
-          {pushAvailable && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              flexDirection: 'row', padding: '13px 16px',
-              borderTop: '0.5px solid var(--hairline)',
-            }}>
-              <div style={{
-                width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
-                background: 'var(--cream)', border: '0.5px solid var(--hairline)',
-              }}><IconBell size={16} stroke="var(--ink)" /></div>
-              <div style={{ flex: 1, textAlign: 'start' }}>
-                <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>
-                  {window.isRTL ? 'تذكيرات الرحلة' : 'Trip reminders'}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 1 }}>
-                  {pushState === 'denied'
-                    ? (window.isRTL ? 'الإشعارات محظورة في إعدادات النظام' : 'Notifications blocked in system settings')
-                    : (window.isRTL ? 'بطاقة الصعود وتسجيل الدخول قبل موعدها بـ 24 ساعة' : 'Boarding pass & check-in 24h before')}
-                </div>
-              </div>
-              <AppToggle on={pushState === 'on'} onChange={togglePush} />
-            </div>
-          )}
-
-          {/* Trip activity digest — only meaningful once push is on, so it
-             tucks under the reminders toggle as a sub-channel. */}
-          {pushAvailable && pushState === 'on' && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              flexDirection: 'row', padding: '13px 16px',
-              borderTop: '0.5px solid var(--hairline)',
-            }}>
-              <div style={{
-                width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
-                background: 'var(--cream)', border: '0.5px solid var(--hairline)',
-              }}><IconUsers size={16} stroke="var(--ink)" /></div>
-              <div style={{ flex: 1, textAlign: 'start' }}>
-                <div style={{ fontSize: 13.5, color: 'var(--ink)' }}>
-                  {window.isRTL ? 'نشاط الرحلة' : 'Trip activity'}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 1 }}>
-                  {window.isRTL
-                    ? 'عند إضافة الرفاق مصاريف أو مستندات لرحلة مشتركة'
-                    : 'When crew add expenses or documents to a shared trip'}
-                </div>
-              </div>
-              <AppToggle on={activityOn} onChange={toggleActivity} />
-            </div>
-          )}
-
-          {/* Static rows */}
-          <ProfileEditRows me={me} />
-        </div>
-      </div>
-
-      {/* MY DETAILS — name + password, editable */}
+      {/* MY DETAILS — name, email, password */}
       <MyDetailsSection me={me} email={email} onProfile={(p) => {
         setProfile(p);
         window.ACCOUNT = { ...(window.ACCOUNT || {}), profile: p };
       }} />
 
-      {/* PRIVACY — explainer card only (no stub settings) */}
-      <div style={{ padding: '18px 14px 0' }}>
-        <SectionLabel>{t('privacy')}</SectionLabel>
-        <div style={{
-          background: 'oklch(0.50 0.08 155 / 0.08)', borderRadius: 22,
-          margin: '0 8px', padding: '14px 16px',
-          border: '0.5px dashed oklch(0.50 0.08 155 / 0.35)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexDirection: 'row' }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: 10, background: 'var(--moss)',
-              display: 'grid', placeItems: 'center', flexShrink: 0,
-            }}><IconUsers size={16} stroke="#fff" /></div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--moss)' }}>
-                {t('tripScopedCollab')}
-              </div>
-              <div style={{ fontSize: 11.5, color: 'var(--ink-soft)', marginTop: 3, lineHeight: 1.45, textAlign: 'start' }}>
-                {t('tripScopedSub')}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* LOOK & LANGUAGE */}
+      <SetGroup title={ar ? 'المظهر واللغة' : 'Look & language'}>
+        <SetRow icon={dark ? <IconMoon size={16} stroke="#fff" /> : <IconSun size={17} stroke="#fff" />} tint={SET_TINT.indigo}
+          label={ar ? 'المظهر' : 'Appearance'}
+          right={<SetSegmented value={!!dark} onChange={(v) => onDarkToggle?.(v)} options={[
+            { value: false, label: ar ? 'فاتح' : 'Light' },
+            { value: true, label: ar ? 'داكن' : 'Dark' },
+          ]} />} />
+        <MotionRow />
+        <SetRow icon={<IconGlobe size={17} stroke="#fff" />} tint={SET_TINT.sky}
+          label={ar ? 'اللغة' : 'Language'}
+          right={<SetSegmented value={lang} onChange={(v) => onLangChange?.(v)} options={[
+            { value: 'ar', label: 'عربي' },
+            { value: 'en', label: 'English' },
+          ]} />} />
+      </SetGroup>
 
-      {/* DANGER */}
-      <div style={{ padding: '18px 14px 0' }}>
-        <SectionLabel>{t('account')}</SectionLabel>
-        <div style={{
-          background: 'var(--cream-2)', borderRadius: 22,
-          margin: '0 8px', overflow: 'hidden',
-          border: '0.5px solid var(--hairline)',
-        }}>
-          <ActionRow onClick={() => {
-            window.actionSheet?.({
-              title: window.isRTL ? 'إعادة تعيين وإصلاح التطبيق' : 'Reset app cache',
-              message: window.isRTL ? 'بياناتك المخزنة في السحابة بأمان تام. سيُعاد تحميل التطبيق فقط لإصلاح أي مشاكل ظاهرية.' : 'Your cloud data is safe. The app will reload.',
-              actions: [
-                { label: window.isRTL ? 'متابعة وإعادة التعيين' : 'Reset', destructive: true, onPress: async () => {
-                  try {
-                    if ('caches' in window) {
-                      const names = await caches.keys();
-                      await Promise.all(names.map((n) => caches.delete(n)));
-                    }
-                    if ('serviceWorker' in navigator) {
-                      const regs = await navigator.serviceWorker.getRegistrations();
-                      await Promise.all(regs.map((r) => r.unregister()));
-                    }
-                    try { sessionStorage.clear(); } catch (_) {}
-                  } finally { location.reload(); }
-                }},
-              ],
-            });
-          }} icon={<IconGear size={17} stroke="var(--ink)" />} label={window.isRTL ? 'إعادة تعيين وإصلاح التطبيق' : 'Reset app cache'} sub={window.isRTL ? 'استخدم هذا الإجراء إذا واجهت أي مشاكل في الواجهة أو الأداء' : 'Clear cache & reload if something looks broken'} />
-          <ActionRow onClick={() => {
-            window.actionSheet?.({
-              title: t('signOut'),
-              message: window.isRTL ? 'سيتم تسجيل خروجك من الحساب. يمكنك العودة وتسجيل الدخول في أي وقت.' : "You'll be signed out. You can sign back in anytime.",
-              actions: [
-                { label: t('signOut'), destructive: true, onPress: () => onSignOut?.() },
-              ],
-            });
-          }} icon={<span className="icon-flip"><IconBack size={17} stroke="var(--ink)" /></span>} label={t('signOut')} sub={email ? `${me.name.split(' ')[0]} · ${email}` : me.name.split(' ')[0]} />
-          <ActionRow icon={<IconTrash size={17} stroke="var(--clay-deep)" />} labelColor="var(--clay-deep)" label={t('deleteAccount')} sub={t('deleteAccountSub')} last />
-        </div>
-      </div>
+      {/* TRAVEL DEFAULTS — home currency + home city */}
+      <SetGroup title={ar ? 'السفر' : 'Travel'}
+        footer={ar ? 'كل رحلاتك وإحصائياتك تنعرض بعملتك الافتراضية، ومدينتك هي نقطة الانطلاق على الكرة الأرضية.' : 'Every trip and total shows in your default currency; your home city is where the globe arcs start.'}>
+        <ProfileEditRows me={me} />
+      </SetGroup>
 
-      {/* Footer imprint. The "Built in Makkah" sentiment is a real
-         brand moment for a Gulf-region app and stays. What goes is the
-         uppercase mono 0.16em tracking that rendered it as a barcode;
-         now plain mono (matches the v-number naturally), sentence-case,
-         no tracking. */}
+      {/* NOTIFICATIONS — only when push is configured + supported */}
+      {pushAvailable && (
+        <SetGroup title={ar ? 'التنبيهات' : 'Notifications'}>
+          <SetRow icon={<IconBell size={17} stroke="#fff" />} tint={SET_TINT.red}
+            label={ar ? 'تذكيرات الرحلة' : 'Trip reminders'}
+            sub={pushState === 'denied'
+              ? (ar ? 'الإشعارات محظورة من إعدادات الجهاز' : 'Notifications are blocked in system settings')
+              : (ar ? 'بطاقة الصعود وتسجيل الدخول قبل موعدها بـ 24 ساعة' : 'Boarding pass & check-in 24h before')}
+            right={<SetSwitch on={pushState === 'on'} onChange={togglePush} disabled={pushState === 'busy'} label={ar ? 'تذكيرات الرحلة' : 'Trip reminders'} />} />
+          {pushState === 'on' && (
+            <SetRow icon={<IconUsers size={17} stroke="#fff" />} tint={SET_TINT.pink}
+              label={ar ? 'نشاط الرحلة' : 'Trip activity'}
+              sub={ar ? 'لما يضيف أحد من الرحلة مصروف أو مستند' : 'When crew add expenses or documents to a shared trip'}
+              right={<SetSwitch on={activityOn} onChange={toggleActivity} label={ar ? 'نشاط الرحلة' : 'Trip activity'} />} />
+          )}
+        </SetGroup>
+      )}
+
+      {/* PRIVACY — what trip mates can see */}
+      <SetGroup title={ar ? 'الخصوصية' : 'Privacy'}>
+        <SetRow icon={<IconShield size={17} stroke="#fff" />} tint={SET_TINT.green}
+          label={ar ? 'كل رحلة لأهلها' : 'Each trip stays with its crew'}
+          sub={ar ? 'اللي تدعوهم لرحلة يشوفون هذي الرحلة بس — ما يشوفون رحلاتك الثانية ولا بياناتك.' : t('tripScopedSub')} />
+      </SetGroup>
+
+      {/* SUPPORT + SIGN OUT */}
+      <SetGroup title={ar ? 'الدعم' : 'Support'}>
+        <SetRow icon={<IconRefresh size={17} stroke="#fff" />} tint={SET_TINT.gray}
+          label={ar ? 'إصلاح التطبيق' : 'Repair the app'}
+          sub={ar ? 'إذا شفت شي غريب في الشكل أو البطء' : 'If something looks off or feels slow'}
+          onClick={resetApp} />
+        <SetRow icon={<span className="icon-flip" style={{ display: 'inline-flex' }}><IconLogout size={17} stroke="#fff" /></span>} tint={SET_TINT.slate}
+          label={t('signOut')} sub={email || me.name} danger onClick={signOut} />
+      </SetGroup>
+
+      {/* Footer imprint */}
       <div style={{ textAlign: 'center', padding: '32px 0 20px', color: 'var(--ink-mute)' }}>
         <div className="serif-italic" style={{ fontSize: 18 }}>voyage</div>
         <div className="mono" style={{ fontSize: 10.5, marginTop: 6 }}>
-          {window.isRTL ? 'الإصدار 1.0.0 · صُنع بكل حب في مكة' : 'v 1.0.0 · Built in Makkah'}
+          {ar ? 'الإصدار 1.0.0 · صُنع بكل حب في مكة' : 'v 1.0.0 · Built in Makkah'}
         </div>
       </div>
     </div>
@@ -422,19 +301,6 @@ function InstallCard() {
   );
 }
 
-// Inline emphasis for the lifetime-totals sentence inside the dark
-// profile card. Mono for tabular alignment, slightly heavier weight,
-// cream so the numbers carry weight without size escalation against
-// the dark card surface.
-function ProfileNum({ children }) {
-  return (
-    <span className="mono" style={{
-      fontWeight: 700, color: '#fff',
-      letterSpacing: '-0.005em',
-    }}>{children}</span>
-  );
-}
-
 // Editable profile preferences — default currency + home city.
 // Saves to public.profiles. Component lives at module scope so inputs don't
 // remount on every keystroke (React anti-pattern when defined inside parent).
@@ -492,91 +358,53 @@ function ProfileEditRows({ me }) {
   };
 
   const CURRENCIES = window.CURRENCIES;
-  const rowStyle = {
-    display: 'flex', alignItems: 'center', gap: 12, flexDirection: 'row',
-    padding: '13px 16px', width: '100%', textAlign: 'start',
-    borderTop: '0.5px solid var(--hairline)',
-  };
-  const iconBox = {
-    width: 30, height: 30, borderRadius: 9, display: 'grid', placeItems: 'center',
-    background: 'var(--cream)', border: '0.5px solid var(--hairline)',
-  };
+  const ar = window.isRTL;
   const inputStyle = {
-    width: '100%', padding: '10px 12px', borderRadius: 10,
+    width: '100%', padding: '11px 12px', borderRadius: 12,
     border: '0.5px solid var(--hairline-2)', background: 'var(--cream)',
-    color: 'var(--ink)', fontSize: 14, outline: 'none', textAlign: 'start',
+    color: 'var(--ink)', fontSize: 16, outline: 'none', textAlign: 'start',
   };
+  const bar = (onSave) => (
+    <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+      <button disabled={saving} onClick={onSave} style={{
+        flex: 1, minHeight: 42, borderRadius: 12, fontSize: 13.5, fontWeight: 600,
+        background: 'var(--ink)', color: 'var(--cream)', opacity: saving ? 0.6 : 1,
+      }}>{saving ? '…' : (ar ? 'حفظ' : 'Save')}</button>
+      <button disabled={saving} onClick={() => setEditing(null)} style={{
+        minHeight: 42, padding: '0 16px', borderRadius: 12, fontSize: 13.5,
+        background: 'var(--cream)', border: '0.5px solid var(--hairline-2)', color: 'var(--ink-soft)',
+      }}>{ar ? 'إلغاء' : 'Cancel'}</button>
+    </div>
+  );
 
   return (
     <>
       {/* Default currency — picker */}
-      <div>
-        <button onClick={() => setEditing(editing === 'currency' ? null : 'currency')} style={rowStyle}>
-          <div style={iconBox}><IconWallet size={16} stroke="var(--ink)" /></div>
-          <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)' }}>{t('defaultCurrency')}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row' }}>
-            <span style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>{currency}</span>
-            <span style={{ transform: editing === 'currency' ? 'rotate(90deg)' : 'none', transition: 'transform 200ms', display: 'inline-block' }}>
-              <IconChevron size={13} stroke="var(--ink-mute)" />
-            </span>
-          </div>
-        </button>
-        {editing === 'currency' && (
-          <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {CURRENCIES.map((c) => (
-                <button key={c} onClick={() => setCurrency(c)} style={{
-                  padding: '6px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 500,
-                  background: currency === c ? 'var(--sel)' : 'var(--cream)',
-                  color: currency === c ? 'var(--sel-fg)' : 'var(--ink-soft)',
-                  border: '0.5px solid var(--hairline)',
-                }}>{c}</button>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
-              <button disabled={saving} onClick={() => save({ default_currency: currency })} style={{
-                flex: 1, padding: '10px', borderRadius: 10, fontSize: 12.5, fontWeight: 600,
-                background: saving ? 'var(--ink-mute)' : 'var(--ink)', color: 'var(--cream)',
-              }}>{saving ? '…' : (window.isRTL ? 'حفظ' : 'Save')}</button>
-              <button disabled={saving} onClick={() => setEditing(null)} style={{
-                padding: '10px 16px', borderRadius: 10, fontSize: 12.5,
-                background: 'var(--cream)', border: '0.5px solid var(--hairline-2)', color: 'var(--ink-soft)',
-              }}>{window.isRTL ? 'إلغاء' : 'Cancel'}</button>
-            </div>
-          </div>
-        )}
-      </div>
+      <SetRow icon={<IconWallet size={17} stroke="#fff" />} tint={SET_TINT.green}
+        label={ar ? 'العملة الافتراضية' : 'Default currency'} value={currency}
+        open={editing === 'currency'} onClick={() => setEditing(editing === 'currency' ? null : 'currency')}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {CURRENCIES.map((c) => (
+            <button key={c} onClick={() => setCurrency(c)} style={{
+              minHeight: 34, padding: '0 11px', borderRadius: 10, fontSize: 12.5, fontWeight: 600,
+              background: currency === c ? 'var(--sel)' : 'var(--cream)',
+              color: currency === c ? 'var(--sel-fg)' : 'var(--ink-soft)',
+              border: '0.5px solid var(--hairline)',
+            }}>{c}</button>
+          ))}
+        </div>
+        {bar(() => save({ default_currency: currency }))}
+      </SetRow>
 
       {/* Home base — free text */}
-      <div>
-        <button onClick={() => setEditing(editing === 'home' ? null : 'home')} style={rowStyle}>
-          <div style={iconBox}><IconCompass size={16} stroke="var(--ink)" /></div>
-          <div style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)' }}>{t('homeBase')}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row' }}>
-            <span style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>{home || (window.isRTL ? 'لم تُحدد بعد' : 'Not set')}</span>
-            <span style={{ transform: editing === 'home' ? 'rotate(90deg)' : 'none', transition: 'transform 200ms', display: 'inline-block' }}>
-              <IconChevron size={13} stroke="var(--ink-mute)" />
-            </span>
-          </div>
-        </button>
-        {editing === 'home' && (
-          <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <input value={home} onChange={(e) => setHome(e.target.value)}
-              placeholder={window.isRTL ? 'مثلاً: مكة، الرياض، جدة' : 'e.g. Makkah, Riyadh, Dubai'}
-              style={inputStyle} />
-            <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
-              <button disabled={saving} onClick={() => save({ home_base: home.trim() || null })} style={{
-                flex: 1, padding: '10px', borderRadius: 10, fontSize: 12.5, fontWeight: 600,
-                background: saving ? 'var(--ink-mute)' : 'var(--ink)', color: 'var(--cream)',
-              }}>{saving ? '…' : (window.isRTL ? 'حفظ' : 'Save')}</button>
-              <button disabled={saving} onClick={() => setEditing(null)} style={{
-                padding: '10px 16px', borderRadius: 10, fontSize: 12.5,
-                background: 'var(--cream)', border: '0.5px solid var(--hairline-2)', color: 'var(--ink-soft)',
-              }}>{window.isRTL ? 'إلغاء' : 'Cancel'}</button>
-            </div>
-          </div>
-        )}
-      </div>
+      <SetRow icon={<IconPin size={17} stroke="#fff" />} tint={SET_TINT.orange}
+        label={ar ? 'مدينتك' : 'Home city'} value={home || (ar ? 'غير محددة' : 'Not set')}
+        open={editing === 'home'} onClick={() => setEditing(editing === 'home' ? null : 'home')}>
+        <input value={home} onChange={(e) => setHome(e.target.value)}
+          placeholder={ar ? 'مثلاً: مكة، الرياض، جدة' : 'e.g. Makkah, Riyadh, Dubai'}
+          style={inputStyle} />
+        {bar(() => save({ home_base: home.trim() || null }))}
+      </SetRow>
     </>
   );
 }
@@ -593,23 +421,15 @@ function MyDetailsSection({ me, email, onProfile }) {
   const [open, setOpen] = React.useState(null); // 'name' | 'password' | null
   const shell = document.getElementById('app-shell') || document.body;
   return (
-    <div style={{ padding: '18px 14px 0' }}>
-      <SectionLabel>{ar ? 'بياناتي' : 'My details'}</SectionLabel>
-      <div style={{ background: 'var(--cream-2)', borderRadius: 22, margin: '0 8px', overflow: 'hidden', border: '0.5px solid var(--hairline)' }}>
-        <ActionRow last={false} onClick={() => setOpen('name')}
-          icon={<IconUsers size={16} stroke="var(--ink)" />}
-          label={ar ? 'الاسم' : 'Name'} sub={me.name} />
-        <ActionRow onClick={() => setOpen('password')}
-          icon={<span style={{ fontSize: 15 }}>🔑</span>}
-          label={ar ? 'كلمة المرور' : 'Password'} sub={ar ? 'تغيير كلمة المرور' : 'Change your password'} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderTop: '0.5px solid var(--hairline)' }}>
-          <div style={{ width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', background: 'var(--cream)', border: '0.5px solid var(--hairline)', fontSize: 15 }}>@</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13.5, color: 'var(--ink)', fontWeight: 500 }}>{ar ? 'البريد الإلكتروني' : 'Email'}</div>
-            <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 1 }}>{email || '—'}</div>
-          </div>
-        </div>
-      </div>
+    <>
+      <SetGroup title={ar ? 'بياناتي' : 'My details'}>
+        <SetRow icon={<IconUser size={17} stroke="#fff" />} tint={SET_TINT.indigo}
+          label={ar ? 'الاسم' : 'Name'} value={me.name} onClick={() => setOpen('name')} />
+        <SetRow icon={<IconMail size={17} stroke="#fff" />} tint={SET_TINT.blue}
+          label={ar ? 'البريد' : 'Email'} value={<span dir="ltr">{email || '—'}</span>} />
+        <SetRow icon={<IconKey size={17} stroke="#fff" />} tint={SET_TINT.yellow}
+          label={ar ? 'كلمة المرور' : 'Password'} value="••••••••" onClick={() => setOpen('password')} />
+      </SetGroup>
       {open && ReactDOM.createPortal(
         <Sheet open onClose={() => setOpen(null)} height={open === 'password' ? 0.72 : 0.5}
           title={open === 'name' ? (ar ? 'تعديل الاسم' : 'Edit name') : (ar ? 'تغيير كلمة المرور' : 'Change password')}>
@@ -617,7 +437,7 @@ function MyDetailsSection({ me, email, onProfile }) {
             ? <EditNameForm me={me} onDone={(p) => { if (p) onProfile(p); setOpen(null); }} />
             : <ChangePasswordForm email={email} onDone={() => setOpen(null)} />}
         </Sheet>, shell)}
-    </div>
+    </>
   );
 }
 

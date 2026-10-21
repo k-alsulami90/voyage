@@ -638,7 +638,7 @@ function Header({ title, onBack, action }) {
         minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
         flexShrink: 0, gap: 8, flexDirection: 'row',
       }}>
-        {action || <IconMore size={18} stroke="var(--ink-soft)" />}
+        {action || <span style={{ width: 36 }} aria-hidden="true" />}
       </div>
     </div>
   );
