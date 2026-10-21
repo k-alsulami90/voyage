@@ -82,7 +82,7 @@ function ScreenBudget({ go, openSheet, loading }) {
       <Header title={t('budgetNav')} onBack={() => go('hub')} action={
         <button onClick={() => go('analytics')} aria-label={window.isRTL ? 'تحليل السفر' : 'Travel analysis'} style={{
           height: 36, padding: '0 12px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 6,
-          background: 'var(--ink)', color: 'var(--cream)', fontSize: 12.5, fontWeight: 600,
+          background: 'var(--sel)', color: 'var(--sel-fg)', fontSize: 12.5, fontWeight: 600,
         }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>
           {window.isRTL ? 'التحليل' : 'Analysis'}
@@ -133,8 +133,8 @@ function ScreenBudget({ go, openSheet, loading }) {
             {[['home', home], ['local', local]].map(([m, code]) => (
               <button key={m} onClick={() => setDisplayMode(m)} style={{
                 padding: '4px 11px', borderRadius: 999, fontSize: 11.5, fontWeight: 600,
-                background: displayMode === m ? 'var(--cream)' : 'transparent',
-                color: displayMode === m ? 'var(--ink)' : 'var(--cream)',
+                background: displayMode === m ? 'var(--statement-fg)' : 'transparent',
+                color: displayMode === m ? 'var(--statement)' : 'var(--statement-sub)',
               }}>{code}</button>
             ))}
           </div>
@@ -156,10 +156,10 @@ function ScreenBudget({ go, openSheet, loading }) {
             <button onClick={() => { setShowSearch(!showSearch); setSearch(''); }}
               aria-label={window.isRTL ? 'بحث في المصروفات' : 'Search expenses'} style={{
               width: 38, height: 38, borderRadius: 12,
-              background: showSearch ? 'var(--ink)' : 'var(--cream-2)',
+              background: showSearch ? 'var(--sel)' : 'var(--cream-2)',
               border: '0.5px solid var(--hairline)', display: 'grid', placeItems: 'center',
               flexShrink: 0,
-            }}><IconSearch size={16} stroke={showSearch ? 'var(--cream)' : 'var(--ink-soft)'} /></button>
+            }}><IconSearch size={16} stroke={showSearch ? 'var(--sel-fg)' : 'var(--ink-soft)'} /></button>
           </div>
         </div>
 
@@ -183,7 +183,7 @@ function ScreenBudget({ go, openSheet, loading }) {
         <div style={{ display: 'flex', gap: 6, padding: '0 4px 10px', flexDirection: 'row', alignItems: 'center' }}>
           {filter !== 'all' && (
             <button onClick={() => setFilter('all')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 999,
-              background: 'var(--ink)', color: 'var(--cream)', fontSize: 12, fontWeight: 600 }}>
+              background: 'var(--sel)', color: 'var(--sel-fg)', fontSize: 12, fontWeight: 600 }}>
               <span style={{ width: 8, height: 8, borderRadius: 3, background: `var(--cat-${filter})` }} />{t(filter) || filter} ✕
             </button>
           )}
@@ -197,8 +197,8 @@ function ScreenBudget({ go, openSheet, loading }) {
              SVG icon set, matching every other icon on the screen. */}
           <button onClick={() => setShowFilters(!showFilters)} style={{
             flexShrink: 0, padding: '6px 12px 6px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 500,
-            background: showFilters || paidBy !== 'all' || dayFilter !== 'all' ? 'var(--ink)' : 'var(--cream-2)',
-            color: showFilters || paidBy !== 'all' || dayFilter !== 'all' ? 'var(--cream)' : 'var(--ink-soft)',
+            background: showFilters || paidBy !== 'all' || dayFilter !== 'all' ? 'var(--sel)' : 'var(--cream-2)',
+            color: showFilters || paidBy !== 'all' || dayFilter !== 'all' ? 'var(--sel-fg)' : 'var(--ink-soft)',
             border: '0.5px solid var(--hairline)',
             display: 'inline-flex', alignItems: 'center', gap: 5,
           }}>
@@ -675,8 +675,8 @@ function ExpensesSwitch({ active, onChange }) {
         {opts.map((o) => (
           <button key={o.k} onClick={() => o.k !== active && onChange?.(o.k)} aria-current={o.k === active ? 'page' : undefined} style={{
             flex: 1, minHeight: 40, borderRadius: 11, fontSize: 13.5, fontWeight: 600,
-            background: o.k === active ? 'var(--ink)' : 'transparent',
-            color: o.k === active ? 'var(--cream)' : 'var(--ink-soft)',
+            background: o.k === active ? 'var(--sel)' : 'transparent',
+            color: o.k === active ? 'var(--sel-fg)' : 'var(--ink-soft)',
             transition: 'background 180ms, color 180ms',
           }}>{o.l}</button>
         ))}

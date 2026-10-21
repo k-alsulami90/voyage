@@ -82,90 +82,129 @@ window.computeTodayBudget = (trip, expenses, todayISO) => {
 
 const _first = (m) => ((m && m.name) || '').trim().split(/\s+/)[0] || '?';
 
-// ── Hub card ──────────────────────────────────────────────────────────
-function TodayBudgetCard({ onManage }) {
+// ── Hub: today's money + the cards (two sections) ────────────────────
+// Section 1 answers "how much can we spend today?" (one hero number, a
+// bar for today, and two figures for the rest of the trip). Section 2 is
+// the group's cards as physical 3D cards. Before the trip it shows the
+// daily budget; after it, a short summary with a way into the analysis.
+function TodayBudgetCard({ onManage, onOpen, onAnalysis }) {
   const trip = window.TRIP;
   const members = window.MEMBERS || [];
   const b = window.computeTodayBudget(trip, window.EXPENSES);
   if (!b) return null;
   const ar = window.isRTL;
   const fmtC = (usd) => window.fmtMoney(usd, { in: 'home' });
-  const over = b.phase === 'during' && b.todayLeft < 0;
+  const Section = window.HubSection, Pill = window.HubPill, Stat = window.HubStat;
+  const during = b.phase === 'during', before = b.phase === 'before';
+  const over = during && b.todayLeft < 0;
   const roomy = b.allowance >= b.planPerDay;
+  const todayISO = window.localISO();
+  const daysWord = (n) => ar
+    ? window.arPlural(n, { one: 'يوم واحد', two: 'يومان', few: `${n} أيام`, many: `${n} يوماً`, other: `${n} يوم` })
+    : `${n} ${n === 1 ? 'day' : 'days'}`;
+  const cardsWord = (n) => ar
+    ? window.arPlural(n, { one: 'بطاقة واحدة', two: 'بطاقتان', few: `${n} بطاقات`, many: `${n} بطاقة`, other: `${n} بطاقة` })
+    : `${n} ${n === 1 ? 'card' : 'cards'}`;
 
-  let headline, sub;
-  if (b.phase === 'during') {
-    headline = over
-      ? (ar ? 'تجاوزتوا اليوم' : 'Over today by')
-      : (ar ? 'باقي لليوم' : 'Left today');
-    sub = ar ? `من ${fmtC(b.allowance)} لليوم` : `of ${fmtC(b.allowance)} for today`;
-  } else if (b.phase === 'before') {
-    headline = ar ? 'ميزانيتكم اليومية' : 'Your daily budget';
-    sub = ar ? `على ${b.totalDays} أيام` : `over ${b.totalDays} days`;
+  let title, sub, label, big, pill;
+  if (during) {
+    title = ar ? 'ميزانية اليوم' : "Today's budget";
+    sub = new Date(todayISO + 'T00:00:00').toLocaleDateString(ar ? 'ar' : 'en', { weekday: 'long', day: 'numeric', month: 'long' });
+    label = over ? (ar ? 'تجاوزتوا اليوم بـ' : 'Over today by') : (ar ? 'باقي لليوم' : 'Left today');
+    big = Math.abs(b.todayLeft);
+    pill = over ? <Pill tone="warn">{ar ? 'فوق حد اليوم' : 'Over today'}</Pill>
+      : roomy ? <Pill tone="good">{ar ? 'فيه متسع' : 'Room to spare'}</Pill>
+      : <Pill tone="warn">{ar ? 'اقتصدوا شوي' : 'Ease off'}</Pill>;
+  } else if (before) {
+    const until = Math.max(0, Math.round((new Date(trip.startDate + 'T00:00:00') - new Date(todayISO + 'T00:00:00')) / 86400000));
+    title = ar ? 'ميزانية الرحلة' : 'Trip budget';
+    sub = trip.dates || '';
+    label = ar ? 'ميزانيتكم اليومية' : 'Your daily budget';
+    big = b.allowance;
+    pill = <Pill tone="info">{until <= 1 ? (ar ? 'تبدأ بكرة' : 'Starts tomorrow') : (ar ? `تبدأ بعد ${daysWord(until)}` : `Starts in ${daysWord(until)}`)}</Pill>;
   } else {
-    headline = ar ? 'باقي بعد الرحلة' : 'Left after the trip';
-    sub = '';
+    title = ar ? 'ملخص الرحلة' : 'Trip summary';
+    sub = trip.dates || '';
+    label = ar ? 'باقي بعد الرحلة' : 'Left after the trip';
+    big = b.leftUSD;
+    pill = <Pill tone="neutral">{ar ? 'انتهت الرحلة' : 'Trip ended'}</Pill>;
   }
-  const bigValue = b.phase === 'during' ? Math.abs(b.todayLeft) : (b.phase === 'before' ? b.allowance : b.leftUSD);
-  const pctToday = b.phase === 'during' && b.allowance > 0 ? Math.max(0, Math.min(1, b.todaySpent / b.allowance)) : 0;
+  const pctToday = during && b.allowance > 0 ? Math.max(0, Math.min(1, b.todaySpent / b.allowance)) : 0;
+
+  let stats;
+  if (during) {
+    stats = [
+      b.daysLeft > 1 && b.nextDaysAllowance != null
+        ? <Stat key="a" label={ar ? `للأيام الجاية (${b.daysLeft - 1})` : `Next ${b.daysLeft - 1} days`} value={fmtC(b.nextDaysAllowance)}
+            sub={ar ? `لكل يوم · خطتكم ${fmtC(b.planPerDay)}` : `a day · plan ${fmtC(b.planPerDay)}`} />
+        : <Stat key="a" label={ar ? 'صرفتوا من البطاقات' : 'Spent on cards'} value={fmtC(b.spentUSD)} sub={ar ? `من ${fmtC(b.totalUSD)}` : `of ${fmtC(b.totalUSD)}`} />,
+      <Stat key="b" label={ar ? 'باقي للرحلة' : 'Left for the trip'} value={fmtC(b.leftUSD)} sub={ar ? `من ${fmtC(b.totalUSD)}` : `of ${fmtC(b.totalUSD)}`} />,
+    ];
+  } else if (before) {
+    stats = [
+      <Stat key="a" label={ar ? 'مجموع البطاقات' : 'On the cards'} value={fmtC(b.totalUSD)} sub={cardsWord(b.cards.length)} />,
+      <Stat key="b" label={ar ? 'مدة الرحلة' : 'Trip length'} value={daysWord(b.totalDays)} sub={trip.startDate ? (ar ? `تبدأ ${window.fmtDate(trip.startDate)}` : `from ${window.fmtDate(trip.startDate)}`) : ''} />,
+    ];
+  } else {
+    stats = [
+      <Stat key="a" label={ar ? 'صرفتوا من البطاقات' : 'Spent on cards'} value={fmtC(b.spentUSD)} sub={ar ? `من ${fmtC(b.totalUSD)}` : `of ${fmtC(b.totalUSD)}`} />,
+      <Stat key="b" label={ar ? 'متوسط اليوم' : 'Per day'} value={fmtC(b.totalDays ? b.spentUSD / b.totalDays : 0)} sub={ar ? `خطتكم ${fmtC(b.planPerDay)}` : `plan ${fmtC(b.planPerDay)}`} />,
+    ];
+  }
 
   return (
-    <div style={{ padding: '0 14px', marginTop: 16 }}>
-      <div style={{
-        background: over ? 'oklch(0.62 0.13 35 / 0.10)' : 'var(--cream-2)',
-        borderRadius: 24, padding: '18px 18px 12px',
-        border: over ? '1px solid oklch(0.62 0.13 35 / 0.35)' : '0.5px solid var(--hairline)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: over ? 'var(--clay-deep)' : 'var(--ink)' }}>{headline}</div>
-          <button onClick={onManage} style={{
-            fontSize: 12.5, color: 'var(--ink-soft)', fontWeight: 500, minHeight: 36, padding: '0 4px', background: 'transparent',
-          }}>{ar ? 'البطاقات' : 'Cards'}</button>
+    <>
+      <Section title={title} sub={sub}>
+        <div onClick={onOpen} role="button" className="press-soft" style={{
+          background: over ? 'oklch(0.62 0.13 35 / 0.10)' : 'var(--cream-2)',
+          borderRadius: 24, padding: '16px 16px 14px', cursor: onOpen ? 'pointer' : 'default',
+          border: over ? '0.5px solid oklch(0.62 0.13 35 / 0.35)' : '0.5px solid var(--hairline)',
+          boxShadow: 'var(--shadow-sm)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: over ? 'var(--clay-deep)' : 'var(--ink-soft)' }}>{label}</span>
+            {pill}
+          </div>
+          <div className="mono" style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-0.01em', marginTop: 2, color: over ? 'var(--clay-deep)' : 'var(--ink)' }}>
+            <window.CountUp id={'today-big-' + (trip?.id || '') + b.phase} value={big} format={fmtC} />
+          </div>
+          {before && <div style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>{ar ? `على ${daysWord(b.totalDays)}` : `over ${daysWord(b.totalDays)}`}</div>}
+
+          {during && (
+            <>
+              <div style={{ height: 8, borderRadius: 999, background: 'var(--cream)', marginTop: 10, overflow: 'hidden' }}>
+                <div className="v-grow" style={{
+                  width: `${(over ? 1 : pctToday) * 100}%`, height: '100%', borderRadius: 999,
+                  background: over ? 'var(--clay)' : 'var(--moss)', transition: 'width 300ms cubic-bezier(.2,.8,.2,1)',
+                }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 6, fontSize: 12, color: 'var(--ink-mute)' }}>
+                <span>{ar ? 'صرفتوا اليوم' : 'Spent today'} <b className="mono" style={{ color: 'var(--ink-soft)' }}>{fmtC(b.todaySpent)}</b></span>
+                <span>{ar ? 'من' : 'of'} <span className="mono">{fmtC(b.allowance)}</span></span>
+              </div>
+            </>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 8, marginTop: 14 }}>{stats}</div>
+
+          {!during && !before && onAnalysis && (
+            <button onClick={(e) => { e.stopPropagation(); onAnalysis(); }} style={{
+              marginTop: 12, width: '100%', minHeight: 44, borderRadius: 14, background: 'var(--cream)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              fontSize: 13.5, fontWeight: 600, color: 'var(--ink)',
+            }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>
+              {ar ? 'شوف تحليل الرحلة' : 'See the trip analysis'}
+            </button>
+          )}
         </div>
-        <div style={{ marginTop: 2, display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-          <span className="mono" style={{ fontSize: 32, fontWeight: 700, color: over ? 'var(--clay-deep)' : 'var(--ink)' }}>
-            <window.CountUp id={'today-big-' + (window.TRIP?.id || '')} value={bigValue} format={fmtC} />
-          </span>
-          {sub && <span style={{ fontSize: 13, color: 'var(--ink-mute)' }}>{sub}</span>}
-        </div>
+      </Section>
 
-        {b.phase === 'during' && (
-          <div style={{ height: 6, borderRadius: 999, background: 'var(--cream)', marginTop: 10, overflow: 'hidden' }}>
-            <div className="v-grow" style={{
-              width: `${(over ? 1 : pctToday) * 100}%`, height: '100%', borderRadius: 999,
-              background: over ? 'var(--clay)' : 'var(--moss)', transition: 'width 300ms cubic-bezier(.2,.8,.2,1)',
-            }} />
-          </div>
-        )}
-
-        {/* One plain sentence about the rest of the trip */}
-        {b.phase === 'during' && (
-          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 12, lineHeight: 1.7 }}>
-            {ar
-              ? <>باقي للرحلة <b className="mono">{fmtC(b.leftUSD)}</b>{b.daysLeft > 1 && b.nextDaysAllowance != null
-                  ? <>، يعني <b className="mono">{fmtC(b.nextDaysAllowance)}</b> لكل يوم من الأيام الجاية ({b.daysLeft - 1}).</>
-                  : '.'}</>
-              : <>{fmtC(b.leftUSD)} left for the trip{b.daysLeft > 1 && b.nextDaysAllowance != null
-                  ? <>, so <b>{fmtC(b.nextDaysAllowance)}</b> a day for the next {b.daysLeft - 1} days.</>
-                  : '.'}</>}
-          </div>
-        )}
-        {b.phase !== 'after' && (
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '5px 10px', borderRadius: 999,
-            background: roomy ? 'oklch(0.50 0.08 155 / 0.12)' : 'oklch(0.62 0.13 35 / 0.12)',
-            color: roomy ? 'var(--moss)' : 'var(--clay-deep)', fontSize: 12.5, fontWeight: 600,
-          }}>
-            {roomy
-              ? (ar ? `فيه متسع · خطتكم ${fmtC(b.planPerDay)} يومياً` : `Room to spare · plan ${fmtC(b.planPerDay)}/day`)
-              : (ar ? `اقتصدوا شوي · خطتكم ${fmtC(b.planPerDay)} يومياً` : `Ease off · plan ${fmtC(b.planPerDay)}/day`)}
-          </div>
-        )}
-
-        {/* The group's cards — physical 3D cards: swipe or tap to flip through */}
+      {/* The group's cards — physical 3D cards: swipe or tap to flip through */}
+      <Section title={ar ? 'البطاقات' : 'Cards'} sub={cardsWord(b.cards.length)} action={ar ? 'إدارة' : 'Manage'} onAction={onManage}>
         <window.WalletCarousel cards={b.cards} members={members} fmt={fmtC} onOpenCard={(id) => window.openCardExpenses(id)} />
-      </div>
-    </div>
+      </Section>
+    </>
   );
 }
 

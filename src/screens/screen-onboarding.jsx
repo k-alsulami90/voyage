@@ -264,8 +264,8 @@ function StepBasics({ name, setName, home, setHome, currency, setCurrency, curre
           {currencies.map((c) => (
             <button key={c} onClick={() => setCurrency(c)} style={{
               padding: '8px 13px', borderRadius: 10, fontSize: 12, fontWeight: 500,
-              background: currency === c ? 'var(--ink)' : 'var(--cream-2)',
-              color: currency === c ? 'var(--cream)' : 'var(--ink-soft)',
+              background: currency === c ? 'var(--sel)' : 'var(--cream-2)',
+              color: currency === c ? 'var(--sel-fg)' : 'var(--ink-soft)',
               border: '0.5px solid var(--hairline)',
             }}>{c}</button>
           ))}

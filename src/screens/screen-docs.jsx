@@ -72,10 +72,10 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
 
         <button onClick={() => setShowSearch(!showSearch)} style={{
           width: 36, height: 36, borderRadius: 999,
-          background: showSearch ? 'var(--ink)' : 'var(--cream-2)',
+          background: showSearch ? 'var(--sel)' : 'var(--cream-2)',
           border: '0.5px solid var(--hairline)',
           display: 'grid', placeItems: 'center',
-        }}><IconSearch size={15} stroke={showSearch ? 'var(--cream)' : 'var(--ink-soft)'} /></button>
+        }}><IconSearch size={15} stroke={showSearch ? 'var(--sel-fg)' : 'var(--ink-soft)'} /></button>
       </div>
 
       {/* SEARCH BAR */}
@@ -262,8 +262,8 @@ function ViewToggle({ view, onChange }) {
         <button key={v} onClick={() => onChange(v)}
           aria-label={l} style={{
           width: 36, height: 32, borderRadius: 9,
-          background: view === v ? 'var(--ink)' : 'transparent',
-          color: view === v ? 'var(--cream)' : 'var(--ink-soft)',
+          background: view === v ? 'var(--sel)' : 'transparent',
+          color: view === v ? 'var(--sel-fg)' : 'var(--ink-soft)',
           display: 'grid', placeItems: 'center',
         }}>{icon}</button>
       ))}

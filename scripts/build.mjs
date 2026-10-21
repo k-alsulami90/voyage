@@ -75,6 +75,18 @@ outHtml = outHtml.replace(/[ \t]*<script type="text\/babel" src="[^"]+"><\/scrip
   return `${indent}<script defer src="/${bundleName}"></script>\n`;
 });
 if (!inserted) throw new Error('Could not place the bundle tag in index.html');
+
+// tokens.css gets a content hash too. The service worker serves same-origin
+// files cache-first, so on the first launch after a deploy a fixed
+// "tokens.css" URL came from the OLD cache while the (hashed) bundle was
+// new — fresh components reading variables the stale sheet didn't define.
+// A hashed name is never in an old cache, so CSS and JS always match.
+const css = fs.readFileSync('tokens.css', 'utf8');
+const cssName = `assets/tokens.${crypto.createHash('sha1').update(css).digest('hex').slice(0, 10)}.css`;
+fs.writeFileSync(path.join(OUT, cssName), css);
+const linkRe = /<link rel="stylesheet" href="tokens\.css" \/>/;
+if (!linkRe.test(outHtml)) throw new Error('Could not find the tokens.css link in index.html');
+outHtml = outHtml.replace(linkRe, `<link rel="stylesheet" href="/${cssName}" />`);
 fs.writeFileSync(path.join(OUT, 'index.html'), outHtml);
 
 // Static files served as-is.
@@ -89,7 +101,7 @@ const copy = (rel) => {
 // the caches to this build so every deploy replaces them cleanly.
 let sw = fs.readFileSync('sw.js', 'utf8');
 sw = sw.replace(/^[ \t]*'\/src\/[^']+\.jsx',[^\n]*\n/gm, '');
-sw = sw.replace(/(const SHELL_FILES = \[\n)/, `$1  '/${bundleName}',\n`);
+sw = sw.replace(/(const SHELL_FILES = \[\n)/, `$1  '/${bundleName}',\n  '/${cssName}',\n`);
 sw = sw.replace(/const VERSION = '([^']+)';/, (_, v) => `const VERSION = '${v}-${hash}';`);
 if (!sw.includes(bundleName)) throw new Error('Could not add the bundle to sw.js SHELL_FILES');
 fs.writeFileSync(path.join(OUT, 'sw.js'), sw);

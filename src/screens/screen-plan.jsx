@@ -205,7 +205,7 @@ function PlanDay({ date, dayNumber, items, onAdd, onTapItem, openSheet, isToday 
         <button onClick={onAdd}
           aria-label={window.isRTL ? 'إضافة نشاط' : 'Add activity'} style={{
           padding: '7px 12px', borderRadius: 999,
-          background: 'var(--ink)', color: 'var(--cream)',
+          background: 'var(--sel)', color: 'var(--sel-fg)',
           fontSize: 12, fontWeight: 500,
           display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: 'row',
         }}>

@@ -470,7 +470,7 @@ function WalletCarousel({ cards, members, fmt, onOpenCard }) {
   }, [n]);
 
   return (
-    <div style={{ marginTop: 14 }}>
+    <div>
       <div ref={wrapRef} style={{ position: 'relative', height: 178, perspective: '1000px', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none' }}>
         {cards.map((c, i) => {
           return (
@@ -546,7 +546,7 @@ function PassportCard({ me, email, stats }) {
   const latin = String((email || '').split('@')[0] || 'TRAVELER').toUpperCase().replace(/[^A-Z]/g, '') || 'TRAVELER';
   const mrz1 = ('P<VOY' + latin + '<<' + 'VOYAGE').padEnd(36, '<').slice(0, 36);
   const mrz2 = (`${String(stats.totalTrips).padStart(2, '0')}T${String(stats.totalDays).padStart(3, '0')}D${String(stats.countries).padStart(2, '0')}C<SAU<<` + (window.localISO?.() || '').replace(/-/g, '')).padEnd(36, '<').slice(0, 36);
-  const paper = 'linear-gradient(135deg, #f6efdc 0%, #ebdfc4 100%)';
+  const paper = 'var(--pp-paper)';
   const guilloche = 'repeating-linear-gradient(45deg, rgba(120,90,40,0.06) 0 1px, transparent 1px 8px), repeating-linear-gradient(-45deg, rgba(40,70,120,0.05) 0 1px, transparent 1px 8px)';
   const face = { position: 'absolute', inset: 0, borderRadius: 22, overflow: 'hidden', backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', color: '#2b2418', boxShadow: '0 22px 40px -18px rgba(40,25,10,0.55), inset 0 0 0 1px rgba(90,70,40,0.18)' };
   const label = { fontSize: 9.5, letterSpacing: '0.04em', color: 'rgba(60,45,25,0.6)' };
@@ -587,7 +587,7 @@ function PassportCard({ me, email, stats }) {
             </div>
           </div>
           {/* BACK — stamps page */}
-          <div style={{ ...face, transform: `rotateY(${ar ? -180 : 180}deg)`, background: `${guilloche}, linear-gradient(135deg, #f8f2e2 0%, #efe4cb 100%)` }}>
+          <div style={{ ...face, transform: `rotateY(${ar ? -180 : 180}deg)`, background: `${guilloche}, var(--pp-back)` }}>
             <div style={{ padding: '12px 16px 0', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(60,45,25,0.6)' }}>{ar ? 'أختام الرحلات · VISAS' : 'STAMPS · VISAS'}</div>
             {stamps.length === 0 && (
               <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: 13, color: 'rgba(60,45,25,0.6)', padding: 24, textAlign: 'center' }}>
@@ -603,7 +603,7 @@ function PassportCard({ me, email, stats }) {
                 <div key={i} className={flipped ? 'v-stamp' : undefined} style={{
                   position: 'absolute', top: 34 + (3 - Math.ceil(stamps.length / 3)) * 31 + row * 62 + ((i * 13) % 9), left: `${6 + col * 31 + ((i * 7) % 5)}%`,
                   width: 82, height: 54, transform: `rotate(${rot}deg)`, '--r': `${rot}deg`, color: ink, opacity: 0.86, mixBlendMode: 'multiply',
-                  border: `2px solid ${ink}`, borderRadius: round ? 999 : 8, boxShadow: `inset 0 0 0 3px #f5ecd8, inset 0 0 0 4.5px ${ink}`,
+                  border: `2px solid ${ink}`, borderRadius: round ? 999 : 8, boxShadow: `inset 0 0 0 3px var(--pp-ring), inset 0 0 0 4.5px ${ink}`,
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1.05,
                   animationDelay: `${200 + i * 110}ms`, direction: 'ltr',
                 }}>

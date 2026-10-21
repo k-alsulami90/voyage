@@ -294,10 +294,10 @@ function ScreenTrips({ goTrip, go }) {
           <button onClick={() => { setShowSearch(!showSearch); setSearch(''); }}
             aria-label={window.isRTL ? 'بحث عن رحلة' : 'Search trips'} style={{
             width: 38, height: 38, borderRadius: 999,
-            background: showSearch ? 'var(--ink)' : 'var(--cream-2)',
+            background: showSearch ? 'var(--sel)' : 'var(--cream-2)',
             border: '0.5px solid var(--hairline)', display: 'grid', placeItems: 'center',
             flexShrink: 0,
-          }}><IconSearch size={15} stroke={showSearch ? 'var(--cream)' : 'var(--ink-soft)'} /></button>
+          }}><IconSearch size={15} stroke={showSearch ? 'var(--sel-fg)' : 'var(--ink-soft)'} /></button>
         </div>
         {showSearch && (
           <div style={{ marginTop: 10 }}>

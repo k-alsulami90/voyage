@@ -208,8 +208,8 @@ function ScreenAddDoc({ back, onCreated }) {
                 return (
                   <button key={o.id || 'all'} onClick={() => setOwnerUserId(o.id)} style={{
                     flex: 1, minHeight: 42, borderRadius: 11, fontSize: 14, fontWeight: 600,
-                    background: active ? 'var(--ink)' : 'transparent',
-                    color: active ? 'var(--cream)' : 'var(--ink-soft)', transition: 'all 150ms',
+                    background: active ? 'var(--sel)' : 'transparent',
+                    color: active ? 'var(--sel-fg)' : 'var(--ink-soft)', transition: 'all 150ms',
                   }}>{o.l}</button>
                 );
               })}
@@ -706,7 +706,7 @@ function PaymentFields({ details, setDetails, shared, legacyPaid, cost, currency
   const nameOf = (m) => m.id === window.currentUserId ? (ar ? 'أنا' : 'Me') : (m.name || '').split(' ')[0];
   const seg = (active) => ({
     flex: 1, minHeight: 42, borderRadius: 11, fontSize: 14, fontWeight: 600,
-    background: active ? 'var(--ink)' : 'transparent', color: active ? 'var(--cream)' : 'var(--ink-soft)',
+    background: active ? 'var(--sel)' : 'transparent', color: active ? 'var(--sel-fg)' : 'var(--ink-soft)',
   });
   return (
     <div style={{ marginTop: 12 }}>

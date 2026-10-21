@@ -1,5 +1,71 @@
-// Trip Hub — the main landing.
-// Overlapping & interlocking cards: hero image + tilted stat cards + glass pills
+// Trip Hub ("اليوم") — the main landing, in clear sections:
+//   cover → today's budget → cards → up next → today's plan → recent.
+// Every section shares one header style (HubSection) and one rhythm
+// (28px between sections), so the page reads as a list of answers:
+// how much can we spend today, on which card, what's next, what we did.
+
+function HubSection({ title, sub, action, onAction, children }) {
+  return (
+    <section style={{ padding: '28px 14px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, padding: '0 6px 10px' }}>
+        <div style={{ minWidth: 0 }}>
+          <h2 style={{ margin: 0, fontSize: 19, fontWeight: 700, lineHeight: 1.25, letterSpacing: '-0.015em', color: 'var(--ink)' }}>{title}</h2>
+          {sub && <div style={{ fontSize: 12.5, color: 'var(--ink-mute)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>}
+        </div>
+        {action && (
+          <button onClick={onAction} style={{
+            flexShrink: 0, minHeight: 32, padding: '0 2px', background: 'transparent',
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+            fontSize: 13.5, fontWeight: 600, color: 'var(--clay-deep)',
+          }}>
+            {action}
+            <span className="icon-flip" style={{ display: 'inline-flex' }}><IconChevron size={12} stroke="currentColor" /></span>
+          </button>
+        )}
+      </div>
+      {children}
+    </section>
+  );
+}
+window.HubSection = HubSection;
+
+// Small status pill used by the hub cards (dot + short label).
+function HubPill({ tone = 'neutral', children }) {
+  const tones = {
+    good:    { bg: 'oklch(0.50 0.08 155 / 0.14)', fg: 'var(--moss)' },
+    warn:    { bg: 'oklch(0.62 0.13 35 / 0.14)',  fg: 'var(--clay-deep)' },
+    info:    { bg: 'oklch(0.42 0.10 260 / 0.13)', fg: 'var(--indigo)' },
+    neutral: { bg: 'var(--cream)',                fg: 'var(--ink-soft)' },
+  }[tone] || {};
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0,
+      padding: '5px 10px', borderRadius: 999, background: tones.bg, color: tones.fg,
+      fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: 99, background: 'currentColor' }} />
+      {children}
+    </span>
+  );
+}
+window.HubPill = HubPill;
+
+// Two side-by-side figures under a hero number.
+function HubStat({ label, value, sub }) {
+  return (
+    <div style={{ minWidth: 0, background: 'var(--well)', borderRadius: 16, padding: '11px 13px' }}>
+      <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
+      <div className="mono" style={{ fontSize: 16.5, fontWeight: 700, color: 'var(--ink)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.01em' }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>}
+    </div>
+  );
+}
+window.HubStat = HubStat;
+
+const _hubCard = {
+  background: 'var(--cream-2)', borderRadius: 24,
+  border: '0.5px solid var(--hairline)', boxShadow: 'var(--shadow-sm)',
+};
 
 function ScreenHub({ go, openSheet, loading }) {
   // Hero parallax: the cover drifts slower than the page and swells a
@@ -29,34 +95,30 @@ function ScreenHub({ go, openSheet, loading }) {
   if (loading || !trip || !dataReady) {
     return <div style={{ background: 'var(--cream)', minHeight: '100%' }}><TripSkeleton /></div>;
   }
+  const ar = window.isRTL;
   const spent   = trip?.budget?.spentUSD   || (window.EXPENSES || []).reduce((s, e) => s + (e.usd || 0), 0);
   const planned = trip?.budget?.plannedUSD || 0;
-  const pct     = planned > 0 ? (spent / planned) * 100 : 0;
-  const remaining = planned - spent;
+  const wallets = !!window.walletsOf?.(trip);
 
   // Use unified formatter — always shows the trip's home currency by default
   const fmtC = (usd) => window.fmtMoney(usd, { in: 'home' });
 
-  if (!trip) {
-    return (
-      <div style={{ background: 'var(--cream)', minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingBottom: 100 }}>
-        <div style={{ textAlign: 'center', padding: 32 }}>
-          <div className="serif" style={{ fontSize: 20, color: 'var(--ink-mute)' }}>
-            {window.isRTL ? 'لا توجد رحلة نشطة حالياً' : 'No active trip'}
-          </div>
-          <button onClick={() => go('trips')} style={{
-            marginTop: 14, padding: '10px 20px', borderRadius: 12,
-            background: 'var(--ink)', color: 'var(--cream)', fontSize: 13.5,
-          }}>{window.isRTL ? '← قائمة رحلاتي' : 'My Trips →'}</button>
-        </div>
-      </div>
-    );
-  }
+  // Today's plan (only while the trip is on) and what's coming next.
+  const today = window.localISO();
+  const during = !!(trip.startDate && trip.endDate && today >= trip.startDate && today <= trip.endDate);
+  const todayPlan = during
+    ? (window.ITINERARY || []).filter((it) => it.dayDate === today)
+        .sort((a, b) => String(a.startTime || '99').localeCompare(String(b.startTime || '99')))
+    : [];
+  const events = (window.DOCS_TRIP_ID === trip.id) ? (window.computeUpcomingEvents?.() || []) : [];
+  // A plan item already sits in "Today's plan" — keep "Up next" for the
+  // richer things (flight, check-in, pickup) so nothing shows twice.
+  const nextEv = events.find((e) => !(todayPlan.length > 0 && e.type === 'plan')) || null;
 
   return (
     <div data-screen-label="01 Trip Hub" style={{
       background: 'var(--cream)', minHeight: '100%',
-      paddingBottom: 100,
+      paddingBottom: 110,
     }}>
       {/* Top bar — glass pills floating over hero */}
       <div style={{
@@ -65,7 +127,7 @@ function ScreenHub({ go, openSheet, loading }) {
         flexDirection: 'row',
         padding: '0 18px',
       }}>
-        <button onClick={() => go('trips')} aria-label={window.isRTL ? 'رحلاتي' : 'My trips'} className="glass" style={{
+        <button onClick={() => go('trips')} aria-label={ar ? 'رحلاتي' : 'My trips'} className="glass" style={{
           width: 38, height: 38, borderRadius: 999, display: 'flex',
           alignItems: 'center', justifyContent: 'center', color: 'var(--ink)',
         }}>
@@ -84,16 +146,16 @@ function ScreenHub({ go, openSheet, loading }) {
         </div>
         <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
           <button className="glass" style={btnGlass} onClick={() => openSheet('search')}
-                  aria-label={window.isRTL ? 'بحث في الرحلة' : 'Search'}><IconSearch size={18} /></button>
+                  aria-label={ar ? 'بحث في الرحلة' : 'Search'}><IconSearch size={18} /></button>
           <button className="glass" style={btnGlass} onClick={() => go('settings')}
                   aria-label={t('settings')}><IconGear size={18} /></button>
         </div>
       </div>
 
-      {/* HERO — big illustration card with trip name bleeding off bottom */}
+      {/* HERO — the trip's cover, its name and the overall budget */}
       <div style={{ position: 'relative', padding: '0 14px', paddingTop: 110 }}>
         <div ref={heroTilt} className="v-flip-in" style={{
-          position: 'relative', height: 230, borderRadius: 32,
+          position: 'relative', height: 220, borderRadius: 32,
           overflow: 'hidden', boxShadow: 'var(--shadow-lg)',
         }}>
           {/* Cover sits on a taller layer that drifts with scroll (parallax). */}
@@ -112,7 +174,6 @@ function ScreenHub({ go, openSheet, loading }) {
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 55%)', pointerEvents: 'none' }} />
           )}
 
-          {/* Inner labels — top-leading countries chip */}
           {(trip.countries && trip.countries.length > 0) && (
             <div style={{
               position: 'absolute', top: 18,
@@ -131,15 +192,7 @@ function ScreenHub({ go, openSheet, loading }) {
             </div>
           )}
 
-          {/* Dates — top-right. Was uppercase mono with wide tracking,
-             the saturated AI eyebrow shape sitting on top of a photo.
-             Now: sentence-case, mono kept (numbers are tabular), no
-             tracking, slightly larger so it's readable without shouting. */}
-          <div style={{
-            position: 'absolute', top: 18,
-            insetInlineEnd: 18,
-            color: '#fff', textAlign: 'end',
-          }}>
+          <div style={{ position: 'absolute', top: 18, insetInlineEnd: 18, color: '#fff', textAlign: 'end' }}>
             <div className="mono" style={{
               fontSize: 11.5, fontWeight: 500,
               color: 'rgba(255,255,255,0.92)',
@@ -149,7 +202,7 @@ function ScreenHub({ go, openSheet, loading }) {
             </div>
           </div>
 
-          {/* Bottom overlay — title + key stats on the cover itself */}
+          {/* Bottom overlay — title + the trip's overall spend */}
           <div style={{
             position: 'absolute', insetInlineStart: 0, insetInlineEnd: 0, bottom: 0,
             padding: '60px 22px 18px',
@@ -157,365 +210,217 @@ function ScreenHub({ go, openSheet, loading }) {
             color: '#fff',
           }}>
             <div className="serif-italic" style={{ fontSize: 32, lineHeight: 1.05, letterSpacing: '-0.02em' }}>
-              {trip.title || (window.isRTL ? 'رحلة' : 'Trip')}
+              {trip.title || (ar ? 'رحلة' : 'Trip')}
             </div>
             {trip.subtitle && (
               <div style={{ fontSize: 12.5, opacity: 0.92, marginTop: 4, fontWeight: 500 }}>
                 {trip.subtitle}
               </div>
             )}
-            {/* Live stats row — day + spent */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 14, marginTop: 12,
-              flexDirection: 'row', flexWrap: 'wrap',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                <span className="mono" style={{ fontSize: 16, fontWeight: 600 }}>{trip.daysIn}</span>
-                <span style={{ fontSize: 11, opacity: 0.75 }}>/{trip.daysTotal} {window.isRTL ? 'يوم' : 'days'}</span>
-              </div>
-              {planned > 0 && (
-                <>
-                  <span style={{ width: 3, height: 3, borderRadius: 999, background: 'rgba(255,255,255,0.5)' }} />
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                    <span className="mono" style={{ fontSize: 16, fontWeight: 600 }}>{fmtC(spent)}</span>
-                    <span style={{ fontSize: 11, opacity: 0.75 }}>/ {fmtC(planned)}</span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* PERSONAL BALANCE CARD — only for shared trips with non-zero balance.
-         Gradient surface kept (moss / clay carries the direction meaning at
-         a glance). Hero-metric template gone: no uppercase mono eyebrow,
-         no 26px serif amount, no big "+"/"−" glyph. The body is an
-         editorial sentence with the amount as inline emphasis. */}
-      {/* TODAY'S BUDGET — trips that run on a few people's cards. Replaces
-         the per-person balance card: the group settles between themselves
-         outside the app, so "X owes you" is noise here. */}
-      {window.walletsOf?.(trip) && <window.TodayBudgetCard onManage={() => go('settings')} />}
-
-      {window.SHOW_SPLIT && !window.walletsOf?.(trip) && (window.MEMBERS || []).length > 1 && (() => {
-        const balance = window.computeUserBalance?.(
-          window.currentUserId,
-          window.EXPENSES || [],
-          window.SETTLEMENTS || []
-        );
-        if (!balance || Math.abs(balance.net) < 0.5) return null;  // hide near-zero
-        const owed = balance.net > 0;
-        const amount = fmtC(Math.abs(balance.net));
-        // Show "X owes you" / "you owe X" with the other party's name
-        // when there's only ONE counterparty (the common case for two-
-        // person trips, and the most natural sentence). Fall back to
-        // "N people owe you" only when there's more than one.
-        const pairs = Object.entries(balance.byOther || {})
-          .filter(([, v]) => Math.abs(v) > 0.5);
-        const otherCount = pairs.length;
-        // For the single-party case, pluck the counterparty's first name
-        // off window.MEMBERS. The balance direction (owed vs owe) tells
-        // us which side they're on; we just need the name.
-        let singleName = null;
-        if (otherCount === 1) {
-          const otherId = pairs[0][0];
-          const member = (window.MEMBERS || []).find((m) => m.id === otherId);
-          singleName = (member?.name || '').split(' ')[0] || member?.name || '';
-        }
-        // Arabic count noun follows the dual/paucal/many rules via arPlural.
-        // For "people who owe you": one = شخص واحد, two = شخصان, few = N أشخاص,
-        // many = N شخصاً, other = N شخص (genitive singular).
-        const arPeopleNoun = window.isRTL
-          ? window.arPlural(otherCount, {
-              one: 'شخص واحد',
-              two: 'شخصان',
-              few: `${otherCount} أشخاص`,
-              many: `${otherCount} شخصاً`,
-              other: `${otherCount} شخص`,
-            })
-          : null;
-        const sentence = otherCount === 1 && singleName
-          ? (owed
-              ? <>{window.isRTL
-                  ? <>يترتب على <BalanceAmt>{singleName}</BalanceAmt> لك مبلغ <BalanceAmt>{amount}</BalanceAmt>.</>
-                  : <><BalanceAmt>{singleName}</BalanceAmt> owes you <BalanceAmt>{amount}</BalanceAmt>.</>}</>
-              : <>{window.isRTL
-                  ? <>أنت مدين لـ <BalanceAmt>{singleName}</BalanceAmt> بمبلغ <BalanceAmt>{amount}</BalanceAmt>.</>
-                  : <>You owe <BalanceAmt>{singleName}</BalanceAmt> <BalanceAmt>{amount}</BalanceAmt>.</>}</>)
-          : (owed
-              ? <>{window.isRTL
-                  ? <>يترتب لك بذمة <BalanceAmt>{arPeopleNoun}</BalanceAmt> إجمالي <BalanceAmt>{amount}</BalanceAmt>.</>
-                  : <><BalanceAmt>{otherCount}</BalanceAmt> {otherCount === 1 ? 'person owes' : 'people owe'} you <BalanceAmt>{amount}</BalanceAmt> total.</>}</>
-              : <>{window.isRTL
-                  ? <>أنت مدين لـ <BalanceAmt>{arPeopleNoun}</BalanceAmt> بإجمالي <BalanceAmt>{amount}</BalanceAmt>.</>
-                  : <>You owe <BalanceAmt>{otherCount}</BalanceAmt> {otherCount === 1 ? 'person' : 'people'} <BalanceAmt>{amount}</BalanceAmt> total.</>}</>);
-        return (
-          <div style={{ padding: '24px 14px 0', position: 'relative', zIndex: 3 }}>
-            <button onClick={() => openSheet?.('settleUp')}
-              aria-label={window.isRTL
-                ? (owed
-                    ? (singleName ? `يترتب على ${singleName} لك مبلغ ${amount}` : `يترتب لك بذمة ${arPeopleNoun} إجمالي ${amount}`)
-                    : (singleName ? `أنت مدين لـ ${singleName} بمبلغ ${amount}` : `أنت مدين لـ ${arPeopleNoun} بإجمالي ${amount}`))
-                : (owed
-                    ? (singleName ? `${singleName} owes you ${amount}` : `${otherCount} people owe you ${amount}`)
-                    : (singleName ? `You owe ${singleName} ${amount}` : `You owe ${otherCount} people ${amount}`))}
-              style={{
-              width: '100%', textAlign: 'start',
-              borderRadius: 22, padding: '16px 18px',
-              // Gradient uses FIXED oklch values (not var(--moss) /
-              // var(--clay) tokens) because those tokens shift with the
-              // theme -- in light mode the top-left stop landed at
-              // lightness 0.62, against which the white amount text
-              // failed WCAG AA contrast (only ~3.5:1) and read as
-              // "white on cream." Hardcoding the darker end of each
-              // spectrum keeps the gradient identifiable AND keeps the
-              // white sentence + bolded numbers readable in both themes.
-              background: owed
-                ? 'linear-gradient(135deg, oklch(0.45 0.10 155) 0%, oklch(0.32 0.09 155) 100%)'
-                : 'linear-gradient(135deg, oklch(0.48 0.13 32) 0%, oklch(0.36 0.12 32) 100%)',
-              color: '#fff', boxShadow: 'var(--shadow-md)',
-              display: 'flex', alignItems: 'center', gap: 14,
-              flexDirection: 'row',
-            }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: 17, lineHeight: 1.4, color: '#fff', fontWeight: 400,
-                }}>{sentence}</div>
-                <div style={{
-                  marginTop: 6, fontSize: 12, color: 'rgba(255,255,255,0.85)',
-                  display: 'inline-flex', alignItems: 'center', gap: 4, flexDirection: 'row',
-                }}>
-                  {t('balanceTapToSettle')}
-                  <span className="icon-flip" style={{ opacity: 0.85 }}>
-                    <IconChevron size={11} stroke="currentColor" />
-                  </span>
+            {planned > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 11, opacity: 0.75 }}>{ar ? 'صرف الرحلة' : 'Trip spend'}</span>
+                  <span className="mono" style={{ fontSize: 15, fontWeight: 600 }}>{fmtC(spent)}</span>
+                  <span style={{ fontSize: 11, opacity: 0.75 }}>{ar ? 'من' : 'of'} {fmtC(planned)}</span>
+                </div>
+                <div style={{ height: 3, borderRadius: 99, background: 'rgba(255,255,255,0.22)', marginTop: 7, overflow: 'hidden' }}>
+                  <div className="v-grow" style={{ width: `${Math.min(100, (spent / planned) * 100)}%`, height: '100%', borderRadius: 99, background: spent > planned ? '#ffb4a2' : '#fff' }} />
                 </div>
               </div>
-            </button>
+            )}
           </div>
-        );
-      })()}
+        </div>
+      </div>
 
-      {/* OVER-BUDGET ALERT — when spent > planned.
-         Was a full clay gradient surface, which collided visually with
-         the Personal Balance "owe" gradient when both fired. Now: a
-         restrained card with a clay-tinted background wash, hairline,
-         clay-deep text, and inline icon. Still unmistakably "alert,"
-         no longer competing with the balance gradient for the same eye. */}
+      {/* Over the trip budget — one quiet line, right under the cover */}
       {planned > 0 && spent > planned && (
-        <div style={{ padding: '24px 14px 0', position: 'relative', zIndex: 3 }}>
+        <div style={{ padding: '14px 14px 0' }}>
           <div style={{
-            borderRadius: 14, padding: '12px 14px',
+            borderRadius: 14, padding: '11px 14px',
             background: 'oklch(0.62 0.13 35 / 0.10)',
             border: '0.5px solid oklch(0.62 0.13 35 / 0.30)',
             display: 'flex', alignItems: 'center', gap: 10,
-            flexDirection: 'row',
+            fontSize: 12.5, color: 'var(--clay-deep)',
           }}>
-            <div style={{
-              width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-              background: 'var(--clay)', color: '#fff',
-              display: 'grid', placeItems: 'center', fontSize: 14, lineHeight: 1,
-            }}>⚠</div>
-            <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--clay-deep)' }}>
-              {window.isRTL ? (
-                <>تجاوزت الميزانية بمقدار <strong>{fmtC(spent - planned)}</strong> (أي بنسبة {Math.round(((spent - planned) / planned) * 100)}٪ فوق الخطة المحددة).</>
-              ) : (
-                <>Over budget by <strong>{fmtC(spent - planned)}</strong> ({Math.round(((spent - planned) / planned) * 100)}% above plan).</>
-              )}
-            </div>
+            <span style={{ fontSize: 15, lineHeight: 1 }}>⚠</span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              {ar
+                ? <>تجاوزتوا ميزانية الرحلة بـ <strong>{fmtC(spent - planned)}</strong> ({Math.round(((spent - planned) / planned) * 100)}٪).</>
+                : <>Over the trip budget by <strong>{fmtC(spent - planned)}</strong> ({Math.round(((spent - planned) / planned) * 100)}%).</>}
+            </span>
           </div>
         </div>
       )}
 
-      {/* NEXT EVENT — the same Smart Track card as My trips (flight,
-         check-in, pickup, plan item), so "what's next" is on Today too. */}
-      {(() => {
-        const ev = (window.DOCS_TRIP_ID === trip.id) ? (window.computeUpcomingEvents?.() || [])[0] : null;
-        if (!ev || !window.SmartTrackCard) return null;
-        return (
-          <div style={{ padding: '24px 14px 0' }}>
-            <SectionLabel>{window.isRTL ? 'الحدث القادم' : 'Up next'}</SectionLabel>
-            <window.SmartTrackCard event={ev} trip={trip} />
-          </div>
-        );
-      })()}
+      {/* TODAY'S MONEY — cards trips: today's allowance + the cards.
+         Other trips: the budget at a glance. */}
+      {wallets
+        ? <window.TodayBudgetCard onManage={() => go('settings')} onOpen={() => go('budget')} onAnalysis={() => go('analytics')} />
+        : <HubBudget trip={trip} spent={spent} planned={planned} fmtC={fmtC} onOpen={() => go('budget')} />}
 
-      {/* BUDGET WORKSPACE CARD — hidden on cards trips (the Today card
-         above already says what's left, per day and per card). */}
-      {!window.walletsOf?.(trip) && (
-      <div style={{ padding: '24px 14px 0', position: 'relative', zIndex: 3 }}>
-        <button onClick={() => go('budget')} style={{
-          display: 'block', width: '100%', textAlign: 'start',
-          background: 'var(--cream-2)', borderRadius: 28,
-          padding: '20px 20px 18px',
-          boxShadow: 'var(--shadow-card)', position: 'relative',
-          overflow: 'visible',
-          border: '0.5px solid var(--hairline)',
-        }}>
-          {/* Editorial sentence replaces the previous uppercase-mono eyebrow
-             + 38px serif headline + supporting line (the hero-metric
-             template from the bans list). Numbers carry hierarchy via
-             weight; the inline pct + remaining hint live in the same
-             prose so the eye reads them in one pass. */}
-          <div style={{
-            display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-            gap: 12, marginBottom: 14, flexDirection: 'row',
-          }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                fontSize: 17, lineHeight: 1.5, color: 'var(--ink-soft)', fontWeight: 400,
-              }}>
-                {window.isRTL ? (
-                  planned > 0 ? (
-                    <>أنفقت <HubBudgetNum><window.CountUp id={'hub-spent-' + (trip?.id || '')} value={spent} format={fmtC} /></HubBudgetNum> من أصل <HubBudgetNum dim>{fmtC(planned)}</HubBudgetNum>.</>
-                  ) : (
-                    <>إجمالي ما أنفقته حتى الآن: <HubBudgetNum>{fmtC(spent)}</HubBudgetNum>.</>
-                  )
-                ) : (
-                  planned > 0 ? (
-                    <>Spent <HubBudgetNum>{fmtC(spent)}</HubBudgetNum> of <HubBudgetNum dim>{fmtC(planned)}</HubBudgetNum> planned.</>
-                  ) : (
-                    <>Spent <HubBudgetNum>{fmtC(spent)}</HubBudgetNum> so far.</>
-                  )
-                )}
-              </div>
-              {planned > 0 && spent <= planned && (
-                <div style={{
-                  marginTop: 6, fontSize: 12.5, color: 'var(--moss)', fontWeight: 500,
-                  display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: 'row',
-                }}>
-                  <span style={{
-                    width: 6, height: 6, borderRadius: 999, background: 'var(--moss)',
-                  }} />
-                  {fmtC(remaining)} {t('leftOnPace')}
-                  <span style={{ color: 'var(--ink-mute)' }}>· {Math.round(pct)}%</span>
-                </div>
-              )}
-            </div>
-            <IconChevron size={16} stroke="var(--ink-mute)" />
-          </div>
+      {window.SHOW_SPLIT && !wallets && <HubBalance fmtC={fmtC} openSheet={openSheet} />}
 
-          {/* Stacked-bar + legend only when we have spending */}
-          {spent > 0 && (window.CATEGORIES || []).some((c) => c.amt > 0) && (
-            <>
-              <div style={{
-                display: 'flex', borderRadius: 12, overflow: 'hidden',
-                height: 16, marginBottom: 14,
-                boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,0.05)',
-                flexDirection: 'row',
-              }}>
-                {window.CATEGORIES.filter((c) => c.amt > 0).map((c, i) => (
-                  <div key={c.key} style={{
-                    flex: c.pct || c.amt, background: c.color,
-                    boxShadow: i > 0 ? 'inset 2px 0 0 var(--cream-2)' : 'none',
-                  }} />
-                ))}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 14px' }}>
-                {window.CATEGORIES.filter((c) => c.amt > 0).slice(0, 4).map((c) => (
-                  <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: 'row' }}>
-                    <span style={{ width: 8, height: 8, borderRadius: 2, background: c.color }} />
-                    <span style={{ fontSize: 12.5, color: 'var(--ink-soft)', flex: 1 }}>{t(c.key) || c.label}</span>
-                    <span className="mono" style={{ fontSize: 11.5, color: 'var(--ink)', fontWeight: 500 }}>
-                      {fmtC(c.amt)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* Members chip — only for shared trips */}
-          {(window.MEMBERS || []).length > 1 && (
-            <div style={{
-              position: 'absolute', bottom: -14,
-              insetInlineStart: 22,
-              display: 'flex', alignItems: 'center', gap: 8,
-              flexDirection: 'row',
-              padding: '7px 12px 7px 8px', borderRadius: 999,
-              background: 'var(--statement)', color: 'var(--statement-fg)',
-              boxShadow: '0 6px 16px rgba(0,0,0,0.3)',
-            }}>
-              <AvatarStack members={(window.MEMBERS || []).slice(0, 3)} size={20} />
-              <span style={{ fontSize: 11.5, fontWeight: 500 }}>
-                {window.MEMBERS.length} {t('splitting')}
-              </span>
-            </div>
-          )}
-        </button>
-      </div>
+      {/* UP NEXT — flight, check-in, pickup (or a plan item) in the next 24h */}
+      {nextEv && window.SmartTrackCard && (
+        <HubSection title={ar ? 'التالي' : 'Up next'}>
+          <window.SmartTrackCard event={nextEv} trip={trip} />
+        </HubSection>
       )}
 
-      {/* RECENT — only when there are expenses.
-         Rows used to be inert <div>s — they looked like list rows but
-         did nothing on tap. Now wrapped in <button> with onClick that
-         opens the edit sheet (same handler Budget uses on its rows).
-         Trailing chevron makes the affordance visible. */}
+      {/* TODAY'S PLAN — what's on the itinerary today */}
+      {todayPlan.length > 0 && (
+        <HubSection title={ar ? 'برنامج اليوم' : "Today's plan"}
+          sub={ar ? window.arPlural(todayPlan.length, { one: 'نشاط واحد', two: 'نشاطان', few: `${todayPlan.length} أنشطة`, many: `${todayPlan.length} نشاطاً`, other: `${todayPlan.length} نشاط` }) : `${todayPlan.length} ${todayPlan.length === 1 ? 'activity' : 'activities'}`}
+          action={ar ? 'الخطة' : 'Plan'} onAction={() => go('plan')}>
+          <HubPlanList items={todayPlan} onOpen={() => go('plan')} />
+        </HubSection>
+      )}
+
+      {/* RECENT — the latest few expenses, one grouped list */}
       {(window.EXPENSES || []).length > 0 && (
-      <div style={{ padding: '24px 14px 0' }}>
-        <SectionLabel action={t('seeAll')} onAction={() => go('budget')}>{t('recentActivity')}</SectionLabel>
-        <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
-          {(window.EXPENSES || []).slice(0, 3).map((e, i) => {
-            const m = (window.MEMBERS || []).find((x) => x.id === e.who) || { name: '—', hue: 200, initials: '?' };
-            const c = (window.CATEGORIES || []).find((x) => x.key === e.cat) || { color: 'var(--ink-mute)', label: e.cat || '—' };
-            return (
-              <button key={e.id}
-                onClick={() => openSheet?.('editExpense', e)}
-                aria-label={window.isRTL
-                  ? `تعديل ${e.title}، ${fmtC(e.usd)}`
-                  : `Edit ${e.title}, ${fmtC(e.usd)}`}
-                style={{
-                all: 'unset', cursor: 'pointer', width: '100%', boxSizing: 'border-box',
-                background: 'var(--cream-2)', borderRadius: 18,
-                padding: '12px 14px',
-                border: '0.5px solid var(--hairline)',
-                boxShadow: 'var(--shadow-xs)',
-                display: 'flex', alignItems: 'center', gap: 12,
-                flexDirection: 'row',
-              }}>
-                {/* Category badge. Was a single serif-italic letter on a
-                   colour square ("F" for Food, "C" for Culture) which
-                   required memorising the system. Now: the category
-                   emoji from window.CAT_META — same vocabulary the
-                   Add-Expense sheet and Budget filters use, so the
-                   user only learns it once. Colour square stays for
-                   wayfinding by hue. */}
-                <div style={{
-                  width: 38, height: 38, borderRadius: 11,
-                  background: c.color,
-                  display: 'grid', placeItems: 'center',
-                  fontSize: 19, lineHeight: 1,
-                  flexShrink: 0,
-                }}>{(window.CAT_META?.[e.cat]?.emoji) || '·'}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink)',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {e.title}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-mute)', marginTop: 1,
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    flexDirection: 'row',
-                  }}>
-                    <Avatar m={m} size={14} /> {m.name.split(' ')[0]} · {e.when}
-                  </div>
-                </div>
-                <div className="mono" style={{
-                  fontSize: 13.5, color: 'var(--ink)', fontWeight: 600,
-                  flexShrink: 0,
-                }}>
-                  {fmtC(e.usd)}
-                </div>
-                <span className="icon-flip" style={{ color: 'var(--ink-mute)', flexShrink: 0 }}>
-                  <IconChevron size={13} stroke="currentColor" />
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+        <HubSection title={t('recentActivity')} action={t('seeAll')} onAction={() => go('budget')}>
+          <HubRecent fmtC={fmtC} wallets={wallets} openSheet={openSheet} />
+        </HubSection>
       )}
     </div>
+  );
+}
+
+// Budget at a glance for trips without cards.
+function HubBudget({ trip, spent, planned, fmtC, onOpen }) {
+  const ar = window.isRTL;
+  const byCat = {};
+  (window.EXPENSES || []).forEach((e) => { byCat[e.cat] = (byCat[e.cat] || 0) + (e.usd || 0); });
+  const over = planned > 0 && spent > planned;
+  const pct = planned > 0 ? Math.round((spent / planned) * 100) : 0;
+  return (
+    <HubSection title={ar ? 'الميزانية' : 'Budget'} action={ar ? 'التفاصيل' : 'Details'} onAction={onOpen}>
+      <div onClick={onOpen} className="press-soft" role="button" style={{ ..._hubCard, padding: '16px 16px 14px', cursor: 'pointer' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <span style={{ fontSize: 13.5, color: 'var(--ink-soft)', fontWeight: 600 }}>{ar ? 'صرفتوا' : 'Spent'}</span>
+          {planned > 0 && <HubPill tone={over ? 'warn' : 'good'}>{over ? (ar ? 'فوق الميزانية' : 'Over budget') : (ar ? `${pct}٪ من الميزانية` : `${pct}% of budget`)}</HubPill>}
+        </div>
+        <div className="mono" style={{ fontSize: 32, fontWeight: 700, color: 'var(--ink)', marginTop: 2, letterSpacing: '-0.01em' }}>
+          <window.CountUp id={'hub-spent-' + (trip?.id || '')} value={spent} format={fmtC} />
+        </div>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-mute)', marginBottom: 12 }}>
+          {planned > 0
+            ? (over
+                ? (ar ? `من ${fmtC(planned)} · فوقها بـ ${fmtC(spent - planned)}` : `of ${fmtC(planned)} · ${fmtC(spent - planned)} over`)
+                : (ar ? `من ${fmtC(planned)} · باقي ${fmtC(planned - spent)}` : `of ${fmtC(planned)} · ${fmtC(planned - spent)} left`))
+            : (ar ? 'ما فيه ميزانية محددة للرحلة' : 'No trip budget set')}
+        </div>
+        {spent > 0 && window.CategoryBar && (
+          <window.CategoryBar byCat={byCat} total={spent} scaleTo={planned > spent ? planned : spent} fmt={fmtC} compact />
+        )}
+      </div>
+    </HubSection>
+  );
+}
+
+// Today's itinerary as a compact timeline. Past items fade; the next one
+// is marked so a glance says where you are in the day.
+function HubPlanList({ items, onOpen }) {
+  const ar = window.isRTL;
+  const meta = (typeof PLAN_CAT_META !== 'undefined' && PLAN_CAT_META) || {};
+  const now = new Date();
+  const hm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const nextIdx = items.findIndex((it) => it.startTime && it.startTime.slice(0, 5) >= hm);
+  const shown = items.slice(0, 5);
+  return (
+    <div style={{ ..._hubCard, overflow: 'hidden' }}>
+      {shown.map((it, i) => {
+        const m = meta[it.category] || (window.CAT_META?.[it.category]) || meta.misc || { emoji: '📌' };
+        const past = it.startTime && it.startTime.slice(0, 5) < hm && i !== nextIdx;
+        const isNext = i === nextIdx;
+        return (
+          <button key={it.id} onClick={onOpen} style={{
+            display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'start',
+            padding: '0 14px', background: isNext ? 'oklch(0.62 0.13 35 / 0.07)' : 'transparent',
+          }}>
+            <span className="mono" style={{ width: 42, flexShrink: 0, fontSize: 12.5, fontWeight: 600, color: isNext ? 'var(--clay-deep)' : past ? 'var(--ink-mute)' : 'var(--ink-soft)', direction: 'ltr', textAlign: ar ? 'right' : 'left' }}>
+              {it.startTime ? it.startTime.slice(0, 5) : '—'}
+            </span>
+            <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', borderTop: i ? '0.5px solid var(--hairline)' : 'none' }}>
+              <span style={{ fontSize: 17, lineHeight: 1, flexShrink: 0, opacity: past ? 0.45 : 1, filter: past ? 'grayscale(1)' : 'none' }}>{m.emoji}</span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: 14, fontWeight: past ? 500 : 600, color: past ? 'var(--ink-mute)' : 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.title}</span>
+                {it.location && <span style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.location}</span>}
+              </span>
+              {isNext && <HubPill tone="warn">{ar ? 'التالي' : 'Next'}</HubPill>}
+            </span>
+          </button>
+        );
+      })}
+      {items.length > shown.length && (
+        <button onClick={onOpen} style={{ width: '100%', padding: '11px 14px', borderTop: '0.5px solid var(--hairline)', fontSize: 12.5, fontWeight: 600, color: 'var(--clay-deep)', background: 'transparent' }}>
+          {ar ? `+${items.length - shown.length} في الخطة` : `+${items.length - shown.length} more in the plan`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// The latest expenses as one grouped list (iOS inset style).
+function HubRecent({ fmtC, wallets, openSheet }) {
+  const ar = window.isRTL;
+  const rows = (window.EXPENSES || []).slice()
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+    .slice(0, 4);
+  return (
+    <div className="v-list" style={{ ..._hubCard, overflow: 'hidden' }}>
+      {rows.map((e, i) => {
+        const m = (window.MEMBERS || []).find((x) => x.id === e.who) || { name: '—', hue: 200, initials: '?' };
+        const c = (window.CATEGORIES || []).find((x) => x.key === e.cat) || { color: 'var(--ink-mute)' };
+        const first = (m.name || '').split(' ')[0];
+        return (
+          <button key={e.id} onClick={() => openSheet?.('editExpense', e)}
+            aria-label={ar ? `تعديل ${e.title}، ${fmtC(e.usd)}` : `Edit ${e.title}, ${fmtC(e.usd)}`}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'start', padding: '0 14px', background: 'transparent' }}>
+            <span style={{
+              width: 36, height: 36, borderRadius: 11, flexShrink: 0, background: c.color,
+              display: 'grid', placeItems: 'center', fontSize: 18, lineHeight: 1,
+            }}>{window.CAT_META?.[e.cat]?.emoji || '·'}</span>
+            <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', borderTop: i ? '0.5px solid var(--hairline)' : 'none' }}>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.title}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 2 }}>
+                  <Avatar m={m} size={14} />
+                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{wallets ? (ar ? `بطاقة ${first}` : `${first}'s card`) : first} · {e.when}</span>
+                </span>
+              </span>
+              <span className="mono" style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', flexShrink: 0 }}>{fmtC(e.usd)}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// "Who owes whom" — only when splitting is switched on (it's off: the
+// group settles up outside the app). Kept so turning it on loses nothing.
+function HubBalance({ fmtC, openSheet }) {
+  const ar = window.isRTL;
+  if ((window.MEMBERS || []).length < 2) return null;
+  const balance = window.computeUserBalance?.(window.currentUserId, window.EXPENSES || [], window.SETTLEMENTS || []);
+  if (!balance || Math.abs(balance.net) < 0.5) return null;
+  const owed = balance.net > 0;
+  const amount = fmtC(Math.abs(balance.net));
+  return (
+    <HubSection title={ar ? 'الحساب بينكم' : 'Between you'}>
+      <button onClick={() => openSheet?.('settleUp')} style={{
+        width: '100%', textAlign: 'start', borderRadius: 22, padding: '16px 18px', color: '#fff',
+        background: owed
+          ? 'linear-gradient(135deg, oklch(0.45 0.10 155) 0%, oklch(0.32 0.09 155) 100%)'
+          : 'linear-gradient(135deg, oklch(0.48 0.13 32) 0%, oklch(0.36 0.12 32) 100%)',
+        boxShadow: 'var(--shadow-md)', fontSize: 16, lineHeight: 1.5,
+      }}>
+        {owed ? (ar ? `لك ${amount}` : `You're owed ${amount}`) : (ar ? `عليك ${amount}` : `You owe ${amount}`)}
+        <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>{t('balanceTapToSettle')}</div>
+      </button>
+    </HubSection>
   );
 }
 
@@ -524,51 +429,5 @@ const btnGlass = {
   display: 'flex', alignItems: 'center', justifyContent: 'center',
   color: 'var(--ink)',
 };
-
-const miniCard = {
-  background: 'var(--cream-2)', borderRadius: 18,
-  padding: '10px 14px', boxShadow: 'var(--shadow-md)',
-  border: '0.5px solid var(--hairline)',
-};
-
-// Inline emphasis for the balance amount inside the editorial sentence.
-// Mono for tabular alignment of money, slightly heavier weight, same
-// colour as body so the eye reads it as inline-bold rather than as a
-// separate headline.
-function BalanceAmt({ children }) {
-  return (
-    <span className="mono" style={{
-      fontWeight: 700, fontSize: '1.15em', letterSpacing: '-0.01em',
-    }}>{children}</span>
-  );
-}
-
-// Same idea for the Budget Workspace card sentence. `dim` softens the
-// "of $X planned" reference number so the spent number reads as the
-// primary one without size escalation.
-function HubBudgetNum({ children, dim }) {
-  // Read the active theme at render time and hardcode the colour
-  // INLINE. The previous v103 attempt used .amount-strong / .amount-dim
-  // CSS classes in tokens.css, but the user still reported the amount
-  // showing as white. Likely cause: an SW-cached older tokens.css
-  // shadowed the new rules, or some other class with higher
-  // specificity overrode them. Hardcoded inline `color` bypasses
-  // both -- inline style has the highest specificity short of
-  // !important and is loaded from screen-hub.jsx (which also bumps
-  // every release) rather than from a separately-cached CSS file.
-  const isDark = (typeof document !== 'undefined') &&
-    document.documentElement.getAttribute('data-theme') === 'dark';
-  const color = isDark
-    ? (dim ? 'oklch(0.72 0.014 250)' : 'oklch(0.96 0.010 250)')
-    : (dim ? 'oklch(0.40 0.020 248)' : 'oklch(0.18 0.020 250)');
-  return (
-    <span className="mono" style={{
-      fontWeight: dim ? 500 : 700,
-      fontSize: '1.15em',
-      color,
-      letterSpacing: '-0.01em',
-    }}>{children}</span>
-  );
-}
 
 window.ScreenHub = ScreenHub;

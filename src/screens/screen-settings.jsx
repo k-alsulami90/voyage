@@ -418,7 +418,7 @@ function Toggle({ on: initOn }) {
   return (
     <button onClick={() => setOn(!on)} style={{
       width: 40, height: 24, borderRadius: 999,
-      background: on ? 'var(--ink)' : 'var(--sand-deep)',
+      background: on ? 'var(--switch-on)' : 'var(--sand-deep)',
       padding: 2, transition: 'background 200ms', position: 'relative',
     }}>
       <div style={{
@@ -716,8 +716,8 @@ function EditableTripParams({ trip: tripProp }) {
               setBudgetCur(c);
             }} style={{
               padding: '6px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 500,
-              background: budgetCur === c ? 'var(--ink)' : 'var(--cream)',
-              color: budgetCur === c ? 'var(--cream)' : 'var(--ink-soft)',
+              background: budgetCur === c ? 'var(--sel)' : 'var(--cream)',
+              color: budgetCur === c ? 'var(--sel-fg)' : 'var(--ink-soft)',
               border: '0.5px solid var(--hairline)',
             }}>{c}</button>
           ))}
@@ -754,8 +754,8 @@ function EditableTripParams({ trip: tripProp }) {
           {CURRENCIES.map((c) => (
             <button key={c} onClick={() => setLocalCur(c)} style={{
               padding: '6px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 500,
-              background: localCur === c ? 'var(--ink)' : 'var(--cream)',
-              color: localCur === c ? 'var(--cream)' : 'var(--ink-soft)',
+              background: localCur === c ? 'var(--sel)' : 'var(--cream)',
+              color: localCur === c ? 'var(--sel-fg)' : 'var(--ink-soft)',
               border: '0.5px solid var(--hairline)',
             }}>{c}</button>
           ))}
@@ -788,8 +788,8 @@ function EditableTripParams({ trip: tripProp }) {
           {COVERS.map((c) => (
             <button key={c} onClick={() => setCover(c)} style={{
               padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500,
-              background: cover === c ? 'var(--ink)' : 'var(--cream)',
-              color: cover === c ? 'var(--cream)' : 'var(--ink-soft)',
+              background: cover === c ? 'var(--sel)' : 'var(--cream)',
+              color: cover === c ? 'var(--sel-fg)' : 'var(--ink-soft)',
               border: '0.5px solid var(--hairline)',
             }}>{c}</button>
           ))}

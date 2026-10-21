@@ -34,6 +34,23 @@
   --statement-fg: oklch(0.965 0.012 80);
   --statement-sub: oklch(0.78 0.010 75);
 
+  /* Selected state of chips / segments / small toggles, the resting chip,
+     the "on" switch track and the frosted compact title bar. Light keeps
+     the ink-on-cream look; dark swaps the glaring white for calm greys. */
+  --sel:        var(--ink);
+  --sel-fg:     var(--cream);
+  --chip:       rgba(255, 255, 255, 0.6);
+  --switch-on:  var(--ink);
+  --bar-glass:  rgba(245, 238, 216, 0.85);
+  --well:       var(--cream);               /* figure tiles inside a card */
+  --role-editor-fg: oklch(0.34 0.07 155);
+  --role-viewer-fg: oklch(0.30 0.08 260);
+
+  /* Passport paper (Account) */
+  --pp-paper: linear-gradient(135deg, #f6efdc 0%, #ebdfc4 100%);
+  --pp-back:  linear-gradient(135deg, #f8f2e2 0%, #efe4cb 100%);
+  --pp-ring:  #f5ecd8;
+
   /* Shadows */
   --shadow-xs:  0 1px 2px rgba(34,28,22,0.05);
   --shadow-sm:  0 2px 6px rgba(34,28,22,0.06), 0 1px 2px rgba(34,28,22,0.04);
@@ -296,6 +313,21 @@ textarea:focus-visible,
   --statement:    oklch(0.10 0.018 250);
   --statement-fg: oklch(0.97 0.010 250);
   --statement-sub: oklch(0.75 0.014 250);
+
+  /* iOS-style dark controls: grey thumb, faint chip, green switch */
+  --sel:        oklch(0.46 0.018 250);
+  --sel-fg:     oklch(0.98 0.008 250);
+  --chip:       rgba(255, 255, 255, 0.07);
+  --switch-on:  oklch(0.68 0.15 150);
+  --bar-glass:  oklch(0.17 0.020 250 / 0.82);
+  --well:       oklch(0.215 0.021 250);
+  --role-editor-fg: oklch(0.82 0.10 155);
+  --role-viewer-fg: oklch(0.82 0.08 260);
+
+  /* Passport paper dimmed for night use (keeps it a paper object) */
+  --pp-paper: linear-gradient(135deg, #d8cdb2 0%, #c4b592 100%);
+  --pp-back:  linear-gradient(135deg, #dbd1b8 0%, #c9bb9a 100%);
+  --pp-ring:  #d6cbb0;
 }
 
 /* Glass atom — re-tinted under dark so inset highlight isn't blown out */

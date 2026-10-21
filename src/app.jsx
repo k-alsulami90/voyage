@@ -1517,8 +1517,8 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
             ].map((s) => (
               <button key={s.k} onClick={() => setSplitMode(s.k)} style={{
                 flex: 1, padding: '8px', borderRadius: 9, fontSize: 12, fontWeight: 500,
-                background: splitMode === s.k ? 'var(--ink)' : 'transparent',
-                color: splitMode === s.k ? 'var(--cream)' : 'var(--ink-soft)',
+                background: splitMode === s.k ? 'var(--sel)' : 'transparent',
+                color: splitMode === s.k ? 'var(--sel-fg)' : 'var(--ink-soft)',
                 transition: 'all 180ms',
               }}>{s.l}</button>
             ))}
@@ -2065,8 +2065,8 @@ function AddTripSheet({ onDone, onCreated }) {
             {CURRENCIES.map((c) => (
               <button key={c} onClick={() => setCurrency(c)} style={{
                 padding: '9px 13px', borderRadius: 10, fontSize: 13, fontWeight: 500,
-                background: currency === c ? 'var(--ink)' : 'var(--cream)',
-                color: currency === c ? 'var(--cream)' : 'var(--ink-soft)',
+                background: currency === c ? 'var(--sel)' : 'var(--cream)',
+                color: currency === c ? 'var(--sel-fg)' : 'var(--ink-soft)',
                 border: '0.5px solid var(--hairline)', transition: 'all 150ms',
               }}>{c}</button>
             ))}

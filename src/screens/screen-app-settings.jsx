@@ -5,7 +5,7 @@ function AppToggle({ on, onChange }) {
   return (
     <button onClick={() => onChange?.(!on)} style={{
       width: 40, height: 24, borderRadius: 999,
-      background: on ? 'var(--ink)' : 'var(--sand-deep)',
+      background: on ? 'var(--switch-on)' : 'var(--sand-deep)',
       padding: 2, transition: 'background 200ms', position: 'relative', flexShrink: 0,
     }}>
       <div style={{
@@ -194,8 +194,8 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
               {['en', 'ar'].map((l) => (
                 <button key={l} onClick={() => onLangChange?.(l)} style={{
                   minHeight: 38, minWidth: 52, padding: '0 14px', borderRadius: 999, fontSize: 13.5, fontWeight: 600,
-                  background: lang === l ? 'var(--ink)' : 'transparent',
-                  color: lang === l ? 'var(--cream)' : 'var(--ink-soft)',
+                  background: lang === l ? 'var(--sel)' : 'transparent',
+                  color: lang === l ? 'var(--sel-fg)' : 'var(--ink-soft)',
                   transition: 'all 180ms',
                 }}>{l === 'en' ? 'English' : 'عربي'}</button>
               ))}
@@ -527,8 +527,8 @@ function ProfileEditRows({ me }) {
               {CURRENCIES.map((c) => (
                 <button key={c} onClick={() => setCurrency(c)} style={{
                   padding: '6px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 500,
-                  background: currency === c ? 'var(--ink)' : 'var(--cream)',
-                  color: currency === c ? 'var(--cream)' : 'var(--ink-soft)',
+                  background: currency === c ? 'var(--sel)' : 'var(--cream)',
+                  color: currency === c ? 'var(--sel-fg)' : 'var(--ink-soft)',
                   border: '0.5px solid var(--hairline)',
                 }}>{c}</button>
               ))}

@@ -32,8 +32,8 @@ const AvatarStack = ({ members, size = 26 }) => (
 const RoleBadge = ({ role }) => {
   const map = {
     Admin:  { bg: 'oklch(0.62 0.13 35 / 0.14)',  fg: 'var(--clay-deep)', dot: 'var(--clay)' },
-    Editor: { bg: 'oklch(0.50 0.08 155 / 0.14)', fg: 'oklch(0.34 0.07 155)', dot: 'var(--moss)' },
-    Viewer: { bg: 'oklch(0.42 0.10 260 / 0.12)', fg: 'oklch(0.30 0.08 260)', dot: 'var(--indigo)' },
+    Editor: { bg: 'oklch(0.50 0.08 155 / 0.14)', fg: 'var(--role-editor-fg)', dot: 'var(--moss)' },
+    Viewer: { bg: 'oklch(0.42 0.10 260 / 0.12)', fg: 'var(--role-viewer-fg)', dot: 'var(--indigo)' },
   };
   const s = map[role] || map.Viewer;
   return (
@@ -52,8 +52,8 @@ const RoleBadge = ({ role }) => {
 
 const Chip = ({ children, active = false, onClick, tone = 'default' }) => {
   const styles = {
-    default: { bg: active ? 'var(--ink)' : 'rgba(255,255,255,0.6)', fg: active ? 'var(--cream)' : 'var(--ink-soft)' },
-    glass:   { bg: active ? 'var(--ink)' : 'rgba(255,255,255,0.55)', fg: active ? 'var(--cream)' : 'var(--ink)' },
+    default: { bg: active ? 'var(--sel)' : 'var(--chip)', fg: active ? 'var(--sel-fg)' : 'var(--ink-soft)' },
+    glass:   { bg: active ? 'var(--sel)' : 'var(--chip)', fg: active ? 'var(--sel-fg)' : 'var(--ink)' },
   }[tone];
   return (
     <button onClick={onClick} style={{
@@ -549,7 +549,7 @@ function LargeTitleHeader({ title, subtitle, action, onBack }) {
         paddingBottom: 8,
         paddingInlineStart: onBack ? 12 : 22,
         paddingInlineEnd: 22,
-        background: scrolled ? 'rgba(245, 238, 216, 0.85)' : 'transparent',
+        background: scrolled ? 'var(--bar-glass)' : 'transparent',
         backdropFilter: scrolled ? 'blur(20px) saturate(180%)' : 'none',
         WebkitBackdropFilter: scrolled ? 'blur(20px) saturate(180%)' : 'none',
         borderBottom: scrolled ? '0.5px solid var(--hairline)' : '0.5px solid transparent',

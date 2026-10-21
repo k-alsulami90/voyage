@@ -100,7 +100,7 @@ const Tip = ({ x, value, label, W }) => (
 );
 
 // Columns over time, optional reference line; columns above it are emphasised.
-function ColumnChart({ points, refValue, refLabel, fmt = _home, height = 150, emphasise }) {
+function ColumnChart({ points, refValue, refLabel, fmt = _home, height = 150, emphasise, labelEvery }) {
   const ar = _rtl(), W = 340, H = height, top = 12, base = H - 22, left = ar ? 4 : 34, right = ar ? 34 : 4;
   const [sel, setSel] = React.useState(null);
   const max = _niceUSD(Math.max(refValue || 0, ...points.map((p) => p.value), 0) * 1.05);
@@ -108,7 +108,7 @@ function ColumnChart({ points, refValue, refLabel, fmt = _home, height = 150, em
   const y = (v) => base - (v / max) * (base - top);
   const xOf = (i) => { const c = left + slot * (i + 0.5); return ar ? W - c : c; };
   const ticks = [0, max / 2, max];
-  const every = Math.ceil(n / 10);
+  const every = labelEvery || Math.ceil(n / 10);
   const s = sel != null ? points[sel] : null;
   return (
     <div style={{ position: 'relative' }}>
@@ -129,7 +129,7 @@ function ColumnChart({ points, refValue, refLabel, fmt = _home, height = 150, em
               <rect x={xOf(i) - slot / 2} y={top} width={slot} height={base - top + 18} fill="transparent" />
               {h > 0 && <path className="v-bar" style={{ animationDelay: `${80 + i * 35}ms` }} fill={fill} opacity={sel == null || sel === i ? 1 : 0.55}
                 d={`M${x},${base} V${base - h + r} Q${x},${base - h} ${x + r},${base - h} H${x + bw - r} Q${x + bw},${base - h} ${x + bw},${base - h + r} V${base} Z`} />}
-              {(i % every === 0 || i === n - 1) && <text x={xOf(i)} y={H - 6} textAnchor="middle" fontSize="9.5" fill="var(--ink-mute)">{p.label}</text>}
+              {(i % every === 0 || (!labelEvery && i === n - 1)) && <text x={xOf(i)} y={H - 6} textAnchor="middle" fontSize="9.5" fill="var(--ink-mute)">{p.label}</text>}
             </g>
           );
         })}
@@ -221,8 +221,8 @@ function CategoryBar({ byCat, total, scaleTo, onPick, active, onDark, fmt = _hom
           return (
             <Tag key={k} onClick={onPick ? () => { onPick(on ? 'all' : k); window.haptic?.(); } : undefined} style={{
               display: 'inline-flex', alignItems: 'center', gap: 6, padding: compact ? '6px 9px' : '6px 10px', borderRadius: 999, minHeight: 32, minWidth: 0, overflow: 'hidden',
-              background: on ? (onDark ? 'var(--cream)' : 'var(--ink)') : (onDark ? 'rgba(255,255,255,0.08)' : 'var(--cream)'),
-              color: on ? (onDark ? 'var(--ink)' : 'var(--cream)') : (onDark ? 'var(--statement-fg)' : 'var(--ink)'),
+              background: on ? (onDark ? 'var(--statement-fg)' : 'var(--sel)') : (onDark ? 'rgba(255,255,255,0.08)' : 'var(--cream)'),
+              color: on ? (onDark ? 'var(--statement)' : 'var(--sel-fg)') : (onDark ? 'var(--statement-fg)' : 'var(--ink)'),
               border: onDark ? '0.5px solid rgba(255,255,255,0.12)' : '0.5px solid var(--hairline)', fontSize: 12.5,
             }}>
               <span style={{ width: 9, height: 9, borderRadius: 3, background: catColor(k), flexShrink: 0 }} />
@@ -432,7 +432,10 @@ function LifetimeInsights({ go, goTrip }) {
   const head = <LargeTitleHeader title={ar ? 'تحليل رحلاتك' : 'Your travels'} subtitle={ar ? 'كل رحلاتك في مكان واحد' : 'Every trip, at a glance'} onBack={() => go('trips')} />;
   if (!stats) return <div style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>{head}<TripSkeleton /></div>;
   const trips = (stats.tripSpend || []).filter((x) => x.spent > 0);
-  const months = (stats.byMonth || []).map((mo, i) => ({ key: 'm' + i, label: new Date(2026, i, 1).toLocaleDateString(ar ? 'ar' : 'en', { month: 'short' }).slice(0, ar ? 4 : 3), value: mo.spent || 0, tip: `${mo.count || 0} ${ar ? 'عمليات' : 'items'}` }));
+  // Month names never get chopped: full names on every third month, the
+  // exact month + amount shows on tap.
+  const monthName = (i, form) => new Date(2026, i, 1).toLocaleDateString(ar ? 'ar' : 'en', { month: form });
+  const months = (stats.byMonth || []).map((mo, i) => ({ key: 'm' + i, label: monthName(i, ar ? 'long' : 'short'), value: mo.spent || 0, tip: `${monthName(i, 'long')} · ${mo.count || 0} ${ar ? 'عمليات' : 'items'}` }));
   const wk = (stats.byWeekday || []).map((d) => ({ key: 'w' + d.day, label: new Date(2026, 0, 4 + d.day).toLocaleDateString(ar ? 'ar' : 'en', { weekday: 'short' }), value: d.avg || 0, tip: ar ? 'متوسط اليوم' : 'avg per day' }));
   const topWk = wk.reduce((a, d) => (d.value > (a?.value || 0) ? d : a), null);
   const byCat = {}; (stats.byCategory || []).forEach((c) => { byCat[c.key] = c.value; });
@@ -472,7 +475,7 @@ function LifetimeInsights({ go, goTrip }) {
       )}
       {months.some((mo) => mo.value > 0) && (
         <Panel title={ar ? 'الصرف على مدار السنة' : 'Through the year'} sub={ar ? 'اضغط على شهر لقيمته' : 'Tap a month'}>
-          <ColumnChart points={months} />
+          <ColumnChart points={months} labelEvery={3} />
         </Panel>
       )}
       {wk.some((d) => d.value > 0) && (

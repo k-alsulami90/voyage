@@ -406,8 +406,8 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
                     return (
                       <button key={o.id || 'all'} onClick={() => setOwnerUserId(o.id)} style={{
                         flex: 1, minHeight: 42, borderRadius: 12, fontSize: 13.5, fontWeight: 600,
-                        background: active ? 'var(--ink)' : 'var(--cream)',
-                        color: active ? 'var(--cream)' : 'var(--ink-soft)',
+                        background: active ? 'var(--sel)' : 'var(--cream)',
+                        color: active ? 'var(--sel-fg)' : 'var(--ink-soft)',
                         border: '0.5px solid var(--hairline-2)', transition: 'all 150ms',
                       }}>{o.name}</button>
                     );
