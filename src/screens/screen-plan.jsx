@@ -7,6 +7,7 @@ function ScreenPlan({ go, openSheet, loading }) {
   const [editingItem, setEditingItem] = React.useState(null);
   const [addingForDay, setAddingForDay] = React.useState(null);
   const [showPast, setShowPast] = React.useState(false);
+  const [suggest, setSuggest] = React.useState(null); // null | { day }
 
   const dataReady = trip && window.isTripDataReady?.(trip.id);
   if (loading || !trip || !dataReady) {
@@ -47,6 +48,26 @@ function ScreenPlan({ go, openSheet, loading }) {
         subtitle={trip.title}
         onBack={() => go('hub')}
       />
+
+      {days.length > 0 && (
+        <div style={{ padding: '4px 22px 0' }}>
+          <button onClick={() => setSuggest({ day: null })} style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 20,
+            background: 'var(--statement)', color: 'var(--statement-fg)', textAlign: 'start',
+            boxShadow: 'var(--shadow-md)',
+          }}>
+            <span style={{ width: 42, height: 42, borderRadius: 14, background: 'rgba(255,255,255,0.1)',
+              display: 'grid', placeItems: 'center', fontSize: 22, flexShrink: 0 }}>✨</span>
+            <span style={{ flex: 1 }}>
+              <span style={{ display: 'block', fontSize: 16, fontWeight: 700 }}>{window.isRTL ? 'اقترح لي' : 'Suggest'}</span>
+              <span style={{ display: 'block', fontSize: 12.5, color: 'var(--statement-sub)', marginTop: 2 }}>
+                {window.isRTL ? 'مطاعم، معالم، متاحف… قريبة منكم لأي يوم' : 'Food, sights, museums… near you, for any day'}
+              </span>
+            </span>
+            <span style={{ fontSize: 18, opacity: 0.7 }}>{window.isRTL ? '‹' : '›'}</span>
+          </button>
+        </div>
+      )}
 
       <div style={{ padding: '8px 14px 24px' }}>
         {days.length === 0 ? (
@@ -114,6 +135,7 @@ function ScreenPlan({ go, openSheet, loading }) {
               dayNumber={idx + 1}
               items={dayItems}
               onAdd={() => setAddingForDay(iso)}
+              onSuggest={() => setSuggest({ day: iso })}
               onTapItem={(it) => setEditingItem(it)}
               openSheet={openSheet}
               isToday={iso === todayIso}
@@ -123,6 +145,8 @@ function ScreenPlan({ go, openSheet, loading }) {
           </>);
         })()}
       </div>
+
+      <window.ScreenSuggest open={!!suggest} initialDay={suggest?.day || null} onClose={() => setSuggest(null)} />
 
       {/* Add sheet */}
       <Sheet open={!!addingForDay} onClose={() => setAddingForDay(null)}
@@ -171,7 +195,7 @@ function fmtTime(hms) {
   return d.toLocaleTimeString(window.isRTL ? 'ar' : 'en', { hour: 'numeric', minute: '2-digit' });
 }
 
-function PlanDay({ date, dayNumber, items, onAdd, onTapItem, openSheet, isToday }) {
+function PlanDay({ date, dayNumber, items, onAdd, onSuggest, onTapItem, openSheet, isToday }) {
   const { weekday, datePart } = fmtDayLabel(date, dayNumber);
   return (
     <div style={{ marginTop: 18 }}>
@@ -197,6 +221,13 @@ function PlanDay({ date, dayNumber, items, onAdd, onTapItem, openSheet, isToday 
         {/* Day-header Add button. Padding bumped from 5px 10px to
            7px 12px so the chip clears the iOS thumb-zone floor for
            one-handed Casey use. */}
+        <div style={{ display: 'flex', gap: 6 }}>
+        <button onClick={onSuggest}
+          aria-label={window.isRTL ? 'اقترح لي لهذا اليوم' : 'Suggest for this day'} style={{
+          padding: '7px 12px', borderRadius: 999,
+          background: 'var(--cream-2)', color: 'var(--ink)', border: '0.5px solid var(--hairline)',
+          fontSize: 12, fontWeight: 600,
+        }}>✨ {window.isRTL ? 'اقترح' : 'Ideas'}</button>
         <button onClick={onAdd}
           aria-label={window.isRTL ? 'إضافة نشاط' : 'Add activity'} style={{
           padding: '7px 12px', borderRadius: 999,
@@ -207,6 +238,7 @@ function PlanDay({ date, dayNumber, items, onAdd, onTapItem, openSheet, isToday 
           <window.IconPlus size={12} stroke="currentColor" />
           {t('planAddBtn') || 'Add'}
         </button>
+        </div>
       </div>
 
       {/* Items */}

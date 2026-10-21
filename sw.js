@@ -45,6 +45,7 @@ const SHELL_FILES = [
   '/src/screens/screen-doc-detail.jsx',
   '/src/screens/screen-add-doc.jsx',
   '/src/screens/screen-settle-up.jsx',
+  '/src/screens/screen-suggest.jsx',
   '/src/screens/screen-plan.jsx',
   '/src/screens/screen-trip-search.jsx',
   '/src/screens/screen-settings.jsx',
