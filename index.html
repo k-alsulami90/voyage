@@ -80,6 +80,22 @@
     }
   }
 
+  /* iOS 26 home-screen app: WebKit bug 301108 gives an installed web app a
+     viewport that is SHORT by the status-bar height whenever the document
+     is shorter than the screen — and ours is 0px tall (the whole app is a
+     fixed layer). That's the empty strip at the bottom that only a
+     rotation cleared. Making the document at least screen-tall gets iOS to
+     hand over the full viewport. min() caps it at 100lvh so nothing
+     scrolls once iOS is right (WebKit bug 316008). overflow must not be
+     hidden on html/body or the fix doesn't take. */
+  @media (display-mode: standalone) {
+    html {
+      min-height: min(100lvh, calc(100% + env(safe-area-inset-top)));
+      overflow: visible;
+    }
+    body { overflow: visible; }
+  }
+
   /* iOS: respect notch and home indicator */
   @supports (padding: env(safe-area-inset-top)) {
     body { padding-top: 0; padding-bottom: 0; }
