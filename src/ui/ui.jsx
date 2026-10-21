@@ -172,8 +172,137 @@ const TintCard = ({ tint = 'clay', children }) => {
 };
 
 // Full-screen modal sheet
+// ── Bottom sheet — fluid, physical, interruptible ─────────────────────
+// Follows the finger 1:1 (from the handle/title, or from the content when
+// it's scrolled to the top), throws with momentum, rubber-bands upward,
+// and is driven by springs so it can be grabbed again mid-flight. Enter
+// and exit share the same path (up from / down to the bottom edge).
+//   spring: damping ratio ζ + response T (Apple's parameters)
+//   release: project the resting point from velocity, then decide.
+const _reduceMotion = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+const _project = (v, d = 0.998) => (v / 1000) * d / (1 - d);
+const _rubber = (over, dim, c = 0.55) => (over * dim * c) / (dim + c * Math.abs(over));
+
 const Sheet = ({ open, onClose, children, title, height = 0.7 }) => {
-  if (!open) return null;
+  const [mounted, setMounted] = React.useState(open);
+  const panelRef = React.useRef(null);
+  const scrimRef = React.useRef(null);
+  const contentRef = React.useRef(null);
+  const st = React.useRef({ y: 0, v: 0, raf: 0, H: 1, drag: null, hist: [] }).current;
+  const onCloseRef = React.useRef(onClose); onCloseRef.current = onClose;
+  // Keep showing the last content while the sheet slides away (parents
+  // often render `{item && <Form item={item} />}`, which empties on close).
+  const lastKids = React.useRef(children); const lastTitle = React.useRef(title);
+  if (open) { lastKids.current = children; lastTitle.current = title; }
+
+  const apply = (y) => {
+    st.y = y;
+    const p = panelRef.current, sc = scrimRef.current;
+    if (p) p.style.transform = `translate3d(0, ${y}px, 0)`;
+    if (sc) sc.style.opacity = String(Math.max(0, Math.min(1, 1 - y / st.H)));
+  };
+  const stop = () => { if (st.raf) cancelAnimationFrame(st.raf); st.raf = 0; };
+  // Damped spring from the CURRENT on-screen value and velocity.
+  const springTo = (target, { damping = 1, response = 0.35, velocity = st.v, done } = {}) => {
+    stop();
+    const k = Math.pow(2 * Math.PI / response, 2), c = 4 * Math.PI * damping / response;
+    let y = st.y, v = velocity, last = performance.now();
+    const step = (now) => {
+      let dt = Math.min(0.064, (now - last) / 1000); last = now;
+      while (dt > 0) { const h = Math.min(dt, 1 / 240); v += (-k * (y - target) - c * v) * h; y += v * h; dt -= h; }
+      st.v = v; apply(y);
+      if (Math.abs(y - target) < 0.5 && Math.abs(v) < 5) { st.v = 0; apply(target); st.raf = 0; done && done(); return; }
+      st.raf = requestAnimationFrame(step);
+    };
+    st.raf = requestAnimationFrame(step);
+  };
+
+  // Open → mount; close → animate out along the same path, then unmount.
+  React.useEffect(() => {
+    if (open) { if (mounted && st.raf) springTo(0, { damping: 1, response: 0.38 }); else setMounted(true); return; }
+    if (!mounted) return;
+    if (_reduceMotion()) { if (panelRef.current) panelRef.current.style.opacity = '0'; if (scrimRef.current) scrimRef.current.style.opacity = '0'; const t = setTimeout(() => setMounted(false), 180); return () => clearTimeout(t); }
+    springTo(st.H, { damping: 1, response: 0.3, done: () => setMounted(false) });
+  }, [open]);
+  React.useLayoutEffect(() => {
+    if (!mounted || !open || !panelRef.current) return;
+    st.H = panelRef.current.offsetHeight || 1;
+    if (_reduceMotion()) {
+      apply(0); panelRef.current.style.opacity = '0';
+      requestAnimationFrame(() => { if (panelRef.current) { panelRef.current.style.transition = 'opacity 200ms ease'; panelRef.current.style.opacity = '1'; } });
+      return;
+    }
+    st.v = 0; apply(st.H);
+    springTo(0, { damping: 1, response: 0.38 });
+  }, [mounted]);
+  React.useEffect(() => () => stop(), []);
+
+  // ── Gesture ──
+  const begin = (clientY) => {
+    stop();                                   // grab it mid-flight
+    st.drag = { startY: clientY, startSheetY: st.y, active: false };
+    st.hist = [{ y: clientY, t: performance.now() }];
+  };
+  const move = (clientY) => {
+    const d = st.drag; if (!d) return false;
+    const dy = clientY - d.startY;
+    if (!d.active) { if (Math.abs(dy) < 10) return false; d.active = true; d.startY = clientY; return true; } // hysteresis
+    let y = d.startSheetY + (clientY - d.startY);
+    if (y < 0) y = _rubber(y, st.H);          // resist pulling it taller
+    apply(y);
+    const now = performance.now();
+    st.hist.push({ y: clientY, t: now });
+    while (st.hist.length > 2 && now - st.hist[0].t > 100) st.hist.shift();
+    return true;
+  };
+  const end = () => {
+    const d = st.drag; st.drag = null;
+    if (!d || !d.active) return;
+    const h = st.hist, a = h[0], b = h[h.length - 1];
+    const v = b && a && b.t > a.t ? ((b.y - a.y) / (b.t - a.t)) * 1000 : 0;   // px/s
+    st.v = v;
+    const landing = st.y + _project(v);
+    if (landing > st.H * 0.5 || v > 1100) {
+      springTo(st.H, { damping: 1, response: 0.3, velocity: v, done: () => onCloseRef.current && onCloseRef.current() });
+    } else {
+      springTo(0, { damping: 0.8, response: 0.3, velocity: v });   // momentum → a touch of bounce
+    }
+  };
+
+  // Handle + title: pointer events with capture.
+  const handleProps = {
+    onPointerDown: (e) => { if (e.button > 0) return; if (e.pointerType === 'mouse') e.preventDefault(); e.currentTarget.setPointerCapture?.(e.pointerId); begin(e.clientY); },
+    onPointerMove: (e) => { if (st.drag) move(e.clientY); },
+    onPointerUp: end, onPointerCancel: end,
+    style: { touchAction: 'none', cursor: 'grab', userSelect: 'none', WebkitUserSelect: 'none' },
+  };
+  // Content: take over only when it's at the top and the finger moves down.
+  React.useEffect(() => {
+    const el = contentRef.current; if (!el || !mounted) return;
+    let tracking = false;
+    const ts = (e) => {
+      const tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if (el.scrollTop > 0) { tracking = false; return; }
+      tracking = true; begin(e.touches[0].clientY);
+    };
+    const tm = (e) => {
+      if (!tracking || !st.drag) return;
+      const y = e.touches[0].clientY;
+      if (!st.drag.active) {
+        const dy = y - st.drag.startY;
+        if (dy < 0 || el.scrollTop > 0) { tracking = false; st.drag = null; return; } // it's a scroll
+      }
+      if (move(y) && st.drag && st.drag.active) e.preventDefault();
+    };
+    const te = () => { if (tracking) end(); tracking = false; };
+    el.addEventListener('touchstart', ts, { passive: true });
+    el.addEventListener('touchmove', tm, { passive: false });
+    el.addEventListener('touchend', te); el.addEventListener('touchcancel', te);
+    return () => { el.removeEventListener('touchstart', ts); el.removeEventListener('touchmove', tm); el.removeEventListener('touchend', te); el.removeEventListener('touchcancel', te); };
+  }, [mounted]);
+
+  if (!mounted) return null;
   // Always render into the app shell, not where the Sheet is declared: a
   // sheet opened from inside a scrolled screen (e.g. "add activity" on
   // day 9 of the Plan) was positioned against the scrolled content and
@@ -183,39 +312,38 @@ const Sheet = ({ open, onClose, children, title, height = 0.7 }) => {
     <div style={{
       position: 'absolute', inset: 0, zIndex: 100,
       display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+      pointerEvents: open ? 'auto' : 'none',
     }}>
-      <div onClick={onClose} style={{
+      <div ref={scrimRef} onClick={() => onCloseRef.current && onCloseRef.current()} style={{
         position: 'absolute', inset: 0, background: 'rgba(20,15,10,0.4)',
-        backdropFilter: 'blur(6px)', animation: 'fadeIn 200ms',
+        backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', opacity: 0,
       }} />
-      <div style={{
+      <div ref={panelRef} role="dialog" aria-modal="true" style={{
         position: 'relative', height: `${height * 100}%`,
         background: 'var(--cream)', borderRadius: '24px 24px 0 0',
         boxShadow: '0 -20px 60px rgba(0,0,0,0.35)',
-        animation: 'slideUp 320ms cubic-bezier(.32,.72,0,1)',  // iOS spring curve
+        transform: 'translate3d(0, 100%, 0)', willChange: 'transform',
         overflow: 'hidden', display: 'flex', flexDirection: 'column',
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
-        {/* iOS-style drag handle */}
-        <div style={{ padding: '8px 0 4px', display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
-          <div style={{
-            width: 36, height: 5, borderRadius: 999,
-            background: 'var(--ink-mute)', opacity: 0.4,
-          }} />
+        {/* Grab area: handle + title */}
+        <div {...handleProps}>
+          <div style={{ padding: '8px 0 6px', display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+            <div style={{
+              width: 36, height: 5, borderRadius: 999,
+              background: 'var(--ink-mute)', opacity: 0.4,
+            }} />
+          </div>
+          {(open ? title : lastTitle.current) && (
+            <div style={{
+              padding: '6px 22px 4px',
+              fontFamily: 'var(--serif)', fontSize: 22, letterSpacing: '-0.01em',
+              color: 'var(--ink)', textAlign: 'center', flexShrink: 0,
+            }}>{open ? title : lastTitle.current}</div>
+          )}
         </div>
-        {title && (
-          <div style={{
-            padding: '8px 22px 4px',
-            fontFamily: 'var(--serif)', fontSize: 22, letterSpacing: '-0.01em',
-            color: 'var(--ink)', textAlign: 'center', flexShrink: 0,
-          }}>{title}</div>
-        )}
-        <div style={{ flex: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch' }} className="no-scrollbar">{children}</div>
+        <div ref={contentRef} style={{ flex: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }} className="no-scrollbar">{open ? children : lastKids.current}</div>
       </div>
-      <style>{`
-        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-        @keyframes slideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
-      `}</style>
     </div>
   );
   return host ? ReactDOM.createPortal(sheet, host) : sheet;

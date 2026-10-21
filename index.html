@@ -478,6 +478,10 @@
       });
     })();
 
+    // iOS Safari only applies :active (our press feedback) when the page
+    // has a touch listener. An empty passive one is the standard switch.
+    document.addEventListener('touchstart', function () {}, { passive: true });
+
     // ── Splash dismissal ──────────────────────────────────────
     // Minimum show time so the animation completes gracefully
     // (otherwise on fast networks the splash flashes for 200ms).
