@@ -259,46 +259,76 @@ function RankBars({ rows, fmt = _home }) {
 }
 Object.assign(window, { AnPanel: Panel, AnStatTile: StatTile, ColumnChart, BurnChart, CategoryBar, RankBars, CAT_ORDER });
 
-// ── Expenses: one summary card instead of five ────────────────────────
-function ExpenseSummary({ trip, expenses, conv, currencyToggle, activeCat, onPickCat }) {
+// "At this pace you'll finish on X — Y under budget" (null before the trip).
+function paceLine(m, fmt) {
+  if (!m.started || !(m.planned > 0) || !m.days.length) return null;
+  const ar = _rtl();
+  const end = m.ended ? m.total : m.projection, diff = m.planned - end;
+  const tone = { display: 'block', color: diff >= 0 ? '#9fe6bd' : '#ffb4a2', fontWeight: 700 };
+  return ar
+    ? <>{m.ended ? 'خلصت الرحلة على ' : 'بهالوتيرة بتخلصون على '}<b>{fmt(end)}</b><span style={tone}>{diff >= 0 ? 'أقل' : 'أعلى'} من الميزانية بـ {fmt(Math.abs(diff))}</span></>
+    : <>{m.ended ? 'Finished on ' : "At this pace you'll finish on "}<b>{fmt(end)}</b><span style={tone}>{fmt(Math.abs(diff))} {diff >= 0 ? 'under budget' : 'over budget'}</span></>;
+}
+
+// ── Expenses: a short summary — spent, what's left, one bar ───────────
+// The category split shows as the bar's colours (the chips under it are
+// the legend and the filter); pace and the rest live in Analysis.
+function ExpenseSummary({ trip, expenses, conv, currencyToggle, onAnalysis }) {
   const ar = _rtl();
   const m = tripModel(trip, expenses);
   const pct = m.planned > 0 ? m.total / m.planned : 0;
   const over = m.planned > 0 && m.total > m.planned;
   const unpaid = Object.values(window.DOCS_BY_CAT || {}).flat().filter((d) => d && !d.ownerUserId && d.costUSD > 0 && !window.isDocPaid?.(d));
   const unpaidUSD = unpaid.reduce((s, d) => s + (d.costUSD || 0), 0);
-  let pace = null;
-  if (m.started && m.planned > 0 && m.days.length) {
-    const end = m.ended ? m.total : m.projection, diff = m.planned - end;
-    pace = ar
-      ? <>{m.ended ? 'خلصت الرحلة على ' : 'بهالوتيرة بتخلصون على '}<b>{conv(end)}</b> — <span style={{ color: diff >= 0 ? '#9fe6bd' : '#ffb4a2', fontWeight: 700 }}>{diff >= 0 ? 'أقل' : 'أعلى'} من الميزانية بـ {conv(Math.abs(diff))}</span></>
-      : <>{m.ended ? 'Finished on ' : "At this pace you'll finish on "}<b>{conv(end)}</b> — <span style={{ color: diff >= 0 ? '#9fe6bd' : '#ffb4a2', fontWeight: 700 }}>{conv(Math.abs(diff))} {diff >= 0 ? 'under' : 'over'}</span></>;
-  }
+  const items = CAT_ORDER.map((k) => [k, m.byCat[k] || 0]).filter(([, v]) => v > 0);
+  const extra = Object.keys(m.byCat).filter((k) => !CAT_ORDER.includes(k)).reduce((s, k) => s + m.byCat[k], 0);
+  if (extra) { const misc = items.find(([k]) => k === 'misc'); if (misc) misc[1] += extra; else items.push(['misc', extra]); }
+  const scale = m.planned > m.total ? m.planned : (m.total || 1);
   return (
-    <div style={{ padding: '0 14px 14px' }}>
-      <div style={{ background: 'var(--statement)', color: 'var(--statement-fg)', borderRadius: 26, padding: '18px 18px 16px', boxShadow: 'var(--shadow-card)', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ padding: '0 14px 4px' }}>
+      <div style={{ background: 'var(--statement)', color: 'var(--statement-fg)', borderRadius: 24, padding: '16px 18px 14px', boxShadow: 'var(--shadow-card)', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(70% 60% at 100% 0%, oklch(0.45 0.10 35 / 0.35) 0%, transparent 65%)', pointerEvents: 'none' }} />
         <div style={{ position: 'relative' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
             <div style={{ fontSize: 13, color: 'var(--statement-sub)' }}>{ar ? 'صرفتوا' : 'Spent'}</div>
             {currencyToggle}
           </div>
-          <div style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1, marginTop: 2 }}>
-            <window.CountUp id={'sum-' + trip.id} value={m.total} format={conv} />
-          </div>
-          {m.planned > 0 && (
-            <div style={{ fontSize: 13, color: 'var(--statement-sub)', marginTop: 4 }}>
-              {ar ? <>من أصل <b style={{ color: 'var(--statement-fg)' }}>{conv(m.planned)}</b> · {over ? 'تجاوزتوا بـ ' : 'باقي '}<b style={{ color: over ? '#ffb4a2' : 'var(--statement-fg)' }}>{conv(Math.abs(m.planned - m.total))}</b> · {Math.round(pct * 100)}%</>
-                : <>of <b style={{ color: 'var(--statement-fg)' }}>{conv(m.planned)}</b> · {over ? 'over by ' : 'left '}<b style={{ color: over ? '#ffb4a2' : 'var(--statement-fg)' }}>{conv(Math.abs(m.planned - m.total))}</b> · {Math.round(pct * 100)}%</>}
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginTop: 2 }}>
+            <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1, minWidth: 0, whiteSpace: 'nowrap' }}>
+              <window.CountUp id={'sum-' + trip.id} value={m.total} format={conv} />
             </div>
-          )}
-          <div style={{ marginTop: 14 }}>
-            <CategoryBar byCat={m.byCat} total={m.total} scaleTo={m.planned > m.total ? m.planned : m.total} onPick={onPickCat} active={activeCat} onDark fmt={conv} compact />
+            {m.planned > 0 && (
+              <div style={{ textAlign: 'end', flexShrink: 0, paddingBottom: 3 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--statement-sub)' }}>{over ? (ar ? 'تجاوزتوا بـ' : 'Over by') : (ar ? 'باقي' : 'Left')}</div>
+                <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: over ? '#ffb4a2' : 'var(--statement-fg)', whiteSpace: 'nowrap' }}>{conv(Math.abs(m.planned - m.total))}</div>
+              </div>
+            )}
           </div>
-          {(pace || unpaidUSD > 0) && (
-            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '0.5px solid rgba(255,255,255,0.12)', display: 'grid', gap: 6, fontSize: 12.5, color: 'var(--statement-sub)', lineHeight: 1.55 }}>
-              {pace && <div>📈 {pace}</div>}
-              {unpaidUSD > 0 && <div>⏳ {ar ? <>حجوزات لم تُدفع بعد <b style={{ color: 'var(--statement-fg)' }}>{conv(unpaidUSD)}</b> — تنحسب لما تندفع</> : <>Unpaid bookings <b style={{ color: 'var(--statement-fg)' }}>{conv(unpaidUSD)}</b> — counted once paid</>}</div>}
+          <div style={{ height: 8, borderRadius: 99, background: 'rgba(255,255,255,0.12)', overflow: 'hidden', marginTop: 12, display: 'flex' }}>
+            <div className="v-grow" style={{ width: `${Math.min(1, m.total / scale) * 100}%`, display: 'flex', gap: 2, height: '100%' }}>
+              {items.map(([k, v]) => <div key={k} style={{ flex: `${v} 0 0`, background: over ? 'var(--clay)' : catColor(k) }} />)}
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 8, fontSize: 12.5, color: 'var(--statement-sub)' }}>
+            <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {m.planned > 0
+                ? (ar ? <>{Math.round(pct * 100)}% من ميزانية <b style={{ color: 'var(--statement-fg)' }}>{conv(m.planned)}</b></> : <>{Math.round(pct * 100)}% of <b style={{ color: 'var(--statement-fg)' }}>{conv(m.planned)}</b></>)
+                : (ar ? 'ما فيه ميزانية محددة' : 'No budget set')}
+            </span>
+            {onAnalysis && (
+              <button onClick={onAnalysis} style={{
+                flexShrink: 0, minHeight: 32, padding: '0 2px', background: 'transparent',
+                display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: 'var(--statement-fg)',
+              }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>
+                {ar ? 'التحليل' : 'Analysis'}
+                <span className="icon-flip" style={{ display: 'inline-flex' }}><IconChevron size={11} stroke="currentColor" /></span>
+              </button>
+            )}
+          </div>
+          {unpaidUSD > 0 && (
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '0.5px solid rgba(255,255,255,0.12)', fontSize: 12.5, color: 'var(--statement-sub)', lineHeight: 1.5 }}>
+              ⏳ {ar ? <>حجوزات ما اندفعت بعد <b style={{ color: 'var(--statement-fg)' }}>{conv(unpaidUSD)}</b> — تنحسب لما تندفع</> : <>Unpaid bookings <b style={{ color: 'var(--statement-fg)' }}>{conv(unpaidUSD)}</b> — counted once paid</>}
             </div>
           )}
         </div>
@@ -351,6 +381,11 @@ function TripAnalysis({ go, loading }) {
             <span>{ar ? 'الميزانية' : 'Budget'} {_home(m.planned)}</span>
           </div>
         </>}
+        {paceLine(m, _home) && (
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '0.5px solid rgba(255,255,255,0.12)', display: 'flex', gap: 8, fontSize: 12.5, color: 'var(--statement-sub)', lineHeight: 1.55 }}>
+            <span aria-hidden="true">📈</span><span style={{ minWidth: 0 }}>{paceLine(m, _home)}</span>
+          </div>
+        )}
       </div>
       <Grid2>
         <StatTile label={ar ? 'المتوسط اليومي' : 'Daily average'} value={_home(m.avg || 0)} sub={m.planPerDay ? (ar ? `الخطة ${_home(m.planPerDay)}` : `Plan ${_home(m.planPerDay)}`) : (ar ? 'بدون الحجوزات' : 'excl. bookings')} tone={m.planPerDay && m.avg > m.planPerDay ? 'var(--clay-deep)' : undefined} />

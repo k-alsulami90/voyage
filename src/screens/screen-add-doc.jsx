@@ -168,11 +168,13 @@ function ScreenAddDoc({ back, onCreated }) {
               const label = CAT_T[c.key] ? t(CAT_T[c.key]) : c.label;
               const emoji = window.DOC_SCHEMAS[c.key]?.emoji || '📄';
               return (
-                <button key={c.key} onClick={() => setCat(c.key)} style={{
+                <button key={c.key} onClick={() => setCat(c.key)} aria-pressed={active} style={{
                   padding: '13px 14px', borderRadius: 14, textAlign: 'start', minHeight: 48,
-                  background: active ? color : 'var(--cream-2)',
+                  // Selected = the same colour as this kind's pass in Documents
+                  background: active ? ((window.DOC_PASS_BG || {})[c.key] || color) : 'var(--cream-2)',
                   color: active ? '#fff' : 'var(--ink)',
-                  border: active ? 'none' : '0.5px solid var(--hairline)',
+                  border: active ? '0.5px solid transparent' : '0.5px solid var(--hairline)',
+                  boxShadow: active ? '0 8px 16px -10px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.16)' : 'none',
                   display: 'flex', alignItems: 'center', gap: 10,
                   flexDirection: 'row', transition: 'all 160ms',
                 }}>

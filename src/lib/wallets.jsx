@@ -618,9 +618,9 @@ window.openCardExpenses = (memberId) => {
   if (tid) window.navigateRoute?.({ scope: 'trip', name: 'budget', tripId: tid });
 };
 
-// Expenses filtered to one person/card: their card up top, what it went
-// on (tap a category to narrow the list), and a way back to everyone.
-function PersonFocus({ memberId, conv, onClear, activeCat, onPickCat }) {
+// Expenses filtered to one person/card: their card up top, three figures,
+// and a way back to everyone. (The category chips under it narrow the list.)
+function PersonFocus({ memberId, conv, onClear }) {
   const ar = window.isRTL;
   const trip = window.TRIP;
   const m = (window.MEMBERS || []).find((x) => x.id === memberId) || { id: memberId, name: '?', hue: 200 };
@@ -667,30 +667,8 @@ function PersonFocus({ memberId, conv, onClear, activeCat, onPickCat }) {
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
         {tile(ar ? 'العمليات' : 'Payments', String(mine.length))}
         {tile(ar ? 'متوسط اليوم' : 'Per day', conv(days ? total / days : 0))}
-        {tile(ar ? 'الأكثر' : 'Most on', top ? `${window.CAT_META?.[top[0]]?.emoji || ''} ${t(top[0]) || top[0]}` : '—')}
+        {tile(ar ? 'الأكثر' : 'Most on', top ? `${window.CAT_META?.[top[0]]?.emoji || ''} ${window.CAT_META?.[top[0]]?.[ar ? 'label_ar' : 'label_en'] || t(top[0]) || top[0]}` : '—')}
       </div>
-      {cats.length > 0 && (
-        <div style={{ marginTop: 12, background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', borderRadius: 20, padding: '14px 16px' }}>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>{ar ? 'وين راحت؟' : 'Where it went'}</div>
-          {cats.map(([k, v], i) => {
-            const on = activeCat === k;
-            return (
-              <button key={k} onClick={() => { onPickCat(on ? 'all' : k); window.haptic?.(); }} style={{ display: 'block', width: '100%', textAlign: 'start', padding: '7px 0', background: 'transparent' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: on ? 'var(--clay-deep)' : 'var(--ink)', fontWeight: on ? 700 : 500 }}>
-                  <span>{window.CAT_META?.[k]?.emoji}</span>
-                  <span style={{ flex: 1 }}>{t(k) || k}</span>
-                  <span className="mono" style={{ fontWeight: 700 }}>{conv(v)}</span>
-                  <span style={{ fontSize: 11, color: 'var(--ink-mute)', width: 34, textAlign: 'end' }}>{Math.round((v / (total || 1)) * 100)}%</span>
-                </div>
-                <div style={{ height: 6, borderRadius: 99, background: 'var(--cream)', marginTop: 6, overflow: 'hidden' }}>
-                  <div className="v-grow" style={{ width: `${(v / (cats[0][1] || 1)) * 100}%`, height: '100%', borderRadius: 99, background: on ? 'var(--clay)' : (window.CATEGORIES || []).find((c) => c.key === k)?.color || 'var(--ink-mute)', animationDelay: `${140 + i * 70}ms` }} />
-                </div>
-              </button>
-            );
-          })}
-          {activeCat !== 'all' && <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 6 }}>{ar ? 'اضغط التصنيف مرة ثانية لإلغاء التصفية' : 'Tap again to clear'}</div>}
-        </div>
-      )}
     </div>
   );
 }

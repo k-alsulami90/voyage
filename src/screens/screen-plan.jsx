@@ -564,4 +564,4 @@ function AddPlanItemSheet({ dayDate, days, existing, onDone, openSheet }) {
   );
 }
 
-window.ScreenPlan = ScreenPlan;
+Object.assign(window, { ScreenPlan, PLAN_CAT_META, planCatOf: _planCat });

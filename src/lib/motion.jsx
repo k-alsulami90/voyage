@@ -380,7 +380,16 @@ function Overlay({ open, onClose, z = 85, dismissible = true, children }) {
   const kids = React.useRef(children); if (open) kids.current = children;
   const st = React.useRef({ y: 0, v: 0, H: 1, cancel: null }).current;
   const closeRef = React.useRef(onClose); closeRef.current = onClose;
-  const set = (y, v) => { st.y = y; if (v != null) st.v = v; if (ref.current) ref.current.style.transform = `translate3d(0,${y}px,0)`; };
+  // At rest the transform is dropped: a transformed box is the containing
+  // block for position:fixed children (a form's save bar, the photo
+  // cropper), which would then ride along with the scrolled content
+  // instead of staying on screen.
+  const set = (y, v) => {
+    st.y = y; if (v != null) st.v = v;
+    const el = ref.current; if (!el) return;
+    if (y === 0) { el.style.transform = 'none'; el.style.willChange = 'auto'; }
+    else { el.style.transform = `translate3d(0,${y}px,0)`; el.style.willChange = 'transform'; }
+  };
   const stop = () => { if (st.cancel) st.cancel(); st.cancel = null; };
 
   React.useEffect(() => {
