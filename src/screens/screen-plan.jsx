@@ -40,20 +40,35 @@ function planBookings(trip) {
     out.push({ kind: 'booking', id: `${doc.id}-${label}`, doc, dayDate: day, time: String(at).length > 11 ? String(at).slice(11, 16) : '', label });
   };
   Object.values(window.DOCS_BY_CAT || {}).flat().forEach((doc) => {
+    // Same rule as the reminders: a traveller's own ticket shows only for
+    // them; shared bookings (hotel, car) show for everyone.
+    if (doc.ownerUserId && doc.ownerUserId !== window.currentUserId) return;
     const x = doc.details || {};
-    if (doc.category === 'flights') add(doc, x.dep_at, ar ? 'إقلاع' : 'Departs');
+    if (doc.category === 'flights') {
+      // An overnight flight that leaves before the trip starts shows its landing.
+      const depDay = x.dep_at ? String(x.dep_at).slice(0, 10) : null;
+      if (depDay && trip.startDate && depDay < trip.startDate) add(doc, x.arr_at, ar ? 'وصول' : 'Lands');
+      else add(doc, x.dep_at, ar ? 'إقلاع' : 'Departs');
+    }
     if (doc.category === 'lodging') { add(doc, x.check_in_at, ar ? 'تسجيل دخول' : 'Check-in'); add(doc, x.check_out_at, ar ? 'تسجيل خروج' : 'Check-out'); }
     if (doc.category === 'transport') { add(doc, x.pickup_at, ar ? 'استلام' : 'Pick-up'); add(doc, x.dropoff_at, ar ? 'تسليم' : 'Drop-off'); }
   });
   return out;
 }
 // Did the traveller already write this booking as an activity that day?
+// Same type (hotel ↔ lodging, flight/car ↔ transit) and a name in common —
+// so "Galata Tower" never hides the Hotel Galata check-out.
 const _GENERIC = new Set(['hotel', 'palace', 'resort', 'airport', 'rental', 'check', 'flight', 'فندق', 'مطار', 'رحلة']);
+const _BOOKING_PLAN_CAT = { flights: 'transport', lodging: 'lodging', transport: 'transport' };
 function _alreadyPlanned(booking, dayItems) {
   const words = String(booking.doc.title || '').toLowerCase().split(/[^\p{L}\p{N}]+/u)
     .filter((w) => w.length >= 4 && !_GENERIC.has(w));
   if (!words.length) return false;
-  return dayItems.some((it) => { const tl = String(it.title || '').toLowerCase(); return words.some((w) => tl.includes(w)); });
+  return dayItems.some((it) => {
+    if (_planCat(it.category) !== _BOOKING_PLAN_CAT[booking.doc.category]) return false;
+    const tl = String(it.title || '').toLowerCase();
+    return words.some((w) => tl.includes(w));
+  });
 }
 
 function ScreenPlan({ go, openSheet, openDoc, loading }) {
