@@ -1,48 +1,27 @@
-// Doc Detail — structured per-category view + edit mode.
-// Fields come from window.DOC_SCHEMAS so this stays in sync with AddDoc.
+// Document — the pass, opened. The whole ticket sits on top (same colours
+// and facts as the pass in the list; nothing below repeats it), then what
+// you do with it: open the files, see or mark the payment, edit, delete.
+// Edit mode keeps the pass on top as a live preview of the changes.
 
-// One source for inline form labels (CATEGORY, COST). Was the same
-// uppercase mono pattern duplicated inline; centralising it both
-// removes the slop and means the next style nudge ships in one place.
-const editLabelStyle = {
-  fontSize: 11.5, fontWeight: 600,
-  color: 'var(--ink-mute)', marginBottom: 6,
-};
+// Solid colour per category (icon tiles), from the pass gradients.
+const DOC_TINT = { flights: '#2b4a8f', lodging: '#c0603f', transport: '#b48a2e', visas: '#2f7656' };
 
 function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
   // Re-pull from window.DOCS_BY_CAT so edits show fresh data
   const allDocs = Object.values(window.DOCS_BY_CAT || {}).flat();
-  const doc = allDocs.find((d) => d.id === initialDoc?.id) || initialDoc;
-  if (!doc) return null;
+  const doc = allDocs.find((d) => d.id === initialDoc?.id) || initialDoc || {};
 
-  const schema = window.DOC_SCHEMAS[doc.category] || window.DOC_SCHEMAS.visas;
-  const TINT_FILL = { indigo: 'var(--indigo)', clay: 'var(--clay)', moss: 'var(--moss)', honey: 'var(--honey)' };
-  const tintFill = TINT_FILL[doc.tint] || 'var(--clay)';
-
-  // Native inset-group surface — same as the Add Document screen, so the
-  // edit form reads as grouped sections instead of loose floating fields.
-  const groupCard = {
-    background: 'var(--cream-2)', borderRadius: 16,
-    border: '0.5px solid var(--hairline)', padding: 14,
-    boxShadow: 'var(--shadow-xs)',
-  };
-
-  // ── Edit state ────────────────────────────────────────────
+  // ── Edit state (all hooks before any return) ──────────────
   const [editing,  setEditing]  = React.useState(false);
   const [title,    setTitle]    = React.useState(doc.title || '');
   const [details,  setDetails]  = React.useState(doc.details || {});
   const [cat,      setCat]      = React.useState(doc.category || category?.key || 'flights');
   const [cost,     setCost]     = React.useState(doc.costLocal != null ? String(doc.costLocal) : (doc.costUSD != null ? String(doc.costUSD) : ''));
-  const [costCur,  setCostCur]  = React.useState(doc.costCurrency || window.TRIP?.localCurrency || 'USD');
+  // A cost saved without its original currency is a USD amount — edit it as USD.
+  const costCurOf = (d) => d.costCurrency || (d.costLocal == null && d.costUSD != null ? 'USD' : (window.TRIP?.localCurrency || 'USD'));
+  const [costCur,  setCostCur]  = React.useState(costCurOf(doc));
   const [ownerUserId, setOwnerUserId] = React.useState(doc.ownerUserId || null);
   const [saving,   setSaving]   = React.useState(false);
-
-  // Trip members for the owner selector (null = shared with everyone).
-  const members = window.MEMBERS || [];
-  // Always offer mine/everyone: people can join the trip later, and a
-  // ticket added while you were alone must not become visible to them.
-  const isGroupTrip = true;
-  const ownerName = ownerUserId ? (members.find((m) => m.id === ownerUserId)?.name?.split(' ')[0] || null) : null;
 
   // ── File / cover state ────────────────────────────────────
   const [uploading,    setUploading]    = React.useState(false);
@@ -54,78 +33,85 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
   const secondaryRef = React.useRef(null);
   const coverRef     = React.useRef(null);
 
-  // Sync local form when underlying doc refreshes
-  React.useEffect(() => {
+  // Reset the form from the saved document (on open, after saves, on cancel)
+  const resetForm = () => {
     setTitle(doc.title || '');
     setDetails(doc.details || {});
     setCat(doc.category || category?.key || 'flights');
     setCost(doc.costLocal != null ? String(doc.costLocal) : (doc.costUSD != null ? String(doc.costUSD) : ''));
-    setCostCur(doc.costCurrency || window.TRIP?.localCurrency || 'USD');
+    setCostCur(costCurOf(doc));
     setOwnerUserId(doc.ownerUserId || null);
-  }, [doc.id, doc.title, doc.category, JSON.stringify(doc.details), doc.costLocal, doc.costUSD, doc.costCurrency, doc.ownerUserId, category?.key]);
+  };
+  React.useEffect(resetForm, [doc.id, doc.title, doc.category, JSON.stringify(doc.details), doc.costLocal, doc.costUSD, doc.costCurrency, doc.ownerUserId, category?.key]);
+
+  if (!doc.id) return null;
+
+  const ar = window.isRTL;
+  const tripId = window.TRIP?.id;
 
   // ── File operations ───────────────────────────────────────
   const replacePrimary = async (file) => {
-    if (!file || !window.TRIP?.id) return;
+    if (!file || !tripId) return;
     setUploading(true);
     try {
-      await window.uploadDocumentFile(doc.id, window.TRIP.id, file);
-      await window.loadDocuments(window.TRIP.id);
-      window.toast?.(window.isRTL ? 'تم استبدال الملف المرفق بنجاح' : 'File replaced', 'success');
+      await window.uploadDocumentFile(doc.id, tripId, file);
+      await window.loadDocuments(tripId);
+      window.toast?.(ar ? 'تم رفع الملف' : 'File uploaded', 'success');
     } catch (err) {
       window.toast?.(err.message || 'Upload failed', 'error');
     } finally { setUploading(false); }
   };
   const replaceSecondary = async (file) => {
-    if (!file || !window.TRIP?.id) return;
+    if (!file || !tripId) return;
     setUploadingSec(true);
     try {
-      await window.uploadDocumentSecondaryFile(doc.id, window.TRIP.id, file);
-      await window.loadDocuments(window.TRIP.id);
-      window.toast?.(window.isRTL ? 'تم استبدال الملف المرفق بنجاح' : 'File replaced', 'success');
+      await window.uploadDocumentSecondaryFile(doc.id, tripId, file);
+      await window.loadDocuments(tripId);
+      window.toast?.(ar ? 'تم رفع الملف' : 'File uploaded', 'success');
     } catch (err) {
       window.toast?.(err.message || 'Upload failed', 'error');
     } finally { setUploadingSec(false); }
   };
   const replaceCover = async (file) => {
-    if (!file || !window.TRIP?.id) return;
+    if (!file || !tripId) return;
     setUploadingCov(true);
     try {
-      await window.uploadDocCover(doc.id, window.TRIP.id, file);
-      await window.loadDocuments(window.TRIP.id);
+      await window.uploadDocCover(doc.id, tripId, file);
+      await window.loadDocuments(tripId);
     } catch (err) {
       window.toast?.(err.message || 'Cover upload failed', 'error');
     } finally { setUploadingCov(false); }
   };
   const removeCover = async () => {
     if (!doc.coverPath) return;
-    if (!confirm(window.isRTL ? 'هل تريد إزالة صورة الغلاف؟' : 'Remove cover photo?')) return;
+    if (!confirm(ar ? 'تشيل الصورة اللي خلف التذكرة؟' : 'Remove the photo behind the pass?')) return;
     try {
       await window.deleteDocCover(doc.id, doc.coverPath);
-      await window.loadDocuments(window.TRIP?.id);
+      await window.loadDocuments(tripId);
     } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
   };
   const removePrimary = async () => {
     if (!doc.filePath) return;
-    if (!confirm(window.isRTL ? 'هل تريد إزالة هذا الملف المرفق؟' : 'Remove file?')) return;
+    if (!confirm(ar ? 'تشيل هذا الملف؟' : 'Remove this file?')) return;
     try {
       await window.removeDocumentFile(doc.id, doc.filePath);
-      await window.loadDocuments(window.TRIP?.id);
+      await window.loadDocuments(tripId);
     } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
   };
   const removeSecondary = async () => {
     if (!doc.secondaryFilePath) return;
-    if (!confirm(window.isRTL ? 'هل تريد إزالة الملف الإضافي؟' : 'Remove file?')) return;
+    if (!confirm(ar ? 'تشيل هذا الملف؟' : 'Remove this file?')) return;
     try {
       await window.removeDocumentSecondaryFile(doc.id, doc.secondaryFilePath);
-      await window.loadDocuments(window.TRIP?.id);
+      await window.loadDocuments(tripId);
     } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
   };
 
   // ── Save edits ─────────────────────────────────────────────
+  const editSchema = window.DOC_SCHEMAS[cat] || window.DOC_SCHEMAS.visas;
   const saveEdits = async () => {
-    if (!title.trim()) { window.toast?.(window.isRTL ? 'يرجى إدخال عنوان للمستند' : 'Title is required', 'error'); return; }
-    const rangeErr = window.validateDocRanges?.(schema, details);
+    if (!title.trim()) { window.toast?.(ar ? 'اكتب اسم المستند' : 'Title is required', 'error'); return; }
+    const rangeErr = window.validateDocRanges?.(editSchema, details);
     if (rangeErr) { window.toast?.(rangeErr, 'error'); return; }
     setSaving(true);
     try {
@@ -137,295 +123,265 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
         costUSD,
         ownerUserId,
         linkUrl: details.location_url || null,
-        linkLabel: details.location_url ? (window.isRTL ? 'الرابط المرجعي' : 'Location') : null,
+        linkLabel: details.location_url ? (ar ? 'الرابط المرجعي' : 'Location') : null,
       });
       // Shared + cost → general budget; personal or no cost → nothing.
-      try { await window.syncDocExpense(doc.id, window.TRIP?.id); } catch (_) {}
-      await window.loadDocuments(window.TRIP?.id);
+      try { await window.syncDocExpense(doc.id, tripId); } catch (_) {}
+      await window.loadDocuments(tripId);
       setEditing(false);
-      window.toast?.(window.isRTL ? 'تم حفظ جميع التعديلات بنجاح' : 'Saved', 'success');
+      window.toast?.(ar ? 'تم الحفظ' : 'Saved', 'success');
     } catch (err) {
       window.toast?.(err.message || 'Save failed', 'error');
     } finally { setSaving(false); }
   };
+  const cancelEdit = () => { resetForm(); setEditing(false); };
 
-  // ── Expense linkage ────────────────────────────────────────
-  // Doc category -> expense category, mirrors the map in client.jsx.
-  const DOC_TO_EXPENSE_CAT = { flights: 'transit', lodging: 'lodging', transport: 'transit', visas: 'misc' };
-  const toggleExpense = async () => {
-    if (doc.linkedExpenseId) {
-      // Already logged -> remove (deletes the linked expense).
-      setLinking(true);
-      try {
-        await window.unlinkDocExpense(doc.id, window.TRIP?.id);
-        window.toast?.(window.isRTL ? 'تم استبعاد التكلفة من سجل المصروفات' : 'Removed from expenses', 'success');
-      } catch (err) { window.toast?.(err.message || 'Failed', 'error'); }
-      finally { setLinking(false); }
-      return;
-    }
-    // Not logged yet -> open the Add Expense sheet, prefilled, so the user
-    // picks who paid + how to split. On save it links back to this doc.
-    const prefix = doc.category === 'flights' ? '✈ ' : doc.category === 'lodging' ? '🏨 ' : doc.category === 'transport' ? '🚆 ' : '';
-    openSheet?.('addExpense', {
-      title: (prefix + (doc.title || '')).trim(),
-      cat: DOC_TO_EXPENSE_CAT[doc.category] || 'misc',
-      amountUSD: doc.costUSD != null ? Number(doc.costUSD) : undefined,
-      // Carry the ORIGINAL amount + currency the user typed for the doc
-      // (e.g. 2350 SAR) so the expense sheet opens on exactly that, instead
-      // of silently converting it into the trip's local currency.
-      amountLocal: doc.costLocal != null ? Number(doc.costLocal) : undefined,
-      currency: doc.costCurrency || undefined,
-      note: doc.subtitle || null,
-      source: { doc: doc.id },
-    });
+  // One tap: paid by me, today. Who/when can be changed in Edit.
+  const markPaid = async () => {
+    setLinking(true);
+    try {
+      await window.updateDocument(doc.id, { details: { ...(doc.details || {}), paid: true,
+        paid_by: (doc.details || {}).paid_by || window.currentUserId, paid_on: window.localISO() } });
+      await window.syncDocExpense(doc.id, tripId);
+      await window.loadDocuments(tripId);
+      window.toast?.(ar ? 'تم تسجيل الدفع' : 'Marked as paid', 'success');
+    } catch (e) { window.toast?.(e.message || 'Failed', 'error'); }
+    setLinking(false);
   };
 
   const deleteDoc = async () => {
-    if (!confirm(window.isRTL ? 'هل أنت متأكد من حذف هذا المستند نهائياً؟' : 'Delete this document?')) return;
+    if (!confirm(ar ? 'تحذف هذا المستند نهائياً؟' : 'Delete this document?')) return;
     try {
       // If linked to an expense, drop the expense too so we don't orphan it.
       if (doc.linkedExpenseId) {
-        try { await window.unlinkDocExpense(doc.id, window.TRIP?.id); } catch (_) {}
+        try { await window.unlinkDocExpense(doc.id, tripId); } catch (_) {}
       }
-      await window.deleteDocument(doc.id, window.TRIP?.id, doc.title);
-      await window.loadDocuments(window.TRIP?.id);
+      await window.deleteDocument(doc.id, tripId, doc.title);
+      await window.loadDocuments(tripId);
       back();
     } catch (err) { window.toast?.(err.message || 'Delete failed', 'error'); }
   };
 
-  const hasFile  = !!doc.filePath;
-  const hasSec   = !!doc.secondaryFilePath;
-  const hasCover = !!doc.coverUrl;
+  // ── What the screen shows ──────────────────────────────────
+  const view = editing ? { ...doc, title, details, category: cat, ownerUserId } : doc;
+  const schema = window.DOC_SCHEMAS[doc.category] || window.DOC_SCHEMAS.visas;
   const CAT_T = { flights: 'docFlights', lodging: 'docLodging', visas: 'docVisas', transport: 'docTransport' };
-  const catLabel = CAT_T[doc.category] ? t(CAT_T[doc.category]) : (category?.label || doc.category);
-  const summary = window.fmtDocSummary(doc);
+  const catLabel = (k) => (CAT_T[k] ? t(CAT_T[k]) : (category?.label || k));
+  const today = window.localISO();
+  const nowStr = window.docNowStr ? window.docNowStr() : `${today}T12:00`;
+  const tm = window.docTiming ? window.docTiming(view, nowStr, today) : {};
+  const x = doc.details || {};
+  const tint = DOC_TINT[doc.category] || DOC_TINT.flights;
+  const hasFile = !!doc.filePath, hasSec = !!doc.secondaryFilePath, hasCover = !!doc.coverUrl;
+
+  // Quick actions: the files and the place, one tap each
+  const fileWord = { flights: ar ? 'التذكرة' : 'Ticket', lodging: ar ? 'الحجز' : 'Booking', transport: ar ? 'الحجز' : 'Booking', visas: ar ? 'التأشيرة' : 'Visa' }[doc.category] || (ar ? 'الملف' : 'File');
+  const mapUrl = x.location_url || (x.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(x.address)}` : null);
+  const actions = [
+    hasFile && doc.link ? { key: 'file', href: doc.link, icon: <IconDoc size={19} stroke="currentColor" />, label: fileWord } : null,
+    hasSec && doc.secondaryLink ? { key: 'sec', href: doc.secondaryLink, icon: <IconQR size={19} stroke="currentColor" />, label: ar ? 'بطاقة الصعود' : 'Boarding pass' } : null,
+    mapUrl ? { key: 'map', href: mapUrl, icon: <IconPin size={19} stroke="currentColor" />, label: ar ? 'الموقع' : 'Location' } : null,
+  ].filter(Boolean);
+
+  // Files group labels (short)
+  const primaryLabel = { flights: ar ? 'التذكرة الإلكترونية' : 'E-ticket', lodging: ar ? 'تأكيد الحجز' : 'Booking confirmation', transport: ar ? 'تأكيد الحجز' : 'Booking confirmation', visas: ar ? 'وثيقة التأشيرة' : 'Visa document' }[doc.category] || (ar ? 'الملف' : 'File');
+
+  // Payment
+  const paid = window.isDocPaid?.(doc);
+  const nm = (m) => m.id === window.currentUserId ? (ar ? 'أنت' : 'you') : (m.name || '').split(' ')[0];
+  const multi = x.payers && typeof x.payers === 'object' && Object.keys(x.payers).length > 1;
+  const payer = (window.MEMBERS || []).find((m) => m.id === x.paid_by);
+  const payerName = multi
+    ? Object.entries(x.payers).map(([id, v]) => {
+        const m = (window.MEMBERS || []).find((y) => y.id === id);
+        return m ? `${nm(m)} ${(parseFloat(v) || 0).toLocaleString('en-US')}` : null;
+      }).filter(Boolean).join(' · ')
+    : (payer ? nm(payer) : null);
+  const paidOn = x.paid_on ? window.fmtDate(x.paid_on) : null;
+  const homeCode = window.TRIP?.homeCurrency || window.USER_DEFAULT_CURRENCY || 'USD';
+
+  const roundBtn = {
+    width: 38, height: 38, borderRadius: 999, flexShrink: 0,
+    background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+    display: 'grid', placeItems: 'center', color: 'var(--ink)',
+  };
 
   return (
     <div data-screen-label={`Vault · ${doc.title}`} style={{
-      background: 'var(--cream)', minHeight: '100%', paddingBottom: 140,
+      background: 'var(--cream)', minHeight: '100%', paddingBottom: 120,
     }}>
-      {/* ── COVER / HEADER ─────────────────────────────────── */}
+      {/* ── TOP BAR ─────────────────────────────────────────── */}
       <div style={{
-        position: 'relative', height: 240, overflow: 'hidden',
-        background: hasCover ? 'var(--ink)' : tintFill,
+        position: 'sticky', top: 0, zIndex: 20,
+        padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 16px 12px',
+        background: 'linear-gradient(180deg, var(--cream) 80%, transparent)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
       }}>
-        {hasCover && (
-          <div style={{
-            position: 'absolute', inset: 0,
-            backgroundImage: `url(${doc.coverUrl})`,
-            backgroundSize: 'cover', backgroundPosition: 'center',
-          }} />
-        )}
-        {!hasCover && (
-          <div style={{
-            position: 'absolute', inset: 0,
-            display: 'grid', placeItems: 'center',
-            fontSize: 80, opacity: 0.4,
-          }}>{schema.emoji}</div>
-        )}
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: 80,
-          background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.45))',
-        }} />
-
-        {/* Top buttons */}
-        <div style={{
-          position: 'absolute', top: 0, insetInlineStart: 0, insetInlineEnd: 0, zIndex: 5,
-          padding: 'max(54px, calc(env(safe-area-inset-top) + 14px)) 18px 12px',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          flexDirection: 'row',
-        }}>
-          <button onClick={back} className="glass" style={{
-            width: 36, height: 36, borderRadius: 999, display: 'grid', placeItems: 'center',
-            color: '#fff', background: 'rgba(0,0,0,0.38)',
-          }}><span className="icon-flip"><IconBack size={17} stroke="#fff" /></span></button>
-
-          <div className="glass" style={{
-            padding: '5px 12px', borderRadius: 999, color: '#fff',
-            background: 'rgba(0,0,0,0.38)', fontSize: 11, fontWeight: 500, letterSpacing: 0.04,
-          }}>{catLabel}</div>
-
-          {editing ? (
-            <button onClick={saveEdits} disabled={saving} className="glass" style={{
-              padding: '8px 14px', borderRadius: 999, color: '#fff',
-              background: 'var(--clay)', fontSize: 12.5, fontWeight: 600,
-              display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row',
-            }}>
-              {saving
-                ? <span style={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', display: 'inline-block', animation: 'expspin 0.7s linear infinite' }} />
-                : <IconCheck size={13} stroke="#fff" />}
-              {window.isRTL ? 'حفظ التعديلات' : 'Save'}
-            </button>
-          ) : (
-            <button onClick={() => setEditing(true)} className="glass" style={{
-              width: 36, height: 36, borderRadius: 999, display: 'grid', placeItems: 'center',
-              color: '#fff', background: 'rgba(0,0,0,0.38)',
-            }}><IconEdit size={16} stroke="#fff" /></button>
-          )}
+        <button onClick={editing ? cancelEdit : back} aria-label={editing ? (ar ? 'إلغاء' : 'Cancel') : (ar ? 'رجوع' : 'Back')} style={roundBtn}>
+          {editing ? <IconClose size={15} stroke="var(--ink)" /> : <span className="icon-flip"><IconBack size={17} stroke="var(--ink)" /></span>}
+        </button>
+        <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--ink-soft)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {editing ? (ar ? 'تعديل المستند' : 'Edit document') : `${window.DOC_SCHEMAS?.[doc.category]?.emoji || '📄'} ${catLabel(doc.category)}`}
         </div>
-
-        {/* Cover edit chip (in edit mode only) */}
-        {editing && (
-          <div style={{
-            position: 'absolute', bottom: 12, insetInlineEnd: 14, zIndex: 6,
-            display: 'flex', gap: 6, flexDirection: 'row',
-          }}>
-            <input ref={coverRef} type="file" accept="image/*" style={{ display: 'none' }}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) setCoverToCrop(f); e.target.value = ''; }} />
-            <button onClick={() => coverRef.current?.click()} disabled={uploadingCov} className="glass" style={{
-              padding: '6px 12px', borderRadius: 999, color: '#fff',
-              background: 'rgba(0,0,0,0.55)', fontSize: 11.5, fontWeight: 500,
-              display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row',
-            }}>
-              <window.IconCamera size={12} stroke="#fff" />
-              {uploadingCov ? '…' : (hasCover ? (window.isRTL ? 'تغيير الصورة' : 'Change') : (window.isRTL ? 'إضافة غلاف' : 'Add cover'))}
-            </button>
-            {hasCover && (
-              <button onClick={removeCover} className="glass" style={{
-                padding: '6px 10px', borderRadius: 999, color: '#fff',
-                background: 'rgba(0,0,0,0.55)',
-                display: 'grid', placeItems: 'center',
-              }}><IconTrash size={12} stroke="#fff" /></button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ── TITLE + SUMMARY CARD ───────────────────────────── */}
-      <div style={{
-        margin: '-26px 14px 0', position: 'relative', zIndex: 4,
-        background: 'var(--cream-2)', borderRadius: 22,
-        padding: '16px 18px', boxShadow: 'var(--shadow-md)',
-        border: '0.5px solid var(--hairline)',
-      }}>
         {editing ? (
-          // Edit input shares the read-mode .serif class (Geist semibold via
-          // v63 tokens) instead of inline var(--serif) which mapped to the
-          // Cormorant wordmark font. Same visual field, same font in both
-          // modes -- "what I see is what I save."
-          <input value={title} onChange={(e) => setTitle(e.target.value)} autoFocus
-            className="serif" style={{
-            width: '100%', boxSizing: 'border-box',
-            fontSize: 22, lineHeight: 1.2,
-            color: 'var(--ink)',
-            border: 0, outline: 'none', background: 'transparent',
-            borderBottom: '1.5px dashed var(--clay)', padding: '2px 0',
-          }} />
-        ) : (
-          <div className="serif" style={{ fontSize: 22, lineHeight: 1.2, color: 'var(--ink)' }}>
-            {doc.title}
-          </div>
-        )}
-        {!editing && summary && (
-          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 6 }}>
-            {summary}
-          </div>
-        )}
-        {/* Owner tag — only when assigned to a specific traveler on a group trip */}
-        {!editing && isGroupTrip && ownerName && (
-          <div style={{
-            marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '5px 11px', borderRadius: 999,
-            background: 'var(--cream)', border: '0.5px solid var(--hairline-2)',
-            fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)',
-            flexDirection: 'row',
+          <button onClick={saveEdits} disabled={saving} style={{
+            minHeight: 38, padding: '0 16px', borderRadius: 999, flexShrink: 0,
+            background: 'var(--clay)', color: '#fff', fontSize: 13.5, fontWeight: 700,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
           }}>
-            🔒 {window.isRTL ? 'لك فقط — ما يشوفه غيرك' : 'Only you can see this'}
-          </div>
+            {saving
+              ? <span style={{ width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', display: 'inline-block', animation: 'expspin 0.7s linear infinite' }} />
+              : <IconCheck size={13} stroke="#fff" />}
+            {ar ? 'حفظ' : 'Save'}
+          </button>
+        ) : (
+          <button onClick={() => setEditing(true)} aria-label={ar ? 'تعديل' : 'Edit'} style={roundBtn}>
+            <IconEdit size={16} stroke="var(--ink)" />
+          </button>
         )}
       </div>
 
-      {/* ── FILES SECTION ──────────────────────────────────────
-         Primary + (if category has it) secondary file. Each shows
-         open/replace/remove inline. */}
-      <div style={{ padding: '18px 14px 0' }}>
-        <SectionLabel>{window.isRTL ? 'الملفات' : 'Files'}</SectionLabel>
-        <div style={{
-          margin: '0 8px',
-          display: 'flex', flexDirection: 'column', gap: 8,
-        }}>
-          <FileRow
-            label={schema.primaryFileLabel()}
-            file={hasFile ? { name: window.isRTL ? 'ملف مرفوع' : 'Uploaded', size: doc.size, url: doc.link } : null}
-            tint={tintFill}
-            uploading={uploading}
-            onPick={() => fileRef.current?.click()}
-            onRemove={removePrimary}
-          />
-          <input ref={fileRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
-            onChange={(e) => { if (e.target.files[0]) replacePrimary(e.target.files[0]); e.target.value = ''; }} />
-
-          {schema.secondaryFile && (
-            <>
-              <FileRow
-                label={schema.secondaryFile.label()}
-                file={hasSec ? { name: window.isRTL ? 'ملف مرفوع' : 'Uploaded', size: null, url: doc.secondaryLink } : null}
-                tint={tintFill}
-                uploading={uploadingSec}
-                onPick={() => secondaryRef.current?.click()}
-                onRemove={removeSecondary}
-              />
-              <input ref={secondaryRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
-                onChange={(e) => { if (e.target.files[0]) replaceSecondary(e.target.files[0]); e.target.value = ''; }} />
-            </>
-          )}
-        </div>
+      {/* ── THE PASS ────────────────────────────────────────── */}
+      <div style={{ padding: '0 14px' }}>
+        <DetailPass doc={view} tm={tm} />
       </div>
 
-      {/* ── EDIT MODE: structured fields ─────────────────────── */}
-      {editing && (
-        <div style={{ padding: '18px 14px 0' }}>
-          <SectionLabel>{window.isRTL ? 'البيانات والتفاصيل' : 'Details'}</SectionLabel>
-          <div style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {/* Category + structured fields, grouped in one inset card */}
-            <div style={groupCard}>
-              <div style={editLabelStyle}>{window.isRTL ? 'الفئة' : 'Category'}</div>
-              <select value={cat} onChange={(e) => setCat(e.target.value)} style={{
-                ...window.docFieldStyle, fontSize: 16, padding: '11px 13px',
-              }}>
-                {(window.DOC_CATEGORIES || []).map((c) => {
-                  const label = CAT_T[c.key] ? t(CAT_T[c.key]) : c.label;
-                  return <option key={c.key} value={c.key}>{label}</option>;
-                })}
-              </select>
-              {schema.fields.length > 0 && (
-                <div style={{ marginTop: 12 }}>
-                  <window.DocFieldGrid fields={schema.fields} values={details} onChange={setDetails} />
-                </div>
-              )}
+      {!editing && (
+        <>
+          {/* QUICK ACTIONS — open the ticket / boarding pass / map */}
+          {actions.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${actions.length}, minmax(0, 1fr))`, gap: 10, padding: '16px 14px 0' }}>
+              {actions.map((a) => (
+                <a key={a.key} href={a.href} target="_blank" rel="noreferrer" className="press-soft" style={{
+                  minHeight: actions.length === 1 ? 54 : 66, borderRadius: 18, textDecoration: 'none',
+                  background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', boxShadow: 'var(--shadow-xs)',
+                  display: 'flex', flexDirection: actions.length === 1 ? 'row' : 'column', alignItems: 'center', justifyContent: 'center',
+                  gap: actions.length === 1 ? 10 : 5, color: 'var(--ink)', fontSize: actions.length === 1 ? 14.5 : 13, fontWeight: 600,
+                }}>
+                  <span style={{ width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', background: tint, color: '#fff' }}>{a.icon}</span>
+                  {a.label}
+                </a>
+              ))}
             </div>
+          )}
 
-            {/* Who is this for? — group trips only. null = everyone. */}
-            {isGroupTrip && (
-              <div style={groupCard}>
-                <div style={editLabelStyle}>{window.isRTL ? 'لمن؟' : "Who's it for?"}</div>
-                <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', flexDirection: 'row' }}>
-                  {[{ id: window.currentUserId, name: window.isRTL ? 'لي أنا' : 'Just me' },
-                    { id: null, name: window.isRTL ? 'مشترك للجميع' : 'Everyone' }].map((o) => {
-                    const active = ownerUserId === o.id;
-                    return (
-                      <button key={o.id || 'all'} onClick={() => setOwnerUserId(o.id)} style={{
-                        flex: 1, minHeight: 42, borderRadius: 12, fontSize: 13.5, fontWeight: 600,
-                        background: active ? 'var(--sel)' : 'var(--cream)',
-                        color: active ? 'var(--sel-fg)' : 'var(--ink-soft)',
-                        border: '0.5px solid var(--hairline-2)', transition: 'all 150ms',
-                      }}>{o.name}</button>
-                    );
-                  })}
-                </div>
-              </div>
+          {/* FILES */}
+          <SetGroup title={ar ? 'الملفات' : 'Files'}>
+            <DocFileRow label={primaryLabel} tint={tint} has={hasFile} size={doc.size} href={doc.link}
+              busy={uploading} onPick={() => fileRef.current?.click()} onRemove={removePrimary} />
+            {schema.secondaryFile && (
+              <DocFileRow label={schema.secondaryFile.label()} tint={tint} has={hasSec} href={doc.secondaryLink}
+                busy={uploadingSec} onPick={() => secondaryRef.current?.click()} onRemove={removeSecondary} icon={<IconQR size={16} stroke="#fff" />} />
             )}
+          </SetGroup>
 
-            {/* Cost (only on cost-enabled categories) — own inset card */}
-            {schema.showCost && (
-              <div style={groupCard}>
-                <div style={editLabelStyle}>{window.isRTL ? 'تفاصيل التكلفة' : 'Cost'}</div>
-                <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
+          {/* PAYMENT */}
+          {schema.showCost && doc.costUSD != null && doc.costUSD > 0 && (
+            <SetGroup title={ar ? 'الدفع' : 'Payment'}
+              footer={doc.ownerUserId
+                ? (ar ? '🔒 تكلفتك — تظهر لك في «تكلفة رحلتك» بس' : '🔒 Your cost — only in your trip cost')
+                : paid
+                  ? (ar ? 'محسوبة في الميزانية العامة للرحلة' : "Counted in the trip's general budget")
+                  : (ar ? 'ما تنحسب في الميزانية لين تندفع' : "Not in the budget until it's paid")}>
+              <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="mono" style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+                    {window.fmtDocCost ? window.fmtDocCost(doc) : window.fmtMoney(doc.costUSD, { in: 'home' })}
+                  </div>
+                  {doc.costCurrency && doc.costCurrency !== homeCode && (
+                    <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 1 }}>≈ {window.fmtMoney(doc.costUSD, { in: 'home' })}</div>
+                  )}
+                  <div style={{ marginTop: 8 }}>
+                    {window.HubPill
+                      ? <window.HubPill tone={paid ? 'good' : 'warn'}>
+                          {paid
+                            ? (ar ? `مدفوع${payerName && !doc.ownerUserId ? ` — ${multi ? 'دفعوه' : 'دفعه'} ${payerName}` : ''}${paidOn ? ` · ${paidOn}` : ''}`
+                                  : `Paid${payerName && !doc.ownerUserId ? ` by ${payerName}` : ''}${paidOn ? ` · ${paidOn}` : ''}`)
+                            : (ar ? 'لم يُدفع بعد' : 'Not paid yet')}
+                        </window.HubPill>
+                      : null}
+                  </div>
+                </div>
+                {!paid && (
+                  <button onClick={markPaid} disabled={linking} style={{
+                    minHeight: 42, padding: '0 16px', borderRadius: 14, flexShrink: 0,
+                    background: 'var(--ink)', color: 'var(--cream)', fontSize: 13.5, fontWeight: 600,
+                  }}>{linking ? '…' : (ar ? 'تم الدفع' : 'Mark paid')}</button>
+                )}
+              </div>
+            </SetGroup>
+          )}
+
+          {/* DELETE */}
+          <SetGroup>
+            <SetRow icon={<IconTrash size={16} stroke="#fff" />} tint={SET_TINT.red}
+              label={ar ? 'حذف المستند' : 'Delete document'} danger onClick={deleteDoc} />
+          </SetGroup>
+        </>
+      )}
+
+      {/* ── EDIT FORM ───────────────────────────────────────── */}
+      {editing && (
+        <>
+          <SetGroup title={ar ? 'الاسم' : 'Name'}>
+            <div style={{ padding: 14 }}>
+              <input value={title} onChange={(e) => setTitle(e.target.value)}
+                placeholder={editSchema.titlePlaceholder?.() || ''} style={{ ...window.docFieldStyle }} />
+            </div>
+          </SetGroup>
+
+          <SetGroup title={ar ? 'النوع' : 'Type'}>
+            <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {(window.DOC_CATEGORIES || []).map((c) => {
+                const on = cat === c.key;
+                return (
+                  <button key={c.key} onClick={() => setCat(c.key)} style={{
+                    minHeight: 46, borderRadius: 14, padding: '0 12px', textAlign: 'start',
+                    display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600,
+                    background: on ? (window.DOC_PASS_BG?.[c.key] || 'var(--sel)') : 'var(--cream)',
+                    color: on ? '#fff' : 'var(--ink)', border: on ? '0.5px solid transparent' : '0.5px solid var(--hairline)',
+                  }}>
+                    <span style={{ fontSize: 17 }}>{window.DOC_SCHEMAS?.[c.key]?.emoji}</span>{catLabel(c.key)}
+                  </button>
+                );
+              })}
+            </div>
+          </SetGroup>
+
+          {editSchema.fields.length > 0 && (
+            <SetGroup title={ar ? 'التفاصيل' : 'Details'}>
+              <div style={{ padding: 14 }}>
+                <window.DocFieldGrid fields={editSchema.fields} values={details} onChange={setDetails} />
+              </div>
+            </SetGroup>
+          )}
+
+          <SetGroup title={ar ? 'لمين؟' : "Who's it for?"}
+            footer={ar ? 'المستند الخاص يشوفه صاحبه بس، وتكلفته ما تدخل ميزانية القروب.' : 'A personal document is only visible to its owner and stays out of the group budget.'}>
+            <div style={{ padding: 14, display: 'flex', gap: 8 }}>
+              {[{ id: window.currentUserId, name: ar ? '🔒 لي أنا' : '🔒 Just me' },
+                { id: null, name: ar ? '👥 للجميع' : '👥 Everyone' }].map((o) => {
+                const on = ownerUserId === o.id;
+                return (
+                  <button key={o.id || 'all'} onClick={() => setOwnerUserId(o.id)} style={{
+                    flex: 1, minHeight: 44, borderRadius: 12, fontSize: 14, fontWeight: 600,
+                    background: on ? 'var(--sel)' : 'var(--cream)',
+                    color: on ? 'var(--sel-fg)' : 'var(--ink-soft)',
+                    border: '0.5px solid var(--hairline-2)', transition: 'all 150ms',
+                  }}>{o.name}</button>
+                );
+              })}
+            </div>
+          </SetGroup>
+
+          {editSchema.showCost && (
+            <SetGroup title={ar ? 'التكلفة' : 'Cost'}>
+              <div style={{ padding: 14 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
                   <window.NumberField value={cost} onChange={setCost} placeholder="0"
-                    style={{ ...window.docFieldStyle, fontSize: 16, padding: '11px 13px', flex: 1 }} />
+                    style={{ ...window.docFieldStyle, flex: 1 }} />
                   <select value={costCur} onChange={(e) => setCostCur(e.target.value)} style={{
-                    ...window.docFieldStyle, fontSize: 16, padding: '11px 13px',
-                    width: 'auto', minWidth: 84, fontFamily: 'var(--mono)',
+                    ...window.docFieldStyle, width: 'auto', minWidth: 88, fontFamily: 'var(--mono)',
                   }}>
                     {window.currencyOptions(window.TRIP?.localCurrency, window.TRIP?.homeCurrency)
                       .map((c) => <option key={c} value={c}>{c}</option>)}
@@ -435,126 +391,41 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
                   <window.PaymentFields details={details} setDetails={setDetails} shared={!ownerUserId} legacyPaid={!!doc.linkedExpenseId} cost={cost} currency={costCur} />
                 )}
               </div>
+            </SetGroup>
+          )}
+
+          <SetGroup title={ar ? 'صورة خلف التذكرة' : 'Photo behind the pass'}>
+            <input ref={coverRef} type="file" accept="image/*" style={{ display: 'none' }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) setCoverToCrop(f); e.target.value = ''; }} />
+            <SetRow icon={<IconCamera size={16} stroke="#fff" />} tint={SET_TINT.purple}
+              label={hasCover ? (ar ? 'تغيير الصورة' : 'Change photo') : (ar ? 'إضافة صورة' : 'Add a photo')}
+              sub={ar ? 'مثلاً صورة الفندق — تطلع خلف التذكرة' : 'e.g. the hotel — shows behind the pass'}
+              value={uploadingCov ? '…' : null}
+              onClick={() => coverRef.current?.click()} />
+            {hasCover && (
+              <SetRow icon={<IconTrash size={16} stroke="#fff" />} tint={SET_TINT.red}
+                label={ar ? 'إزالة الصورة' : 'Remove photo'} danger onClick={removeCover} />
             )}
+          </SetGroup>
+
+          <div style={{ padding: '22px 14px 0', display: 'flex', gap: 8 }}>
+            <button onClick={saveEdits} disabled={saving} style={{
+              flex: 1, minHeight: 50, borderRadius: 16, fontSize: 15, fontWeight: 700,
+              background: 'var(--ink)', color: 'var(--cream)', opacity: saving ? 0.6 : 1,
+            }}>{saving ? '…' : (ar ? 'حفظ التعديلات' : 'Save changes')}</button>
+            <button onClick={cancelEdit} style={{
+              minHeight: 50, padding: '0 20px', borderRadius: 16, fontSize: 15,
+              background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', color: 'var(--ink-soft)',
+            }}>{ar ? 'إلغاء' : 'Cancel'}</button>
           </div>
-        </div>
+        </>
       )}
 
-      {/* ── READ MODE: structured field list + cost/expense ─── */}
-      {!editing && schema.fields.length > 0 && (
-        <div style={{ padding: '18px 14px 0' }}>
-          <SectionLabel>{window.isRTL ? 'البيانات والتفاصيل' : 'Details'}</SectionLabel>
-          <div style={{
-            background: 'var(--cream-2)', borderRadius: 18,
-            margin: '0 8px', overflow: 'hidden',
-            border: '0.5px solid var(--hairline)',
-          }}>
-            {schema.fields.map((f, i) => {
-              const raw = (details || {})[f.key];
-              if (!raw) return null;
-              const v = f.type === 'datetime' ? fmtDateTime(raw)
-                      : f.type === 'date'     ? fmtDateOnly(raw)
-                      : raw;
-              const isLink = f.type === 'url';
-              return (
-                <DocInfoRow key={f.key}
-                  label={f.label()}
-                  value={v}
-                  href={isLink ? raw : undefined}
-                  last={false} />
-              );
-            }).filter(Boolean).map((node, i, arr) =>
-              i === arr.length - 1 ? React.cloneElement(node, { last: true }) : node
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── COST + EXPENSE TOGGLE (read mode) ─────────────────── */}
-      {!editing && schema.showCost && doc.costUSD != null && (
-        <div style={{ padding: '16px 14px 0' }}>
-          <SectionLabel>{window.isRTL ? 'تفاصيل التكلفة' : 'Cost'}</SectionLabel>
-          <div style={{
-            margin: '0 8px', padding: '14px 16px',
-            background: 'var(--cream-2)', borderRadius: 18,
-            border: '0.5px solid var(--hairline)',
-            display: 'flex', alignItems: 'center', gap: 12, flexDirection: 'row',
-          }}>
-            <div style={{ flex: 1 }}>
-              <div className="mono" style={{ fontSize: 18, fontWeight: 600, color: 'var(--ink)' }}>
-                {window.fmtMoney(doc.costUSD, { in: 'home' })}
-              </div>
-              {(() => {
-                const ar = window.isRTL;
-                const paid = window.isDocPaid(doc);
-                const d = doc.details || {};
-                const payer = (window.MEMBERS || []).find((m) => m.id === d.paid_by);
-                const nm = (m) => m.id === window.currentUserId ? (ar ? 'أنت' : 'you') : (m.name || '').split(' ')[0];
-                const multi = d.payers && typeof d.payers === 'object' && Object.keys(d.payers).length > 1;
-                const payerName = multi
-                  ? Object.entries(d.payers).map(([id, v]) => {
-                      const m = (window.MEMBERS || []).find((x) => x.id === id);
-                      return m ? `${nm(m)} ${(parseFloat(v) || 0).toLocaleString('en-US')}` : null;
-                    }).filter(Boolean).join(' · ')
-                  : (payer ? nm(payer) : null);
-                const when = d.paid_on ? window.fmtDate(d.paid_on) : null;
-                return (
-                  <>
-                    <div style={{ fontSize: 12.5, color: paid ? 'var(--moss)' : 'var(--clay-deep)', marginTop: 3, fontWeight: 600 }}>
-                      {paid
-                        ? (ar ? `✓ مدفوع${payerName && !doc.ownerUserId ? ` — ${multi ? 'دفعوه' : 'دفعه'} ${payerName}` : ''}${when ? ` في ${when}` : ''}`
-                              : `✓ Paid${payerName && !doc.ownerUserId ? ` by ${payerName}` : ''}${when ? ` on ${when}` : ''}`)
-                        : (ar ? '⏳ لم يُدفع بعد' : '⏳ Not paid yet')}
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 2 }}>
-                      {doc.ownerUserId
-                        ? (ar ? '🔒 تكلفتك — تظهر لك في «تكلفة رحلتك» فقط' : '🔒 Your cost — only in your trip cost')
-                        : paid
-                          ? (ar ? 'محسوب في الميزانية العامة للرحلة' : "Counted in the trip's general budget")
-                          : (ar ? 'ما ينحسب في الميزانية لين يندفع' : "Not in the budget until it's paid")}
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-            {!window.isDocPaid(doc) && (
-              <button onClick={async () => {
-                // One tap: paid by me, today. Who/when can be changed in Edit.
-                setLinking(true);
-                try {
-                  await window.updateDocument(doc.id, { details: { ...(doc.details || {}), paid: true,
-                    paid_by: (doc.details || {}).paid_by || window.currentUserId, paid_on: window.localISO() } });
-                  await window.syncDocExpense(doc.id, window.TRIP?.id);
-                  await window.loadDocuments(window.TRIP?.id);
-                  window.toast?.(window.isRTL ? 'تم تسجيل الدفع' : 'Marked as paid', 'success');
-                } catch (e) { window.toast?.(e.message || 'Failed', 'error'); }
-                setLinking(false);
-              }} disabled={linking} style={{
-                minHeight: 40, padding: '0 14px', borderRadius: 12, flexShrink: 0,
-                background: 'var(--ink)', color: 'var(--cream)', fontSize: 13, fontWeight: 600,
-              }}>{linking ? '…' : (window.isRTL ? 'تم الدفع' : 'Mark paid')}</button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── DELETE — only inside edit mode, at the end of the form ── */}
-      {editing && (
-        <div style={{ padding: '20px 14px 0' }}>
-          <button onClick={deleteDoc} style={{
-            width: '100%', margin: '0 8px', boxSizing: 'border-box',
-            padding: '14px', borderRadius: 16,
-            background: 'transparent', color: 'var(--clay-deep)',
-            border: '0.5px solid var(--hairline)',
-            fontSize: 13.5, fontWeight: 500,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            flexDirection: 'row',
-          }}>
-            <IconTrash size={14} stroke="currentColor" />
-            {window.isRTL ? 'حذف المستند بالكامل' : 'Delete document'}
-          </button>
-        </div>
-      )}
+      {/* hidden file inputs */}
+      <input ref={fileRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
+        onChange={(e) => { if (e.target.files[0]) replacePrimary(e.target.files[0]); e.target.value = ''; }} />
+      <input ref={secondaryRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }}
+        onChange={(e) => { if (e.target.files[0]) replaceSecondary(e.target.files[0]); e.target.value = ''; }} />
 
       {/* Image cropper modal */}
       {coverToCrop && (
@@ -568,112 +439,142 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
   );
 }
 
-// ── Read-only row, like InfoRow but value can be a clickable link. ──
-function DocInfoRow({ label, value, href, last }) {
-  const content = href ? (
-    <a href={href} target="_blank" rel="noreferrer" style={{
-      color: 'var(--clay-deep)', fontSize: 13, fontWeight: 500, textDecoration: 'none',
-      display: 'inline-flex', alignItems: 'center', gap: 4, flexDirection: 'row',
-    }}>
-      <IconLink size={12} stroke="currentColor" />
-      {window.isRTL ? 'الانتقال للرابط' : 'Open'}
-    </a>
-  ) : (
-    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>{value}</div>
-  );
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 12,
-      padding: '12px 16px', flexDirection: 'row',
-      borderBottom: last ? 'none' : '0.5px solid var(--hairline)',
-    }}>
-      {/* Was uppercase mono tracked 11px — the eyebrow pattern repeated
-         across every structured field row (flight docs show 6-8 of these
-         stacked). Now sentence-case sans, fixed-width to keep the
-         label/value columns aligned across rows. */}
-      <div style={{
-        flex: '0 0 auto', minWidth: 110,
-        fontSize: 12.5, fontWeight: 500,
-        color: 'var(--ink-mute)',
-        textAlign: 'start',
-      }}>{label}</div>
-      <div style={{ flex: 1, textAlign: 'end' }}>{content}</div>
-    </div>
-  );
-}
+// ── The full pass: header strip, the main fact, a tear line, three fields ──
+function DetailPass({ doc, tm }) {
+  const ar = window.isRTL;
+  const x = doc.details || {};
+  const hm = (v) => (v && String(v).length > 11 ? String(v).slice(11, 16) : '');
+  const dayOnly = (v) => String(v || '').slice(0, 10);
+  const dt = (v) => (v ? [window.fmtDate(dayOnly(v)), hm(v)].filter(Boolean).join(' · ') : '—');
+  const kind = window.docKind ? window.docKind(doc) : '';
+  const whose = window.docWhose ? window.docWhose(doc) : null;
+  const route = doc.category === 'flights' && x.dep_airport && x.arr_airport;
+  const pillBg = (window.DOC_PILL_BG || {})[tm.tone] || 'rgba(255,255,255,0.18)';
 
-// ── File row: shows name + size + open/replace/remove. ──
-function FileRow({ label, file, tint, uploading, onPick, onRemove }) {
+  let sub = null, fields = [];
+  if (doc.category === 'flights') {
+    sub = route ? null : (doc.sub || null);
+    fields = [
+      [ar ? 'التاريخ' : 'Date', x.dep_at ? new Date(dayOnly(x.dep_at) + 'T00:00:00').toLocaleDateString(window._dateLocale(), { weekday: 'long', day: 'numeric', month: 'long' }) : '—'],
+      doc.sub ? [ar ? 'الرحلة' : 'Flight', doc.sub] : null,
+    ];
+  } else if (doc.category === 'lodging') {
+    sub = x.address || doc.sub || null;
+    const n = x.check_in_at && x.check_out_at
+      ? Math.max(1, Math.round((new Date(dayOnly(x.check_out_at)) - new Date(dayOnly(x.check_in_at))) / 86400000)) : 0;
+    fields = [
+      [ar ? 'الدخول' : 'Check-in', dt(x.check_in_at)],
+      [ar ? 'الليالي' : 'Nights', n ? String(n) : '—'],
+      [ar ? 'الخروج' : 'Check-out', dt(x.check_out_at)],
+    ];
+  } else if (doc.category === 'transport') {
+    sub = doc.sub || null;
+    fields = [
+      [ar ? 'الاستلام' : 'Pick-up', dt(x.pickup_at)],
+      [ar ? 'التسليم' : 'Drop-off', dt(x.dropoff_at)],
+    ];
+  } else {
+    sub = doc.sub || null;
+    fields = [
+      [ar ? 'صدرت' : 'Issued', x.issued_on ? window.fmtDate(x.issued_on) : '—'],
+      [ar ? 'تنتهي' : 'Expires', x.expires_on ? window.fmtDate(x.expires_on) : '—'],
+      [ar ? 'الحالة' : 'Status', tm.pill || '—'],
+    ];
+  }
+  fields = fields.filter(Boolean);
+  const notch = { position: 'absolute', top: -11, width: 22, height: 22, borderRadius: 99, background: 'var(--cream)' };
+  const code = (v) => String(v).toUpperCase().slice(0, 3);
+
   return (
-    <div style={{
-      background: 'var(--cream-2)', borderRadius: 16,
-      padding: '12px 14px',
-      border: '0.5px solid var(--hairline)',
-      display: 'flex', alignItems: 'center', gap: 12, flexDirection: 'row',
+    <div className="v-flip-in" style={{
+      position: 'relative', borderRadius: 26, overflow: 'hidden', color: '#fff',
+      background: doc.coverUrl ? '#1b1f2a' : ((window.DOC_PASS_BG || {})[doc.category] || 'var(--statement)'),
+      boxShadow: '0 22px 40px -18px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.18)',
     }}>
-      <div style={{
-        width: 40, height: 40, borderRadius: 11, background: tint,
-        color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0,
-      }}>
-        <IconDoc size={18} stroke="#fff" />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12.5, color: 'var(--ink-mute)' }}>{label}</div>
-        <div style={{
-          fontSize: 13, fontWeight: 500, color: 'var(--ink)', marginTop: 2,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {file ? (file.size ? `${file.name} · ${file.size}` : file.name) : (window.isRTL ? 'لا يوجد ملف مرفق حتى الآن' : 'No file yet')}
+      {doc.coverUrl && <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${doc.coverUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />}
+      {doc.coverUrl && <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(10,12,20,0.45) 0%, rgba(10,12,20,0.78) 100%)' }} />}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(115deg, rgba(255,255,255,0.16), rgba(255,255,255,0) 42%)', pointerEvents: 'none' }} />
+
+      {/* header strip + the main fact */}
+      <div style={{ position: 'relative', padding: '16px 18px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, minWidth: 0 }}>
+          <span style={{ flex: 1, minWidth: 0, opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{kind}</span>
+          {whose && <span style={{ flexShrink: 0, padding: '2px 9px', borderRadius: 99, background: 'rgba(255,255,255,0.16)', fontWeight: 600 }}>{whose}</span>}
+          {tm.pill && doc.category !== 'visas' && (
+            <span style={{ flexShrink: 0, padding: '2px 9px', borderRadius: 99, background: pillBg, fontWeight: 700 }}>
+              {tm.active && tm.stubDate ? `${tm.pill} · ${tm.caption} ${window.fmtDate(dayOnly(tm.stubDate))}` : tm.pill}
+            </span>
+          )}
         </div>
+
+        {route ? (
+          <div dir="ltr" style={{ direction: 'ltr', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'center', gap: 8, marginTop: 20 }}>
+            <div style={{ textAlign: 'left', minWidth: 0 }}>
+              <div className="mono" style={{ fontSize: 42, fontWeight: 800, lineHeight: 1 }}>{code(x.dep_airport)}</div>
+              {hm(x.dep_at) && <div style={{ fontSize: 15, fontWeight: 600, marginTop: 6 }}>{hm(x.dep_at)}</div>}
+              {x.dep_terminal && <div style={{ fontSize: 11.5, opacity: 0.75, marginTop: 2 }}>{ar ? `صالة ${x.dep_terminal}` : `Terminal ${x.dep_terminal}`}</div>}
+            </div>
+            <div style={{ fontSize: 18, opacity: 0.85, letterSpacing: '-0.05em', paddingBottom: 18 }}>——✈——</div>
+            <div style={{ textAlign: 'right', minWidth: 0 }}>
+              <div className="mono" style={{ fontSize: 42, fontWeight: 800, lineHeight: 1 }}>{code(x.arr_airport)}</div>
+              {hm(x.arr_at) && <div style={{ fontSize: 15, fontWeight: 600, marginTop: 6 }}>{hm(x.arr_at)}</div>}
+              {x.arr_terminal && <div style={{ fontSize: 11.5, opacity: 0.75, marginTop: 2 }}>{ar ? `صالة ${x.arr_terminal}` : `Terminal ${x.arr_terminal}`}</div>}
+            </div>
+          </div>
+        ) : (
+          <div style={{ marginTop: 14 }}>
+            <div style={{ fontSize: 27, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.01em', overflowWrap: 'anywhere' }}>{doc.title || '—'}</div>
+            {sub && <div style={{ fontSize: 13, opacity: 0.85, marginTop: 6, lineHeight: 1.45 }}>{sub}</div>}
+          </div>
+        )}
       </div>
-      <div style={{ display: 'flex', gap: 6, flexDirection: 'row', flexShrink: 0 }}>
-        {file && file.url && (
-          <a href={file.url} target="_blank" rel="noreferrer" style={{
-            padding: '7px 10px', borderRadius: 10,
-            background: 'var(--ink)', color: 'var(--cream)',
-            fontSize: 11.5, fontWeight: 500,
-            display: 'inline-flex', alignItems: 'center', gap: 4, flexDirection: 'row',
-            textDecoration: 'none',
-          }}>
-            <IconDoc size={11} stroke="currentColor" />
-            {window.isRTL ? 'فتح الملف' : 'Open'}
-          </a>
-        )}
-        <button onClick={onPick} disabled={uploading} style={{
-          padding: '7px 10px', borderRadius: 10,
-          background: 'var(--cream)', color: 'var(--ink-soft)',
-          border: '0.5px solid var(--hairline)',
-          fontSize: 11.5, fontWeight: 500,
-        }}>
-          {uploading ? '…' : (file ? (window.isRTL ? 'استبدال الملف' : 'Replace') : (window.isRTL ? 'رفع ملف جديد' : 'Upload'))}
-        </button>
-        {file && (
-          <button onClick={onRemove} aria-label={window.isRTL ? 'إزالة' : 'Remove'} style={{
-            padding: '7px', borderRadius: 10,
-            background: 'transparent', color: 'var(--clay-deep)',
-            border: '0.5px solid var(--hairline)',
-            display: 'grid', placeItems: 'center',
-          }}><window.IconClose size={12} stroke="currentColor" /></button>
-        )}
+
+      {/* tear line, with the notches cut from the page colour */}
+      <div style={{ position: 'relative', height: 2 }}>
+        <span style={{ position: 'absolute', insetInline: 22, top: 0, borderTop: '2px dashed rgba(255,255,255,0.3)' }} />
+        <span style={{ ...notch, left: -11 }} />
+        <span style={{ ...notch, right: -11 }} />
+      </div>
+
+      {/* fields */}
+      <div style={{
+        position: 'relative', display: 'grid', gridTemplateColumns: `repeat(${fields.length || 1}, minmax(0, 1fr))`,
+        gap: 10, padding: '16px 18px 18px',
+      }}>
+        {fields.map(([l, v], i) => (
+          <div key={i} style={{ minWidth: 0, textAlign: fields.length === 3 && i === 1 ? 'center' : (fields.length > 1 && i === fields.length - 1 ? 'end' : 'start') }}>
+            <div style={{ fontSize: 11, opacity: 0.72 }}>{l}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, lineHeight: 1.35, overflowWrap: 'anywhere' }}>{v}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function fmtDateTime(iso) {
-  const d = new Date(iso);
-  if (isNaN(d)) return iso;
-  return d.toLocaleString(window.isRTL ? 'ar' : 'en', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit',
-  });
-}
-function fmtDateOnly(iso) {
-  const d = new Date(iso + (iso.length === 10 ? 'T00:00:00' : ''));
-  if (isNaN(d)) return iso;
-  return d.toLocaleDateString(window.isRTL ? 'ar' : 'en', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  });
+// ── A file in the Files group: replace it, remove it, or upload one.
+// (Opening is the quick action above the group, so it isn't offered twice.)
+function DocFileRow({ label, tint, has, size, href, busy, onPick, onRemove, icon }) {
+  const ar = window.isRTL;
+  return (
+    <SetRow icon={icon || <IconDoc size={16} stroke="#fff" />} tint={tint} label={label}
+      sub={has ? (size && size !== '--' && size !== '...' ? (ar ? `مرفق · ${size}` : `Attached · ${size}`) : (ar ? 'مرفق' : 'Attached')) : (ar ? 'ما فيه ملف بعد' : 'No file yet')}
+      right={(
+        <span style={{ display: 'inline-flex', gap: 6, flexShrink: 0 }}>
+          <button onClick={onPick} disabled={busy} style={{
+            minHeight: 34, padding: '0 12px', borderRadius: 999, fontSize: 12.5, fontWeight: 600,
+            background: has ? 'var(--cream)' : 'var(--clay)', color: has ? 'var(--ink-soft)' : '#fff',
+            border: has ? '0.5px solid var(--hairline-2)' : '0.5px solid transparent',
+          }}>{busy ? '…' : (has ? (ar ? 'استبدال' : 'Replace') : (ar ? 'رفع' : 'Upload'))}</button>
+          {has && (
+            <button onClick={onRemove} aria-label={ar ? 'إزالة' : 'Remove'} style={{
+              width: 34, height: 34, borderRadius: 999, display: 'grid', placeItems: 'center',
+              background: 'transparent', color: 'var(--clay-deep)', border: '0.5px solid var(--hairline-2)',
+            }}><IconClose size={12} stroke="currentColor" /></button>
+          )}
+        </span>
+      )} />
+  );
 }
 
 window.ScreenDocDetail = ScreenDocDetail;

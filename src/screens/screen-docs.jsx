@@ -28,6 +28,58 @@ function docSpan(d) {
 const _docT = (v, endOfDay) => (!v ? null
   : String(v).length === 10 ? `${v}T${endOfDay ? '23:59' : '00:00'}` : String(v).slice(0, 16));
 
+// "Now" as the same comparable string (local date from window.localISO).
+function docNowStr() {
+  const now = new Date();
+  return `${window.localISO()}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+}
+
+// Where a document stands right now — shared by the pass in the list and
+// the pass in the document itself, so both always say the same thing.
+//   stubDate: the one date that matters · caption: "حتى"/"ينتهي" · pill: بكرة / بعد 3 أيام / الحين / انتهى
+function docTiming(d, nowStr, today) {
+  const ar = window.isRTL;
+  const x = d.details || {};
+  const [s, e] = docSpan(d);
+  const S = _docT(s, false), E = _docT(e || s, true);
+  const dayOnly = (v) => String(v || '').slice(0, 10);
+  if (d.category === 'visas') {
+    const exp = x.expires_on || null;
+    if (!exp) return { S, E, stubDate: null, caption: '', pill: '', tone: 'plain' };
+    const expired = _docT(exp, true) < nowStr;
+    return { S, E, expired, stubDate: exp, caption: ar ? 'ينتهي' : 'Expires',
+      pill: expired ? (ar ? 'منتهية' : 'Expired') : (ar ? 'سارية' : 'Valid'), tone: expired ? 'warn' : 'good' };
+  }
+  if (!S) return { S, E, stubDate: null, caption: '', pill: '', tone: 'plain' };
+  if (E < nowStr) return { S, E, done: true, stubDate: E, caption: '', pill: ar ? 'انتهى' : 'Done', tone: 'plain' };
+  if (S <= nowStr) return { S, E, active: true, stubDate: E, caption: ar ? 'حتى' : 'Until', pill: ar ? 'الحين' : 'Now', tone: 'good' };
+  const k = Math.round((new Date(dayOnly(S) + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000);
+  return { S, E, stubDate: S, caption: '', tone: k <= 1 ? 'hot' : 'plain',
+    pill: k <= 0 ? (ar ? 'اليوم' : 'Today') : k === 1 ? (ar ? 'بكرة' : 'Tomorrow') : k === 2 ? (ar ? 'بعد يومين' : 'In 2 days')
+      : ar ? (k <= 10 ? `بعد ${k} أيام` : `بعد ${k} يوماً`) : `In ${k} days` };
+}
+const DOC_PILL_BG = { good: 'rgba(120,215,160,0.28)', warn: 'rgba(255,170,130,0.32)', hot: 'rgba(255,255,255,0.30)', plain: 'rgba(255,255,255,0.18)' };
+
+// "✈️ Saudia" / "🏨 إقامة" / "🚆 Avis" / "📘 Tourist"
+function docKind(d) {
+  const ar = window.isRTL;
+  const x = d.details || {};
+  const emoji = window.DOC_SCHEMAS?.[d.category]?.emoji || '📄';
+  return d.category === 'flights' ? `${emoji} ${x.airline || (ar ? 'طيران' : 'Flight')}`
+    : d.category === 'lodging' ? `${emoji} ${ar ? 'إقامة' : 'Stay'}`
+    : d.category === 'transport' ? `${emoji} ${x.vendor || (ar ? 'تنقل' : 'Transport')}`
+    : `${emoji} ${x.visa_type || (ar ? 'تأشيرة' : 'Visa')}`;
+}
+// "🔒 لك" / "🔒 لـ عمر" for a personal document, null when it's everyone's.
+function docWhose(d) {
+  const ar = window.isRTL;
+  if (!d.ownerUserId) return null;
+  if (d.ownerUserId === window.currentUserId) return ar ? '🔒 لك' : '🔒 Yours';
+  const m = (window.MEMBERS || []).find((x) => x.id === d.ownerUserId);
+  const n = m?.name?.split(' ')[0];
+  return n ? (ar ? `🔒 لـ ${n}` : `🔒 ${n}'s`) : '🔒';
+}
+
 function ScreenDocs({ go, openSheet, openDoc, loading }) {
   // All hooks declared at the top — never conditional, never after early returns
   const [filter, setFilter]         = React.useState('all');   // 'all' | category key
@@ -66,9 +118,8 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
   const visible = allDocs.filter((d) => (filter === 'all' || d.category === filter) && matches(d));
 
   // One timeline: ahead / papers / done
-  const now = new Date();
   const today = window.localISO();
-  const nowStr = `${today}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const nowStr = docNowStr();
   const ahead = [], papers = [], done = [];
   visible.forEach((d) => {
     const [s, e] = docSpan(d);
@@ -263,51 +314,25 @@ const _clip = (
 );
 
 function DocPass({ item, nowStr, today, done, onOpen }) {
-  const { d, S, E } = item;
+  const { d } = item;
   const ar = window.isRTL;
   const x = d.details || {};
-  const isVisa = d.category === 'visas';
-  const active = !done && !isVisa && S && S <= nowStr && nowStr <= E;
-  const owner = docOwnerName(d);
-  const mine = !!d.ownerUserId && d.ownerUserId === window.currentUserId;
   const cost = d.costUSD > 0 ? fmtDocCost(d) : null;
   const paid = window.isDocPaid?.(d);
   const hasFile = !!(d.filePath || d.secondaryFilePath);
   const emoji = window.DOC_SCHEMAS?.[d.category]?.emoji || '📄';
   const hm = (v) => (v && String(v).length > 11 ? String(v).slice(11, 16) : '');
   const dayOnly = (v) => String(v || '').slice(0, 10);
-  const daysFromToday = (v) => Math.round((new Date(dayOnly(v) + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000);
 
   // ── Stub: the one date that matters + where you are relative to it
-  let stubDate = null, caption = '', pill = '', tone = 'plain';
-  if (isVisa) {
-    stubDate = x.expires_on || null;
-    caption = ar ? 'ينتهي' : 'Expires';
-    if (stubDate) {
-      const expired = _docT(stubDate, true) < nowStr;
-      pill = expired ? (ar ? 'منتهية' : 'Expired') : (ar ? 'سارية' : 'Valid');
-      tone = expired ? 'warn' : 'good';
-    }
-  } else if (S) {
-    if (done) { stubDate = E; pill = ar ? 'انتهى' : 'Done'; }
-    else if (active) { stubDate = E; caption = ar ? 'حتى' : 'Until'; pill = ar ? 'الحين' : 'Now'; tone = 'good'; }
-    else {
-      stubDate = S;
-      const k = daysFromToday(S);
-      pill = k <= 0 ? (ar ? 'اليوم' : 'Today') : k === 1 ? (ar ? 'بكرة' : 'Tomorrow') : k === 2 ? (ar ? 'بعد يومين' : 'In 2 days')
-        : ar ? (k <= 10 ? `بعد ${k} أيام` : `بعد ${k} يوماً`) : `In ${k} days`;
-      tone = k <= 1 ? 'hot' : 'plain';
-    }
-  }
+  const tm = docTiming(d, nowStr, today);
+  const { stubDate, caption, pill } = tm;
   const sd = stubDate ? new Date(dayOnly(stubDate) + 'T00:00:00') : null;
-  const pillBg = { good: 'rgba(120,215,160,0.28)', warn: 'rgba(255,170,130,0.32)', hot: 'rgba(255,255,255,0.30)', plain: 'rgba(255,255,255,0.18)' }[tone];
+  const pillBg = DOC_PILL_BG[tm.tone] || DOC_PILL_BG.plain;
 
   // ── Body lines
-  const kind = d.category === 'flights' ? `${emoji} ${x.airline || (ar ? 'طيران' : 'Flight')}`
-    : d.category === 'lodging' ? `${emoji} ${ar ? 'إقامة' : 'Stay'}`
-    : d.category === 'transport' ? `${emoji} ${x.vendor || (ar ? 'تنقل' : 'Transport')}`
-    : `${emoji} ${x.visa_type || (ar ? 'تأشيرة' : 'Visa')}`;
-  const whose = mine ? (ar ? '🔒 لك' : '🔒 Yours') : owner ? (ar ? `🔒 لـ ${owner}` : `🔒 ${owner}'s`) : null;
+  const kind = docKind(d);
+  const whose = docWhose(d);
   let line = '';
   if (d.category === 'flights') {
     // The stub already has the date: the flight number + terminal are what you look for.
@@ -464,4 +489,4 @@ function EmptyVault({ onAdd }) {
   );
 }
 
-window.ScreenDocs = ScreenDocs;
+Object.assign(window, { ScreenDocs, DOC_PASS_BG, DOC_PILL_BG, docSpan, docTiming, docKind, docWhose, docNowStr, fmtDocCost, docOwnerName });
