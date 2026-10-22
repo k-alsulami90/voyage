@@ -219,7 +219,7 @@ const TRANSLATIONS = {
     expenses:'قائمة المصروفات', auditLog:'سجل التعديلات والمراجعة',
     lodging:'السكن والإقامة', food:'المطاعم والمقاهي', transit:'المواصلات والتنقل', culture:'فعاليات وترفيه', shopping:'التسوق والهدايا', wellness:'سبا وعناية', misc:'مصروفات متنوعة',
     // Document categories
-    docFlights:'تذاكر الطيران', docLodging:'ححوزات السكن', docVisas:'التأشيرات', docTransport:'وسائل النقل والمسارات',
+    docFlights:'الطيران', docLodging:'الفنادق', docVisas:'التأشيرات', docTransport:'التنقل',
     // Dynamic trip card states
     daysAway:'بعد {n} أيام',    dayAway:'غداً',
     startingToday:'تبدأ اليوم',

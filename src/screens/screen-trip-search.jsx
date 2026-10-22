@@ -126,7 +126,7 @@ function ScreenTripSearch({ back, openSheet, openDoc, go }) {
             </div>
             <div style={{ fontSize: 12.5, color: 'var(--ink-mute)', maxWidth: 280, lineHeight: 1.5 }}>
               {window.isRTL
-                ? 'تتبع وابحث في كل مكان: قائمة مصروفاتك، ححوزاتك ومستنداتك (تذاكر وفنادق وتأشيرات)، وجداول أنشطة الأيام — كل شيء متاح هنا فوراً.'
+                ? 'تتبع وابحث في كل مكان: قائمة مصروفاتك، حجوزاتك ومستنداتك (تذاكر وفنادق وتأشيرات)، وجداول أنشطة الأيام — كل شيء متاح هنا فوراً.'
                 : 'Expenses, docs (tickets, hotels, visas), plan items — all in one place.'}
             </div>
           </div>
