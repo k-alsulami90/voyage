@@ -612,11 +612,13 @@ function UnpaidBookingsNote() {
 Object.assign(window, { TodayBudgetCard, WalletsSetup, MyTripCostCard, TripPaceCard, PersonalLimitCard, MyBudgetView, UnpaidBookingsNote });
 
 // ── Card → its expenses ────────────────────────────────────────────────
-window.openCardExpenses = (memberId) => {
-  window.__expFilter = { paidBy: memberId };
+// Open Expenses already filtered: { day: 'YYYY-MM-DD' } | { cat } | { paidBy }.
+window.openExpenses = (f) => {
+  window.__expFilter = f || null;
   const tid = window.TRIP?.id;
   if (tid) window.navigateRoute?.({ scope: 'trip', name: 'budget', tripId: tid });
 };
+window.openCardExpenses = (memberId) => window.openExpenses({ paidBy: memberId });
 
 // Expenses filtered to one person/card: their card up top, three figures,
 // and a way back to everyone. (The category chips under it narrow the list.)

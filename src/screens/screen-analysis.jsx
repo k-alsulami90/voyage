@@ -147,6 +147,108 @@ function ColumnChart({ points, refValue, refLabel, fmt = _home, height = 150, em
   );
 }
 
+// Every day of the trip as a bar, under a dashed line at the daily budget.
+// The part of a day that went over the line turns clay, each bar carries
+// its amount, today is marked, days still to come wait as faint stubs.
+// Tap a day → that day's expenses.
+function DailyBars({ m, start, fmt = _home, onPickDay }) {
+  const ar = _rtl();
+  const [press, setPress] = React.useState(null);
+  const n = m.totalDays || 0;
+  if (!n || !start) return null;
+  const byK = {}; m.days.forEach((d) => { byK[d.k] = d; });
+  const days = Array.from({ length: n }, (_, i) => {
+    const k = _addDays(start, i), d = byK[k];
+    return { i: i + 1, k, v: d?.v || 0, cnt: d?.n || 0, past: !!d, isToday: k === m.today };
+  });
+  const b = m.planPerDay || 0;
+  const W = 340, H = 196, top = 24, base = H - 34, padX = 4;
+  const max = _niceUSD(Math.max(b * 1.3, ...days.map((d) => d.v), 1) * 1.06);
+  const y = (v) => base - (v / max) * (base - top);
+  const slot = (W - padX * 2) / n;
+  const bw = Math.max(5, Math.min(26, slot * 0.62));
+  const xOf = (i) => { const c = padX + slot * (i + 0.5); return ar ? W - c : c; };
+  const every = n <= 14 ? 1 : n <= 24 ? 2 : 3;
+  const showAll = n <= 12;
+  // A bar whose top corners are rounded (bottom flat).
+  const bar = (x, y0, y1, r) => {
+    const h = y1 - y0; r = Math.max(0, Math.min(r, h, bw / 2));
+    return `M${x},${y1} V${y0 + r} Q${x},${y0} ${x + r},${y0} H${x + bw - r} Q${x + bw},${y0} ${x + bw},${y0 + r} V${y1} Z`;
+  };
+  const pick = (d, idx) => {
+    if (!d.past) return;
+    setPress(idx); window.haptic?.();
+    setTimeout(() => { setPress(null); onPickDay?.(d.k); }, 140);
+  };
+  const dayWord = (d) => (ar ? `اليوم ${d.i}` : `Day ${d.i}`);
+  return (
+    <div style={{ position: 'relative' }}>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: 'block', direction: 'ltr', overflow: 'visible' }} role="group"
+        aria-label={ar ? 'الصرف اليومي' : 'Daily spend'}>
+        {/* today's column, softly lit */}
+        {days.map((d, idx) => d.isToday && (
+          <rect key={'hl' + d.k} x={xOf(idx) - slot / 2 + 1} y={top - 16} width={slot - 2} height={base - top + 34} rx="9"
+            fill="var(--clay)" opacity="0.06" />
+        ))}
+        <line x1={padX} x2={W - padX} y1={base} y2={base} stroke="var(--hairline-2)" strokeWidth="1" />
+        {days.map((d, idx) => {
+          const x = xOf(idx) - bw / 2;
+          const over = b > 0 && d.v > b;
+          const pressed = press === idx;
+          const neutral = pressed ? 'var(--ink)' : 'var(--ink-mute)';
+          const hot = pressed ? 'var(--clay-deep)' : 'var(--clay)';
+          const label = d.v > 0 && (showAll || over);
+          const a11y = d.past
+            ? `${dayWord(d)}، ${fmt(d.v)}${over ? (ar ? '، فوق الميزانية' : ', over budget') : ''}`
+            : `${dayWord(d)}`;
+          return (
+            <g key={d.k} role={d.past ? 'button' : undefined} tabIndex={d.past ? 0 : -1} aria-label={a11y}
+              onClick={() => pick(d, idx)} onKeyDown={(e) => { if (e.key === 'Enter') pick(d, idx); }}
+              style={{ cursor: d.past ? 'pointer' : 'default', outline: 'none' }}>
+              <rect x={xOf(idx) - slot / 2} y={0} width={slot} height={H} fill="transparent" />
+              {!d.past ? (
+                <rect x={x} y={base - 4} width={bw} height={4} rx="2" fill="var(--hairline-2)" />
+              ) : d.v <= 0 ? (
+                <rect x={x} y={base - 3} width={bw} height={3} rx="1.5" fill="var(--ink-mute)" opacity="0.45" />
+              ) : over ? (
+                <>
+                  <rect className="v-bar" style={{ animationDelay: `${80 + idx * 30}ms` }} x={x} y={y(b)} width={bw} height={base - y(b)} fill={neutral} />
+                  <path className="v-bar" style={{ animationDelay: `${80 + idx * 30}ms` }} d={bar(x, y(d.v), y(b), 5)} fill={hot} />
+                </>
+              ) : (
+                <path className="v-bar" style={{ animationDelay: `${80 + idx * 30}ms` }} d={bar(x, y(d.v), base, 5)} fill={neutral} />
+              )}
+              {label && (
+                <text x={xOf(idx)} y={y(d.v) - 5} textAnchor="middle" fontSize="9.5" fontWeight={over ? 700 : 600}
+                  fill={over ? 'var(--clay-deep)' : 'var(--ink-soft)'}>{_compact(d.v)}</text>
+              )}
+              {(idx % every === 0 || d.isToday) && (
+                <text x={xOf(idx)} y={base + 15} textAnchor="middle" fontSize="10" fontWeight={d.isToday ? 800 : 500}
+                  fill={d.isToday ? 'var(--clay-deep)' : d.past ? 'var(--ink-soft)' : 'var(--ink-mute)'}
+                  opacity={d.past || d.isToday ? 1 : 0.6}>{d.i}</text>
+              )}
+              {d.isToday && <circle cx={xOf(idx)} cy={base + 24} r="2.2" fill="var(--clay)" />}
+            </g>
+          );
+        })}
+        {b > 0 && <line x1={padX} x2={W - padX} y1={y(b)} y2={y(b)} stroke="var(--moss)" strokeWidth="1.6" strokeDasharray="5 4" pointerEvents="none" />}
+      </svg>
+      {b > 0 && (
+        <div aria-hidden="true" style={{
+          position: 'absolute', top: `calc(${(y(b) / H) * 100}% - 21px)`, insetInlineEnd: 0, pointerEvents: 'none',
+          padding: '2px 7px', borderRadius: 7, background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
+          fontSize: 10.5, fontWeight: 700, color: 'var(--moss)', whiteSpace: 'nowrap',
+        }}>{ar ? 'اليومي ' : 'Daily '}{_compact(b)}</div>
+      )}
+      <div style={{ display: 'flex', gap: 14, marginTop: 8, flexWrap: 'wrap' }}>
+        {b > 0 && <BoxKey color="var(--ink-mute)" label={ar ? 'ضمن الميزانية' : 'Within budget'} />}
+        {b > 0 && <BoxKey color="var(--clay)" label={ar ? 'فوق الميزانية' : 'Over budget'} />}
+        {b > 0 && <LineKey color="var(--moss)" dash label={`${ar ? 'الميزانية اليومية' : 'Daily budget'} ${fmt(b)}`} />}
+      </div>
+    </div>
+  );
+}
+
 // Cumulative spend vs budget, with a dashed projection to the last day.
 function BurnChart({ m }) {
   const ar = _rtl(), W = 340, H = 170, top = 12, base = H - 22, left = ar ? 4 : 34, right = ar ? 34 : 4;
@@ -339,7 +441,7 @@ function ExpenseSummary({ trip, expenses, conv, currencyToggle, onAnalysis }) {
 window.ExpenseSummary = ExpenseSummary;
 
 // ── تحليل السفر (trip) ─────────────────────────────────────────────────
-function TripAnalysis({ go, loading }) {
+function TripAnalysis({ go, loading, openSheet }) {
   const ar = _rtl();
   const trip = window.TRIP;
   const Header = window.Header;
@@ -399,14 +501,23 @@ function TripAnalysis({ go, loading }) {
           <BurnChart m={m} />
         </Panel>
       )}
-      {m.days.length > 0 && (
-        <Panel title={ar ? 'الصرف اليومي' : 'Daily spend'} sub={ar ? 'بدون الحجوزات. اضغط على أي يوم لقيمته' : 'Excludes bookings. Tap a day for its total'}>
-          <ColumnChart points={m.days.map((d) => ({ key: d.k, label: String(d.i), value: d.v, tip: `${ar ? 'يوم' : 'Day'} ${d.i} · ${fmtDay(d.k)} · ${d.n} ${ar ? 'عمليات' : 'items'}` }))}
-            refValue={m.planPerDay} refLabel={ar ? 'خطة اليوم' : 'Daily plan'} emphasise={m.planPerDay ? (p) => p.value > m.planPerDay : null} />
-        </Panel>
-      )}
-      <Panel title={ar ? 'حسب التصنيف' : 'By category'}>
-        <CategoryBar byCat={m.byCat} total={m.total} />
+      {m.days.length > 0 && (() => {
+        const over = m.planPerDay > 0 ? m.days.filter((d) => d.v > m.planPerDay).length : 0;
+        const sub = m.planPerDay > 0
+          ? (over
+            ? (ar ? `${window.arPlural(over, { one: 'يوم واحد', two: 'يومين', few: `${over} أيام`, many: `${over} يوماً`, other: `${over} يوم` })} فوق الميزانية من ${m.days.length} — اضغط على يوم لتشوف مصاريفه`
+              : `${over} of ${m.days.length} days over budget — tap a day for its expenses`)
+            : (ar ? 'كل الأيام ضمن الميزانية 👌 — اضغط على يوم لتشوف مصاريفه' : 'Every day within budget 👌 — tap a day for its expenses'))
+          : (ar ? 'اضغط على يوم لتشوف مصاريفه' : 'Tap a day for its expenses');
+        return (
+          <Panel title={ar ? 'الصرف اليومي' : 'Daily spend'} sub={sub}>
+            <DailyBars m={m} start={trip.startDate} onPickDay={(k) => window.openExpenses?.({ day: k })} />
+            <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 8 }}>{ar ? 'بدون الحجوزات المدفوعة قبل الرحلة.' : 'Bookings paid before the trip are left out.'}</div>
+          </Panel>
+        );
+      })()}
+      <Panel title={ar ? 'حسب التصنيف' : 'By category'} sub={ar ? 'اضغط على تصنيف لتشوف مصاريفه' : 'Tap a category for its expenses'}>
+        <CategoryBar byCat={m.byCat} total={m.total} onPick={(k) => { if (k && k !== 'all') window.openExpenses?.({ cat: k }); }} />
       </Panel>
       {/* Share of the spending per card (what's left on each card lives on Today) */}
       {payers.length > 1 && (
@@ -426,14 +537,14 @@ function TripAnalysis({ go, loading }) {
       <Panel title={ar ? 'أكبر المصاريف' : 'Largest expenses'}>
         <div style={{ display: 'grid', gap: 2 }}>
           {top.map((e, i) => (
-            <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 0', borderTop: i ? '0.5px solid var(--hairline)' : 'none' }}>
+            <button key={e.id} onClick={() => openSheet?.('editExpense', e)} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'start', background: 'transparent', padding: '9px 0', borderTop: i ? '0.5px solid var(--hairline)' : 'none' }}>
               <span style={{ width: 34, height: 34, borderRadius: 10, display: 'grid', placeItems: 'center', background: 'var(--cream)', fontSize: 16, flexShrink: 0, boxShadow: `inset 0 0 0 2px ${catColor(e.cat)}` }}>{window.CAT_META?.[e.cat]?.emoji || '•'}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.title}</div>
                 <div style={{ fontSize: 11.5, color: 'var(--ink-mute)' }}>{catName(e.cat)} · {e.when}</div>
               </div>
               <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{_home(e.usd)}</span>
-            </div>
+            </button>
           ))}
         </div>
       </Panel>

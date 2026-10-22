@@ -11,22 +11,31 @@ function ScreenBudget({ go, openSheet, loading }) {
   const trip = window.TRIP;
   // Default display currency = home. Toggle switches between home and local.
   const [displayMode, setDisplayMode] = React.useState('home'); // 'home' | 'local'
-  // Arriving from a card on Today: open filtered to that person's card.
+  // Arriving from elsewhere (a card on Today, a day or a category in
+  // Analysis): open already filtered — see window.openExpenses.
   const arrival = React.useRef(undefined);
   if (arrival.current === undefined) { arrival.current = window.__expFilter || null; window.__expFilter = null; }
-  const [filter, setFilter]   = React.useState('all');                            // category
+  const [filter, setFilter]   = React.useState(arrival.current?.cat || 'all');    // category
   const [paidBy, setPaidBy]   = React.useState(arrival.current?.paidBy || 'all'); // member id
+  const [dayFilter, setDayFilter] = React.useState(arrival.current?.day || null); // 'YYYY-MM-DD'
   const [search, setSearch]   = React.useState('');
   const [showSearch, setShowSearch] = React.useState(false);
   // Two views: the group's trip budget, and my own (private) budget.
   const [tab, setTabState] = React.useState(() => {
-    if (arrival.current?.paidBy) return 'trip';
+    if (arrival.current) return 'trip';
     try { return sessionStorage.getItem('voyage:expTab') || 'trip'; } catch (_) { return 'trip'; }
   });
   const setTab = (v) => {
     setTabState(v); if (v !== 'trip') { setShowSearch(false); setSearch(''); }
     try { sessionStorage.setItem('voyage:expTab', v); } catch (_) {}
   };
+  // A new arrival while this screen is still mounted (back from Analysis).
+  React.useEffect(() => {
+    const f = window.__expFilter; if (!f) return;
+    window.__expFilter = null;
+    setFilter(f.cat || 'all'); setPaidBy(f.paidBy || 'all'); setDayFilter(f.day || null);
+    setSearch(''); setShowSearch(false); setTab('trip');
+  });
 
   const ar = window.isRTL;
   const searchBtn = tab === 'trip' ? (
@@ -70,6 +79,7 @@ function ScreenBudget({ go, openSheet, loading }) {
   const q = search.trim().toLowerCase();
   const pool = expenses.filter((e) =>
     (paidBy === 'all' || e.who === paidBy) &&
+    (!dayFilter || (e.createdAt && window.localISO(e.createdAt) === dayFilter)) &&
     (!q || [e.title, e.note].some((v) => String(v || '').toLowerCase().includes(q))));
   const visible = filter === 'all' ? pool : pool.filter((e) => e.cat === filter);
   const catCount = {};
@@ -78,11 +88,11 @@ function ScreenBudget({ go, openSheet, loading }) {
   const catKeys = [...order.filter((k) => catCount[k]), ...Object.keys(catCount).filter((k) => !order.includes(k))];
   if (filter !== 'all' && !catKeys.includes(filter)) catKeys.push(filter);
   const payers = members.filter((m) => expenses.some((e) => e.who === m.id));
-  const narrowed = filter !== 'all' || !!q;
+  const narrowed = filter !== 'all' || !!q || !!dayFilter;
   const countWord = (n) => (ar
     ? window.arPlural(n, { zero: 'ولا مصروف', one: 'مصروف واحد', two: 'مصروفان', few: `${n} مصاريف`, many: `${n} مصروفاً`, other: `${n} مصروف` })
     : `${n} ${n === 1 ? 'expense' : 'expenses'}`);
-  const clearAll = () => { setFilter('all'); setSearch(''); setShowSearch(false); };
+  const clearAll = () => { setFilter('all'); setSearch(''); setShowSearch(false); setDayFilter(null); };
 
   // Group by day, newest first. Anything paid before the trip is one group.
   const start = trip.startDate, end = trip.endDate;
@@ -97,6 +107,7 @@ function ScreenBudget({ go, openSheet, loading }) {
     if (g && g.k === k) g.items.push({ e, k }); else groups.push({ k, items: [{ e, k }] });
   });
   if (before.length) groups.push({ k: 'before', before: true, items: before });
+  const dayLabel = dayFilter ? (dayNum(dayFilter) ? (ar ? `اليوم ${dayNum(dayFilter)}` : `Day ${dayNum(dayFilter)}`) : window.fmtDate(dayFilter)) : '';
   const weekday = (k) => new Date(k + 'T00:00:00').toLocaleDateString(window._dateLocale ? window._dateLocale() : (ar ? 'ar' : 'en'), { weekday: 'long' });
   const headOf = (g) => {
     if (g.before) {
@@ -129,10 +140,11 @@ function ScreenBudget({ go, openSheet, loading }) {
         </div>
       )}
 
-      {/* The card you came from, or the trip's summary (hidden while searching) */}
+      {/* The card you came from, or the trip's summary (hidden while searching
+         or looking at one day) */}
       {paidBy !== 'all' ? (
         <window.PersonFocus memberId={paidBy} conv={conv} onClear={() => { setPaidBy('all'); setFilter('all'); }} />
-      ) : !showSearch && (
+      ) : !showSearch && !dayFilter && (
         <window.ExpenseSummary trip={trip} expenses={expenses} conv={conv}
           onAnalysis={expenses.length ? () => go('analytics') : null}
           currencyToggle={!sameHomeLocal ? (
@@ -151,6 +163,14 @@ function ScreenBudget({ go, openSheet, loading }) {
       {/* Filters: categories, then who paid */}
       {expenses.length > 0 && (
         <div className="no-scrollbar" style={{ display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', padding: '10px 18px 2px' }}>
+          {dayFilter && (
+            <button onClick={() => { setDayFilter(null); window.haptic?.(); }} aria-label={ar ? `إلغاء فلتر ${dayLabel}` : `Clear ${dayLabel}`} style={{
+              flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 999,
+              background: 'var(--sel)', color: 'var(--sel-fg)', fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap',
+            }}>
+              <IconCalendar size={13} stroke="currentColor" />{dayLabel}<span aria-hidden="true" style={{ opacity: 0.7 }}>✕</span>
+            </button>
+          )}
           <Chip active={filter === 'all'} onClick={() => setFilter('all')}>{t('all')} · {pool.length}</Chip>
           {catKeys.map((k) => (
             <Chip key={k} active={filter === k} onClick={() => { setFilter(filter === k ? 'all' : k); window.haptic?.(); }}>
@@ -224,7 +244,9 @@ function ScreenBudget({ go, openSheet, loading }) {
             display: 'grid', placeItems: 'center', border: '0.5px solid var(--hairline)',
           }}>{filter !== 'all' && !q ? (window.CAT_META?.[filter]?.emoji || '•') : <IconSearch size={20} stroke="var(--ink-mute)" />}</div>
           <div className="serif" style={{ fontSize: 17, color: 'var(--ink)' }}>
-            {q ? (ar ? 'ما لقينا شي بهذا البحث' : 'Nothing matches') : (ar ? 'ما فيه مصاريف هنا' : 'Nothing here')}
+            {q ? (ar ? 'ما لقينا شي بهذا البحث' : 'Nothing matches')
+              : dayFilter && filter === 'all' ? (ar ? `ما فيه مصاريف في ${dayLabel}` : `Nothing on ${dayLabel}`)
+              : (ar ? 'ما فيه مصاريف هنا' : 'Nothing here')}
           </div>
           <button onClick={() => { clearAll(); setPaidBy('all'); }} style={{
             minHeight: 38, padding: '0 16px', borderRadius: 999, fontSize: 13, fontWeight: 600,
