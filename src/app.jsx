@@ -629,6 +629,8 @@ function App() {
           />
         )}
       </window.Overlay>
+      {/* Trip recap — opened with window.openRecap() */}
+      {window.RecapHost && <window.RecapHost />}
       {joining && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 250,

@@ -49,6 +49,7 @@ const SHELL_FILES = [
   '/src/screens/screen-plan.jsx',
   '/src/screens/screen-trip-search.jsx',
   '/src/screens/screen-settings.jsx',
+  '/src/screens/screen-recap.jsx',
   // app entry
   '/src/app.jsx',
 ];

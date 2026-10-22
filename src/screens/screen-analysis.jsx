@@ -445,7 +445,16 @@ function TripAnalysis({ go, loading, openSheet }) {
   const ar = _rtl();
   const trip = window.TRIP;
   const Header = window.Header;
-  const head = <Header title={ar ? 'تحليل السفر' : 'Travel analysis'} onBack={() => go('budget')} action={<span />} />;
+  const canRecap = (window.EXPENSES || []).length > 0 && !!window.openRecap;
+  const head = <Header title={ar ? 'تحليل السفر' : 'Travel analysis'} onBack={() => go('budget')} action={canRecap ? (
+    <button onClick={() => window.openRecap()} aria-label={ar ? 'شاهد ملخص الرحلة' : 'Watch the trip recap'} style={{
+      height: 36, padding: '0 13px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 6,
+      background: 'var(--sel)', color: 'var(--sel-fg)', fontSize: 12.5, fontWeight: 700,
+    }}>
+      <svg width="11" height="11" viewBox="0 0 24 24" ><path d="M6 3.5v17l14-8.5z" fill="currentColor" /></svg>
+      {ar ? 'الملخص' : 'Recap'}
+    </button>
+  ) : <span />} />;
   if (loading || !trip || !window.isTripDataReady?.(trip.id)) return <div style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 100 }}>{head}<TripSkeleton /></div>;
   const expenses = window.EXPENSES || [];
   if (!expenses.length) {

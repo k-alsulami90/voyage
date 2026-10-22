@@ -114,6 +114,9 @@ function ScreenHub({ go, openSheet, loading }) {
   // A plan item already sits in "Today's plan" — keep "Up next" for the
   // richer things (flight, check-in, pickup) so nothing shows twice.
   const nextEv = events.find((e) => !(todayPlan.length > 0 && e.type === 'plan')) || null;
+  // The recap: up top once the trip is over, at the end while it's on.
+  const hasSpend = (window.EXPENSES || []).length > 0;
+  const ended = !!(trip.endDate && today > trip.endDate);
 
   return (
     <div data-screen-label="01 Trip Hub" style={{
@@ -253,6 +256,8 @@ function ScreenHub({ go, openSheet, loading }) {
         </div>
       )}
 
+      {ended && hasSpend && <HubRecapCard trip={trip} big />}
+
       {/* TODAY'S MONEY — cards trips: today's allowance + the cards.
          Other trips: the budget at a glance. */}
       {wallets
@@ -283,6 +288,42 @@ function ScreenHub({ go, openSheet, loading }) {
           <HubRecent fmtC={fmtC} wallets={wallets} openSheet={openSheet} />
         </HubSection>
       )}
+
+      {!ended && hasSpend && during && <div style={{ paddingTop: 14 }}><HubRecapCard trip={trip} /></div>}
+    </div>
+  );
+}
+
+// "Watch your trip recap" — the cover behind a play button.
+function HubRecapCard({ trip, big }) {
+  const ar = window.isRTL;
+  return (
+    <div style={{ padding: big ? '14px 14px 0' : '14px 14px 0' }}>
+      <button onClick={() => window.openRecap?.(trip.id)} className="press-soft" style={{
+        position: 'relative', display: 'block', width: '100%', height: big ? 104 : 84, borderRadius: 24, overflow: 'hidden',
+        textAlign: 'start', color: '#fff', background: '#0b0d12', boxShadow: 'var(--shadow-md)', padding: 0,
+      }}>
+        <span style={{ position: 'absolute', inset: 0, opacity: 0.6 }}>
+          <CoverArt kind={trip.cover || 'kyoto'} imageUrl={trip.coverUrl || trip.coverImageUrl} />
+        </span>
+        <span style={{ position: 'absolute', inset: 0, background: `linear-gradient(${ar ? 270 : 90}deg, rgba(11,13,18,0.94) 25%, rgba(11,13,18,0.25) 100%)` }} />
+        <span style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 14, height: '100%', padding: '0 18px' }}>
+          <span aria-hidden="true" style={{
+            width: big ? 50 : 42, height: big ? 50 : 42, borderRadius: 999, flexShrink: 0, background: '#fff',
+            display: 'grid', placeItems: 'center', boxShadow: '0 6px 18px rgba(0,0,0,0.35)',
+          }}>
+            <svg width={big ? 18 : 15} height={big ? 18 : 15} viewBox="0 0 24 24" style={{ marginInlineStart: 3 }}><path d="M7 4.5v15l12-7.5z" fill="#14161d" /></svg>
+          </span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: big ? 17 : 15.5, fontWeight: 800 }}>
+              {big ? (ar ? 'شاهد ملخص رحلتكم' : 'Watch your trip recap') : (ar ? 'ملخص الرحلة لين الحين' : 'Your trip so far')}
+            </span>
+            <span style={{ display: 'block', fontSize: 12.5, color: 'rgba(255,255,255,0.78)', marginTop: 3 }}>
+              {ar ? 'الأرقام واللحظات في دقيقة — وتقدر تشاركه' : 'The numbers and moments in a minute — ready to share'}
+            </span>
+          </span>
+        </span>
+      </button>
     </div>
   );
 }
