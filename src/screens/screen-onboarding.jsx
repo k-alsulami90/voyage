@@ -132,91 +132,82 @@ function ScreenOnboarding({ onComplete, onCreateTrip }) {
         ))}
       </div>
 
-      {/* Bottom action area */}
+      {/* Bottom action area — on the last step the main action is "create
+         a trip"; exploring first is a quieter text button under it. */}
       <div style={{
-        padding: '12px 22px calc(28px + env(safe-area-inset-bottom))',
-        display: 'flex', gap: 10,
+        padding: '12px 22px calc(22px + env(safe-area-inset-bottom))',
+        display: 'flex', flexDirection: 'column', gap: 4,
       }}>
-        {step > 1 && (
-          <button onClick={() => setStep(step - 1)} disabled={saving} style={{
-            padding: '15px 22px', borderRadius: 16,
-            background: 'var(--cream-2)', border: '0.5px solid var(--hairline-2)',
-            color: 'var(--ink-soft)', fontSize: 13.5, fontWeight: 500,
-          }}>{t('obBack')}</button>
-        )}
-        {step === 1 && (
-          <button onClick={() => setStep(2)} style={{
-            flex: 1, padding: '15px', borderRadius: 16,
-            background: 'var(--ink)', color: 'var(--cream)',
-            fontSize: 14, fontWeight: 600,
-            boxShadow: '0 8px 20px rgba(34,28,22,0.3)',
-          }}>{t('obGetStarted')}</button>
-        )}
-        {step === 2 && (
-          <button onClick={() => setStep(3)} disabled={saving} style={{
-            flex: 1, padding: '15px', borderRadius: 16,
-            background: 'var(--ink)', color: 'var(--cream)',
-            fontSize: 14, fontWeight: 600,
-            boxShadow: '0 8px 20px rgba(34,28,22,0.3)',
-          }}>{t('obContinue')}</button>
-        )}
-        {step === 3 && (
-          <>
-            <button onClick={() => persistAndFinish(false)} disabled={saving} style={{
-              flex: 1, padding: '15px', borderRadius: 16,
+        <div style={{ display: 'flex', gap: 10 }}>
+          {step > 1 && (
+            <button onClick={() => setStep(step - 1)} disabled={saving} style={{
+              minHeight: 52, padding: '0 22px', borderRadius: 16,
               background: 'var(--cream-2)', border: '0.5px solid var(--hairline-2)',
-              color: 'var(--ink)', fontSize: 13, fontWeight: 500,
-            }}>{t('obExplore')}</button>
+              color: 'var(--ink-soft)', fontSize: 14, fontWeight: 500,
+            }}>{t('obBack')}</button>
+          )}
+          {step < TOTAL ? (
+            <button onClick={() => setStep(step + 1)} disabled={saving} style={{
+              flex: 1, minHeight: 52, borderRadius: 16,
+              background: 'var(--ink)', color: 'var(--cream)',
+              fontSize: 15, fontWeight: 600,
+              boxShadow: '0 8px 20px rgba(34,28,22,0.3)',
+            }}>{step === 1 ? t('obGetStarted') : t('obContinue')}</button>
+          ) : (
             <button onClick={() => persistAndFinish(true)} disabled={saving} style={{
-              flex: 1.4, padding: '15px', borderRadius: 16,
+              flex: 1, minHeight: 52, borderRadius: 16,
               background: 'var(--clay)', color: '#fff',
-              fontSize: 14, fontWeight: 600,
+              fontSize: 15, fontWeight: 700,
               boxShadow: '0 8px 20px oklch(0.62 0.13 35 / 0.4)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}>
               <IconPlus size={14} stroke="#fff" /> {t('obCreateTrip')}
             </button>
-          </>
+          )}
+        </div>
+        {step === TOTAL && (
+          <button onClick={() => persistAndFinish(false)} disabled={saving} style={{
+            minHeight: 44, background: 'transparent', color: 'var(--ink-soft)', fontSize: 14, fontWeight: 600,
+          }}>{t('obExplore')}</button>
         )}
       </div>
     </div>
   );
 }
 
-// ── Step 1: Welcome ─────────────────────────────────────────
+// ── Step 1: Welcome — what the app does for the group ─────────
+// Each feature wears the colour it has in the app: the card, the pass,
+// the plan.
 function StepWelcome() {
   const features = [
-    { icon: <IconSwap size={20} stroke="#fff" />,    tint: 'var(--clay)',   title: t('obFeature1Title'),  sub: t('obFeature1Sub') },
-    { icon: <IconUsers size={20} stroke="#fff" />,   tint: 'var(--moss)',   title: t('obFeature2Title'),  sub: t('obFeature2Sub') },
-    { icon: <IconSparkle size={20} stroke="#fff" />, tint: 'var(--indigo)', title: t('obFeature3Title'),  sub: t('obFeature3Sub') },
+    { glyph: '💳', bg: 'linear-gradient(135deg, #d9ae55 0%, #8a6420 100%)', title: t('obFeature1Title'), sub: t('obFeature1Sub') },
+    { glyph: '✈️', bg: (window.DOC_PASS_BG || {}).flights || 'linear-gradient(135deg, #2b4a8f 0%, #172447 100%)', title: t('obFeature2Title'), sub: t('obFeature2Sub') },
+    { glyph: '🗓️', bg: 'linear-gradient(135deg, oklch(0.66 0.13 35) 0%, oklch(0.46 0.12 32) 100%)', title: t('obFeature3Title'), sub: t('obFeature3Sub') },
   ];
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingTop: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 22, paddingTop: 16 }}>
       <div>
         <div className="serif-italic" style={{
           fontSize: 46, lineHeight: 1.02, letterSpacing: '-0.02em',
           color: 'var(--ink)', whiteSpace: 'pre-line',
         }}>{t('obWelcomeTitle')}</div>
-        <div style={{
-          fontSize: 14, color: 'var(--ink-soft)', marginTop: 10, maxWidth: 320, lineHeight: 1.55,
-        }}>{t('obWelcomeSub')}</div>
+        <div style={{ fontSize: 14.5, color: 'var(--ink-soft)', marginTop: 10, maxWidth: 320, lineHeight: 1.55 }}>{t('obWelcomeSub')}</div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+      <div className="v-list" style={_obCard}>
         {features.map((f, i) => (
-          <div key={i} style={{
-            display: 'flex', alignItems: 'center', gap: 14,
-            padding: '12px 14px', borderRadius: 16,
-            background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
-          }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: 12,
-              background: f.tint, display: 'grid', placeItems: 'center',
-              flexShrink: 0, boxShadow: 'var(--shadow-sm)',
-            }}>{f.icon}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{f.title}</div>
-              <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 2, lineHeight: 1.45 }}>{f.sub}</div>
-            </div>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, paddingInlineStart: 14 }}>
+            <span aria-hidden="true" style={{
+              width: 44, height: 44, borderRadius: 13, background: f.bg, flexShrink: 0,
+              display: 'grid', placeItems: 'center', fontSize: 21, lineHeight: 1,
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22), 0 6px 14px -8px rgba(0,0,0,0.5)',
+            }}>{f.glyph}</span>
+            <span style={{
+              flex: 1, minWidth: 0, paddingTop: 14, paddingBottom: 14, paddingInlineEnd: 14,
+              borderTop: i ? '0.5px solid var(--hairline)' : 'none',
+            }}>
+              <span style={{ display: 'block', fontSize: 14.5, fontWeight: 600, color: 'var(--ink)' }}>{f.title}</span>
+              <span style={{ display: 'block', fontSize: 12.5, color: 'var(--ink-mute)', marginTop: 3, lineHeight: 1.5 }}>{f.sub}</span>
+            </span>
           </div>
         ))}
       </div>
@@ -224,62 +215,84 @@ function StepWelcome() {
   );
 }
 
-// ── Step 2: Basics ──────────────────────────────────────────
-function StepBasics({ name, setName, home, setHome, currency, setCurrency, currencies }) {
-  const inputStyle = {
-    width: '100%', padding: '14px 16px', borderRadius: 14,
-    border: '0.5px solid var(--hairline-2)', background: 'var(--cream-2)',
-    color: 'var(--ink)', fontSize: 16, outline: 'none',
-    textAlign: 'start',
-  };
-  // One labelStyle drives the three field labels (Name, Home, Currency).
-  // Was uppercase mono tracked 0.12em — same eyebrow shape as the
-  // labelStyle const cleaned on Plan (v78), Doc Detail (v79), and
-  // App Settings (v89). Now sentence-case sans semibold ink.
-  const labelStyle = {
-    fontSize: 12, fontWeight: 600,
-    color: 'var(--ink)', marginBottom: 6, display: 'block',
-  };
+const _obCard = {
+  background: 'var(--cream-2)', borderRadius: 22, border: '0.5px solid var(--hairline)',
+  boxShadow: 'var(--shadow-sm)', overflow: 'hidden',
+};
+
+// A row in the settings look: icon tile · label · the field at the end.
+function ObRow({ icon, tint, label, htmlFor, first, children }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, paddingTop: 16 }}>
-      <div>
-        <div className="serif-italic" style={{ fontSize: 36, lineHeight: 1.05, color: 'var(--ink)' }}>
-          {t('obBasicsTitle')}
-        </div>
-        <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 6 }}>{t('obBasicsSub')}</div>
-      </div>
-      <div>
-        <label style={labelStyle}>{t('obNameLabel')}</label>
-        <input value={name} onChange={(e) => setName(e.target.value)}
-          placeholder={t('obNamePlaceholder')} style={inputStyle} autoFocus />
-      </div>
-      <div>
-        <label style={labelStyle}>{t('obHomeLabel')}</label>
-        <input value={home} onChange={(e) => setHome(e.target.value)}
-          placeholder={t('obHomePlaceholder')} style={inputStyle} />
-      </div>
-      <div>
-        <label style={labelStyle}>{t('obCurrencyLabel')}</label>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {currencies.map((c) => (
-            <button key={c} onClick={() => setCurrency(c)} style={{
-              padding: '8px 13px', borderRadius: 10, fontSize: 12, fontWeight: 500,
-              background: currency === c ? 'var(--sel)' : 'var(--cream-2)',
-              color: currency === c ? 'var(--sel-fg)' : 'var(--ink-soft)',
-              border: '0.5px solid var(--hairline)',
-            }}>{c}</button>
-          ))}
-        </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingInlineStart: 14 }}>
+      {window.SetIcon ? <window.SetIcon tint={tint}>{icon}</window.SetIcon> : null}
+      <div style={{
+        flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10,
+        minHeight: 54, paddingTop: 8, paddingBottom: 8, paddingInlineEnd: 14,
+        borderTop: first ? 'none' : '0.5px solid var(--hairline)',
+      }}>
+        <label htmlFor={htmlFor} style={{ fontSize: 14.5, fontWeight: 500, color: 'var(--ink)', flexShrink: 0, whiteSpace: 'nowrap' }}>{label}</label>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>{children}</div>
       </div>
     </div>
   );
 }
 
-// ── Step 3: Done ────────────────────────────────────────────
-function StepDone({ name, home, currency }) {
-  const first = (name || '').trim().split(' ')[0];
+// ── Step 2: Basics — name, city, currency ───────────────────
+function StepBasics({ name, setName, home, setHome, currency, setCurrency, currencies }) {
+  const ar = window.isRTL;
+  const S = window.SET_TINT || {};
+  const endInput = {
+    width: '100%', minWidth: 0, border: 'none', background: 'transparent', color: 'var(--ink)',
+    fontSize: 16, outline: 'none', textAlign: 'end', padding: 0, fontFamily: 'var(--sans)',
+  };
+  const curName = (c) => { try { return new Intl.DisplayNames([ar ? 'ar' : 'en'], { type: 'currency' }).of(c); } catch (_) { return ''; } };
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingTop: 30 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, paddingTop: 16 }}>
+      <div>
+        <div className="serif-italic" style={{ fontSize: 36, lineHeight: 1.05, color: 'var(--ink)' }}>{t('obBasicsTitle')}</div>
+        <div style={{ fontSize: 13.5, color: 'var(--ink-soft)', marginTop: 6 }}>{t('obBasicsSub')}</div>
+      </div>
+      <div style={_obCard}>
+        <ObRow first icon={<IconUser size={16} stroke="#fff" />} tint={S.indigo} label={t('obNameLabel')} htmlFor="ob-name">
+          <input id="ob-name" value={name} onChange={(e) => setName(e.target.value)}
+            placeholder={t('obNamePlaceholder')} style={endInput} autoFocus />
+        </ObRow>
+        <ObRow icon={<IconHome size={16} stroke="#fff" />} tint={S.teal} label={t('obHomeLabel')} htmlFor="ob-home">
+          <input id="ob-home" value={home} onChange={(e) => setHome(e.target.value)}
+            placeholder={t('obHomePlaceholder')} style={endInput} />
+        </ObRow>
+        <ObRow icon={<IconSwap size={16} stroke="#fff" />} tint={S.orange} label={t('obCurrencyLabel')} htmlFor="ob-cur">
+          <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, maxWidth: '100%' }}>
+            <span style={{ fontSize: 14.5, color: 'var(--ink-soft)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+              <span className="mono" style={{ fontWeight: 700, color: 'var(--ink)' }}>{currency}</span>
+              {curName(currency) ? ` · ${curName(currency)}` : ''}
+            </span>
+            <span style={{ display: 'inline-flex', transform: 'rotate(90deg)', flexShrink: 0 }}><IconChevron size={12} stroke="var(--ink-mute)" /></span>
+            <select id="ob-cur" value={currency} onChange={(e) => setCurrency(e.target.value)} aria-label={t('obCurrencyLabel')}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, fontSize: 16 }}>
+              {currencies.map((c) => <option key={c} value={c}>{c}{curName(c) ? ` — ${curName(c)}` : ''}</option>)}
+            </select>
+          </span>
+        </ObRow>
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ink-mute)', padding: '0 6px', lineHeight: 1.55, marginTop: -8 }}>
+        {ar ? 'الميزانيات والمبالغ تطلع لك بهالعملة، وتقدر تغيّرها بعدين من صفحة الحساب.' : 'Budgets and amounts show in this currency — change it any time in Account.'}
+      </div>
+    </div>
+  );
+}
+
+// ── Step 3: Done — a recap and where to go next ─────────────
+function StepDone({ name, home, currency }) {
+  const ar = window.isRTL;
+  const first = (name || '').trim().split(' ')[0];
+  const rows = [
+    { label: t('obNameLabel'), value: name || '—' },
+    { label: t('obHomeLabel'), value: home || '—' },
+    { label: t('obCurrencyLabel'), value: currency },
+  ];
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 22, paddingTop: 30 }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{
           width: 80, height: 80, margin: '0 auto 16px', borderRadius: 24,
@@ -289,38 +302,19 @@ function StepDone({ name, home, currency }) {
         }}>
           <IconCheck size={36} stroke="#fff" />
         </div>
-        <div className="serif-italic" style={{
-          fontSize: 42, lineHeight: 1.05, color: 'var(--ink)', letterSpacing: '-0.02em',
-        }}>
-          {first ? `${first}, ${t('obDoneTitle').toLowerCase()}` : t('obDoneTitle')}
+        <div className="serif-italic" style={{ fontSize: 40, lineHeight: 1.08, color: 'var(--ink)', letterSpacing: '-0.02em' }}>
+          {first ? (ar ? `جاهز يا ${first}!` : `${first}, you're ready`) : t('obDoneTitle')}
         </div>
-        <div style={{
-          fontSize: 13.5, color: 'var(--ink-soft)', marginTop: 8, maxWidth: 280, marginInline: 'auto', lineHeight: 1.55,
-        }}>{t('obDoneSub')}</div>
+        <div style={{ fontSize: 13.5, color: 'var(--ink-soft)', marginTop: 8, maxWidth: 300, marginInline: 'auto', lineHeight: 1.6 }}>{t('obDoneSub')}</div>
       </div>
-      {/* Recap card */}
-      <div style={{
-        background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
-        borderRadius: 18, padding: '14px 16px',
-        display: 'flex', flexDirection: 'column', gap: 10,
-      }}>
-        {[
-          { label: window.isRTL ? 'الاسم الأول' : 'Name',     value: name || '—' },
-          { label: t('homeBase'),                       value: home || '—' },
-          { label: t('defaultCurrency'),                value: currency },
-        ].map((row, i) => (
+      <div style={_obCard}>
+        {rows.map((row, i) => (
           <div key={i} style={{
-            display: 'flex', justifyContent: 'space-between',
-            borderTop: i ? '0.5px solid var(--hairline)' : 'none',
-            paddingTop: i ? 10 : 0,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+            margin: '0 16px', minHeight: 48, borderTop: i ? '0.5px solid var(--hairline)' : 'none',
           }}>
-            {/* Recap row labels were uppercase mono 0.1em — now
-               sentence-case sans, smaller weight than the value
-               beside it so the value reads as primary. */}
-            <span style={{
-              fontSize: 12, color: 'var(--ink-mute)',
-            }}>{row.label}</span>
-            <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 500 }}>{row.value}</span>
+            <span style={{ fontSize: 13.5, color: 'var(--ink-mute)' }}>{row.label}</span>
+            <span style={{ fontSize: 14.5, color: 'var(--ink)', fontWeight: 600, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.value}</span>
           </div>
         ))}
       </div>

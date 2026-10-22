@@ -1880,32 +1880,17 @@ function AddTripSheet({ onDone, onCreated }) {
         few: `${nights} ليالٍ`, many: `${nights} ليلة`, other: `${nights} ليلة`,
       })
     : `${nights} ${nights === 1 ? 'night' : 'nights'}`;
+  const ar = window.isRTL;
+  const daysUntil = Math.round((new Date(startDate + 'T00:00:00') - new Date(today + 'T00:00:00')) / MS);
   const statusMeta = {
-    active:   { color: 'var(--moss)',     label: window.isRTL ? 'نشطة الآن' : 'Active now' },
-    upcoming: { color: 'var(--honey)',    label: window.isRTL ? 'قادمة'      : 'Upcoming' },
-    past:     { color: 'var(--ink-mute)', label: window.isRTL ? 'سابقة'      : 'Past' },
+    active:   { color: 'var(--moss)',     label: startDate === today ? (ar ? 'تبدأ اليوم' : 'Starts today') : (ar ? 'جارية الحين' : 'Under way') },
+    upcoming: { color: 'var(--honey)',    label: daysUntil === 1 ? (ar ? 'تبدأ بكرة' : 'Starts tomorrow') : (ar ? `بعد ${daysUntil} ${daysUntil <= 10 ? 'أيام' : 'يوماً'}` : `In ${daysUntil} days`) },
+    past:     { color: 'var(--ink-mute)', label: ar ? 'سابقة' : 'Past' },
   }[STATUS];
 
-  // ── Shared style tokens for the grouped (inset-list) form surfaces ──
-  // Grouping fields inside solid surfaces with dividers — instead of
-  // letting each input float on the page — is what makes the sheet read
-  // as a native app screen rather than a scrolling web form.
-  const groupCard = {
-    background: 'var(--cream-2)', borderRadius: 16,
-    border: '0.5px solid var(--hairline)', overflow: 'hidden',
-  };
-  const fieldRow  = { padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 4 };
-  const rowLabel  = { fontSize: 11.5, fontWeight: 600, color: 'var(--ink-mute)', textAlign: 'start' };
-  // Borderless inputs — the group surface IS the field container, so the
-  // inputs sit flush inside it. 16px to dodge iOS auto-zoom.
-  const rowInput  = {
-    width: '100%', border: 'none', background: 'transparent', color: 'var(--ink)',
-    fontSize: 16, outline: 'none', textAlign: 'start', padding: 0,
-  };
-  const divider   = { height: 1, background: 'var(--hairline)', marginInline: 16 };
-  const sectionLabel = {
-    fontSize: 11.5, fontWeight: 600, color: 'var(--ink-mute)',
-    margin: '2px 4px 9px', display: 'block', textAlign: 'start',
+  // Currency names in the app's language ("ليرة تركية"), from the browser.
+  const curName = (c) => {
+    try { return new Intl.DisplayNames([ar ? 'ar' : 'en'], { type: 'currency' }).of(c); } catch (_) { return ''; }
   };
 
   const pickFromAlbum = () => fileRef.current?.click();
@@ -1953,147 +1938,125 @@ function AddTripSheet({ onDone, onCreated }) {
   const coverTile = (selected) => ({
     position: 'relative', width: 88, height: 58, borderRadius: 14, overflow: 'hidden',
     flexShrink: 0,
-    boxShadow: selected ? '0 0 0 2.5px var(--clay), 0 8px 18px -8px rgba(0,0,0,0.4)' : 'var(--shadow-xs)',
-    transform: selected ? 'translateY(-2px)' : 'none',
-    transition: 'box-shadow 180ms cubic-bezier(.2,.8,.2,1), transform 180ms cubic-bezier(.2,.8,.2,1)',
+    boxShadow: selected ? '0 0 0 2px var(--cream-2), 0 0 0 4px var(--clay)' : '0 0 0 0.5px var(--hairline-2)',
+    transition: 'box-shadow 160ms',
   });
+  // Inputs sit at the end of their row, borderless — the row is the field.
+  const endInput = {
+    width: '100%', minWidth: 0, border: 'none', background: 'transparent', color: 'var(--ink)',
+    fontSize: 16, outline: 'none', textAlign: 'end', padding: 0, fontFamily: 'var(--sans)',
+  };
+  const datePill = {
+    border: 'none', outline: 'none', borderRadius: 9, padding: '6px 10px',
+    background: 'var(--cream)', color: 'var(--ink)', fontSize: 15, fontFamily: 'var(--sans)',
+    minHeight: 34, maxWidth: '100%',
+  };
+  const S = window.SET_TINT || {};
+  const spacer = <span aria-hidden="true" style={{ width: 30, flexShrink: 0 }} />;
 
   return (
-    <div style={{ padding: '4px 20px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ paddingTop: 4 }}>
 
-      {/* ── LIVE PREVIEW CARD — the hero. Updates as you type / pick. ── */}
-      <div style={{
-        position: 'relative', width: '100%', aspectRatio: '1.6 / 1',
-        borderRadius: 24, overflow: 'hidden',
-        boxShadow: 'var(--shadow-card)',
-        border: '0.5px solid var(--hairline)',
-      }}>
-        {customActive ? <window.CoverArt imageUrl={customUrl} /> : <window.CoverArt kind={cover} />}
-        {/* Date pill */}
+      {/* ── LIVE PREVIEW — the trip card as it will look ── */}
+      <div style={{ padding: '0 20px' }}>
         <div style={{
-          position: 'absolute', top: 16, insetInlineEnd: 16,
-          padding: '6px 12px', borderRadius: 999,
-          background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(10px)',
-          fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 500,
-          color: 'rgba(255,255,255,0.96)', letterSpacing: '0.02em',
-        }}>{window.fmtDateRange(startDate, endDate)}</div>
-        {/* Status chip */}
-        <div style={{
-          position: 'absolute', top: 16, insetInlineStart: 16,
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          padding: '6px 11px', borderRadius: 999,
-          background: 'rgba(20,15,10,0.34)', backdropFilter: 'blur(10px)',
-          fontSize: 11.5, fontWeight: 600, color: '#fff',
-          flexDirection: 'row',
+          position: 'relative', width: '100%', aspectRatio: '1.6 / 1',
+          borderRadius: 24, overflow: 'hidden',
+          boxShadow: 'var(--shadow-card)', border: '0.5px solid var(--hairline)',
         }}>
-          <span style={{ width: 7, height: 7, borderRadius: 999, background: statusMeta.color }} />
-          {statusMeta.label}
-        </div>
-        {/* Title block */}
-        <div style={{
-          position: 'absolute', insetInline: 20, bottom: 18,
-          textAlign: 'start',
-        }}>
-          <div className="serif-italic" style={{
-            fontSize: 34, lineHeight: 1.05, color: '#fff',
-            letterSpacing: '-0.01em',
-            textShadow: '0 2px 18px rgba(0,0,0,0.35)',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            opacity: title.trim() ? 1 : 0.6,
-          }}>{title.trim() || (window.isRTL ? 'اسم رحلتك' : 'Your trip')}</div>
+          {customActive ? <window.CoverArt imageUrl={customUrl} /> : <window.CoverArt kind={cover} />}
           <div style={{
-            marginTop: 5, display: 'flex', alignItems: 'center', gap: 8,
-            fontSize: 12.5, color: 'rgba(255,255,255,0.9)', flexDirection: 'row',
+            position: 'absolute', top: 16, insetInlineEnd: 16,
+            padding: '6px 12px', borderRadius: 999,
+            background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+            fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.96)',
+          }}>{window.fmtDateRange(startDate, endDate)}</div>
+          <div style={{
+            position: 'absolute', top: 16, insetInlineStart: 16,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '6px 11px', borderRadius: 999,
+            background: 'rgba(20,15,10,0.34)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+            fontSize: 11.5, fontWeight: 600, color: '#fff',
           }}>
-            {subtitle.trim() && (
-              <>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
-                  {subtitle.trim()}
-                </span>
-                <span style={{ opacity: 0.5 }}>·</span>
-              </>
-            )}
-            <span style={{ fontFamily: 'var(--mono)', flexShrink: 0 }}>{nightsLabel}</span>
+            <span style={{ width: 7, height: 7, borderRadius: 999, background: statusMeta.color }} />
+            {statusMeta.label}
+          </div>
+          <div style={{ position: 'absolute', insetInline: 20, bottom: 18, textAlign: 'start' }}>
+            <div className="serif-italic" style={{
+              fontSize: 34, lineHeight: 1.05, color: '#fff', letterSpacing: '-0.01em',
+              textShadow: '0 2px 18px rgba(0,0,0,0.35)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              opacity: title.trim() ? 1 : 0.6,
+            }}>{title.trim() || (ar ? 'اسم رحلتك' : 'Your trip')}</div>
+            <div style={{ marginTop: 5, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'rgba(255,255,255,0.9)' }}>
+              {subtitle.trim() && (
+                <>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>{subtitle.trim()}</span>
+                  <span style={{ opacity: 0.5 }}>·</span>
+                </>
+              )}
+              <span style={{ flexShrink: 0 }}>{nightsLabel}</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── DETAILS GROUP (name · description · dates) ── */}
-      <div style={groupCard}>
-        <div style={fieldRow}>
-          <label htmlFor="at-name" style={rowLabel}>{window.isRTL ? 'اسم الرحلة' : 'Trip name'}</label>
+      {/* ── The trip: name, description, dates ── */}
+      <window.SetGroup title={ar ? 'الرحلة' : 'Trip'} style={{ padding: '22px 14px 0' }}>
+        <NewTripRow icon={<IconEdit size={16} stroke="#fff" />} tint={S.indigo} label={ar ? 'الاسم' : 'Name'} htmlFor="at-name">
           <input id="at-name" value={title} onChange={(e) => setTitle(e.target.value)}
-            placeholder={window.isRTL ? 'مثلاً: طوكيو · الربيع' : 'e.g. Tokyo · Spring'} style={rowInput} />
-        </div>
-        <div style={divider} />
-        <div style={fieldRow}>
-          <label htmlFor="at-sub" style={rowLabel}>{window.isRTL ? 'وصف مختصر (اختياري)' : 'Description (optional)'}</label>
+            placeholder={ar ? 'مثلاً: إسطنبول' : 'e.g. Istanbul'} style={endInput} />
+        </NewTripRow>
+        <NewTripRow lead={spacer} label={ar ? 'الوصف' : 'Note'} htmlFor="at-sub">
           <input id="at-sub" value={subtitle} onChange={(e) => setSubtitle(e.target.value)}
-            placeholder={window.isRTL ? 'مثلاً: رحلة شهر العسل' : 'e.g. Honeymoon trip'} style={rowInput} />
-        </div>
-        <div style={divider} />
-        <div style={{ ...fieldRow, flexDirection: 'row', gap: 0, alignItems: 'stretch' }}>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label htmlFor="at-start" style={rowLabel}>{window.isRTL ? 'البداية' : 'Start'}</label>
-            <input id="at-start" type="date" value={startDate} onChange={(e) => setStart(e.target.value)} style={rowInput} />
-          </div>
-          <div style={{ width: 1, background: 'var(--hairline)', marginInline: 14 }} />
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label htmlFor="at-end" style={rowLabel}>{window.isRTL ? 'النهاية' : 'End'}</label>
-            <input id="at-end" type="date" value={endDate} min={startDate} onChange={(e) => setEnd(e.target.value)} style={rowInput} />
-          </div>
-        </div>
-      </div>
+            placeholder={ar ? 'اختياري' : 'Optional'} style={endInput} />
+        </NewTripRow>
+        <NewTripRow icon={<IconCalendar size={16} stroke="#fff" />} tint={S.red} label={ar ? 'البداية' : 'Starts'} htmlFor="at-start">
+          <input id="at-start" type="date" value={startDate} onChange={(e) => setStart(e.target.value)} style={datePill} />
+        </NewTripRow>
+        <NewTripRow lead={spacer} label={ar ? 'النهاية' : 'Ends'} htmlFor="at-end">
+          <input id="at-end" type="date" value={endDate} min={startDate} onChange={(e) => setEnd(e.target.value)} style={datePill} />
+        </NewTripRow>
+      </window.SetGroup>
 
-      {/* ── MONEY GROUP (budget · destination currency) ── */}
-      <div style={groupCard}>
-        <div style={{ ...fieldRow, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label htmlFor="at-budget" style={rowLabel}>{window.isRTL ? 'الميزانية (اختياري)' : 'Budget (optional)'}</label>
-            <window.NumberField id="at-budget" value={budget} onChange={setBudget}
-              placeholder={window.isRTL ? 'مثلاً: 10000' : 'e.g. 10,000'} style={rowInput} />
-          </div>
-          <span style={{
-            fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 600,
-            color: 'var(--ink-mute)', flexShrink: 0,
-          }}>{homeCur}</span>
-        </div>
-        <div style={divider} />
-        <div style={fieldRow}>
-          <label style={rowLabel}>{window.isRTL ? 'عملة الوجهة' : 'Destination currency'}</label>
-          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', flexDirection: 'row', marginTop: 8 }}>
-            {CURRENCIES.map((c) => (
-              <button key={c} onClick={() => setCurrency(c)} style={{
-                padding: '9px 13px', borderRadius: 10, fontSize: 13, fontWeight: 500,
-                background: currency === c ? 'var(--sel)' : 'var(--cream)',
-                color: currency === c ? 'var(--sel-fg)' : 'var(--ink-soft)',
-                border: '0.5px solid var(--hairline)', transition: 'all 150ms',
-              }}>{c}</button>
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* ── Money: budget (home currency) + where you'll spend ── */}
+      <window.SetGroup title={ar ? 'الفلوس' : 'Money'} style={{ padding: '22px 14px 0' }}
+        footer={ar ? `الميزانية بعملتك (${homeCur}). عملة الوجهة هي اللي بتصرف فيها هناك، والتحويل بينهم تلقائي.`
+          : `Budget in your currency (${homeCur}). The destination currency is what you'll pay in there — conversion is automatic.`}>
+        <NewTripRow icon={<IconWallet size={16} stroke="#fff" />} tint={S.green} label={ar ? 'الميزانية' : 'Budget'} htmlFor="at-budget">
+          <window.NumberField id="at-budget" value={budget} onChange={setBudget}
+            placeholder={ar ? 'اختياري' : 'Optional'} style={{ ...endInput, fontFamily: 'var(--mono)' }} />
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 13.5, fontWeight: 600, color: 'var(--ink-mute)', flexShrink: 0 }}>{homeCur}</span>
+        </NewTripRow>
+        <NewTripRow icon={<IconSwap size={16} stroke="#fff" />} tint={S.orange} label={ar ? 'عملة الوجهة' : 'Destination currency'} htmlFor="at-cur">
+          <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, maxWidth: '100%' }}>
+            <span style={{ fontSize: 14.5, color: 'var(--ink-soft)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+              <span className="mono" style={{ fontWeight: 700, color: 'var(--ink)' }}>{currency}</span>
+              {curName(currency) ? ` · ${curName(currency)}` : ''}
+            </span>
+            <span style={{ display: 'inline-flex', transform: 'rotate(90deg)', flexShrink: 0 }}><IconChevron size={12} stroke="var(--ink-mute)" /></span>
+            {/* The native picker sits invisibly on top: tap → the iOS wheel */}
+            <select id="at-cur" value={currency} onChange={(e) => setCurrency(e.target.value)}
+              aria-label={ar ? 'عملة الوجهة' : 'Destination currency'}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, fontSize: 16 }}>
+              {CURRENCIES.map((c) => <option key={c} value={c}>{c}{curName(c) ? ` — ${curName(c)}` : ''}</option>)}
+            </select>
+          </span>
+        </NewTripRow>
+      </window.SetGroup>
 
-      {/* ── COVER PICKER — thumbnails only (no names) + album upload ── */}
-      <div>
-        <label style={sectionLabel}>{window.isRTL ? 'غلاف الرحلة' : 'Trip cover'}</label>
+      {/* ── Cover: a photo from your album, or one of the drawings ── */}
+      <section style={{ padding: '22px 14px 0' }}>
+        <div style={{ padding: '0 16px 8px', fontSize: 14, fontWeight: 600, color: 'var(--ink-soft)' }}>{ar ? 'الغلاف' : 'Cover'}</div>
         <input ref={fileRef} type="file" accept="image/*" onChange={onFilePicked} style={{ display: 'none' }} />
-        <div style={{
-          display: 'flex', gap: 10, overflowX: 'auto',
-          margin: '0 -20px', padding: '2px 20px 8px',
-          flexDirection: 'row',
-        }} className="no-scrollbar">
-          {/* Album upload tile */}
-          <button onClick={pickFromAlbum}
-            aria-label={window.isRTL ? 'رفع صورة من الألبوم' : 'Upload from album'}
-            style={coverTile(customActive)}>
+        <div className="no-scrollbar" style={{ display: 'flex', gap: 10, overflowX: 'auto', margin: '0 -14px', padding: '4px 20px 8px' }}>
+          <button onClick={pickFromAlbum} aria-label={ar ? 'صورة من الألبوم' : 'Photo from album'} style={coverTile(customActive)}>
             {customActive ? (
               <window.CoverArt imageUrl={customUrl} />
             ) : (
               <div style={{
                 position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
-                background: 'var(--cream-2)', border: '1.5px dashed var(--hairline-2)',
-                borderRadius: 14,
+                background: 'var(--cream-2)', border: '1.5px dashed var(--hairline-2)', borderRadius: 14,
               }}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
                   stroke="var(--ink-soft)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -2104,42 +2067,35 @@ function AddTripSheet({ onDone, onCreated }) {
               </div>
             )}
           </button>
-          {/* Preset thumbnails — no labels */}
           {TRIP_COVERS.map((c) => {
             const selected = !customActive && cover === c.key;
             return (
-              <button key={c.key} onClick={() => pickPreset(c.key)}
-                aria-pressed={selected}
-                aria-label={window.isRTL ? `غلاف ${c.ar}` : `${c.en} cover`}
-                style={coverTile(selected)}>
+              <button key={c.key} onClick={() => pickPreset(c.key)} aria-pressed={selected}
+                aria-label={ar ? `غلاف ${c.ar}` : `${c.en} cover`} style={coverTile(selected)}>
                 <window.CoverArt kind={c.key} />
               </button>
             );
           })}
         </div>
-      </div>
+      </section>
 
       {error && (
         <div style={{
-          padding: '10px 14px', borderRadius: 12,
-          background: 'oklch(0.62 0.13 35 / 0.10)',
-          border: '0.5px solid oklch(0.62 0.13 35 / 0.3)',
+          margin: '12px 20px 0', padding: '10px 14px', borderRadius: 12,
+          background: 'oklch(0.62 0.13 35 / 0.10)', border: '0.5px solid oklch(0.62 0.13 35 / 0.3)',
           fontSize: 12.5, color: 'var(--clay-deep)',
         }}>{error}</div>
       )}
 
-      {/* ── PINNED FOOTER — the Create action stays anchored to the bottom
-           of the sheet (sticky), the way a native form's primary button
-           does, instead of scrolling away with the content. ── */}
+      {/* ── Create — pinned to the bottom of the sheet ── */}
       <div style={{
-        position: 'sticky', bottom: 0, zIndex: 2,
-        margin: '4px -20px 0', padding: '12px 20px 16px',
-        background: 'var(--cream)', borderTop: '0.5px solid var(--hairline)',
+        position: 'sticky', bottom: 0, zIndex: 2, marginTop: 16,
+        padding: '12px 20px 16px', background: 'var(--cream)', borderTop: '0.5px solid var(--hairline)',
       }}>
         <button onClick={handleSave} disabled={loading} style={{
-          width: '100%', padding: '16px', borderRadius: 18,
+          width: '100%', minHeight: 54, borderRadius: 18,
           background: loading ? 'var(--ink-soft)' : 'var(--clay)', color: '#fff',
-          fontSize: 15, fontWeight: 600,
+          fontSize: 15, fontWeight: 700,
           boxShadow: loading ? 'none' : '0 8px 20px oklch(0.62 0.13 35 / 0.4)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}>
@@ -2149,8 +2105,26 @@ function AddTripSheet({ onDone, onCreated }) {
               border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff',
               display: 'inline-block', animation: 'expspin 0.7s linear infinite',
             }} />
-          ) : (window.isRTL ? 'إنشاء الرحلة' : 'Create trip')}
+          ) : (ar ? 'إنشاء الرحلة' : 'Create trip')}
         </button>
+      </div>
+    </div>
+  );
+}
+
+// A form row in the settings look: icon tile · label · the field at the end.
+// Defined outside AddTripSheet so its inputs keep focus while typing.
+function NewTripRow({ icon, tint, lead, label, htmlFor, children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingInlineStart: 14 }}>
+      {lead || <window.SetIcon tint={tint}>{icon}</window.SetIcon>}
+      <div className="set-sep" style={{
+        flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10,
+        minHeight: 52, paddingTop: 8, paddingBottom: 8, paddingInlineEnd: 14,
+        borderTop: '0.5px solid var(--hairline)',
+      }}>
+        <label htmlFor={htmlFor} style={{ fontSize: 14.5, fontWeight: 500, color: 'var(--ink)', flexShrink: 0, whiteSpace: 'nowrap' }}>{label}</label>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>{children}</div>
       </div>
     </div>
   );

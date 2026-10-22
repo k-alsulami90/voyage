@@ -278,6 +278,8 @@ textarea:focus-visible,
    Hairlines: white@8%.  Text: AA contrast.  Accents brighter for legibility.
    ───────────────────────────────────────────────────────────── */
 [data-theme="dark"] {
+  /* Native controls (date / time fields, pickers, selects) follow the theme */
+  color-scheme: dark;
   /* categorical (dataviz-validated for the dark surface) */
   --cat-culture: #3987e5; --cat-lodging: #d95926; --cat-transit: #199e70; --cat-food: #c98500;
   --cat-shopping: #d55181; --cat-wellness: #9085e9; --cat-misc: #7d7a74;

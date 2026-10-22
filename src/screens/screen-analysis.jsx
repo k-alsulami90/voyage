@@ -359,7 +359,6 @@ function TripAnalysis({ go, loading }) {
   const m = tripModel(trip, expenses);
   const members = window.MEMBERS || [];
   const wallets = window.walletsOf?.(trip);
-  const b = wallets ? window.computeTodayBudget?.(trip, expenses, m.today) : null;
   const pct = m.planned > 0 ? Math.min(1, m.total / m.planned) : 0;
   const top = expenses.slice().sort((x, y) => (y.usd || 0) - (x.usd || 0)).slice(0, 5);
   const fmtDay = (k) => _day(k).toLocaleDateString(ar ? 'ar' : 'en', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -409,31 +408,19 @@ function TripAnalysis({ go, loading }) {
       <Panel title={ar ? 'حسب التصنيف' : 'By category'}>
         <CategoryBar byCat={m.byCat} total={m.total} />
       </Panel>
-      {b && b.cards && b.cards.length > 0 ? (
-        <Panel title={ar ? 'البطاقات' : 'Cards'} sub={ar ? 'اضغط بطاقة لتشوف مصاريفها' : 'Tap a card for its spending'}>
-          <div style={{ display: 'grid', gap: 12 }}>
-            {b.cards.map((c) => {
-              const mm = members.find((x) => x.id === c.id) || { id: c.id, name: '?' };
-              const p = c.amountUSD > 0 ? Math.min(1, c.spent / c.amountUSD) : 0;
-              return (
-                <button key={c.id} onClick={() => window.openCardExpenses?.(c.id)} style={{ display: 'block', width: '100%', textAlign: 'start', background: 'transparent' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <Avatar m={mm} size={28} />
-                    <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{ar ? `بطاقة ${(mm.name || '').split(' ')[0]}` : `${(mm.name || '').split(' ')[0]}'s card`}</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: c.left < 0 ? 'var(--clay-deep)' : 'var(--ink)' }}>{ar ? 'باقي ' : ''}{_home(c.left)}</span>
-                  </div>
-                  <div style={{ height: 8, borderRadius: 99, background: 'var(--cream)', marginTop: 7, overflow: 'hidden' }}>
-                    <div className="v-grow" style={{ width: `${p * 100}%`, height: '100%', borderRadius: 99, background: c.left < 0 ? 'var(--clay)' : 'var(--ink-soft)' }} />
-                  </div>
-                  <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 4 }}>{ar ? `صُرف ${_home(c.spent)} من ${_home(c.amountUSD)}` : `${_home(c.spent)} of ${_home(c.amountUSD)}`}</div>
-                </button>
-              );
-            })}
-          </div>
-        </Panel>
-      ) : payers.length > 1 && (
-        <Panel title={ar ? 'مين دفع' : 'Who paid'}>
-          <RankBars rows={payers.map(({ m: mm, v }) => ({ key: mm.id, label: (mm.name || '').split(' ')[0], value: v, onClick: () => window.openCardExpenses?.(mm.id) }))} />
+      {/* Share of the spending per card (what's left on each card lives on Today) */}
+      {payers.length > 1 && (
+        <Panel title={wallets ? (ar ? 'حسب البطاقة' : 'By card') : (ar ? 'مين دفع' : 'Who paid')}
+          sub={ar ? 'نصيب كل بطاقة من الصرف — اضغط لتشوف مصاريفها' : "Each one's share — tap for its expenses"}>
+          <RankBars rows={payers.map(({ m: mm, v }) => {
+            const first = (mm.name || '').split(' ')[0];
+            const share = Math.round((v / (m.total || 1)) * 100);
+            return {
+              key: mm.id, value: v, onClick: () => window.openCardExpenses?.(mm.id),
+              label: wallets ? (ar ? `بطاقة ${first}` : `${first}'s card`) : first,
+              sub: ar ? `${share}% من الصرف` : `${share}% of spending`,
+            };
+          })} />
         </Panel>
       )}
       <Panel title={ar ? 'أكبر المصاريف' : 'Largest expenses'}>
