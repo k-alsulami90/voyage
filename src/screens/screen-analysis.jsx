@@ -147,7 +147,8 @@ function ColumnChart({ points, refValue, refLabel, fmt = _home, height = 150, em
   );
 }
 
-// Every day of the trip as a bar, under a dashed line at the daily budget.
+// Every day of the trip as a bar, under a dashed line at the daily plan (the
+// budget ÷ the days — fixed; the moving "today's budget" lives on Expenses).
 // The part of a day that went over the line turns clay, each bar carries
 // its amount, today is marked, days still to come wait as faint stubs.
 // Tap a day → that day's expenses.
@@ -199,7 +200,7 @@ function DailyBars({ m, start, fmt = _home, onPickDay }) {
           const hot = pressed ? 'var(--clay-deep)' : 'var(--clay)';
           const label = d.v > 0 && (showAll || over);
           const a11y = d.past
-            ? `${dayWord(d)}، ${fmt(d.v)}${over ? (ar ? '، فوق الميزانية' : ', over budget') : ''}`
+            ? `${dayWord(d)}، ${fmt(d.v)}${over ? (ar ? '، فوق الخطة' : ', over the plan') : ''}`
             : `${dayWord(d)}`;
           return (
             <g key={d.k} role={d.past ? 'button' : undefined} tabIndex={d.past ? 0 : -1} aria-label={a11y}
@@ -238,12 +239,12 @@ function DailyBars({ m, start, fmt = _home, onPickDay }) {
           position: 'absolute', top: `calc(${(y(b) / H) * 100}% - 21px)`, insetInlineEnd: 0, pointerEvents: 'none',
           padding: '2px 7px', borderRadius: 7, background: 'var(--cream-2)', border: '0.5px solid var(--hairline)',
           fontSize: 10.5, fontWeight: 700, color: 'var(--moss)', whiteSpace: 'nowrap',
-        }}>{ar ? 'اليومي ' : 'Daily '}{_compact(b)}</div>
+        }}>{ar ? 'الخطة ' : 'Plan '}{_compact(b)}</div>
       )}
       <div style={{ display: 'flex', gap: 14, marginTop: 8, flexWrap: 'wrap' }}>
-        {b > 0 && <BoxKey color="var(--ink-mute)" label={ar ? 'ضمن الميزانية' : 'Within budget'} />}
-        {b > 0 && <BoxKey color="var(--clay)" label={ar ? 'فوق الميزانية' : 'Over budget'} />}
-        {b > 0 && <LineKey color="var(--moss)" dash label={`${ar ? 'الميزانية اليومية' : 'Daily budget'} ${fmt(b)}`} />}
+        {b > 0 && <BoxKey color="var(--ink-mute)" label={ar ? 'ضمن الخطة' : 'Within the plan'} />}
+        {b > 0 && <BoxKey color="var(--clay)" label={ar ? 'فوق الخطة' : 'Over the plan'} />}
+        {b > 0 && <LineKey color="var(--moss)" dash label={`${ar ? 'الخطة اليومية' : 'Daily plan'} ${fmt(b)}`} />}
       </div>
     </div>
   );
@@ -372,9 +373,72 @@ function paceLine(m, fmt) {
     : <>{m.ended ? 'Finished on ' : "At this pace you'll finish on "}<b>{fmt(end)}</b><span style={tone}>{fmt(Math.abs(diff))} {diff >= 0 ? 'under budget' : 'over budget'}</span></>;
 }
 
+// ── Today's budget — the one that moves ────────────────────────────────
+// What's left ÷ the days left (today included), worked out each day: spend
+// less and the next days get more, spend more and they get less. Shown on
+// the budget surfaces (Expenses, Today). Analysis keeps the fixed plan
+// (the budget ÷ all the days) as its yardstick.
+function DailyBudgetRow({ trip, expenses, conv, onCard }) {
+  const b = window.dailyBudget?.(trip, expenses);
+  if (!b || b.phase === 'after') return null;
+  const ar = _rtl();
+  conv = conv || _home;
+  const sub = onCard ? 'var(--ink-mute)' : 'var(--statement-sub)';
+  const fg = onCard ? 'var(--ink)' : 'var(--statement-fg)';
+  const good = onCard ? 'var(--moss)' : '#9fe6bd';
+  const bad = onCard ? 'var(--clay-deep)' : '#ffb4a2';
+  const rule = onCard ? '0.5px solid var(--hairline)' : '0.5px solid rgba(255,255,255,0.12)';
+  const daysWord = (n) => (ar ? window.arPlural(n, { one: 'يوم واحد', two: 'يومين', few: `${n} أيام`, many: `${n} يوماً`, other: `${n} يوم` }) : `${n} ${n === 1 ? 'day' : 'days'}`);
+  if (b.phase === 'before') {
+    return (
+      <div style={{ marginTop: 12, paddingTop: 11, borderTop: rule, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+        <span style={{ fontSize: 13, color: sub }}>{ar ? `ميزانيتكم اليومية · على ${daysWord(b.totalDays)}` : `Your daily budget · over ${daysWord(b.totalDays)}`}</span>
+        <span className="mono" style={{ fontSize: 15.5, fontWeight: 700, color: fg, whiteSpace: 'nowrap' }}>{conv(Math.max(0, b.allowance))}</span>
+      </div>
+    );
+  }
+  // Nothing left to divide: the money ran out before today.
+  const usedUp = b.allowance <= 0;
+  const over = !usedUp && b.todayLeft < 0;
+  const diff = b.allowance - b.planPerDay;
+  const pct = b.allowance > 0 ? Math.min(1, b.todaySpent / b.allowance) : 1;
+  return (
+    <div style={{ marginTop: 12, paddingTop: 11, borderTop: rule }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 10 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13, color: sub }}>{ar ? 'ميزانية اليوم' : "Today's budget"}</div>
+          {usedUp ? (
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: bad, marginTop: 2 }}>{ar ? 'خلصت الميزانية' : 'The budget is used up'}</div>
+          ) : Math.abs(diff) >= 1 && (
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: diff > 0 ? good : bad, marginTop: 2 }}>
+              {diff > 0
+                ? (ar ? `زادت ${conv(diff)} عن الخطة` : `${conv(diff)} more than the plan`)
+                : (ar ? `نقصت ${conv(-diff)} عن الخطة` : `${conv(-diff)} less than the plan`)}
+            </div>
+          )}
+        </div>
+        <div className="mono" style={{ fontSize: 17, fontWeight: 700, color: fg, whiteSpace: 'nowrap' }}>{conv(Math.max(0, b.allowance))}</div>
+      </div>
+      <div style={{ height: 6, borderRadius: 99, background: onCard ? 'var(--cream)' : 'rgba(255,255,255,0.12)', marginTop: 9, overflow: 'hidden' }}>
+        <div className="v-grow" style={{ width: `${(over || usedUp ? 1 : pct) * 100}%`, height: '100%', borderRadius: 99, background: over || usedUp ? 'var(--clay)' : good }} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 6, fontSize: 12, color: sub }}>
+        <span>{ar ? 'صرفتوا اليوم ' : 'Spent today '}<b className="mono" style={{ color: fg, fontWeight: 600 }}>{conv(b.todaySpent)}</b></span>
+        <span style={{ whiteSpace: 'nowrap', color: over || usedUp ? bad : sub, fontWeight: over || usedUp ? 600 : 400 }}>
+          {usedUp
+            ? ''
+            : over ?(ar ? `فوقها بـ ${conv(-b.todayLeft)}` : `${conv(-b.todayLeft)} over`) : (ar ? `باقي ${conv(b.todayLeft)}` : `${conv(b.todayLeft)} left`)}
+        </span>
+      </div>
+    </div>
+  );
+}
+window.DailyBudgetRow = DailyBudgetRow;
+
 // ── Expenses: a short summary — spent, what's left, one bar ───────────
 // The category split shows as the bar's colours (the chips under it are
-// the legend and the filter); pace and the rest live in Analysis.
+// the legend and the filter); today's budget sits under it during the
+// trip; pace and the rest live in Analysis.
 function ExpenseSummary({ trip, expenses, conv, currencyToggle, onAnalysis }) {
   const ar = _rtl();
   const m = tripModel(trip, expenses);
@@ -428,6 +492,7 @@ function ExpenseSummary({ trip, expenses, conv, currencyToggle, onAnalysis }) {
               </button>
             )}
           </div>
+          <DailyBudgetRow trip={trip} expenses={expenses} conv={conv} />
           {unpaidUSD > 0 && (
             <div style={{ marginTop: 10, paddingTop: 10, borderTop: '0.5px solid rgba(255,255,255,0.12)', fontSize: 12.5, color: 'var(--statement-sub)', lineHeight: 1.5 }}>
               ⏳ {ar ? <>حجوزات ما اندفعت بعد <b style={{ color: 'var(--statement-fg)' }}>{conv(unpaidUSD)}</b> — تنحسب لما تندفع</> : <>Unpaid bookings <b style={{ color: 'var(--statement-fg)' }}>{conv(unpaidUSD)}</b> — counted once paid</>}
@@ -473,7 +538,6 @@ function TripAnalysis({ go, loading, openSheet }) {
   const pct = m.planned > 0 ? Math.min(1, m.total / m.planned) : 0;
   const top = expenses.slice().sort((x, y) => (y.usd || 0) - (x.usd || 0)).slice(0, 5);
   const fmtDay = (k) => _day(k).toLocaleDateString(ar ? 'ar' : 'en', { weekday: 'short', day: 'numeric', month: 'short' });
-  const leftToday = m.started && !m.ended && m.planned > 0 && m.daysLeft > 0 ? (m.planned - m.total) / m.daysLeft : null;
   const payers = members.map((mm) => ({ m: mm, v: expenses.filter((e) => e.who === mm.id).reduce((s, e) => s + (e.usd || 0), 0) })).filter((x) => x.v > 0).sort((a, c) => c.v - a.v);
   return (
     <div data-screen-label="Trip analysis" style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 110 }}>
@@ -501,9 +565,7 @@ function TripAnalysis({ go, loading, openSheet }) {
         <StatTile label={ar ? 'المتوسط اليومي' : 'Daily average'} value={_home(m.avg || 0)} sub={m.planPerDay ? (ar ? `الخطة ${_home(m.planPerDay)}` : `Plan ${_home(m.planPerDay)}`) : (ar ? 'بدون الحجوزات' : 'excl. bookings')} tone={m.planPerDay && m.avg > m.planPerDay ? 'var(--clay-deep)' : undefined} />
         <StatTile label={ar ? 'أعلى يوم' : 'Biggest day'} value={m.peak ? _home(m.peak.v) : '—'} sub={m.peak ? fmtDay(m.peak.k) : ''} />
         <StatTile label={ar ? 'الحجوزات' : 'Bookings'} value={_home(m.generalUSD)} sub={ar ? 'طيران وسكن قبل الرحلة' : 'paid before the trip'} />
-        {leftToday != null
-          ? <StatTile label={ar ? 'متاح لكل يوم باقي' : 'Per remaining day'} value={_home(Math.max(0, leftToday))} sub={ar ? `${m.daysLeft} أيام باقية` : `${m.daysLeft} days left`} tone={leftToday < 0 ? 'var(--clay-deep)' : 'var(--moss)'} />
-          : <StatTile label={ar ? 'عدد المصاريف' : 'Expenses'} value={String(expenses.length)} sub={ar ? `${payers.length} دافعين` : `${payers.length} payers`} />}
+        <StatTile label={ar ? 'عدد المصاريف' : 'Expenses'} value={String(expenses.length)} sub={ar ? `${payers.length} دافعين` : `${payers.length} payers`} />
       </Grid2>
       {m.started && m.days.length > 0 && (
         <Panel title={ar ? 'وتيرة الصرف' : 'Spending pace'} sub={m.planned > 0 ? (ar ? 'المصروف التراكمي مقابل الميزانية — اسحب على الرسم لتشوف أي يوم' : 'Cumulative spend vs budget — drag across for any day') : null}>
@@ -514,9 +576,9 @@ function TripAnalysis({ go, loading, openSheet }) {
         const over = m.planPerDay > 0 ? m.days.filter((d) => d.v > m.planPerDay).length : 0;
         const sub = m.planPerDay > 0
           ? (over
-            ? (ar ? `${window.arPlural(over, { one: 'يوم واحد', two: 'يومين', few: `${over} أيام`, many: `${over} يوماً`, other: `${over} يوم` })} فوق الميزانية من ${m.days.length} — اضغط على يوم لتشوف مصاريفه`
-              : `${over} of ${m.days.length} days over budget — tap a day for its expenses`)
-            : (ar ? 'كل الأيام ضمن الميزانية 👌 — اضغط على يوم لتشوف مصاريفه' : 'Every day within budget 👌 — tap a day for its expenses'))
+            ? (ar ? `${window.arPlural(over, { one: 'يوم واحد', two: 'يومين', few: `${over} أيام`, many: `${over} يوماً`, other: `${over} يوم` })} فوق الخطة اليومية من ${m.days.length} — اضغط على يوم لتشوف مصاريفه`
+              : `${over} of ${m.days.length} days over the daily plan — tap a day for its expenses`)
+            : (ar ? 'كل الأيام ضمن الخطة اليومية 👌 — اضغط على يوم لتشوف مصاريفه' : 'Every day within the daily plan 👌 — tap a day for its expenses'))
           : (ar ? 'اضغط على يوم لتشوف مصاريفه' : 'Tap a day for its expenses');
         return (
           <Panel title={ar ? 'الصرف اليومي' : 'Daily spend'} sub={sub}>

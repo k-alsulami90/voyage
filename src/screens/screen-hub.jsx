@@ -355,6 +355,8 @@ function HubBudget({ trip, spent, planned, fmtC, onOpen }) {
         {spent > 0 && window.CategoryBar && (
           <window.CategoryBar byCat={byCat} total={spent} scaleTo={planned > spent ? planned : spent} fmt={fmtC} compact />
         )}
+        {/* today's budget — what's left ÷ the days left, so it moves with the spending */}
+        {window.DailyBudgetRow && <window.DailyBudgetRow trip={trip} expenses={window.EXPENSES || []} conv={fmtC} onCard />}
       </div>
     </HubSection>
   );

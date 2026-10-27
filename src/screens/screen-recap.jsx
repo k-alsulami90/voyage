@@ -1,76 +1,141 @@
-// Trip recap — the trip played back as a short film. Not the app's cards
-// and charts again: motion graphics on a dark, grainy screen, a slow camera
-// push on every scene, real cuts between them (iris, zoom-through, flash),
-// words that rise into place, numbers that roll, and a soft soundtrack.
-//   1 the cover, letterboxed, with the trip's name
-//   2 the days, counted like a slot machine
-//   3 what you spent, rolling — and the budget as an orb filling up
-//   4 a plane flying the route across the days, each day a light sized by its spend
-//   5 where the money went, as floating bubbles
-//   6 the biggest expense, slammed onto the screen
-//   7 whose card carried it, on a podium
-//   8 the flight as an arc between airports, the nights as moons
-//   9 the places, lit up one by one along a path
+// Trip recap — the trip as a short film.
+//
+// One continuous piece, not a deck of cards: the trip's cover stays behind
+// every scene (sharp at the start and the end, blurred and dark in between)
+// and over it the trip arrives in a calm, editorial style — light figures
+// that count up, lines that draw, a ring that fills — over a soft score.
+// No stickers, no cartoons: type, lines and timing.
+//   1 the title over the cover
+//   2 the trip in numbers — days, people, places, nights
+//   3 what you spent, counted up, and the budget as one line
+//   4 day by day — the spend drawn as a line, the biggest day called out
+//   5 where it went — a ring, category by category
+//   6 the biggest single expense
+//   7 who paid (or whose card) — the lead, then the rest
+//   8 getting there and staying — the flight's arc, the nights as a strip
+//   9 the plan, rolling like end credits
 //  10 a poster to share
+// Everything sits inside the safe area and sizes itself to the screen
+// (container units), so nothing is cut off on a small or a tall phone.
 // Tap the far side to skip, the near side to go back, hold to pause, swipe
-// down to close.  window.openRecap(tripId?) · <RecapHost/>
+// down to close.   window.openRecap(tripId?) · <RecapHost/>
 
 const RC_CSS = `
-@keyframes rc-dolly { from { transform: scale(1); } to { transform: scale(1.07); } }
-@keyframes rc-burns { from { transform: scale(1.1) translate3d(1.5%, 1%, 0); } to { transform: scale(1.3) translate3d(-2%, -2.5%, 0); } }
-@keyframes rc-grain { 0%{transform:translate(0,0)} 12%{transform:translate(-6%,-9%)} 25%{transform:translate(-13%,4%)} 37%{transform:translate(6%,-19%)} 50%{transform:translate(-5%,18%)} 62%{transform:translate(-14%,8%)} 75%{transform:translate(12%,0)} 87%{transform:translate(1%,13%)} 100%{transform:translate(0,0)} }
-@keyframes rc-lb-top { from { transform: translateY(-100%); } to { transform: none; } }
-@keyframes rc-lb-bot { from { transform: translateY(100%); } to { transform: none; } }
-@keyframes rc-leak { 0% { transform: translateX(-140%) skewX(-18deg); opacity: 0; } 25% { opacity: 1; } 100% { transform: translateX(260%) skewX(-18deg); opacity: 0; } }
-@keyframes rc-rise { from { transform: translateY(115%); } to { transform: none; } }
-@keyframes rc-fadeup { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
-@keyframes rc-track { from { opacity: 0; letter-spacing: .6em; } to { opacity: 1; letter-spacing: .16em; } }
-@keyframes rc-slot { from { transform: translateY(0); } to { transform: translateY(var(--to)); } }
-@keyframes rc-pop { 0% { opacity: 0; transform: scale(.3); } 60% { opacity: 1; transform: scale(1.12); } 100% { opacity: 1; transform: scale(1); } }
-@keyframes rc-float { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -9px, 0); } }
-@keyframes rc-flyin { from { opacity: 0; transform: translate3d(var(--fx), var(--fy), 0) scale(.35); } to { opacity: 1; transform: none; } }
-@keyframes rc-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-@keyframes rc-fill { from { transform: translateY(100%); } to { transform: translateY(var(--fill)); } }
-@keyframes rc-wave { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-@keyframes rc-slam { 0% { opacity: 0; transform: scale(2.8); filter: blur(16px); } 55% { opacity: 1; transform: scale(.93); filter: blur(0); } 75% { transform: scale(1.03); } 100% { opacity: 1; transform: scale(1); } }
-@keyframes rc-shake { 0%, 100% { transform: none; } 15% { transform: translate(-9px, 5px); } 30% { transform: translate(8px, -6px); } 45% { transform: translate(-6px, 3px); } 60% { transform: translate(5px, -3px); } 80% { transform: translate(-2px, 1px); } }
-@keyframes rc-flash { 0% { opacity: 0; } 12% { opacity: .92; } 100% { opacity: 0; } }
-@keyframes rc-out { to { opacity: 0; transform: translateY(-14px); } }
-@keyframes rc-burst { 0% { opacity: 1; transform: translate(0, 0) rotate(0) scale(1); } 100% { opacity: 0; transform: translate(var(--bx), var(--by)) rotate(var(--br)) scale(.6); } }
-@keyframes rc-confetti { 0% { opacity: 1; transform: translate(0, 0) rotate(0); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--cx), var(--cy)) rotate(var(--cr)); } }
-@keyframes rc-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
-@keyframes rc-drop { 0% { opacity: 0; transform: translateY(-150px); } 55% { opacity: 1; transform: translateY(8px); } 75% { transform: translateY(-4px); } 100% { opacity: 1; transform: none; } }
-@keyframes rc-twinkle { 0%, 100% { opacity: .15; } 50% { opacity: .9; } }
-@keyframes rc-streak { from { background-position: 0 0; } to { background-position: -480px 0; } }
-@keyframes rc-pulse { 0%, 100% { opacity: .55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.18); } }
-@keyframes rc-bubble { from { transform: translateY(0); opacity: 0; } 15% { opacity: .7; } to { transform: translateY(-220px); opacity: 0; } }
-@keyframes rc-coin { 0% { transform: translateY(-120px) rotate(0); opacity: 0; } 10% { opacity: 1; } 100% { transform: translateY(110vh) rotate(540deg); opacity: 1; } }
-@keyframes rc-iris { from { clip-path: circle(0% at 50% 50%); -webkit-clip-path: circle(0% at 50% 50%); } to { clip-path: circle(150% at 50% 50%); -webkit-clip-path: circle(150% at 50% 50%); } }
-@keyframes rc-zin { from { opacity: 0; transform: scale(.82); } to { opacity: 1; transform: none; } }
-@keyframes rc-zout { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(1.45); } }
-@keyframes rc-fin { from { opacity: 0; } to { opacity: 1; } }
-@keyframes rc-fout { from { opacity: 1; } to { opacity: 0; } }
-@keyframes rc-dim { from { opacity: 1; } to { opacity: .35; } }
-.rc-rise   { display: inline-block; animation: rc-rise 800ms cubic-bezier(.2,.9,.2,1) both; }
-.rc-fadeup { animation: rc-fadeup 750ms cubic-bezier(.2,.8,.2,1) both; }
-.rc-track  { animation: rc-track 1400ms cubic-bezier(.2,.8,.2,1) both; }
-.rc-pop    { animation: rc-pop 700ms cubic-bezier(.3,.7,.4,1) both; }
+.rc-root {
+  container-type: size;
+  --rc-sat: env(safe-area-inset-top, 0px);
+  --rc-sab: env(safe-area-inset-bottom, 0px);
+  --rc-ease: cubic-bezier(.16, 1, .3, 1);
+  --rc-fg: #f5f2ec;
+  --rc-fg2: rgba(245, 242, 236, .72);
+  --rc-fg3: rgba(245, 242, 236, .48);
+  --rc-line: rgba(245, 242, 236, .16);
+  --rc-good: #94d8ae;
+  --rc-bad: #ff9c87;
+  font-family: 'Geist', 'IBM Plex Sans Arabic', 'Tajawal', system-ui, sans-serif;
+  color: var(--rc-fg);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+@keyframes rc-in { from { opacity: 0; transform: translate3d(0, .42em, 0); filter: blur(9px); } to { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes rc-fade { from { opacity: 0; transform: translate3d(0, 12px, 0); } to { opacity: 1; transform: none; } }
+@keyframes rc-op { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rc-grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes rc-grow-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes rc-scene-in { from { opacity: 0; transform: translate3d(0, 16px, 0); } to { opacity: 1; transform: none; } }
+@keyframes rc-scene-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translate3d(0, -12px, 0); } }
+@keyframes rc-burns { from { transform: scale(1.16) translate3d(1.2%, 1.4%, 0); } to { transform: scale(1.03) translate3d(-1%, -1%, 0); } }
+@keyframes rc-drift { from { transform: translate3d(-3%, -2%, 0) scale(1); } to { transform: translate3d(3%, 2.5%, 0) scale(1.08); } }
+@keyframes rc-glow { from { transform: translate3d(-7%, -5%, 0) scale(1); } to { transform: translate3d(7%, 6%, 0) scale(1.12); } }
+@keyframes rc-grain { 0%{transform:translate(0,0)} 20%{transform:translate(-7%,-9%)} 40%{transform:translate(-13%,5%)} 60%{transform:translate(6%,-15%)} 80%{transform:translate(-4%,14%)} 100%{transform:translate(0,0)} }
+@keyframes rc-ring { from { opacity: .8; transform: scale(.5); } to { opacity: 0; transform: scale(3); } }
+@keyframes rc-unveil { from { opacity: 1; } to { opacity: 0; visibility: hidden; } }
+.rc-w { display: inline-block; animation: rc-in 1000ms var(--rc-ease) both; }
+.rc-fade { animation: rc-fade 900ms var(--rc-ease) both; }
+.rc-op { animation: rc-op 900ms ease both; }
+.rc-stage {
+  position: absolute; inset: 0; box-sizing: border-box; display: flex; flex-direction: column;
+  padding: calc(var(--rc-sat) + 80px) 26px calc(var(--rc-sab) + 30px);
+}
+.rc-fill { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: center; }
+.rc-eye {
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  font-size: 12px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; color: var(--rc-fg2);
+  animation: rc-fade 900ms var(--rc-ease) both;
+}
+.rc-root[dir="rtl"] .rc-eye { font-size: 15px; letter-spacing: 0; text-transform: none; }
+.rc-eye i {
+  display: block; width: 22px; height: 1.5px; border-radius: 2px; background: var(--rc-accent);
+  transform-origin: 0 50%; animation: rc-grow-x 1000ms var(--rc-ease) both; animation-delay: inherit;
+}
+.rc-root[dir="rtl"] .rc-eye i { transform-origin: 100% 50%; }
+.rc-title { font-family: 'Instrument Serif', 'Markazi Text', Georgia, serif; font-style: italic; font-weight: 400; line-height: 1.02; letter-spacing: -0.012em; }
+.rc-root[dir="rtl"] .rc-title { font-family: 'Markazi Text', 'Instrument Serif', Georgia, serif; font-style: normal; font-weight: 500; line-height: 1.16; letter-spacing: 0; }
+.rc-hero { font-family: 'Geist', system-ui, sans-serif; font-weight: 300; line-height: 1; letter-spacing: -0.045em; white-space: nowrap; }
+.rc-h2 { font-weight: 500; line-height: 1.28; }
+.rc-root[dir="ltr"] .rc-h2 { letter-spacing: -0.015em; }
+.rc-body { font-size: 15px; line-height: 1.6; color: var(--rc-fg2); }
+.rc-small { font-size: 12.5px; line-height: 1.5; color: var(--rc-fg3); }
+.rc-num { font-family: 'Geist', system-ui, sans-serif; font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
+.rc-rule { height: 1px; background: var(--rc-line); transform-origin: 0 50%; animation: rc-grow-x 1200ms var(--rc-ease) both; }
+.rc-root[dir="rtl"] .rc-rule { transform-origin: 100% 50%; }
+.rc-bar { display: block; height: 100%; border-radius: 3px; transform-origin: 0 50%; animation: rc-grow-x 1400ms var(--rc-ease) both; }
+.rc-root[dir="rtl"] .rc-bar { transform-origin: 100% 50%; }
+.rc-ell { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-btn {
+  min-height: 50px; border-radius: 16px; display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: inherit; font-size: 15px; font-weight: 600;
+}
+.rc-glass { background: rgba(255,255,255,.12); color: #fff; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.2); }
 .rc-paused, .rc-paused * { animation-play-state: paused !important; }
-.rc-reduce * { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; transition-delay: 0ms !important; }
+/* Reduce Motion: the film still plays — fades, counts and lines drawing —
+   only the movement goes (words rising, scenes sliding, the camera drift). */
+.rc-reduce .rc-w, .rc-reduce .rc-fade, .rc-reduce .rc-in { animation-name: rc-op !important; }
+.rc-reduce .rc-out { animation-name: rc-unveil !important; }
 .rc-reduce .rc-loop { animation: none !important; }
 `;
 
-const _rcFull = { position: 'absolute', inset: 0, overflow: 'hidden' };
-const _rcRand = (s) => { const x = Math.sin(s * 9301 + 49297) * 233280; return x - Math.floor(x); };
+// ── Small helpers ──────────────────────────────────────────────────
+const _rcClamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const _rcOut = (p) => 1 - Math.pow(1 - p, 4);
+const _rcInOut = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
 const _rcCatName = (k) => window.CAT_META?.[k]?.[window.isRTL ? 'label_ar' : 'label_en'] || (window.catLabel ? window.catLabel(k) : k);
-const _rcCatHex = { culture: '#3d8bff', lodging: '#ff6a3d', transit: '#22c38a', food: '#ffb020', shopping: '#ff5fa2', wellness: '#9b8cff', misc: '#a29d94' };
-const _rcKicker = { fontSize: 15, fontWeight: 700, color: 'rgba(255,255,255,0.72)' };
+// The categories in the app's own hues, lifted a little for a dark screen.
+const RC_CAT = { culture: '#5f9ef2', lodging: '#ef8352', transit: '#3dc395', food: '#efb444', shopping: '#ec90b5', wellness: '#978cec', misc: '#a8a39a' };
+const rcCatColor = (k) => RC_CAT[k] || 'rgba(245,242,236,.55)';
+// One accent per film, taken from the trip's cover.
+const RC_ACCENT = { kyoto: '#efab97', lisbon: '#f1bc7e', oaxaca: '#f49f64', lofoten: '#93b8ff', patagon: '#82d1ca' };
 
-// Arabic counted nouns the way people say them ("3 أيام", "11 يوم").
-const _rcNoun = (n, ar, forms) => (ar ? (n === 1 ? forms[0] : n === 2 ? forms[1] : n <= 10 ? forms[2] : forms[3]) : (n === 1 ? forms[4] : forms[5]));
-const _rcDays   = (n, ar) => _rcNoun(n, ar, ['يوم', 'يومين', 'أيام', 'يوم', 'day', 'days']);
-const _rcPlaces = (n, ar) => _rcNoun(n, ar, ['مكان', 'مكانين', 'أماكن', 'مكان', 'place', 'places']);
-const _rcNights = (n, ar) => _rcNoun(n, ar, ['ليلة', 'ليلتين', 'ليالٍ', 'ليلة', 'night', 'nights']);
+// Counted words the way people say them: "ليلة واحدة", "ليلتين", "3 ليالٍ", "11 ليلة".
+const RC_WORDS = {
+  day:     { ar: ['يوم', 'يومين', 'أيام', 'يوم'], one: 'واحد', en: ['day', 'days'] },
+  night:   { ar: ['ليلة', 'ليلتين', 'ليالٍ', 'ليلة'], one: 'واحدة', en: ['night', 'nights'] },
+  place:   { ar: ['مكان', 'مكانين', 'أماكن', 'مكان'], one: 'واحد', en: ['place', 'places'] },
+  person:  { ar: ['مسافر', 'مسافرين', 'مسافرين', 'مسافر'], one: 'واحد', en: ['traveller', 'travellers'] },
+  flight:  { ar: ['رحلة طيران', 'رحلتين طيران', 'رحلات طيران', 'رحلة طيران'], one: 'واحدة', en: ['flight', 'flights'] },
+  payment: { ar: ['عملية دفع', 'عمليتين دفع', 'عمليات دفع', 'عملية دفع'], one: 'واحدة', en: ['payment', 'payments'] },
+  country: { ar: ['دولة', 'دولتين', 'دول', 'دولة'], one: 'واحدة', en: ['country', 'countries'] },
+  stay:    { ar: ['فندق', 'فندقين', 'فنادق', 'فندق'], one: 'واحد', en: ['stay', 'stays'] },
+};
+// Just the noun that goes after a number shown on its own ("أيام" next to a big 9).
+const rcNoun = (n, kind, ar) => {
+  const w = RC_WORDS[kind];
+  if (!ar) return n === 1 ? w.en[0] : w.en[1];
+  return n === 1 ? w.ar[0] : n === 2 ? w.ar[1] : n <= 10 ? w.ar[2] : w.ar[3];
+};
+// The whole phrase ("ليلة واحدة", "ليلتين", "3 ليالٍ").
+const rcCount = (n, kind, ar) => {
+  const w = RC_WORDS[kind];
+  if (!ar) return `${n} ${n === 1 ? w.en[0] : w.en[1]}`;
+  if (n === 1) return `${w.ar[0]} ${w.one}`;
+  if (n === 2) return w.ar[1];
+  return `${n} ${n <= 10 ? w.ar[2] : w.ar[3]}`;
+};
+const _rcCompact = (usd) => {
+  const v = (usd || 0) * (window.fxRate ? window.fxRate(window.TRIP?.homeCurrency || window.USER_DEFAULT_CURRENCY || 'USD') : 1);
+  return v >= 1e6 ? (v / 1e6).toFixed(1).replace(/\.0$/, '') + 'M' : v >= 1000 ? (v / 1000).toFixed(v >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'K' : String(Math.round(v));
+};
+const _rcFirst = (mm) => ((mm && mm.name) || '').trim().split(/\s+/)[0] || '?';
 
 // Everything the film needs, worked out once.
 function recapData() {
@@ -87,33 +152,52 @@ function recapData() {
     .map((mm) => ({ m: mm, v: expenses.filter((e) => e.who === mm.id).reduce((s, e) => s + (e.usd || 0), 0) }))
     .filter((x) => x.v > 0).sort((a, b) => b.v - a.v);
   const docs = Object.values(window.DOCS_BY_CAT || {}).flat()
-    .filter((x) => !x.ownerUserId || x.ownerUserId === window.currentUserId);
+    .filter((x) => x && (!x.ownerUserId || x.ownerUserId === window.currentUserId));
   const day = (v) => String(v || '').slice(0, 10);
   const flights = docs.filter((x) => x.category === 'flights' && x.details?.dep_airport && x.details?.arr_airport)
     .sort((a, b) => String(a.details.dep_at || '').localeCompare(String(b.details.dep_at || '')));
-  const stays = docs.filter((x) => x.category === 'lodging');
-  const nights = stays.reduce((s, x) => {
+  const nightsOf = (x) => {
     const a = x.details?.check_in_at, b = x.details?.check_out_at;
-    return a && b ? s + Math.max(0, Math.round((new Date(day(b)) - new Date(day(a))) / 86400000)) : s;
-  }, 0);
-  const rides = docs.filter((x) => x.category === 'transport');
+    return a && b ? Math.max(0, Math.round((new Date(day(b)) - new Date(day(a))) / 86400000)) : 0;
+  };
+  const stays = docs.filter((x) => x.category === 'lodging');
+  const stayList = stays.map((x) => ({ id: x.id, title: x.title || '', nights: nightsOf(x), at: day(x.details?.check_in_at) }))
+    .filter((x) => x.nights > 0).sort((a, b) => a.at.localeCompare(b.at));
+  const nights = stayList.reduce((s, x) => s + x.nights, 0);
   const plan = (window.ITINERARY || []).slice()
     .sort((a, b) => String(a.dayDate || '').localeCompare(String(b.dayDate || '')) || String(a.startTime || '').localeCompare(String(b.startTime || '')));
-  const spentDays = m.days.filter((x) => x.v > 0);
-  const calm = spentDays.length > 1 ? spentDays.reduce((a, x) => (x.v < a.v ? x : a), spentDays[0]) : null;
   const daysShown = m.ended ? m.totalDays : (m.daysSoFar || 0);
-  const dayWord = (n) => `${n} ${_rcDays(n, ar)}`;
-  const peopleWord = (n) => (ar ? window.arPlural(n, { one: 'مسافر واحد', two: 'مسافرين', few: `${n} مسافرين`, many: `${n} مسافراً`, other: `${n} مسافر` }) : `${n} ${n === 1 ? 'traveller' : 'travellers'}`);
+  const dayWord = (n) => rcCount(n, 'day', ar);
+  const peopleWord = (n) => rcCount(n, 'person', ar);
   const cur = (trip.homeCurrency || window.USER_DEFAULT_CURRENCY || 'USD').toUpperCase();
   const curWord = ar ? ({ SAR: 'ريال', AED: 'درهم', KWD: 'دينار', BHD: 'دينار', USD: 'دولار', EUR: 'يورو', GBP: 'جنيه', EGP: 'جنيه', TRY: 'ليرة', JPY: 'ين', MAD: 'درهم', CHF: 'فرنك', INR: 'روبية', IDR: 'روبية' }[cur] || cur) : cur;
+  let curName = curWord;
+  try { curName = new Intl.DisplayNames([ar ? 'ar' : 'en'], { type: 'currency' }).of(cur) || curWord; } catch (_) {}
   const num = (usd) => (String(fmt(usd)).match(/[\d.,]+/) || ['0'])[0];
-  return { ar, trip, expenses, m, fmt, num, curWord, members, wallets, cats, biggest, payers, docs, flights, stays, nights, rides, plan, calm, daysShown, dayWord, peopleWord };
+  const photo = !!(trip.coverUrl || trip.coverImageUrl);
+  const accent = photo ? '#f0b680' : (RC_ACCENT[trip.cover] || RC_ACCENT.kyoto);
+  return { ar, trip, expenses, m, fmt, num, cur, curWord, curName, members, wallets, cats, biggest, payers, docs, flights, stays, stayList, nights, plan, daysShown, dayWord, peopleWord, photo, accent };
 }
 
-// ── Small pieces of the film ───────────────────────────────────────
-// Words rise into place from behind a mask, one after another. In Arabic,
-// a run of Latin words and numbers ("Hotel Galata", "SAR 5,565", "5 – 14")
-// moves as one piece and keeps its left-to-right order.
+// The figures for "the trip in numbers" — up to four, in this order.
+function rcFigures(d) {
+  const { ar, members, plan, nights, flights, expenses, trip } = d;
+  const out = [];
+  if (d.daysShown) out.push({ k: 'days', v: d.daysShown, l: rcNoun(d.daysShown, 'day', ar) });
+  if (members.length > 1) out.push({ k: 'people', v: members.length, l: rcNoun(members.length, 'person', ar) });
+  const cc = (trip.countries || []).length;
+  if (cc > 1) out.push({ k: 'countries', v: cc, l: rcNoun(cc, 'country', ar) });
+  if (plan.length) out.push({ k: 'places', v: plan.length, l: ar ? `${rcNoun(plan.length, 'place', ar)} في الخطة` : `${rcNoun(plan.length, 'place', ar)} on the plan` });
+  if (nights) out.push({ k: 'nights', v: nights, l: rcNoun(nights, 'night', ar) });
+  if (flights.length) out.push({ k: 'flights', v: flights.length, l: rcNoun(flights.length, 'flight', ar) });
+  if (expenses.length) out.push({ k: 'pays', v: expenses.length, l: rcNoun(expenses.length, 'payment', ar) });
+  return out.slice(0, 4);
+}
+
+// ── Text and time ──────────────────────────────────────────────────
+// Words arrive one after another, rising out of a soft blur. In Arabic, a
+// run of Latin words and numbers ("Hotel Galata", "SAR 5,565") moves as
+// one piece and keeps its left-to-right order.
 const _rcAr = (w) => /[\u0600-\u06FF]/.test(w);
 const _rcLtr = (w) => !_rcAr(w) && /[A-Za-z0-9]/.test(w);
 function rcTokens(text) {
@@ -131,641 +215,718 @@ function rcTokens(text) {
   });
   return g;
 }
-function RcWords({ text, delay = 0, stagger = 80, dur = 800, cls = 'rc-rise' }) {
+function RcText({ text, at = 0, stagger = 80, dur = 1000 }) {
   const toks = rcTokens(text);
   return (
     <>
       {toks.map((w, i) => (
         <React.Fragment key={i}>
-          <span style={{ display: 'inline-block', overflow: 'hidden', verticalAlign: 'bottom', padding: '0.12em 0.04em 0.22em', margin: '-0.12em -0.04em -0.22em', ...(w.ltr ? { direction: 'ltr', unicodeBidi: 'isolate' } : null) }}>
-            <span className={cls} style={{ animationDelay: `${delay + i * stagger}ms`, animationDuration: `${dur}ms` }}>{w.t}</span>
-          </span>
+          <span className="rc-w" style={{ animationDelay: `${at + i * stagger}ms`, animationDuration: `${dur}ms`, ...(w.ltr ? { direction: 'ltr', unicodeBidi: 'isolate' } : null) }}>{w.t}</span>
           {i < toks.length - 1 ? ' ' : null}
         </React.Fragment>
       ))}
     </>
   );
 }
+function RcEyebrow({ at = 0, children }) {
+  return <div className="rc-eye" style={{ animationDelay: `${at}ms` }}><i />{children}</div>;
+}
 
-// An odometer: each digit spins into place, the last ones longest.
-function RcOdometer({ text, delay = 300, dur = 1700 }) {
-  const ref = React.useRef(null);
-  const chars = String(text).split('');
-  const digits = chars.filter((c) => /\d/.test(c)).length;
+// Every scene has its own clock (ms since it started), which stops while
+// the film is paused. Anything drawn by script reads it, so a paused film
+// is paused everywhere and a scene left mid-way keeps its last frame.
+function useRcTick(clock, fn) {
+  const ref = React.useRef(fn); ref.current = fn;
   React.useEffect(() => {
-    const t = setTimeout(() => {
-      ref.current?.querySelectorAll('[data-d]').forEach((el) => { el.style.transform = `translateY(-${(10 + Number(el.dataset.d)) * 5}%)`; });
-    }, delay);
-    return () => clearTimeout(t);
-  }, [text]);
-  let k = 0;
+    let raf = 0, on = true;
+    const loop = () => {
+      if (!on) return;
+      if (ref.current(clock.reduce ? 1e9 : clock.t) !== true) raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => { on = false; cancelAnimationFrame(raf); };
+  }, [clock]);
+}
+
+// A number that counts up. The final value reserves the space, so nothing
+// around it moves while it counts; the digits grow from the units side.
+// It stays hidden until its moment, then fades in as it starts counting —
+// no row of zeros waiting on screen.
+function RcNum({ clock, value, fmt, at = 0, dur = 1600, style }) {
+  const ref = React.useRef(null);
+  useRcTick(clock, (t) => {
+    const p = _rcClamp((t - at) / dur, 0, 1);
+    const el = ref.current;
+    if (el) {
+      el.textContent = fmt(p >= 1 ? value : value * _rcOut(p));
+      el.style.opacity = String(_rcClamp((t - at + 60) / 320, 0, 1));
+    }
+    return p >= 1;
+  });
+  const final = fmt(value);
   return (
-    <span ref={ref} style={{ display: 'inline-flex', direction: 'ltr', unicodeBidi: 'isolate', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
-      {chars.map((c, i) => {
-        if (!/\d/.test(c)) return <span key={i} style={{ whiteSpace: 'pre' }}>{c}</span>;
-        const idx = k++;
-        return (
-          <span key={i} style={{ display: 'inline-block', height: '1em', overflow: 'hidden' }}>
-            <span data-d={c} style={{ display: 'flex', flexDirection: 'column', transition: `transform ${dur + idx * 120}ms cubic-bezier(.12,.8,.2,1)` }}>
-              {Array.from({ length: 20 }, (_, j) => <span key={j} style={{ height: '1em', lineHeight: 1 }}>{j % 10}</span>)}
-            </span>
-          </span>
-        );
-      })}
+    <span className="rc-num" style={{ position: 'relative', display: 'inline-block', ...style }}>
+      <span style={{ visibility: 'hidden' }}>{final}</span>
+      <span ref={ref} aria-hidden="true" style={{ position: 'absolute', top: 0, right: 0, whiteSpace: 'nowrap', opacity: clock.reduce ? 1 : 0 }}>{fmt(clock.reduce ? value : 0)}</span>
     </span>
   );
 }
 
-// The slow push-in every scene gets — the screen never stands still.
-function RcCam({ dur, children }) {
-  return <div style={{ ..._rcFull, overflow: 'visible', animation: `rc-dolly ${dur + 1500}ms linear both` }}>{children}</div>;
-}
-
-function RcLetterbox({ delay = 0 }) {
-  const bar = { position: 'absolute', insetInline: 0, height: '8.5%', background: '#000', zIndex: 4 };
+// A monogram for a person — quiet, in their own hue.
+function RcMono({ m, size = 30, at }) {
+  const s = typeof size === 'number' ? `${size}px` : size;
+  const hue = m && m.hue != null ? m.hue : 210;
   return (
-    <>
-      <div style={{ ...bar, top: 0, animation: `rc-lb-top 900ms ${delay}ms cubic-bezier(.2,.8,.2,1) both` }} />
-      <div style={{ ...bar, bottom: 0, animation: `rc-lb-bot 900ms ${delay}ms cubic-bezier(.2,.8,.2,1) both` }} />
-    </>
+    <span className={at != null ? 'rc-fade' : undefined} style={{
+      animationDelay: at != null ? `${at}ms` : undefined,
+      width: s, height: s, borderRadius: '50%', flexShrink: 0, display: 'inline-grid', placeItems: 'center',
+      background: `radial-gradient(120% 120% at 30% 20%, oklch(0.6 0.08 ${hue}), oklch(0.34 0.06 ${hue}))`,
+      boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.22)', color: '#fff', fontWeight: 500, fontSize: `calc(${s} * .38)`,
+    }}>{(m && m.initials) || _rcFirst(m).slice(0, 1)}</span>
   );
 }
 
-function RcGlow({ color, x, y, size = 560, dur = 11 }) {
-  return (
-    <div className="rc-loop" style={{
-      position: 'absolute', left: x, top: y, width: size, height: size, marginLeft: -size / 2, marginTop: -size / 2,
-      borderRadius: '50%', background: `radial-gradient(closest-side, ${color}, transparent)`,
-      animation: `rc-float ${dur}s ease-in-out infinite`, pointerEvents: 'none',
-    }} />
-  );
-}
-
-function RcStars({ n = 60, seed = 1 }) {
-  return (
-    <div style={{ ..._rcFull, pointerEvents: 'none' }}>
-      {Array.from({ length: n }, (_, i) => {
-        const r = (k) => _rcRand(seed * 97 + i * 13 + k);
-        const s = 1 + r(3) * 2.2;
-        return <span key={i} className="rc-loop" style={{
-          position: 'absolute', left: `${r(1) * 100}%`, top: `${r(2) * 75}%`, width: s, height: s, borderRadius: 9,
-          background: '#fff', animation: `rc-twinkle ${2.2 + r(4) * 3}s ${r(5) * 3}s ease-in-out infinite`,
-        }} />;
-      })}
-    </div>
-  );
-}
-
-function RcConfetti({ n = 34, delay = 0, x = '50%', y = '42%', seed = 3 }) {
-  const colors = ['#ffd166', '#ff6a3d', '#22c38a', '#3d8bff', '#ff5fa2', '#ffffff'];
-  return (
-    <div style={{ position: 'absolute', left: x, top: y, width: 0, height: 0, zIndex: 6, pointerEvents: 'none' }}>
-      {Array.from({ length: n }, (_, i) => {
-        const r = (k) => _rcRand(seed * 31 + i * 7 + k);
-        const ang = r(1) * Math.PI * 2, dist = 120 + r(2) * 220;
-        return <span key={i} style={{
-          position: 'absolute', width: 6 + r(3) * 6, height: 10 + r(4) * 8, borderRadius: 2,
-          background: colors[i % colors.length],
-          '--cx': `${Math.cos(ang) * dist}px`, '--cy': `${Math.sin(ang) * dist * 0.6 + 260 + r(5) * 200}px`, '--cr': `${(r(6) - 0.5) * 900}deg`,
-          animation: `rc-confetti ${1500 + r(7) * 900}ms ${delay + r(8) * 120}ms cubic-bezier(.15,.6,.3,1) both`,
-        }} />;
-      })}
-    </div>
-  );
-}
-
-// A smooth line through points (Catmull-Rom → Bézier).
-function rcPath(pts) {
-  if (!pts.length) return '';
-  let s = `M${pts[0][0]},${pts[0][1]}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
-    s += ` C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)},${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)},${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0]},${p2[1]}`;
+// A smooth line through the days that never overshoots (monotone cubic),
+// worked out left to right and then mapped (mirrored for Arabic).
+function rcMonotone(pts, mapX) {
+  const n = pts.length;
+  if (!n) return '';
+  const f = (v) => v.toFixed(1);
+  if (n === 1) return `M${f(mapX(pts[0][0]))},${f(pts[0][1])}`;
+  const dx = [], s = [], t = [];
+  for (let i = 0; i < n - 1; i++) { dx[i] = pts[i + 1][0] - pts[i][0]; s[i] = (pts[i + 1][1] - pts[i][1]) / dx[i]; }
+  t[0] = s[0]; t[n - 1] = s[n - 2];
+  for (let i = 1; i < n - 1; i++) t[i] = s[i - 1] * s[i] <= 0 ? 0 : (s[i - 1] + s[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (s[i] === 0) { t[i] = 0; t[i + 1] = 0; continue; }
+    const a = t[i] / s[i], b = t[i + 1] / s[i], q = a * a + b * b;
+    if (q > 9) { const k = 3 / Math.sqrt(q); t[i] = k * a * s[i]; t[i + 1] = k * b * s[i]; }
   }
-  return s;
+  let out = `M${f(mapX(pts[0][0]))},${f(pts[0][1])}`;
+  for (let i = 0; i < n - 1; i++) {
+    const h = dx[i] / 3;
+    out += ` C${f(mapX(pts[i][0] + h))},${f(pts[i][1] + t[i] * h)} ${f(mapX(pts[i + 1][0] - h))},${f(pts[i + 1][1] - t[i + 1] * h)} ${f(mapX(pts[i + 1][0]))},${f(pts[i + 1][1])}`;
+  }
+  return out;
 }
-const _rcPlane = 'M15,0 L4,-3 L-2,-14 L-6,-14 L-3,-3 L-10,-3 L-13,-8 L-16,-8 L-14,0 L-16,8 L-13,8 L-10,3 L-3,3 L-6,14 L-2,14 L4,3 Z';
-const _rcCompact = (usd) => {
-  const v = (usd || 0) * (window.fxRate ? window.fxRate(window.TRIP?.homeCurrency || window.USER_DEFAULT_CURRENCY || 'USD') : 1);
-  return v >= 1e6 ? (v / 1e6).toFixed(1).replace(/\.0$/, '') + 'M' : v >= 1000 ? (v / 1000).toFixed(v >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'K' : String(Math.round(v));
+
+// ── The backdrop: one piece behind the whole film ──────────────────
+// In between, the cover is drawn tiny on a canvas and shown full screen:
+// scaling it up is the blur — soft colour fields for free, no filter for
+// the phone to recompute every frame.
+const RC_PRESET = {
+  kyoto: ['#d39b91', '#3a3956'], lisbon: ['#ddae77', '#934c3a'], oaxaca: ['#e6964f', '#86281d'],
+  lofoten: ['#577ab5', '#101836'], patagon: ['#67acb0', '#183a5b'],
 };
+function RcAmbient({ d }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const c = ref.current; if (!c) return;
+    const x = c.getContext('2d'); if (!x) return;
+    const W = c.width, H = c.height;
+    const [a, b] = RC_PRESET[d.trip.cover] || RC_PRESET.kyoto;
+    const g = x.createLinearGradient(0, 0, W * 0.6, H); g.addColorStop(0, a); g.addColorStop(1, b);
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    const r = x.createRadialGradient(W * 0.7, H * 0.25, 1, W * 0.7, H * 0.25, W * 0.9);
+    r.addColorStop(0, 'rgba(255,236,214,0.45)'); r.addColorStop(1, 'rgba(255,236,214,0)');
+    x.fillStyle = r; x.fillRect(0, 0, W, H);
+    const url = d.trip.coverUrl || d.trip.coverImageUrl;
+    if (url) {
+      const im = new Image();
+      im.onload = () => {
+        try {
+          const k = Math.max(W / im.width, H / im.height), w = im.width * k, h = im.height * k;
+          const offs = [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1], [-1, 1], [1, -1]];
+          offs.forEach(([ox, oy], n) => { x.globalAlpha = 1 / (n + 1); x.drawImage(im, (W - w) / 2 + ox * 1.5, (H - h) / 2 + oy * 1.5, w, h); });
+          x.globalAlpha = 1;
+        } catch (_) {}
+      };
+      im.src = url;
+    }
+  }, []);
+  return <canvas ref={ref} width="24" height="48" className="rc-loop" style={{ position: 'absolute', inset: '-12%', width: '124%', height: '124%', animation: 'rc-drift 30s ease-in-out infinite alternate' }} />;
+}
+
+function RcBackdrop({ d, sharp, glow, end }) {
+  const { trip } = d;
+  const url = trip.coverUrl || trip.coverImageUrl;
+  const layer = { position: 'absolute', inset: 0, transition: 'opacity 1500ms ease' };
+  return (
+    <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#060607' }}>
+      {/* in between: the cover as soft colour, dark */}
+      <div style={{ ...layer, opacity: sharp ? 0 : 1 }}>
+        <RcAmbient d={d} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(6,6,8,.72) 0%, rgba(6,6,8,.56) 45%, rgba(6,6,8,.84) 100%)' }} />
+      </div>
+      {/* the start and the end: the cover itself, slowly pushing in */}
+      <div style={{ ...layer, opacity: sharp ? 1 : 0 }}>
+        <div className="rc-loop" style={{ position: 'absolute', inset: 0, animation: 'rc-burns 24s cubic-bezier(.3,.1,.3,1) infinite alternate' }}>
+          <window.CoverArt kind={trip.cover || 'kyoto'} imageUrl={url} />
+        </div>
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(6,6,8,.6) 0%, rgba(6,6,8,.06) 24%, rgba(6,6,8,.18) 46%, rgba(6,6,8,.95) 100%)' }} />
+        <div style={{ position: 'absolute', inset: 0, opacity: end ? 1 : 0, transition: 'opacity 1500ms ease', background: 'linear-gradient(180deg, transparent 18%, rgba(6,6,8,.55) 40%, rgba(6,6,8,.9) 62%, #060607 100%)' }} />
+      </div>
+      {/* a soft light in the trip's colour, drifting */}
+      <div className="rc-loop" style={{
+        position: 'absolute', inset: '-25%', opacity: glow ? 1 : 0.45, transition: 'opacity 1600ms ease',
+        background: `radial-gradient(38% 28% at 50% 46%, ${d.accent}2e, transparent 72%)`,
+        animation: 'rc-glow 18s ease-in-out infinite alternate',
+      }} />
+    </div>
+  );
+}
 
 // ── The scenes ─────────────────────────────────────────────────────
-function RcOpen({ d, dur }) {
+function RcTitle({ d }) {
   const { ar, trip, m, members } = d;
   const title = trip.title || (ar ? 'رحلة' : 'Trip');
-  const size = title.length <= 9 ? 80 : title.length <= 15 ? 62 : 46;
-  const meta = [trip.dates, m.totalDays ? d.dayWord(m.totalDays) : null, members.length > 1 ? d.peopleWord(members.length) : null].filter(Boolean).join(' · ');
+  const len = [...title].length;
+  const size = len <= 8 ? 'min(20cqw, 12cqh)' : len <= 14 ? 'min(14.5cqw, 9cqh)' : 'min(11cqw, 7cqh)';
+  const meta = [trip.dates, m.totalDays ? d.dayWord(m.totalDays) : null, members.length > 1 ? d.peopleWord(members.length) : null].filter(Boolean);
   return (
-    <div style={{ ..._rcFull, background: '#050608', color: '#fff' }}>
-      <div style={{ position: 'absolute', inset: '-8%', animation: `rc-burns ${dur + 1200}ms cubic-bezier(.3,.1,.3,1) both` }}>
-        <window.CoverArt kind={trip.cover || 'kyoto'} imageUrl={trip.coverUrl || trip.coverImageUrl} />
+    <div className="rc-stage" style={{ justifyContent: 'flex-end', paddingBottom: 'calc(var(--rc-sab) + 44px)' }}>
+      <RcEyebrow at={700}>{ar ? 'ملخص الرحلة' : 'Trip recap'}</RcEyebrow>
+      <div className="rc-title" style={{ fontSize: size, marginTop: 16, textShadow: '0 6px 40px rgba(0,0,0,.35)' }}>
+        <RcText text={title} at={1000} stagger={150} dur={1400} />
       </div>
-      <div style={{ ..._rcFull, background: 'linear-gradient(180deg, rgba(4,5,8,.55) 0%, rgba(4,5,8,0) 28%, rgba(4,5,8,.15) 52%, rgba(4,5,8,.96) 100%)' }} />
-      <div style={{ position: 'absolute', top: '-25%', bottom: '-25%', left: 0, width: '55%', mixBlendMode: 'screen', pointerEvents: 'none',
-        background: 'linear-gradient(90deg, transparent, rgba(255,176,104,.45), rgba(255,236,200,.22), transparent)', animation: 'rc-leak 3200ms 350ms ease-in-out both' }} />
-      <RcLetterbox />
-      <div style={{ position: 'absolute', insetInline: 28, bottom: '15%', zIndex: 5 }}>
-        <div className={ar ? 'rc-fadeup' : 'rc-track'} style={{ animationDelay: '500ms', ..._rcKicker, letterSpacing: ar ? 0 : '.16em', textTransform: ar ? 'none' : 'uppercase', fontSize: ar ? 16 : 12.5 }}>
-          {ar ? 'ملخص رحلتكم' : 'A trip to remember'}
-        </div>
-        <div className="serif-italic" style={{ fontSize: size, lineHeight: 1.02, marginTop: 10, textShadow: '0 8px 50px rgba(0,0,0,.55)' }}>
-          <RcWords text={title} delay={900} stagger={160} dur={1100} />
-        </div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(255,255,255,.85)', marginTop: 16 }}>
-          <RcWords text={meta} delay={1800} stagger={40} dur={700} />
-        </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', columnGap: 10, rowGap: 4, marginTop: 18, fontSize: 15, color: 'var(--rc-fg2)' }}>
+        {meta.map((x, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <span className="rc-op" style={{ animationDelay: `${1800 + i * 150}ms`, width: 3, height: 3, borderRadius: 3, background: 'var(--rc-fg3)' }} />}
+            <span className="rc-fade" style={{ animationDelay: `${1800 + i * 150}ms` }}>{x}</span>
+          </React.Fragment>
+        ))}
       </div>
     </div>
   );
 }
 
-function RcCount({ d, dur, sfx }) {
-  const { ar, m, trip, members } = d;
-  const n = Math.max(1, d.daysShown);
-  const nums = Array.from({ length: n }, (_, k) => k + 1);
-  React.useEffect(() => { if (n > 1) sfx('ticks', 350, Math.min(n, 30)); }, []);
-  const region = (c) => { if (/^[A-Za-z]{2}$/.test(c || '')) { try { return new Intl.DisplayNames([ar ? 'ar' : 'en'], { type: 'region' }).of(String(c).toUpperCase()); } catch (_) {} } return c; };
-  const lines = [members.length > 1 ? d.peopleWord(members.length) : null, (trip.countries || []).length ? trip.countries.map(region).join(' · ') : null].filter(Boolean).join(' · ');
+function RcFigures({ d, clock }) {
+  const { ar } = d;
+  const rows = rcFigures(d);
+  const w = Math.max(...rows.map((r) => String(r.v).length));
+  const int = (x) => String(Math.round(x));
   return (
-    <div style={{ ..._rcFull, background: 'radial-gradient(120% 80% at 50% 42%, #1b2466 0%, #070912 72%)', color: '#fff' }}>
-      <div className="rc-loop" style={{ position: 'absolute', inset: '-10%', opacity: .85, backgroundSize: '480px 480px', animation: 'rc-streak 700ms linear infinite, rc-fout 1600ms 1800ms ease-out forwards',
-        backgroundImage: 'repeating-linear-gradient(100deg, transparent 0 52px, rgba(140,160,255,.13) 52px 54px, transparent 54px 130px)' }} />
-      <RcCam dur={dur}>
-        <div style={{ ..._rcFull, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '0 24px' }}>
-          <div className="rc-fadeup" style={{ animationDelay: '100ms', ..._rcKicker }}>{m.ended ? (ar ? 'رحلتكم كانت' : 'Your trip ran') : (ar ? 'لين الحين' : 'So far')}</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 14, marginTop: 4 }}>
-            <span style={{ display: 'inline-block', height: '1em', overflow: 'hidden', fontSize: 172, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.05em', direction: 'ltr', filter: 'drop-shadow(0 0 28px rgba(120,140,255,.6))' }}>
-              <span style={{ display: 'flex', flexDirection: 'column', '--to': `${-((n - 1) * 100) / n}%`, animation: `rc-slot 1900ms 300ms cubic-bezier(.12,.75,.18,1) both` }}>
-                {nums.map((k) => <span key={k} style={{ height: '1em' }}>{k}</span>)}
-              </span>
-            </span>
-            <span style={{ fontSize: 46, fontWeight: 800 }}><RcWords text={_rcDays(n, ar)} delay={2050} /></span>
-          </div>
-          {lines && <div style={{ fontSize: 18, fontWeight: 600, color: 'rgba(255,255,255,.8)', marginTop: 22 }}><RcWords text={lines} delay={2500} stagger={60} /></div>}
-        </div>
-      </RcCam>
+    <div className="rc-stage">
+      <RcEyebrow at={150}>{ar ? 'الرحلة بالأرقام' : 'The trip in numbers'}</RcEyebrow>
+      <div className="rc-fill">
+        {rows.map((r, i) => {
+          const at = 450 + i * 380;
+          return (
+            <div key={r.k}>
+              <div className="rc-rule" style={{ animationDelay: `${at}ms` }} />
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 'min(5cqw, 22px)', padding: 'min(2.3cqh, 18px) 0' }}>
+                <span className="rc-hero" style={{ fontSize: 'min(16cqw, 8.4cqh)', minWidth: `${w * 0.6 + 0.05}em`, textAlign: 'start' }}>
+                  <RcNum clock={clock} value={r.v} fmt={int} at={at + 120} dur={900 + Math.min(900, r.v * 10)} />
+                </span>
+                <span className="rc-fade" style={{ animationDelay: `${at + 380}ms`, fontSize: 'min(5.6cqw, 3.1cqh)', color: 'var(--rc-fg2)' }}>{r.l}</span>
+              </div>
+            </div>
+          );
+        })}
+        <div className="rc-rule" style={{ animationDelay: `${450 + rows.length * 380}ms` }} />
+      </div>
     </div>
   );
 }
 
-function RcMoney({ d, dur, sfx }) {
-  const { ar, m, fmt } = d;
-  const planned = m.planned, over = planned > 0 && m.total > planned;
-  const pct = planned > 0 ? Math.min(1, m.total / planned) : 0;
-  const left = planned - m.total;
-  React.useEffect(() => { if (over) sfx('boom', 3200); }, []);
-  const verdict = planned > 0
-    ? (over ? (ar ? `تجاوزتوا الميزانية بـ ${fmt(-left)}` : `${fmt(-left)} over budget`)
-      : m.ended ? (ar ? `وبقى ${fmt(left)} 🎉` : `${fmt(left)} to spare 🎉`) : (ar ? `وباقي ${fmt(left)}` : `${fmt(left)} still to go`))
-    : (m.avg > 0 ? (ar ? `بمعدل ${fmt(m.avg)} لليوم` : `${fmt(m.avg)} a day`) : null);
-  const liquid = over ? ['#ff8a66', '#c02a1e'] : ['#ffd27a', '#e47a2e'];
-  const wave = (fill, op, speed) => (
-    <svg className="rc-loop" viewBox="0 0 400 24" preserveAspectRatio="none" style={{ position: 'absolute', top: -22, left: 0, width: '200%', height: 24, opacity: op, animation: `rc-wave ${speed}s linear infinite` }}>
-      <path d="M0,12 C50,0 100,24 150,12 C200,0 250,24 300,12 C350,0 400,24 400,12 L400,24 L0,24 Z" fill={fill} />
-    </svg>
-  );
+function RcStat({ at, label, value }) {
   return (
-    <div style={{ ..._rcFull, background: 'radial-gradient(110% 70% at 50% 60%, #2a1a10 0%, #0b0a0f 70%)', color: '#fff' }}>
-      <RcGlow color={over ? 'rgba(220,60,40,.35)' : 'rgba(255,170,80,.28)'} x="50%" y="62%" size={620} />
-      {planned <= 0 && Array.from({ length: 16 }, (_, i) => (
-        <span key={i} className="rc-loop" style={{ position: 'absolute', left: `${_rcRand(i + 5) * 92}%`, top: 0, fontSize: 22 + _rcRand(i + 9) * 16,
-          animation: `rc-coin ${2600 + _rcRand(i + 2) * 1800}ms ${_rcRand(i + 7) * 2600}ms linear infinite` }}>🪙</span>
-      ))}
-      <RcCam dur={dur}>
-        <div style={{ ..._rcFull, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '0 22px' }}>
-          <div style={{ ..._rcKicker, fontSize: 17 }}><RcWords text={ar ? 'صرفتوا في هالرحلة' : 'Together you spent'} delay={150} /></div>
-          <div className="rc-fadeup" style={{ animationDelay: '350ms', fontSize: String(fmt(m.total)).length > 11 ? 46 : 58, fontWeight: 900, letterSpacing: '-0.03em', marginTop: 10, textShadow: '0 0 50px rgba(255,180,90,.35)' }}>
-            <RcOdometer text={fmt(m.total)} delay={450} />
-          </div>
-          {planned > 0 && (
-            <div className="rc-pop" style={{ animationDelay: '900ms', position: 'relative', width: 214, height: 214, marginTop: 30 }}>
-              <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden', background: 'rgba(255,255,255,.05)', boxShadow: `inset 0 0 0 2px rgba(255,255,255,.22), 0 0 60px ${over ? 'rgba(255,90,60,.45)' : 'rgba(255,190,100,.25)'}` }}>
-                <div style={{ position: 'absolute', inset: 0, '--fill': `${(1 - pct) * 100}%`, animation: `rc-fill 2600ms 1100ms cubic-bezier(.3,.55,.2,1) both` }}>
-                  {wave(liquid[0], .55, 3.2)}{wave(liquid[0], 1, 2.1)}
-                  <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, ${liquid[0]}, ${liquid[1]})` }} />
-                  {Array.from({ length: 7 }, (_, i) => (
-                    <span key={i} className="rc-loop" style={{ position: 'absolute', bottom: 8, left: `${12 + _rcRand(i + 30) * 76}%`, width: 5 + _rcRand(i + 40) * 6, height: 5 + _rcRand(i + 40) * 6,
-                      borderRadius: 9, border: '1.5px solid rgba(255,255,255,.55)', animation: `rc-bubble ${2200 + _rcRand(i + 50) * 1600}ms ${1600 + _rcRand(i + 60) * 1800}ms ease-in infinite` }} />
-                  ))}
-                </div>
-                <div style={{ position: 'absolute', inset: '9%', borderRadius: '50%', background: 'radial-gradient(circle at 30% 25%, rgba(255,255,255,.35), transparent 32%)', pointerEvents: 'none' }} />
-              </div>
-              <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: 40, fontWeight: 900, textShadow: '0 2px 18px rgba(0,0,0,.55)' }}>
-                <span className="rc-fadeup" style={{ animationDelay: '2600ms' }}>{Math.round((m.total / planned) * 100)}%</span>
-              </div>
-            </div>
-          )}
-          {planned > 0 && (
-            <div className="rc-fadeup" style={{ animationDelay: '2900ms', fontSize: 14.5, color: 'rgba(255,255,255,.65)', marginTop: 14 }}>
-              {ar ? `من ميزانية ${fmt(planned)}` : `of a ${fmt(planned)} budget`}
-            </div>
-          )}
-          {verdict && <div style={{ fontSize: 26, fontWeight: 900, marginTop: 18, color: over ? '#ffb39c' : '#fff' }}><RcWords text={verdict} delay={3300} stagger={70} /></div>}
-        </div>
-      </RcCam>
+    <div className="rc-fade" style={{ animationDelay: `${at}ms`, minWidth: 0 }}>
+      <div className="rc-small" style={{ fontSize: 13 }}>{label}</div>
+      <div style={{ fontSize: 'min(5.4cqw, 3cqh)', marginTop: 4 }}><span className="rc-num">{value}</span></div>
     </div>
   );
 }
 
-// A plane flies the route; every day lights up as it passes, sized by its spend.
-function RcJourney({ d, dur, sfx }) {
-  const { ar, m, fmt, calm } = d;
-  const days = m.days;
-  const n = days.length;
-  const root = React.useRef(null);
-  const motion = React.useRef(null);
-  const plane = React.useRef(null);
-  const [vw, setVw] = React.useState(402);
-  React.useLayoutEffect(() => { if (root.current) setVw(root.current.clientWidth || 402); }, []);
-  const gap = 150, pad = 110, H = 380;
-  const W = pad * 2 + (n - 1) * gap;
-  const pts = days.map((_, i) => {
-    const x = pad + i * gap;
-    return [ar ? W - x : x, Math.round(190 + 78 * Math.sin(i * 1.3 + 0.7))];
+// The budget as one line: the spend fills it, a tick marks the budget.
+function RcBudgetLine({ d, at }) {
+  const { ar, m } = d;
+  const over = m.total > m.planned;
+  const max = Math.max(m.total, m.planned);
+  const fillP = m.total / max, planP = m.planned / max;
+  const pct = Math.round((m.total / m.planned) * 100);
+  const left = m.planned - m.total;
+  const split = over ? (planP / fillP) * 100 : 100;
+  const verdict = over ? (ar ? `تجاوزتوا الميزانية بـ ${d.fmt(-left)}` : `${d.fmt(-left)} over budget`)
+    : m.ended ? (ar ? `ووفرتوا ${d.fmt(left)}` : `${d.fmt(left)} saved`)
+    : (ar ? `وباقي ${d.fmt(left)}` : `${d.fmt(left)} still to spend`);
+  return (
+    <div className="rc-fade" style={{ animationDelay: `${at}ms`, flexShrink: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, fontSize: 13, color: 'var(--rc-fg3)' }}>
+        <span>{ar ? 'من ميزانية' : 'Of a budget of'} <span className="rc-num" style={{ color: 'var(--rc-fg2)' }}>{d.fmt(m.planned)}</span></span>
+        <span className="rc-num" style={{ fontSize: 15, color: over ? 'var(--rc-bad)' : 'var(--rc-fg)' }}>{pct}%</span>
+      </div>
+      <div style={{ position: 'relative', height: 3, borderRadius: 3, background: 'rgba(255,255,255,.14)', marginTop: 10 }}>
+        <span className="rc-bar" style={{
+          position: 'absolute', top: 0, insetInlineStart: 0, width: `${fillP * 100}%`, animationDelay: `${at + 250}ms`, animationDuration: '1700ms',
+          background: `linear-gradient(${ar ? 'to left' : 'to right'}, var(--rc-accent) 0 ${split}%, var(--rc-bad) ${split}% 100%)`,
+        }} />
+        {over && <span className="rc-op" style={{ animationDelay: `${at + 900}ms`, position: 'absolute', top: -5, bottom: -5, width: 1.5, background: 'var(--rc-fg)', insetInlineStart: `calc(${planP * 100}% - .75px)` }} />}
+      </div>
+      <div className="rc-h2 rc-fade" style={{ animationDelay: `${at + 1300}ms`, fontSize: 'min(5.4cqw, 3cqh)', marginTop: 14, color: over ? 'var(--rc-bad)' : m.ended ? 'var(--rc-good)' : 'var(--rc-fg)' }}>
+        {verdict}
+      </div>
+    </div>
+  );
+}
+
+function RcTotal({ d, clock, sfx }) {
+  const { ar, m, members } = d;
+  const s = d.num(m.total);
+  const fs = `min(${Math.min(22, 120 / Math.max(5, s.length)).toFixed(1)}cqw, 12cqh)`;
+  const n = d.daysShown;
+  React.useEffect(() => { sfx('hit', 2250); }, []);
+  return (
+    <div className="rc-stage">
+      <RcEyebrow at={150}>{ar ? 'صرفتوا في هالرحلة' : 'Together you spent'}</RcEyebrow>
+      <div className="rc-fill">
+        <div className="rc-hero" style={{ fontSize: fs }}><RcNum clock={clock} value={m.total} fmt={d.num} at={450} dur={2000} /></div>
+        <div className="rc-fade" style={{ animationDelay: '1000ms', marginTop: 14, fontSize: 'min(5cqw, 2.8cqh)', color: 'var(--rc-fg2)' }}>
+          {d.curName}{n ? ` · ${ar ? `خلال ${d.dayWord(n)}` : `over ${d.dayWord(n)}`}` : ''}
+        </div>
+        <div style={{ display: 'flex', gap: 'min(10cqw, 44px)', marginTop: 'min(5cqh, 40px)' }}>
+          {members.length > 1 && <RcStat at={1500} label={ar ? 'نصيب الشخص' : 'Per person'} value={d.fmt(m.total / members.length)} />}
+          {m.avg > 0 && <RcStat at={1680} label={ar ? 'متوسط اليوم' : 'A day, on average'} value={d.fmt(m.avg)} />}
+        </div>
+      </div>
+      {m.planned > 0 && <RcBudgetLine d={d} at={2300} />}
+    </div>
+  );
+}
+
+// Day by day: the spend drawn as one line, a light riding its tip, the
+// plan as a dashed line, and the biggest day called out once it's drawn.
+function RcDaily({ d, clock, sfx }) {
+  const { ar, m } = d;
+  const days = m.days, n = days.length;
+  const W = 340, H = 220, top = 44, base = H - 34, padX = 14;
+  const plan = m.planPerDay || 0;
+  const peak = m.peak && m.peak.v > 0 ? m.peak : null;
+  const max = Math.max(plan, ...days.map((x) => x.v), 1) * 1.06;
+  const xL = (i) => padX + (n === 1 ? (W - padX * 2) / 2 : (i * (W - padX * 2)) / (n - 1));
+  const X = (x) => (ar ? W - x : x);
+  const Y = (v) => base - (v / max) * (base - top);
+  const pts = days.map((x, i) => [xL(i), Y(x.v)]);
+  const line = rcMonotone(pts, X);
+  const area = `${line} L${X(pts[n - 1][0]).toFixed(1)},${base} L${X(pts[0][0]).toFixed(1)},${base} Z`;
+  const T0 = 750, T = Math.min(3400, Math.max(2300, n * 250));
+  const done = T0 + T;
+  const lineRef = React.useRef(null), dotRef = React.useRef(null), clipRef = React.useRef(null), len = React.useRef(0);
+  const pid = React.useRef('rcd' + Math.random().toString(36).slice(2, 8)).current;
+  useRcTick(clock, (t) => {
+    const p = _rcInOut(_rcClamp((t - T0) / T, 0, 1));
+    const el = lineRef.current;
+    if (!el) return false;
+    if (!len.current) len.current = el.getTotalLength() || 1;
+    el.style.strokeDashoffset = String(1 - p);
+    const pt = el.getPointAtLength(p * len.current);
+    if (dotRef.current) { dotRef.current.setAttribute('transform', `translate(${pt.x.toFixed(1)},${pt.y.toFixed(1)})`); dotRef.current.style.opacity = p > 0 ? 1 : 0; }
+    if (clipRef.current) {
+      const w = Math.max(0, ar ? W - pt.x : pt.x);
+      clipRef.current.setAttribute('width', w.toFixed(1));
+      if (ar) clipRef.current.setAttribute('x', pt.x.toFixed(1));
+    }
+    return p >= 1;
   });
-  const dpath = rcPath(pts);
-  const max = Math.max(...days.map((x) => x.v), 1);
-  const peak = m.peak;
-  const T = Math.min(5200, Math.max(2600, n * 520));
-  const t0 = 700;
-  const startX = vw / 2 - pts[0][0], endX = vw / 2 - pts[n - 1][0];
-  const fits = W <= vw;
-  const fx0 = fits ? (vw - W) / 2 : startX, fx1 = fits ? (vw - W) / 2 : endX;
-  React.useEffect(() => {
-    const t = setTimeout(() => { try { motion.current?.beginElement(); if (plane.current) plane.current.style.opacity = 1; } catch (_) {} }, t0);
-    days.forEach((x, i) => { if (x.v > 0) sfx('pop', t0 + (n > 1 ? (i / (n - 1)) * T : 0)); });
-    return () => clearTimeout(t);
-  }, []);
-  const pid = React.useRef('rcj' + Math.random().toString(36).slice(2, 8)).current;
+  React.useEffect(() => { sfx('swell', T0); }, []);
+  const pk = peak ? days.findIndex((x) => x.k === peak.k) : -1;
+  const px = pk >= 0 ? X(pts[pk][0]) : 0, py = pk >= 0 ? pts[pk][1] : 0;
+  const every = n <= 10 ? 1 : n <= 20 ? 2 : 3;
+  const pctX = (x) => `${(x / W) * 100}%`, pctY = (y) => `${(y / H) * 100}%`;
   return (
-    <div ref={root} style={{ ..._rcFull, background: 'radial-gradient(130% 80% at 50% 30%, #13233f 0%, #06080f 70%)', color: '#fff' }}>
-      <RcStars n={45} seed={7} />
-      <RcCam dur={dur}>
-        <div style={{ position: 'absolute', insetInline: 26, top: '15%', textAlign: 'start' }}>
-          <div style={{ ..._rcKicker, fontSize: 16 }}><RcWords text={ar ? 'رحلتكم يوم بيوم' : 'Day by day'} delay={100} /></div>
-          <div style={{ fontSize: 13.5, color: 'rgba(255,255,255,.55)', marginTop: 6 }} className="rc-fadeup">{ar ? 'كل نقطة يوم — وكبرها على قد صرفه' : 'Each light is a day — sized by its spend'}</div>
-        </div>
-        <div style={{ position: 'absolute', top: '50%', marginTop: -H / 2, height: H, width: W, left: 0,
-          '--x0': `${fx0}px`, '--x1': `${fx1}px`, transform: `translateX(${fx0}px)`,
-          animation: fits ? 'none' : `rc-pan ${T}ms ${t0}ms linear both` }}>
-          <style>{`@keyframes rc-pan { from { transform: translateX(var(--x0)); } to { transform: translateX(var(--x1)); } }`}</style>
-          <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ overflow: 'visible', display: 'block' }}>
+    <div className="rc-stage">
+      <RcEyebrow at={150}>{ar ? 'يوم بيوم' : 'Day by day'}</RcEyebrow>
+      <div className="rc-fill">
+        <div style={{ position: 'relative', width: '100%', aspectRatio: `${W} / ${H}`, flexShrink: 0 }}>
+          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', direction: 'ltr' }}>
             <defs>
-              <radialGradient id={pid + 'g'}><stop offset="0" stopColor="#fff" stopOpacity="1" /><stop offset=".35" stopColor="#ffd27a" stopOpacity=".9" /><stop offset="1" stopColor="#ff8a3d" stopOpacity="0" /></radialGradient>
-              <radialGradient id={pid + 'h'}><stop offset="0" stopColor="#fff" stopOpacity="1" /><stop offset=".35" stopColor="#ff9b7a" stopOpacity=".95" /><stop offset="1" stopColor="#ff3d2e" stopOpacity="0" /></radialGradient>
+              <linearGradient id={pid + 'a'} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor={d.accent} stopOpacity=".34" />
+                <stop offset="1" stopColor={d.accent} stopOpacity="0" />
+              </linearGradient>
+              <clipPath id={pid + 'c'}><rect ref={clipRef} x={ar ? W : 0} y="0" width="0" height={H} /></clipPath>
             </defs>
-            <path id={pid} d={dpath} fill="none" stroke="rgba(255,255,255,.18)" strokeWidth="2" strokeDasharray="2 9" strokeLinecap="round" />
-            <path d={dpath} fill="none" stroke="rgba(255,214,140,.9)" strokeWidth="2.5" strokeLinecap="round" pathLength="1" strokeDasharray="1"
-              style={{ strokeDashoffset: 1, animation: `rc-draw ${T}ms ${t0}ms linear both` }} />
-            {days.map((x, i) => {
-              const [cx, cy] = pts[i];
-              const r = x.v > 0 ? 10 + 30 * Math.sqrt(x.v / max) : 5;
-              const hot = peak && x.k === peak.k && x.v > 0;
-              const isCalm = calm && x.k === calm.k;
-              const at = t0 + (n > 1 ? (i / (n - 1)) * T : 0);
-              return (
-                <g key={x.k} style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: `rc-pop 650ms ${at}ms cubic-bezier(.3,.7,.4,1) both` }}>
-                  {x.v > 0 && <circle cx={cx} cy={cy} r={r * 2.1} fill={`url(#${pid}${hot ? 'h' : 'g'})`} opacity=".55" />}
-                  <circle cx={cx} cy={cy} r={r} fill={x.v > 0 ? `url(#${pid}${hot ? 'h' : 'g'})` : 'rgba(255,255,255,.35)'} />
-                  <text x={cx} y={cy + Math.max(r, 10) + 26} textAnchor="middle" fontSize="15" fontWeight="700" fill="rgba(255,255,255,.75)" style={{ direction: ar ? 'rtl' : 'ltr', unicodeBidi: 'plaintext' }}>
-                    {ar ? `اليوم ${x.i}` : `Day ${x.i}`}
-                  </text>
-                  {x.v > 0 && (
-                    <text x={cx} y={cy - r - 14} textAnchor="middle" fontSize={hot ? 19 : 14} fontWeight="800" fill={hot ? '#ffb39c' : 'rgba(255,255,255,.9)'} style={{ direction: 'ltr' }}>
-                      {hot ? '🔥 ' : isCalm ? '🌿 ' : ''}{_rcCompact(x.v)}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-            <g ref={plane} style={{ opacity: 0 }}>
-              <path d={_rcPlane} fill="#fff" style={{ filter: 'drop-shadow(0 0 8px rgba(255,255,255,.8))' }} />
-              <animateMotion ref={motion} begin="indefinite" dur={`${T / 1000}s`} fill="freeze" rotate="auto" calcMode="linear">
-                <mpath href={`#${pid}`} xlinkHref={`#${pid}`} />
-              </animateMotion>
+            <line className="rc-rule" x1={padX} x2={W - padX} y1={base} y2={base} stroke="rgba(245,242,236,.22)" strokeWidth="1" />
+            {plan > 0 && (
+              <line className="rc-op" style={{ animationDelay: '500ms' }} x1={padX} x2={W - padX} y1={Y(plan)} y2={Y(plan)}
+                stroke="rgba(245,242,236,.42)" strokeWidth="1" strokeDasharray="3 5" />
+            )}
+            <path d={area} fill={`url(#${pid}a)`} clipPath={`url(#${pid}c)`} />
+            <path ref={lineRef} d={line} fill="none" stroke={d.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              pathLength="1" strokeDasharray="1" style={{ strokeDashoffset: 1 }} />
+            {pk >= 0 && (
+              <line className="rc-op" style={{ animationDelay: `${done}ms` }} x1={px} x2={px} y1={py + 6} y2={base}
+                stroke="rgba(245,242,236,.35)" strokeWidth="1" strokeDasharray="2 3" />
+            )}
+            <g ref={dotRef} style={{ opacity: 0 }}>
+              <circle r="9" fill={d.accent} opacity=".22" />
+              <circle r="3.6" fill="#fff" />
             </g>
           </svg>
-        </div>
-        {peak && peak.v > 0 && (
-          <div style={{ position: 'absolute', insetInline: 26, bottom: '15%', fontSize: 19, fontWeight: 800, lineHeight: 1.5 }}>
-            <div><RcWords text={`🔥 ${ar ? 'أغلى يوم: اليوم' : 'Biggest day: Day'} ${peak.i} · ${fmt(peak.v)}`} delay={t0 + T + 200} stagger={50} /></div>
-            {calm && <div style={{ color: 'rgba(255,255,255,.75)', fontSize: 16 }}><RcWords text={`🌿 ${ar ? 'أهدى يوم: اليوم' : 'Calmest: Day'} ${calm.i} · ${fmt(calm.v)}`} delay={t0 + T + 600} stagger={50} /></div>}
-          </div>
-        )}
-      </RcCam>
-    </div>
-  );
-}
-
-// Where the money went — bubbles sized by what each category took.
-function rcPack(radii, maxW, maxH) {
-  const placed = [];
-  radii.forEach((r, k) => {
-    if (!k) { placed.push({ x: 0, y: 0, r }); return; }
-    let best = null;
-    placed.forEach((p) => {
-      for (let a = 0; a < 360; a += 10) {
-        const t = (a * Math.PI) / 180, x = p.x + Math.cos(t) * (p.r + r + 10), y = p.y + Math.sin(t) * (p.r + r + 10);
-        if (placed.every((q) => Math.hypot(q.x - x, q.y - y) >= q.r + r + 9)) {
-          const dist = Math.hypot(x * 0.9, y * 1.25);
-          if (!best || dist < best.dist) best = { x, y, dist };
-        }
-      }
-    });
-    placed.push({ x: best ? best.x : 0, y: best ? best.y : 0, r });
-  });
-  const minX = Math.min(...placed.map((p) => p.x - p.r)), maxX = Math.max(...placed.map((p) => p.x + p.r));
-  const minY = Math.min(...placed.map((p) => p.y - p.r)), maxY = Math.max(...placed.map((p) => p.y + p.r));
-  const s = Math.min(1, maxW / (maxX - minX), maxH / (maxY - minY));
-  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
-  return placed.map((p) => ({ x: (p.x - cx) * s, y: (p.y - cy) * s, r: p.r * s }));
-}
-
-function RcBubbles({ d, dur, sfx }) {
-  const { ar, m, cats } = d;
-  const list = cats.slice(0, 7);
-  const max = list[0][1] || 1;
-  const placed = rcPack(list.map(([, v]) => 30 + 92 * Math.sqrt(v / max)), 350, 330);
-  const [topK, topV] = list[0];
-  const share = Math.round((topV / (m.total || 1)) * 100);
-  React.useEffect(() => { list.forEach((_, i) => sfx('pop', 550 + i * 170)); }, []);
-  return (
-    <div style={{ ..._rcFull, background: 'radial-gradient(120% 80% at 50% 55%, #1a1230 0%, #07060c 72%)', color: '#fff' }}>
-      <RcGlow color={`${_rcCatHex[topK] || '#ff6a3d'}55`} x="50%" y="56%" size={640} />
-      <RcCam dur={dur}>
-        <div style={{ position: 'absolute', insetInline: 24, top: '14%', textAlign: 'center' }}>
-          <div style={{ ..._rcKicker, fontSize: 17 }}><RcWords text={ar ? 'وين راحت الفلوس؟' : 'Where did it all go?'} delay={100} /></div>
-        </div>
-        <div style={{ position: 'absolute', left: '50%', top: '53%', width: 0, height: 0 }}>
-          {placed.map((p, i) => {
-            const [k, v] = list[i];
-            const c = _rcCatHex[k] || '#a29d94';
-            const ang = _rcRand(i + 11) * Math.PI * 2;
+          {/* labels in HTML, so Arabic and numbers lay out as text should */}
+          {plan > 0 && (() => {
+            // the label goes to whichever end the line is farthest from the plan, on the far side of it
+            const yP = Y(plan), y0 = pts[0][1], y1 = pts[n - 1][1];
+            const atStart = Math.abs(y0 - yP) > Math.abs(y1 - yP);
+            const below = (atStart ? y0 : y1) < yP;
             return (
-              <div key={k} style={{ position: 'absolute', left: p.x - p.r, top: p.y - p.r, width: p.r * 2, height: p.r * 2,
-                '--fx': `${Math.cos(ang) * 420}px`, '--fy': `${Math.sin(ang) * 520}px`,
-                animation: `rc-flyin 1000ms ${500 + i * 170}ms cubic-bezier(.2,.9,.25,1.12) both` }}>
-                <div className="rc-loop" style={{ width: '100%', height: '100%', animation: `rc-float ${3 + _rcRand(i + 3) * 2}s ${1600 + i * 120}ms ease-in-out infinite` }}>
-                  <div style={{ width: '100%', height: '100%', borderRadius: '50%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    background: `radial-gradient(circle at 32% 26%, rgba(255,255,255,.6), ${c} 44%, ${c}cc 75%, ${c}88 100%)`,
-                    boxShadow: `0 0 ${p.r * 0.9}px ${c}66, inset 0 -${p.r * 0.18}px ${p.r * 0.4}px rgba(0,0,0,.25)` }}>
-                    <span style={{ fontSize: p.r * 0.62, lineHeight: 1 }}>{window.CAT_META?.[k]?.emoji || '💸'}</span>
-                    {p.r >= 44 && <span style={{ fontSize: Math.max(12, p.r * 0.26), fontWeight: 900, marginTop: p.r * 0.06, textShadow: '0 1px 6px rgba(0,0,0,.35)' }}>{Math.round((v / (m.total || 1)) * 100)}%</span>}
-                  </div>
-                </div>
-              </div>
+              <div className="rc-op rc-small" style={{
+                animationDelay: '600ms', position: 'absolute', top: below ? `calc(${pctY(yP)} + 5px)` : `calc(${pctY(yP)} - 22px)`,
+                ...(atStart ? { insetInlineStart: 0 } : { insetInlineEnd: 0 }), fontSize: 11.5, padding: '1px 7px', borderRadius: 6, background: 'rgba(6,6,8,.55)',
+              }}>{ar ? 'الخطة اليومية' : 'Daily plan'}</div>
             );
-          })}
-        </div>
-        <div style={{ position: 'absolute', insetInline: 24, bottom: '12%', textAlign: 'center', fontSize: 27, fontWeight: 900, lineHeight: 1.3 }}>
-          <RcWords text={ar ? `${_rcCatName(topK)} أخذت ${share}%` : `${_rcCatName(topK)} took ${share}%`} delay={600 + list.length * 170 + 500} stagger={90} />
-        </div>
-      </RcCam>
-    </div>
-  );
-}
-
-function RcBig({ d, dur, sfx }) {
-  const { ar, m, fmt, biggest: e, wallets } = d;
-  const who = (d.members.find((x) => x.id === e.who)?.name || '').split(' ')[0];
-  const share = m.total ? Math.round(((e.usd || 0) / m.total) * 100) : 0;
-  const HIT = 1500;
-  React.useEffect(() => { sfx('boom', HIT); }, []);
-  const c = _rcCatHex[e.cat] || '#ffb020';
-  return (
-    <div style={{ ..._rcFull, background: '#060507', color: '#fff' }}>
-      <div style={{ ..._rcFull, background: `radial-gradient(90% 60% at 50% 48%, ${c}40 0%, transparent 70%)`, opacity: 0, animation: `rc-fin 900ms ${HIT}ms ease-out forwards` }} />
-      <div style={{ ..._rcFull, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, fontWeight: 900, animation: `rc-out 280ms ${HIT - 180}ms ease-in forwards` }}>
-        <span><RcWords text={ar ? 'وأغلى شي...' : 'And the big one...'} delay={150} stagger={160} dur={700} /></span>
-      </div>
-      <div style={{ ..._rcFull, animation: `rc-shake 520ms ${HIT}ms ease-out both` }}>
-        <RcCam dur={dur}>
-          <div style={{ ..._rcFull, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '0 22px' }}>
-            <div style={{ fontSize: 70, lineHeight: 1, opacity: 0, animation: `rc-pop 700ms ${HIT + 250}ms cubic-bezier(.3,.7,.4,1) both` }}>{window.CAT_META?.[e.cat]?.emoji || '💸'}</div>
-            <div style={{ fontSize: String(fmt(e.usd)).length > 10 ? 52 : 62, fontWeight: 900, letterSpacing: '-0.03em', marginTop: 14, direction: 'ltr', textShadow: `0 0 50px ${c}88`,
-              opacity: 0, animation: `rc-slam 760ms ${HIT}ms cubic-bezier(.2,.8,.2,1) both` }}>{fmt(e.usd)}</div>
-            <div className="serif-italic" style={{ fontSize: 34, marginTop: 12, lineHeight: 1.15 }}><RcWords text={e.title} delay={HIT + 550} stagger={110} dur={900} /></div>
-            <div style={{ fontSize: 15, color: 'rgba(255,255,255,.62)', marginTop: 10 }} >
-              <RcWords text={[e.createdAt ? window.fmtDate(window.localISO(e.createdAt)) : null, who ? (wallets ? (ar ? `بطاقة ${who}` : `${who}'s card`) : who) : null].filter(Boolean).join(' · ')} delay={HIT + 950} stagger={40} />
-            </div>
-            {share > 0 && <div style={{ fontSize: 20, fontWeight: 800, marginTop: 30, color: '#ffd27a' }}><RcWords text={ar ? `لحاله ${share}% من كل صرفكم` : `${share}% of everything you spent`} delay={HIT + 1500} stagger={60} /></div>}
-          </div>
-        </RcCam>
-      </div>
-      <div style={{ position: 'absolute', left: '50%', top: '42%', width: 0, height: 0, pointerEvents: 'none' }}>
-        {Array.from({ length: 16 }, (_, i) => {
-          const a = (i / 16) * Math.PI * 2, dist = 140 + _rcRand(i + 21) * 120;
-          return <span key={i} style={{ position: 'absolute', width: 7, height: 7, borderRadius: 9, background: i % 2 ? '#fff' : c,
-            '--bx': `${Math.cos(a) * dist}px`, '--by': `${Math.sin(a) * dist}px`, '--br': '0deg', animation: `rc-burst 900ms ${HIT + 40}ms cubic-bezier(.1,.7,.3,1) both` }} />;
-        })}
-      </div>
-      <div style={{ ..._rcFull, background: '#fff', opacity: 0, pointerEvents: 'none', animation: `rc-flash 420ms ${HIT}ms ease-out both` }} />
-    </div>
-  );
-}
-
-function RcPodium({ d, dur, sfx }) {
-  const { ar, m, fmt, payers, wallets } = d;
-  const top = payers.slice(0, 3);
-  const order = top.length === 2 ? [1, 0] : [1, 0, 2];          // 2nd · 1st · 3rd, from the start side
-  const heights = [168, 118, 86];
-  const metal = ['linear-gradient(180deg, #ffe08a, #d8a12c)', 'linear-gradient(180deg, #eef1f6, #a7afbd)', 'linear-gradient(180deg, #f2b98a, #b06a3a)'];
-  const rise = [1100, 650, 300];
-  const drop = [2000, 1450, 1150];
-  React.useEffect(() => { sfx('sparkle', drop[0] + 450); }, []);
-  const first = (mm) => (mm.name || '').split(' ')[0];
-  const lead = top[0];
-  return (
-    <div style={{ ..._rcFull, background: 'radial-gradient(100% 70% at 50% 100%, #2a2412 0%, #08080a 70%)', color: '#fff' }}>
-      <div style={{ position: 'absolute', left: '50%', top: '-10%', width: 360, height: '95%', marginLeft: -180, pointerEvents: 'none',
-        background: 'linear-gradient(180deg, rgba(255,240,190,.32), rgba(255,240,190,0) 85%)', clipPath: 'polygon(42% 0, 58% 0, 100% 100%, 0 100%)', WebkitClipPath: 'polygon(42% 0, 58% 0, 100% 100%, 0 100%)',
-        opacity: 0, animation: `rc-fin 900ms ${drop[0]}ms ease-out forwards` }} />
-      <RcCam dur={dur}>
-        <div style={{ position: 'absolute', insetInline: 24, top: '14%', textAlign: 'center' }}>
-          <div style={{ ..._rcKicker, fontSize: 17 }}><RcWords text={wallets ? (ar ? 'أي بطاقة شالت الحمل؟' : 'Which card carried it?') : (ar ? 'مين دفع أكثر؟' : 'Who paid the most?')} delay={100} /></div>
-        </div>
-        <div style={{ position: 'absolute', insetInline: 18, bottom: '20%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 10 }}>
-          {order.filter((k) => top[k]).map((k) => {
-            const p = top[k];
-            const pct = Math.round((p.v / (m.total || 1)) * 100);
-            return (
-              <div key={p.m.id} style={{ width: 104, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                {k === 0 && <span style={{ fontSize: 34, lineHeight: 1, marginBottom: 4, opacity: 0, animation: `rc-drop 800ms ${drop[0] + 450}ms cubic-bezier(.3,.7,.4,1) both` }}>👑</span>}
-                <div style={{ opacity: 0, animation: `rc-drop 780ms ${drop[k]}ms cubic-bezier(.3,.7,.4,1) both`, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  {window.Avatar && <window.Avatar m={p.m} size={k === 0 ? 58 : 46} />}
-                  <div style={{ fontSize: 13.5, fontWeight: 800, marginTop: 6, maxWidth: 100, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{first(p.m)}</div>
-                  <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.65)', marginTop: 1, direction: 'ltr' }}>{_rcCompact(p.v)} · {pct}%</div>
-                </div>
-                <div style={{ width: '100%', height: heights[k], marginTop: 8, borderRadius: '12px 12px 0 0', background: metal[k], transformOrigin: '50% 100%',
-                  animation: `rc-grow 800ms ${rise[k]}ms cubic-bezier(.2,.85,.25,1) both`, display: 'grid', placeItems: 'start center', paddingTop: 10,
-                  boxShadow: k === 0 ? '0 0 50px rgba(255,210,110,.35)' : 'none' }}>
-                  <span style={{ fontSize: 40, fontWeight: 900, color: 'rgba(0,0,0,.35)' }}>{k + 1}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <div style={{ position: 'absolute', insetInline: 24, bottom: '9%', textAlign: 'center', fontSize: 19, fontWeight: 800 }}>
-          <RcWords text={wallets ? (ar ? `بطاقة ${first(lead.m)} دفعت ${fmt(lead.v)}` : `${first(lead.m)}'s card paid ${fmt(lead.v)}`) : (ar ? `${first(lead.m)} دفع ${fmt(lead.v)}` : `${first(lead.m)} paid ${fmt(lead.v)}`)} delay={drop[0] + 800} stagger={60} />
-        </div>
-      </RcCam>
-      <RcConfetti delay={drop[0] + 500} y="40%" seed={5} />
-    </div>
-  );
-}
-
-// The flight as an arc between the airports; the nights as moons.
-function RcTrips({ d, dur, sfx }) {
-  const { ar, flights, stays, nights, rides } = d;
-  const f = flights[0];
-  const motion = React.useRef(null);
-  const plane = React.useRef(null);
-  const pid = React.useRef('rcf' + Math.random().toString(36).slice(2, 8)).current;
-  const F = 1900, F0 = 600;
-  React.useEffect(() => {
-    const t = setTimeout(() => { try { motion.current?.beginElement(); if (plane.current) plane.current.style.opacity = 1; } catch (_) {} }, F0);
-    if (f) sfx('whoosh', F0 + 200);
-    return () => clearTimeout(t);
-  }, []);
-  const fx = f?.details || {};
-  const from = String(fx.dep_airport || '').toUpperCase(), to = String(fx.arr_airport || '').toUpperCase();
-  const ax = ar ? 300 : 40, bx = ar ? 40 : 300;
-  const arc = `M${ax},150 Q170,-10 ${bx},150`;
-  const moons = Math.min(nights, 14);
-  const N0 = f ? 2900 : 700;
-  return (
-    <div style={{ ..._rcFull, background: 'radial-gradient(140% 90% at 50% 0%, #17265a 0%, #05070f 62%)', color: '#fff' }}>
-      <RcStars n={80} seed={11} />
-      <RcCam dur={dur}>
-        <div style={{ ..._rcFull, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 20px', textAlign: 'center' }}>
-          {f && (
+          })()}
+          {pk >= 0 && (
             <>
-              <div style={{ ..._rcKicker, fontSize: 16 }}><RcWords text={ar ? 'طرتوا' : 'You flew'} delay={100} /></div>
-              <div style={{ position: 'relative', width: 340, height: 190, marginTop: 6 }}>
-                <svg viewBox="0 0 340 190" width="340" height="190" style={{ overflow: 'visible' }}>
-                  <path id={pid} d={arc} fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="2" strokeDasharray="3 8" />
-                  <path d={arc} fill="none" stroke="#9ec5ff" strokeWidth="2.5" strokeLinecap="round" pathLength="1" strokeDasharray="1" style={{ strokeDashoffset: 1, animation: `rc-draw ${F}ms ${F0}ms cubic-bezier(.4,0,.2,1) both` }} />
-                  <circle cx={ax} cy="150" r="6" fill="#9ec5ff" />
-                  <circle cx={bx} cy="150" r="6" fill="#fff" style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: `rc-pop 500ms ${F0 + F}ms both` }} />
-                  <g ref={plane} style={{ opacity: 0 }}>
-                    <path d={_rcPlane} fill="#fff" style={{ filter: 'drop-shadow(0 0 10px rgba(160,200,255,.9))' }} />
-                    <animateMotion ref={motion} begin="indefinite" dur={`${F / 1000}s`} fill="freeze" rotate="auto" calcMode="spline" keyTimes="0;1" keyPoints="0;1" keySplines=".4 0 .2 1">
-                      <mpath href={`#${pid}`} xlinkHref={`#${pid}`} />
-                    </animateMotion>
-                  </g>
-                </svg>
-                <div className="rc-fadeup" style={{ position: 'absolute', top: 166, insetInlineStart: 0, width: 90, textAlign: 'center', animationDelay: '300ms' }}>
-                  <div style={{ fontSize: 34, fontWeight: 900, letterSpacing: '.02em' }}>{from}</div>
+              <span style={{ position: 'absolute', left: pctX(px), top: pctY(py), width: 10, height: 10, margin: '-5px 0 0 -5px', borderRadius: 10, border: `1.5px solid ${d.accent}`, opacity: 0, animation: `rc-ring 1400ms ${done}ms ease-out both` }} />
+              {/* the label sits above the peak (nothing of the line is higher); near an edge it
+                  lines up with the point instead of centring on it, so it never leaves the chart */}
+              <div style={{
+                position: 'absolute', top: pctY(py), whiteSpace: 'nowrap',
+                ...(px / W > 0.82 ? { right: `${(1 - px / W) * 100}%`, transform: 'translate(10px, calc(-100% - 12px))', textAlign: 'right' }
+                  : px / W < 0.18 ? { left: pctX(px), transform: 'translate(-10px, calc(-100% - 12px))', textAlign: 'left' }
+                  : { left: pctX(px), transform: 'translate(-50%, calc(-100% - 12px))', textAlign: 'center' }),
+              }}>
+                <div className="rc-fade" style={{ animationDelay: `${done + 80}ms` }}>
+                  <div className="rc-small" style={{ fontSize: 11.5 }}>{ar ? `اليوم ${peak.i}` : `Day ${peak.i}`}</div>
+                  <div><span className="rc-num" style={{ fontSize: 15 }}>{d.fmt(peak.v)}</span></div>
                 </div>
-                <div className="rc-fadeup" style={{ position: 'absolute', top: 166, insetInlineEnd: 0, width: 90, textAlign: 'center', animationDelay: `${F0 + F}ms` }}>
-                  <div style={{ fontSize: 34, fontWeight: 900, letterSpacing: '.02em' }}>{to}</div>
-                </div>
-              </div>
-              <div className="rc-fadeup" style={{ animationDelay: `${F0 + F + 200}ms`, marginTop: 34, fontSize: 14.5, color: 'rgba(255,255,255,.65)' }}>
-                {[fx.airline, fx.dep_at ? window.fmtDate(String(fx.dep_at).slice(0, 10)) : null, flights.length > 1 ? (ar ? `و${flights.length - 1} رحلة ثانية` : `+${flights.length - 1} more`) : null].filter(Boolean).join(' · ')}
               </div>
             </>
           )}
-          {nights > 0 && (
-            <div style={{ marginTop: f ? 40 : 0 }}>
-              <div style={{ fontSize: f ? 38 : 64, fontWeight: 900, lineHeight: 1.1 }}>
-                <RcWords text={`${nights} ${_rcNights(nights, ar)}`} delay={N0} stagger={120} />
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 12, maxWidth: 320 }}>
-                {Array.from({ length: moons }, (_, i) => (
-                  <span key={i} style={{ fontSize: 24, opacity: 0, animation: `rc-pop 500ms ${N0 + 350 + i * 110}ms cubic-bezier(.3,.7,.4,1) both`, filter: 'drop-shadow(0 0 8px rgba(255,230,150,.6))' }}>🌙</span>
-                ))}
-                {nights > moons && <span style={{ fontSize: 18, fontWeight: 800, alignSelf: 'center', opacity: 0, animation: `rc-fin 400ms ${N0 + 350 + moons * 110}ms both` }}>+{nights - moons}</span>}
-              </div>
-              <div style={{ fontSize: 14.5, color: 'rgba(255,255,255,.65)', marginTop: 12 }}>
-                <RcWords text={[stays.length ? (ar ? `في ${stays.length === 1 ? 'فندق واحد' : stays.length === 2 ? 'فندقين' : `${stays.length} فنادق`}` : `in ${stays.length} ${stays.length === 1 ? 'hotel' : 'hotels'}`) : null,
-                  rides.length ? (ar ? `و${rides.length === 1 ? 'سيارة' : `${rides.length} حجوزات تنقل`} 🚗` : `+ ${rides.length} ${rides.length === 1 ? 'ride' : 'rides'} 🚗`) : null].filter(Boolean).join(' ')} delay={N0 + 500 + moons * 110} stagger={50} />
-              </div>
+          {days.map((x, i) => ((i % every === 0 || i === n - 1) ? (
+            <span key={x.k} className="rc-op rc-num" style={{
+              animationDelay: `${T0 + (n > 1 ? (i / (n - 1)) * T : 0)}ms`, position: 'absolute', top: `calc(${pctY(base)} + 9px)`,
+              left: pctX(X(pts[i][0])), transform: 'translateX(-50%)', fontSize: 11, color: 'var(--rc-fg3)',
+            }}>{x.i}</span>
+          ) : null))}
+        </div>
+        <div style={{ marginTop: 'min(5cqh, 38px)' }}>
+          {peak && (
+            <div className="rc-h2 rc-fade" style={{ animationDelay: `${done + 250}ms`, fontSize: 'min(5.8cqw, 3.2cqh)' }}>
+              {ar ? `أغلى يوم كان اليوم ${peak.i}` : `Day ${peak.i} was the big one`}
             </div>
           )}
+          <div className="rc-body rc-fade" style={{ animationDelay: `${done + 450}ms`, marginTop: 6 }}>
+            {ar ? `متوسطكم ${d.fmt(m.avg)} في اليوم` : `${d.fmt(m.avg)} a day on average`}
+            {plan > 0 ? (ar ? ` · الخطة ${d.fmt(plan)}` : ` · plan ${d.fmt(plan)}`) : ''}
+          </div>
         </div>
-      </RcCam>
+      </div>
     </div>
   );
 }
 
-// The places, lit one after another along a winding path.
-function RcPlaces({ d, dur, sfx }) {
-  const { ar, plan } = d;
-  const meta = window.PLAN_CAT_META || {};
-  const catOf = window.planCatOf || ((c) => c);
-  const items = plan.slice(0, 6);
-  const n = plan.length;
-  const BW = 340, BH = 400;
-  const pts = items.map((_, k) => {
-    const x = k % 2 ? (ar ? 110 : 230) : (ar ? 230 : 110);
-    const y = items.length === 1 ? BH / 2 : 30 + k * ((BH - 60) / (items.length - 1));
-    return [x, Math.round(y)];
+// Where it went: a thin ring that fills category by category.
+function RcWhere({ d, clock }) {
+  const { ar, m, cats } = d;
+  const total = cats.reduce((s, [, v]) => s + v, 0) || 1;
+  let list = cats.slice(0, 4);
+  const rest = cats.slice(4).reduce((s, [, v]) => s + v, 0);
+  if (rest > 0) list = [...list, ['_other', rest]];
+  const R = 80, SW = 11, C = 2 * Math.PI * R, GAP = list.length > 1 ? 4 : 0;
+  let acc = 0, tAcc = 450;
+  const segs = list.map(([k, v]) => {
+    const frac = v / total;
+    const s = { k, v, frac, len: Math.max(0.6, frac * C - GAP), rot: (acc / total) * 360, at: tAcc, dur: Math.max(320, frac * 2100) };
+    acc += v; tAcc += s.dur * 0.82;
+    return s;
   });
-  const dpath = rcPath(pts);
-  const T = 2600, T0 = 900;
-  React.useEffect(() => { items.forEach((_, i) => sfx('pop', T0 + (items.length > 1 ? (i / (items.length - 1)) * T : 0))); }, []);
+  const refs = React.useRef([]);
+  useRcTick(clock, (t) => {
+    let all = true;
+    segs.forEach((s, i) => {
+      const p = _rcInOut(_rcClamp((t - s.at) / s.dur, 0, 1));
+      if (p < 1) all = false;
+      const el = refs.current[i];
+      if (el) el.style.strokeDashoffset = String(s.len * (1 - p));
+    });
+    return all;
+  });
+  const top = segs[0];
+  const name = (k) => (k === '_other' ? (ar ? 'أخرى' : 'Other') : _rcCatName(k));
   return (
-    <div style={{ ..._rcFull, background: 'radial-gradient(120% 80% at 50% 50%, #2a1410 0%, #09070a 72%)', color: '#fff' }}>
-      <RcGlow color="rgba(255,120,70,.22)" x="30%" y="40%" size={420} dur={9} />
-      <RcGlow color="rgba(120,200,140,.16)" x="75%" y="70%" size={380} dur={13} />
-      <RcCam dur={dur}>
-        <div style={{ position: 'absolute', insetInline: 24, top: '12%', textAlign: 'center' }}>
-          <div style={{ fontSize: 44, fontWeight: 900, lineHeight: 1.1 }}><RcWords text={ar ? `${n} ${_rcPlaces(n, ar)}` : `${n} ${_rcPlaces(n, ar)}`} delay={150} stagger={120} /></div>
-          <div style={{ ..._rcKicker, marginTop: 6 }}><RcWords text={ar ? 'في خطتكم' : 'on your plan'} delay={450} /></div>
-        </div>
-        <div style={{ position: 'absolute', left: '50%', top: '57%', width: BW, height: BH, marginLeft: -BW / 2, marginTop: -BH / 2 }}>
-          <svg width={BW} height={BH} viewBox={`0 0 ${BW} ${BH}`} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
-            <path d={dpath} fill="none" stroke="rgba(255,190,140,.8)" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="1" pathLength="1" style={{ strokeDashoffset: 1, animation: `rc-draw ${T}ms ${T0}ms cubic-bezier(.4,0,.3,1) both` }} />
-            {pts.map(([x, y], i) => (
-              <g key={i} style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: `rc-pop 600ms ${T0 + (items.length > 1 ? (i / (items.length - 1)) * T : 0)}ms cubic-bezier(.3,.7,.4,1) both` }}>
-                <circle cx={x} cy={y} r="18" fill="rgba(255,190,120,.25)" />
-                <circle cx={x} cy={y} r="7" fill="#fff" />
-              </g>
+    <div className="rc-stage">
+      <RcEyebrow at={150}>{ar ? 'وين راحت الفلوس؟' : 'Where it went'}</RcEyebrow>
+      <div className="rc-fill" style={{ alignItems: 'center' }}>
+        <div style={{ position: 'relative', width: 'min(62cqw, 30cqh)', aspectRatio: '1 / 1', flexShrink: 0 }}>
+          <svg viewBox="0 0 200 200" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', transform: 'rotate(-90deg)', overflow: 'visible' }}>
+            <circle cx="100" cy="100" r={R} fill="none" stroke="rgba(245,242,236,.08)" strokeWidth={SW} />
+            {segs.map((s, i) => (
+              <circle key={s.k} ref={(el) => { refs.current[i] = el; }} cx="100" cy="100" r={R} fill="none" stroke={rcCatColor(s.k)} strokeWidth={SW}
+                strokeDasharray={`${s.len.toFixed(2)} ${C.toFixed(2)}`} transform={`rotate(${(s.rot + ((GAP / 2) / C) * 360).toFixed(2)} 100 100)`}
+                style={{ strokeDashoffset: s.len }} />
             ))}
           </svg>
-          {items.map((it, i) => {
-            const [x, y] = pts[i];
-            const right = x > BW / 2;                     // the label goes toward the open side
-            const mt = meta[catOf(it.category)] || { emoji: '📌' };
-            const at = T0 + (items.length > 1 ? (i / (items.length - 1)) * T : 0) + 120;
+          <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center' }}>
+            <div>
+              <div className="rc-hero" style={{ fontSize: 'min(12.5cqw, 6.2cqh)' }}>
+                <RcNum clock={clock} value={Math.round(top.frac * 100)} fmt={(x) => `${Math.round(x)}%`} at={450} dur={1500} />
+              </div>
+              <div className="rc-fade" style={{ animationDelay: '1000ms', fontSize: 'min(4cqw, 2.2cqh)', color: 'var(--rc-fg2)', marginTop: 6 }}>{name(top.k)}</div>
+            </div>
+          </div>
+        </div>
+        <div style={{ width: '100%', marginTop: 'min(5cqh, 38px)', display: 'grid', gap: 'min(1.7cqh, 13px)' }}>
+          {segs.map((s) => (
+            <div key={s.k} className="rc-fade" style={{ animationDelay: `${s.at + 150}ms`, display: 'flex', alignItems: 'center', gap: 12, fontSize: 'min(4.3cqw, 2.4cqh)' }}>
+              <span style={{ width: 8, height: 8, borderRadius: 8, background: rcCatColor(s.k), flexShrink: 0 }} />
+              <span className="rc-ell" style={{ flex: 1 }}>{name(s.k)}</span>
+              <span className="rc-num" style={{ color: 'var(--rc-fg3)', fontSize: '.86em' }}>{d.fmt(s.v)}</span>
+              <span className="rc-num" style={{ display: 'inline-block', minWidth: '3em', textAlign: 'right' }}>{Math.round(s.frac * 100)}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RcBiggest({ d, clock, sfx }) {
+  const { ar, m, biggest: e, wallets } = d;
+  const who = _rcFirst(d.members.find((x) => x.id === e.who));
+  const onCard = wallets && !window.isGeneralBudgetExpense?.(e, d.trip);
+  const pct = m.total ? Math.round(((e.usd || 0) / m.total) * 100) : 0;
+  const title = e.title || _rcCatName(e.cat);
+  const size = [...title].length <= 14 ? 'min(12cqw, 6.6cqh)' : [...title].length <= 24 ? 'min(9.5cqw, 5.2cqh)' : 'min(7.6cqw, 4.2cqh)';
+  const meta = [e.createdAt ? window.fmtDate(window.localISO(e.createdAt)) : null,
+    who && who !== '?' ? (onCard ? (ar ? `بطاقة ${who}` : `${who}'s card`) : (ar ? `دفعها ${who}` : `paid by ${who}`)) : null].filter(Boolean).join(' · ');
+  React.useEffect(() => { sfx('hit', 2250); }, []);
+  return (
+    <div className="rc-stage">
+      <RcEyebrow at={150}>{ar ? 'أغلى مصروف' : 'The biggest expense'}</RcEyebrow>
+      <div className="rc-fill">
+        <div className="rc-fade" style={{ animationDelay: '450ms', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--rc-fg2)' }}>
+          <span style={{ width: 8, height: 8, borderRadius: 8, background: rcCatColor(e.cat) }} />{_rcCatName(e.cat)}
+        </div>
+        <div className="rc-title" style={{ fontSize: size, marginTop: 12 }}><RcText text={title} at={650} stagger={110} dur={1200} /></div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 'min(3.4cqh, 26px)' }}>
+          <span className="rc-hero" style={{ fontSize: 'min(15cqw, 8cqh)' }}><RcNum clock={clock} value={e.usd || 0} fmt={d.num} at={1100} dur={1500} /></span>
+          <span className="rc-fade" style={{ animationDelay: '1400ms', fontSize: 'min(4.6cqw, 2.6cqh)', color: 'var(--rc-fg2)' }}>{d.curWord}</span>
+        </div>
+        {meta && <div className="rc-fade rc-body" style={{ animationDelay: '1700ms', marginTop: 10 }}>{meta}</div>}
+      </div>
+      {pct > 0 && (
+        <div className="rc-fade" style={{ animationDelay: '2300ms', flexShrink: 0 }}>
+          <div style={{ fontSize: 'min(4.6cqw, 2.6cqh)', color: 'var(--rc-fg2)' }}>
+            {ar ? <>لحاله <span className="rc-num" style={{ color: 'var(--rc-fg)' }}>{pct}%</span> من صرف الرحلة</> : <><span className="rc-num" style={{ color: 'var(--rc-fg)' }}>{pct}%</span> of the whole trip, on its own</>}
+          </div>
+          <div style={{ height: 3, borderRadius: 3, background: 'rgba(255,255,255,.14)', marginTop: 12 }}>
+            <span className="rc-bar" style={{ width: `${Math.max(2, pct)}%`, background: 'var(--rc-accent)', animationDelay: '2500ms' }} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RcWho({ d, clock }) {
+  const { ar, m, payers, wallets } = d;
+  const lead = payers[0], rest = payers.slice(1, 5);
+  const share = Math.round((lead.v / (m.total || 1)) * 100);
+  const label = (mm) => (wallets ? (ar ? `بطاقة ${_rcFirst(mm)}` : `${_rcFirst(mm)}'s card`) : _rcFirst(mm));
+  return (
+    <div className="rc-stage">
+      <RcEyebrow at={150}>{wallets ? (ar ? 'أي بطاقة شالت الحمل؟' : 'Which card carried it') : (ar ? 'مين دفع أكثر؟' : 'Who paid the most')}</RcEyebrow>
+      <div className="rc-fill">
+        <RcMono m={lead.m} size="min(16cqw, 8.4cqh)" at={450} />
+        <div className="rc-h2" style={{ fontSize: 'min(8.4cqw, 4.6cqh)', marginTop: 'min(2.6cqh, 20px)' }}><RcText text={label(lead.m)} at={700} stagger={110} /></div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 8 }}>
+          <span className="rc-hero" style={{ fontSize: 'min(13cqw, 7cqh)' }}><RcNum clock={clock} value={lead.v} fmt={d.num} at={1000} dur={1500} /></span>
+          <span className="rc-fade" style={{ animationDelay: '1300ms', fontSize: 'min(4.6cqw, 2.6cqh)', color: 'var(--rc-fg2)' }}>{d.curWord}</span>
+        </div>
+        <div className="rc-fade rc-body" style={{ animationDelay: '1500ms', marginTop: 8 }}>
+          {ar ? `${share}% من صرف الرحلة` : `${share}% of what the trip cost`}
+        </div>
+      </div>
+      {rest.length > 0 && (
+        <div style={{ display: 'grid', gap: 'min(1.9cqh, 14px)', flexShrink: 0 }}>
+          {rest.map((p, i) => {
+            const at = 1900 + i * 170;
             return (
-              <div key={it.id} style={{
-                position: 'absolute', top: y - 16, height: 32, display: 'flex', alignItems: 'center', gap: 6,
-                ...(right ? { right: BW - x + 26, justifyContent: 'flex-end' } : { left: x + 26 }), maxWidth: 200,
-                fontSize: 15.5, fontWeight: 800, whiteSpace: 'nowrap', opacity: 0, animation: `rc-fadeup 600ms ${at}ms cubic-bezier(.2,.8,.2,1) both`,
-              }}>
-                <span>{mt.emoji}</span>
-                <span dir="auto" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.title}</span>
+              <div key={p.m.id} className="rc-fade" style={{ animationDelay: `${at}ms`, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <RcMono m={p.m} size={30} />
+                <span className="rc-ell" style={{ width: '30%', fontSize: 15 }}>{label(p.m)}</span>
+                <span style={{ flex: 1, height: 3, borderRadius: 3, background: 'rgba(255,255,255,.12)' }}>
+                  <span className="rc-bar" style={{ width: `${Math.max(3, (p.v / lead.v) * 100)}%`, background: 'rgba(245,242,236,.7)', animationDelay: `${at + 150}ms` }} />
+                </span>
+                <span className="rc-num" style={{ display: 'inline-block', minWidth: '3.6em', textAlign: 'right', fontSize: 14, color: 'var(--rc-fg2)' }}>{_rcCompact(p.v)}</span>
               </div>
             );
           })}
         </div>
-        {n > items.length && (
-          <div className="rc-fadeup" style={{ position: 'absolute', insetInline: 0, bottom: '9%', textAlign: 'center', fontSize: 15, color: 'rgba(255,255,255,.65)', animationDelay: `${T0 + T + 300}ms` }}>
-            {ar ? `و${n - items.length} ${_rcPlaces(n - items.length, ar)} ثانية` : `and ${n - items.length} more`}
+      )}
+    </div>
+  );
+}
+
+// Getting there and staying: the flight's arc between the two airports,
+// then the nights as a strip — one block a night, toned by the hotel.
+function RcTravel({ d, clock, sfx }) {
+  const { ar, flights, stayList, nights } = d;
+  const f = flights[0], fx = f?.details || {};
+  const from = String(fx.dep_airport || '').toUpperCase(), to = String(fx.arr_airport || '').toUpperCase();
+  const back = f ? flights.find((x, i) => i > 0 && String(x.details?.dep_airport || '').toUpperCase() === to) : null;
+  const hm = (v) => (String(v || '').match(/T(\d\d:\d\d)/) || [])[1] || '';
+  const dateOf = (v) => (v ? window.fmtDate(String(v).slice(0, 10)) : '');
+  const W = 340, H = 120, ax = ar ? W - 30 : 30, bx = ar ? 30 : W - 30, ay = 104;
+  const arc = `M${ax},${ay} Q${W / 2},-6 ${bx},${ay}`;
+  const F0 = 650, F = 2000;
+  const arcRef = React.useRef(null), dotRef = React.useRef(null), len = React.useRef(0);
+  useRcTick(clock, (t) => {
+    if (!f) return true;
+    const p = _rcInOut(_rcClamp((t - F0) / F, 0, 1));
+    const el = arcRef.current;
+    if (!el) return false;
+    if (!len.current) len.current = el.getTotalLength() || 1;
+    el.style.strokeDashoffset = String(1 - p);
+    const pt = el.getPointAtLength(p * len.current);
+    if (dotRef.current) { dotRef.current.setAttribute('transform', `translate(${pt.x.toFixed(1)},${pt.y.toFixed(1)})`); dotRef.current.style.opacity = p > 0 && p < 1 ? 1 : 0; }
+    return p >= 1;
+  });
+  React.useEffect(() => { if (f) sfx('whoosh', 750); }, []);
+  const cells = [];
+  stayList.forEach((s, si) => { for (let k = 0; k < s.nights; k++) cells.push(si); });
+  const shown = cells.slice(0, 30);
+  const N0 = f ? 2700 : 500;
+  const tone = (si) => [d.accent, 'rgba(245,242,236,.82)', 'rgba(245,242,236,.45)', '#9fc7b3'][si % 4];
+  const flightLine = [f?.sub || fx.airline, dateOf(fx.dep_at)].filter(Boolean).join(' · ');
+  return (
+    <div className="rc-stage">
+      <RcEyebrow at={150}>{f && nights ? (ar ? 'الطيران والسكن' : 'Flights & stays') : f ? (ar ? 'الطيران' : 'The flight') : (ar ? 'السكن' : 'Where you stayed')}</RcEyebrow>
+      <div className="rc-fill" style={{ gap: 'min(7cqh, 54px)' }}>
+        {f && (
+          <div style={{ flexShrink: 0 }}>
+            <div style={{ position: 'relative', width: '100%', aspectRatio: `${W} / ${H}` }}>
+              <svg viewBox={`0 0 ${W} ${H}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', direction: 'ltr' }}>
+                <path d={arc} fill="none" stroke="rgba(245,242,236,.18)" strokeWidth="1" strokeDasharray="2 5" />
+                <path ref={arcRef} d={arc} fill="none" stroke={d.accent} strokeWidth="1.8" strokeLinecap="round" pathLength="1" strokeDasharray="1" style={{ strokeDashoffset: 1 }} />
+                <circle cx={ax} cy={ay} r="3.5" fill={d.accent} className="rc-op" style={{ animationDelay: '400ms' }} />
+                <circle cx={bx} cy={ay} r="3.5" fill="#fff" className="rc-op" style={{ animationDelay: `${F0 + F - 100}ms` }} />
+                <g ref={dotRef} style={{ opacity: 0 }}><circle r="8" fill={d.accent} opacity=".25" /><circle r="3.2" fill="#fff" /></g>
+              </svg>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: -6 }}>
+              <div className="rc-fade" style={{ animationDelay: '350ms' }}>
+                <div className="rc-hero" style={{ fontSize: 'min(12cqw, 6.4cqh)', letterSpacing: '-0.02em' }}>{from}</div>
+                {hm(fx.dep_at) && <div className="rc-small" style={{ marginTop: 6 }}><span className="rc-num">{hm(fx.dep_at)}</span></div>}
+              </div>
+              <div className="rc-fade" style={{ animationDelay: `${F0 + F - 150}ms`, textAlign: 'end' }}>
+                <div className="rc-hero" style={{ fontSize: 'min(12cqw, 6.4cqh)', letterSpacing: '-0.02em' }}>{to}</div>
+                {hm(fx.arr_at) && <div className="rc-small" style={{ marginTop: 6 }}><span className="rc-num">{hm(fx.arr_at)}</span></div>}
+              </div>
+            </div>
+            {flightLine && <div className="rc-body rc-fade" style={{ animationDelay: `${F0 + F + 100}ms`, marginTop: 12 }}>{flightLine}</div>}
+            {back && (
+              <div className="rc-small rc-fade" style={{ animationDelay: `${F0 + F + 300}ms`, marginTop: 2 }}>
+                {ar ? 'والعودة ' : 'Back on '}{dateOf(back.details?.dep_at)}
+                {flights.length > 2 ? (ar ? ` · و${rcCount(flights.length - 2, 'flight', ar)} ثانية` : ` · +${flights.length - 2} more`) : ''}
+              </div>
+            )}
           </div>
         )}
-      </RcCam>
+        {nights > 0 && (
+          <div style={{ flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+              <span className="rc-hero" style={{ fontSize: 'min(14cqw, 7.4cqh)' }}><RcNum clock={clock} value={nights} fmt={(x) => String(Math.round(x))} at={N0} dur={1100} /></span>
+              <span className="rc-fade" style={{ animationDelay: `${N0 + 250}ms`, fontSize: 'min(5.4cqw, 3cqh)', color: 'var(--rc-fg2)' }}>
+                {rcNoun(nights, 'night', ar)}{stayList.length > 1 ? (ar ? ` في ${rcCount(stayList.length, 'stay', ar)}` : ` in ${rcCount(stayList.length, 'stay', ar)}`) : ''}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 3, marginTop: 16, height: 'min(3.2cqh, 22px)' }}>
+              {shown.map((si, k) => (
+                <span key={k} style={{ flex: 1, maxWidth: 26, borderRadius: 3, background: tone(si), transformOrigin: '50% 100%', animation: `rc-grow-y 600ms ${N0 + 250 + k * 55}ms var(--rc-ease) both` }} />
+              ))}
+            </div>
+            <div style={{ display: 'grid', gap: 9, marginTop: 16 }}>
+              {stayList.slice(0, 3).map((s, si) => (
+                <div key={s.id} className="rc-fade" style={{ animationDelay: `${N0 + 600 + si * 160}ms`, display: 'flex', alignItems: 'center', gap: 10, fontSize: 15 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 2, background: tone(si), flexShrink: 0 }} />
+                  <span className="rc-ell" dir="auto" style={{ flex: 1 }}>{s.title}</span>
+                  <span style={{ color: 'var(--rc-fg3)', fontSize: 13.5, flexShrink: 0 }}>{rcCount(s.nights, 'night', ar)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// The plan, day by day, rolling up like end credits when it's long.
+function RcPlaces({ d, clock, dur }) {
+  const { ar, plan, trip } = d;
+  const n = plan.length;
+  const groups = [];
+  plan.forEach((it) => { const k = it.dayDate || ''; const g = groups[groups.length - 1]; if (g && g.k === k) g.items.push(it); else groups.push({ k, items: [it] }); });
+  const start = trip.startDate;
+  const dayNo = (k) => (start && k ? Math.round((new Date(k + 'T00:00:00') - new Date(start + 'T00:00:00')) / 86400000) + 1 : 0);
+  const viewRef = React.useRef(null), listRef = React.useRef(null), roll = React.useRef(0);
+  React.useLayoutEffect(() => {
+    const v = viewRef.current, l = listRef.current;
+    if (v && l) roll.current = Math.max(0, l.scrollHeight - v.clientHeight + 30);
+  }, []);
+  const R0 = 1500, RD = Math.max(1800, (dur || 7600) - R0 - 700);
+  useRcTick(clock, (t) => {
+    if (!roll.current) return t > R0;
+    const p = _rcClamp((t - R0) / RD, 0, 1);
+    if (listRef.current) listRef.current.style.transform = `translate3d(0, ${(-roll.current * _rcInOut(p)).toFixed(1)}px, 0)`;
+    return p >= 1;
+  });
+  const fade = 'linear-gradient(180deg, transparent 0, #000 7%, #000 86%, transparent 100%)';
+  return (
+    <div className="rc-stage">
+      <RcEyebrow at={150}>{ar ? 'الأماكن' : 'The places'}</RcEyebrow>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 'min(3cqh, 22px)', flexShrink: 0 }}>
+        <span className="rc-hero" style={{ fontSize: 'min(15cqw, 8cqh)' }}><RcNum clock={clock} value={n} fmt={(x) => String(Math.round(x))} at={350} dur={1000} /></span>
+        <span className="rc-fade" style={{ animationDelay: '650ms', fontSize: 'min(5.4cqw, 3cqh)', color: 'var(--rc-fg2)' }}>{ar ? `${rcNoun(n, 'place', ar)} في خطتكم` : `${rcNoun(n, 'place', ar)} on your plan`}</span>
+      </div>
+      <div ref={viewRef} style={{ flex: 1, minHeight: 0, overflow: 'hidden', marginTop: 'min(2.6cqh, 20px)', WebkitMaskImage: fade, maskImage: fade }}>
+        <div ref={listRef} style={{ paddingTop: 14, willChange: 'transform' }}>
+          {groups.map((g, gi) => (
+            <div key={gi} className="rc-fade" style={{ animationDelay: `${750 + Math.min(gi, 4) * 170}ms`, paddingBottom: 14 }}>
+              <div className="rc-small" style={{ marginBottom: 4 }}>
+                {[dayNo(g.k) > 0 ? (ar ? `اليوم ${dayNo(g.k)}` : `Day ${dayNo(g.k)}`) : null, g.k ? window.fmtDate(g.k) : null].filter(Boolean).join(' · ')}
+              </div>
+              {g.items.map((it) => (
+                <div key={it.id} style={{ display: 'flex', alignItems: 'baseline', gap: 14, padding: '9px 0', borderTop: '1px solid var(--rc-line)' }}>
+                  <span className="rc-num" style={{ display: 'inline-block', width: '2.9em', flexShrink: 0, fontSize: 13, color: 'var(--rc-fg3)' }}>{(it.startTime || '').slice(0, 5)}</span>
+                  <span className="rc-ell" dir="auto" style={{ flex: 1, fontSize: 'min(4.5cqw, 2.5cqh)' }}>{it.title}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
 // The closing poster — the same design the share image draws.
 function rcStats(d) {
-  const { ar, plan, nights, m, expenses, flights } = d;
+  const { ar, plan, nights, expenses, flights, members } = d;
   const out = [];
-  if (d.daysShown) out.push([d.daysShown, _rcDays(d.daysShown, ar)]);
-  if (plan.length) out.push([plan.length, _rcPlaces(plan.length, ar)]);
-  if (nights) out.push([nights, _rcNights(nights, ar)]);
-  if (out.length < 3 && flights.length) out.push([flights.length, ar ? (flights.length <= 2 ? 'رحلة طيران' : 'رحلات طيران') : (flights.length === 1 ? 'flight' : 'flights')]);
-  if (out.length < 3 && expenses.length) out.push([expenses.length, ar ? (expenses.length <= 10 && expenses.length > 2 ? 'مصاريف' : 'مصروف') : 'expenses']);
+  if (d.daysShown) out.push([d.daysShown, rcNoun(d.daysShown, 'day', ar)]);
+  if (plan.length) out.push([plan.length, rcNoun(plan.length, 'place', ar)]);
+  if (nights) out.push([nights, rcNoun(nights, 'night', ar)]);
+  if (out.length < 3 && flights.length) out.push([flights.length, rcNoun(flights.length, 'flight', ar)]);
+  if (out.length < 3 && members.length > 1) out.push([members.length, rcNoun(members.length, 'person', ar)]);
+  if (out.length < 3 && expenses.length) out.push([expenses.length, rcNoun(expenses.length, 'payment', ar)]);
   return out.slice(0, 3);
+}
+function rcHighlights(d) {
+  const { ar, m, cats } = d;
+  const out = [];
+  if (m.peak && m.peak.v > 0) out.push(ar ? `أغلى يوم: اليوم ${m.peak.i} · ${d.fmt(m.peak.v)}` : `Biggest day: Day ${m.peak.i} · ${d.fmt(m.peak.v)}`);
+  const pct = cats[0] ? `\u2066${Math.round((cats[0][1] / (m.total || 1)) * 100)}%\u2069` : '';
+  if (cats[0]) out.push(ar ? `أكثر شي: ${_rcCatName(cats[0][0])} · ${pct}` : `Most on: ${_rcCatName(cats[0][0])} · ${pct}`);
+  return out;
 }
 
 function RcFinale({ d, onReplay, onClose }) {
-  const { ar, trip, m, cats } = d;
+  const { ar, trip, m } = d;
   const blobRef = React.useRef(null);
   const [busy, setBusy] = React.useState(false);
   React.useEffect(() => {
@@ -795,221 +956,378 @@ function RcFinale({ d, onReplay, onClose }) {
     setBusy(false);
   };
   const stats = rcStats(d);
-  const peak = m.peak, top = cats[0];
+  const lights = rcHighlights(d);
   const title = trip.title || (ar ? 'رحلة' : 'Trip');
+  const len = [...title].length;
+  const size = len <= 8 ? 'min(16cqw, 8.6cqh)' : len <= 14 ? 'min(12cqw, 6.6cqh)' : 'min(9.4cqw, 5.2cqh)';
   return (
-    <div style={{ ..._rcFull, background: '#050608', color: '#fff' }}>
-      <div style={{ position: 'absolute', inset: '-8%', animation: 'rc-burns 9000ms ease-out both' }}>
-        <window.CoverArt kind={trip.cover || 'kyoto'} imageUrl={trip.coverUrl || trip.coverImageUrl} />
+    <div className="rc-stage" style={{ paddingTop: 'calc(var(--rc-sat) + 72px)', paddingBottom: 'calc(var(--rc-sab) + 16px)' }}>
+      <div style={{ flex: 1, minHeight: 6 }} />
+      <RcEyebrow at={200}>{m.ended ? (ar ? 'وهذي كانت رحلتكم' : 'And that was the trip') : (ar ? 'رحلتكم لين الحين' : 'Your trip so far')}</RcEyebrow>
+      <div className="rc-title" style={{ fontSize: size, marginTop: 10 }}><RcText text={title} at={420} stagger={120} dur={1100} /></div>
+      {trip.dates && <div className="rc-fade rc-body" style={{ animationDelay: '800ms', marginTop: 2 }}>{trip.dates}</div>}
+
+      <div className="rc-fade" style={{ animationDelay: '1000ms', marginTop: 'min(3cqh, 22px)', paddingTop: 'min(1.8cqh, 14px)', borderTop: '1px solid var(--rc-line)', flexShrink: 0 }}>
+        <div className="rc-small" style={{ fontSize: 13 }}>{ar ? 'صرفتوا' : 'Spent'}</div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 2 }}>
+          <span className="rc-hero" style={{ fontSize: 'min(12cqw, 6.4cqh)' }}><span className="rc-num">{d.num(m.total)}</span></span>
+          <span style={{ fontSize: 'min(4.6cqw, 2.5cqh)', color: 'var(--rc-fg2)' }}>{d.curWord}</span>
+        </div>
       </div>
-      <div style={{ ..._rcFull, background: 'linear-gradient(180deg, rgba(5,6,8,.55) 0%, rgba(5,6,8,.15) 22%, rgba(5,6,8,.72) 46%, rgba(5,6,8,.97) 72%)' }} />
-      <RcConfetti delay={250} y="30%" seed={9} n={40} />
-      <div style={{ position: 'absolute', insetInline: 26, top: 'calc(env(safe-area-inset-top) + 92px)', bottom: 'calc(env(safe-area-inset-bottom) + 22px)', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ ..._rcKicker }}><RcWords text={m.ended ? (ar ? 'وهذي كانت رحلتكم' : 'And that was the trip') : (ar ? 'رحلتكم لين الحين' : 'Your trip so far')} delay={200} /></div>
-        <div className="serif-italic" style={{ fontSize: title.length <= 9 ? 70 : title.length <= 15 ? 54 : 42, lineHeight: 1.02, marginTop: 8 }}>
-          <RcWords text={title} delay={450} stagger={140} dur={1000} />
-        </div>
-        <div className="rc-fadeup" style={{ animationDelay: '900ms', fontSize: 15, color: 'rgba(255,255,255,.75)', marginTop: 8 }}>{trip.dates}</div>
-        <div style={{ flex: 1 }} />
-        <div className="rc-fadeup" style={{ animationDelay: '1200ms' }}>
-          <div style={{ fontSize: 14, color: 'rgba(255,255,255,.65)', fontWeight: 600 }}>{ar ? 'صرفتوا' : 'Spent'}</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 2 }}>
-            <span style={{ fontSize: 58, fontWeight: 900, letterSpacing: '-0.035em', lineHeight: 1, direction: 'ltr' }}>{d.num(m.total)}</span>
-            <span style={{ fontSize: 20, fontWeight: 700, color: 'rgba(255,255,255,.75)' }}>{d.curWord}</span>
-          </div>
-        </div>
-        <div className="rc-fadeup" style={{ animationDelay: '1450ms', display: 'flex', marginTop: 18, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,.16)' }}>
-          {stats.map(([v, l], i) => (
-            <div key={i} style={{ flex: 1, minWidth: 0, paddingInlineStart: i ? 14 : 0, borderInlineStart: i ? '1px solid rgba(255,255,255,.16)' : 'none' }}>
-              <div style={{ fontSize: 32, fontWeight: 900, lineHeight: 1 }}>{v}</div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,.65)', marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l}</div>
+      {stats.length > 0 && (
+        <div className="rc-fade" style={{ animationDelay: '1150ms', display: 'flex', marginTop: 'min(1.8cqh, 14px)', paddingTop: 'min(1.8cqh, 14px)', borderTop: '1px solid var(--rc-line)', flexShrink: 0 }}>
+          {stats.map(([v, l], k) => (
+            <div key={k} style={{ flex: 1, minWidth: 0, paddingInlineStart: k ? 14 : 0, borderInlineStart: k ? '1px solid var(--rc-line)' : 'none' }}>
+              <div className="rc-hero" style={{ fontSize: 'min(8cqw, 4.2cqh)' }}><span className="rc-num">{v}</span></div>
+              <div className="rc-small rc-ell" style={{ fontSize: 13, marginTop: 4 }}>{l}</div>
             </div>
           ))}
         </div>
-        <div className="rc-fadeup" style={{ animationDelay: '1700ms', fontSize: 14.5, color: 'rgba(255,255,255,.82)', marginTop: 14, lineHeight: 1.65 }}>
-          {peak && peak.v > 0 && <div>🔥 {ar ? `أغلى يوم: اليوم ${peak.i} · ${d.fmt(peak.v)}` : `Biggest day: Day ${peak.i} · ${d.fmt(peak.v)}`}</div>}
-          {top && <div>{window.CAT_META?.[top[0]]?.emoji} {ar ? `الأكثر: ${_rcCatName(top[0])} ${Math.round((top[1] / (m.total || 1)) * 100)}%` : `Most on: ${_rcCatName(top[0])} ${Math.round((top[1] / (m.total || 1)) * 100)}%`}</div>}
+      )}
+      {lights.length > 0 && (
+        <div className="rc-fade" style={{ animationDelay: '1300ms', marginTop: 'min(2.2cqh, 16px)', display: 'grid', gap: 5, flexShrink: 0 }}>
+          {lights.map((x, k) => (
+            <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 14, color: 'var(--rc-fg2)' }}>
+              <span style={{ width: 5, height: 5, borderRadius: 1.5, background: 'var(--rc-accent)', flexShrink: 0 }} />
+              <span className="rc-ell">{x}</span>
+            </div>
+          ))}
         </div>
-        <div className="rc-fadeup" style={{ animationDelay: '2000ms', display: 'grid', gap: 8, marginTop: 20 }}>
-          <button onClick={share} disabled={busy} style={{
-            minHeight: 52, borderRadius: 16, background: '#fff', color: '#121318', fontSize: 15.5, fontWeight: 800,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: busy ? 0.7 : 1,
-          }}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V3M7.5 7.5L12 3l4.5 4.5" /><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" /></svg>
-            {ar ? 'شارك مع القروب' : 'Share with the group'}
+      )}
+
+      <div className="rc-fade" style={{ animationDelay: '1550ms', display: 'grid', gap: 8, marginTop: 'min(3cqh, 22px)', flexShrink: 0 }}>
+        <button onClick={share} disabled={busy} className="rc-btn" style={{ background: '#f5f2ec', color: '#141418', opacity: busy ? 0.7 : 1 }}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V3M7.5 7.5L12 3l4.5 4.5" /><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" /></svg>
+          {ar ? 'شارك الملخص مع القروب' : 'Share with the group'}
+        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={(e) => { e.stopPropagation(); onReplay(); }} className="rc-btn rc-glass" style={{ flex: 1, minHeight: 46 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 109-9 9.3 9.3 0 00-6.4 2.6L3 8" /><path d="M3 3v5h5" /></svg>
+            {ar ? 'شاهد مرة ثانية' : 'Watch again'}
           </button>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={(e) => { e.stopPropagation(); onReplay(); }} style={{ flex: 1, minHeight: 48, borderRadius: 16, background: 'rgba(255,255,255,.14)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', color: '#fff', fontSize: 14.5, fontWeight: 700 }}>
-              {ar ? '↻ شاهد مرة ثانية' : '↻ Watch again'}
-            </button>
-            <button onClick={(e) => { e.stopPropagation(); onClose(); }} style={{ flex: 1, minHeight: 48, borderRadius: 16, background: 'rgba(255,255,255,.14)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', color: '#fff', fontSize: 14.5, fontWeight: 700 }}>
-              {ar ? 'تم' : 'Done'}
-            </button>
-          </div>
+          <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="rc-btn rc-glass" style={{ flex: 1, minHeight: 46 }}>
+            {ar ? 'تم' : 'Done'}
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Sound: a soft generated track + effects (Web Audio) ────────────
+// ── Sound: a generated score + a few cues (Web Audio) ─────────────
+// Made for a phone speaker, which plays almost nothing under ~300 Hz: the
+// parts live between 300 Hz and 6 kHz (a felt piano, a saw pad, a bass
+// whose overtones carry it, a shaker, a soft kick with a click), and the
+// mix is compressed and limited so it sounds full at a normal volume.
+// The arrangement follows the film — piano and pad for the title, a soft
+// beat once the numbers start, quiet again for the poster — and the cuts
+// fall on the beat (80 bpm; the scenes last whole beats).
 const RcAudio = (() => {
-  let ctx = null, master = null, music = null, rev = null, delay = null, noise = null, timer = null;
-  let step = 0, nextT = 0, running = false, muted = false;
+  let ctx = null, master = null, bus = null, rev = null, echo = null, noise = null, timer = null, silent = null, silentURL = null;
+  let step = 0, nextT = 0, running = false, muted = false, open = false, mood = 0, nextMood = 0;
   try { muted = localStorage.getItem('voyage:recapMuted') === '1'; } catch (_) {}
-  const mtof = (mm) => 440 * Math.pow(2, (mm - 69) / 12);
-  const E8 = 60 / 84 / 2;                                   // an eighth note at 84 bpm
+  const ua = navigator.userAgent || '';
+  const iOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  const VOL = 1;
+  const mtof = (n) => 440 * Math.pow(2, (n - 69) / 12);
+  const BEAT = 60 / 80, S16 = BEAT / 4, BAR = BEAT * 4;
   const CH = [[50, 57, 61, 64, 66], [47, 54, 57, 61, 62], [43, 50, 54, 57, 59], [45, 52, 54, 59, 61]];   // Dmaj9 · Bm9 · Gmaj9 · A6/9
-  const ARP = [1, 2, 3, 4, 3, 2, 4, 3];
-  const VOL = 0.9;
+  const ARP = [1, 3, 2, 4, 3, 2, 4, 3];
+  const VEL = [1, 0.55, 0.75, 0.55, 0.9, 0.55, 0.75, 0.6];
+  const SHK = [0.4, 0.18, 0.75, 0.2, 0.4, 0.18, 0.75, 0.25, 0.4, 0.18, 0.75, 0.2, 0.4, 0.22, 0.8, 0.3];
+
+  // An iPhone plays Web Audio on the ringer channel, so the silent switch
+  // mutes it. Asking for a "playback" session — and on older iOS keeping a
+  // silent <audio> running — moves it to the media channel, like a video.
+  const session = (type) => { try { if (navigator.audioSession && navigator.audioSession.type !== type) navigator.audioSession.type = type; } catch (_) {} };
+  const silentSrc = () => {
+    if (silentURL) return silentURL;
+    const rate = 48000, n = Math.round(rate * 0.25), bytes = new Uint8Array(44 + n * 2), v = new DataView(bytes.buffer);
+    const s = (o, str) => { for (let k = 0; k < str.length; k++) bytes[o + k] = str.charCodeAt(k); };
+    s(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); s(8, 'WAVE'); s(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true);
+    v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); s(36, 'data'); v.setUint32(40, n * 2, true);
+    silentURL = URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' }));
+    return silentURL;
+  };
+  const silentOn = () => {
+    if (!iOS) return;
+    try {
+      if (!silent) {
+        silent = document.createElement('audio');
+        silent.setAttribute('x-webkit-airplay', 'deny'); silent.setAttribute('playsinline', '');
+        silent.preload = 'auto'; silent.loop = true; silent.src = silentSrc();
+        try { silent.disableRemotePlayback = true; } catch (_) {}
+      }
+      const p = silent.play(); if (p && p.catch) p.catch(() => {});
+    } catch (_) {}
+  };
+  const silentOff = (drop) => {
+    try { if (silent) { silent.pause(); if (drop) { silent.removeAttribute('src'); silent.load(); silent = null; } } } catch (_) {}
+  };
+
   const build = () => {
     if (master || !ctx) return;
     master = ctx.createGain(); master.gain.value = 0;
-    const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 3;
-    master.connect(comp); comp.connect(ctx.destination);
+    // master: cut the rumble a phone can't play anyway, a touch of air,
+    // glue compression, then a limiter so nothing clips
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 48; hp.Q.value = 0.7;
+    const shelf = ctx.createBiquadFilter(); shelf.type = 'highshelf'; shelf.frequency.value = 2600; shelf.gain.value = 5;
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -22; comp.knee.value = 10; comp.ratio.value = 3; comp.attack.value = 0.012; comp.release.value = 0.22;
+    const trim = ctx.createGain(); trim.gain.value = 1.25;
+    const lim = ctx.createDynamicsCompressor();
+    lim.threshold.value = -6; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.12;
+    master.connect(hp); hp.connect(shelf); shelf.connect(comp); comp.connect(trim); trim.connect(lim); lim.connect(ctx.destination);
     rev = ctx.createConvolver();
     const len = Math.floor(ctx.sampleRate * 2.6), ir = ctx.createBuffer(2, len, ctx.sampleRate);
-    for (let c = 0; c < 2; c++) { const ch = ir.getChannelData(c); for (let i = 0; i < len; i++) ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+    for (let c = 0; c < 2; c++) { const ch = ir.getChannelData(c); for (let k = 0; k < len; k++) ch[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / len, 3.2); }
     rev.buffer = ir;
-    const wet = ctx.createGain(); wet.gain.value = 0.3; rev.connect(wet); wet.connect(master);
-    music = ctx.createGain(); music.gain.value = 1; music.connect(master); music.connect(rev);
-    delay = ctx.createDelay(1.5); delay.delayTime.value = E8 * 3;
-    const fb = ctx.createGain(); fb.gain.value = 0.3; delay.connect(fb); fb.connect(delay);
-    const dw = ctx.createGain(); dw.gain.value = 0.35; delay.connect(dw); dw.connect(music);
+    const rlp = ctx.createBiquadFilter(); rlp.type = 'lowpass'; rlp.frequency.value = 5200;
+    const wet = ctx.createGain(); wet.gain.value = 0.3; rev.connect(rlp); rlp.connect(wet); wet.connect(master);
+    bus = ctx.createGain(); bus.gain.value = 1; bus.connect(master);
+    echo = ctx.createDelay(1.5); echo.delayTime.value = S16 * 3;                 // a dotted-eighth echo for the piano
+    const fb = ctx.createGain(); fb.gain.value = 0.3;
+    const ef = ctx.createBiquadFilter(); ef.type = 'lowpass'; ef.frequency.value = 3400;
+    echo.connect(ef); ef.connect(fb); fb.connect(echo);
+    const ew = ctx.createGain(); ew.gain.value = 0.22; ef.connect(ew); ew.connect(bus);
     noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
-    const nd = noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    const nd = noise.getChannelData(0); for (let k = 0; k < nd.length; k++) nd[k] = Math.random() * 2 - 1;
   };
-  const osc = (type, f, t, stop, out, gain) => { const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; const g = ctx.createGain(); g.gain.value = gain; o.connect(g); g.connect(out); o.start(t); o.stop(stop); return o; };
+  const toRev = (node, amt) => { const s = ctx.createGain(); s.gain.value = amt; node.connect(s); s.connect(rev); };
+  const out = (node, dest, p) => {
+    if (p && ctx.createStereoPanner) { const s = ctx.createStereoPanner(); s.pan.value = p; node.connect(s); s.connect(dest); return s; }
+    node.connect(dest); return node;
+  };
+  const decay = (g, t, peak, a, d) => { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); };
+
+  // A wide pad: two detuned saws a note, left and right, under a slow filter.
   const pad = (t, chord, len) => {
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1150; lp.Q.value = 0.4;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.6;
+    lp.frequency.setValueAtTime(1300, t); lp.frequency.linearRampToValueAtTime(3200, t + len * 0.55); lp.frequency.linearRampToValueAtTime(1600, t + len + 1.5);
     const g = ctx.createGain();
-    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.1, t + 1.1);
-    g.gain.setValueAtTime(0.1, t + len - 0.1); g.gain.linearRampToValueAtTime(0, t + len + 1.5);
-    lp.connect(g); g.connect(music);
-    chord.slice(1).forEach((mm, k) => [-6, 6].forEach((c) => { const o = osc(k % 2 ? 'sine' : 'triangle', mtof(mm), t, t + len + 1.7, lp, 0.17); o.detune.value = c; }));
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.05, t + 1.1);
+    g.gain.setValueAtTime(0.05, t + len - 0.3); g.gain.linearRampToValueAtTime(0.0001, t + len + 1.5);
+    lp.connect(g); g.connect(bus); toRev(g, 0.45);
+    chord.slice(1).forEach((n) => [-9, 9].forEach((c, k) => {
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(n); o.detune.value = c;
+      const og = ctx.createGain(); og.gain.value = 0.22;
+      o.connect(og); out(og, lp, k ? 0.45 : -0.45); o.start(t); o.stop(t + len + 1.6);
+    }));
   };
-  const bass = (t, mm, len) => {
-    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = mtof(mm - 12);
-    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.3, t + 0.03); g.gain.exponentialRampToValueAtTime(0.1, t + 0.4); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
-    o.connect(g); g.connect(music); o.start(t); o.stop(t + len + 0.05);
+  // Bass: a filtered saw (its overtones are what a phone plays) over a sine an octave down.
+  const bass = (t, n, len, v) => {
+    const f = mtof(n);
+    const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
+    const sub = ctx.createOscillator(); sub.type = 'sine'; sub.frequency.value = f / 2;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 1;
+    lp.frequency.setValueAtTime(420, t); lp.frequency.exponentialRampToValueAtTime(1500, t + 0.025); lp.frequency.exponentialRampToValueAtTime(560, t + 0.4);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.17 * v, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.1 * v, t + 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    const sg = ctx.createGain(); sg.gain.value = 0.28;
+    o.connect(lp); lp.connect(g); sub.connect(sg); sg.connect(g); g.connect(bus);
+    o.start(t); sub.start(t); o.stop(t + len + 0.05); sub.stop(t + len + 0.05);
   };
-  const pluck = (t, mm, v = 0.06) => {
-    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = mtof(mm);
-    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
-    o.connect(g); g.connect(music); g.connect(delay); o.start(t); o.stop(t + 0.6);
-  };
-  const kick = (t) => {
-    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(46, t + 0.13);
-    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.55, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
-    o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.4);
-  };
-  const hiss = (t, len, v, type = 'highpass', f = 7000) => {
+  // A felt piano: five soft partials, the high ones dying first, a breath of hammer.
+  const keys = (t, n, v) => {
+    const f = mtof(n);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(7000, t); lp.frequency.exponentialRampToValueAtTime(2000, t + 1.2);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.15 * v, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.058 * v, t + 0.35); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.9);
+    [[1, 1, 0], [2, 0.62, 3], [3, 0.32, -4], [4, 0.17, 5], [5, 0.08, -3]].forEach(([h, a, c]) => {
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f * h; o.detune.value = c;
+      const hg = ctx.createGain(); hg.gain.setValueAtTime(a, t);
+      if (h > 1) hg.gain.exponentialRampToValueAtTime(a * 0.2, t + 0.9 / h);
+      o.connect(hg); hg.connect(lp); o.start(t); o.stop(t + 1.95);
+    });
     const s = ctx.createBufferSource(); s.buffer = noise;
-    const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f;
-    const g = ctx.createGain(); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
-    s.connect(fl); fl.connect(g); g.connect(master); s.start(t, Math.random() * 0.5, len + 0.05);
-    return { fl, g };
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = Math.min(6500, f * 5); bp.Q.value = 1.1;
+    const ng = ctx.createGain(); decay(ng, t, 0.035 * v, 0.002, 0.035);
+    s.connect(bp); bp.connect(ng); ng.connect(g); s.start(t, Math.random() * 0.5); s.stop(t + 0.05);
+    lp.connect(g);
+    const o2 = out(g, bus, ((n % 12) / 12 - 0.5) * 0.5);
+    toRev(o2, 0.32); g.connect(echo);
   };
+  const shaker = (t, v) => {
+    const s = ctx.createBufferSource(); s.buffer = noise;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 7400; bp.Q.value = 0.8;
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 4200;
+    const g = ctx.createGain(); decay(g, t, 0.15 * v, 0.004, 0.06 + 0.05 * v);
+    s.connect(bp); bp.connect(hp); hp.connect(g); out(g, bus, 0.28);
+    s.start(t, Math.random() * 0.8); s.stop(t + 0.15);
+  };
+  // A soft kick, with a click on top — the click is what a phone hears.
+  const kick = (t, v) => {
+    const o = ctx.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(135, t); o.frequency.exponentialRampToValueAtTime(52, t + 0.11);
+    const g = ctx.createGain(); decay(g, t, 0.26 * v, 0.004, 0.34);
+    o.connect(g); g.connect(bus); o.start(t); o.stop(t + 0.4);
+    const c = ctx.createOscillator(); c.type = 'triangle';
+    c.frequency.setValueAtTime(1500, t); c.frequency.exponentialRampToValueAtTime(320, t + 0.025);
+    const cg = ctx.createGain(); decay(cg, t, 0.09 * v, 0.001, 0.03);
+    c.connect(cg); cg.connect(bus); c.start(t); c.stop(t + 0.04);
+  };
+  // A finger snap on two and four: three quick bursts and a little room.
+  const snap = (t) => {
+    [0, 0.011, 0.022].forEach((dt, k) => {
+      const s = ctx.createBufferSource(); s.buffer = noise;
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2000; bp.Q.value = 1.3;
+      const g = ctx.createGain(); decay(g, t + dt, k === 2 ? 0.17 : 0.09, 0.001, k === 2 ? 0.11 : 0.012);
+      s.connect(bp); bp.connect(g);
+      const o2 = out(g, bus, -0.18); toRev(o2, 0.55);
+      s.start(t + dt, Math.random() * 0.8); s.stop(t + dt + 0.14);
+    });
+  };
+  const bell = (t, n, v) => {
+    [[1, 1], [2.76, 0.3], [5.4, 0.1], [8.9, 0.035]].forEach(([h, a]) => {
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = mtof(n) * h;
+      const g = ctx.createGain(); decay(g, t, v * a, 0.006, 2.8 / Math.sqrt(h));
+      o.connect(g); g.connect(master); toRev(g, 0.5); o.start(t); o.stop(t + 3);
+    });
+  };
+  // Filtered noise moving through a band, panned across — the whoosh of a cut.
+  const air = (t, len, peak, type, f0, f1, p0, p1) => {
+    const s = ctx.createBufferSource(); s.buffer = noise; s.loop = true;
+    const fl = ctx.createBiquadFilter(); fl.type = type; fl.Q.value = 0.9;
+    fl.frequency.setValueAtTime(f0, t); fl.frequency.exponentialRampToValueAtTime(f1, t + len * 0.85);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + len * 0.5); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    s.connect(fl); fl.connect(g);
+    let last = g;
+    if ((p0 || p1) && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.setValueAtTime(p0 || 0, t); p.pan.linearRampToValueAtTime(p1 || 0, t + len); g.connect(p); last = p; }
+    last.connect(master); toRev(last, 0.35);
+    s.start(t, Math.random() * 0.5); s.stop(t + len + 0.05);
+  };
+
+  // 16ths, a little ahead of time. 0 = piano + pad · 1 = with the beat ·
+  // 2 = the full groove · 3 = the end: back to piano and pad, softer.
   const tick = () => {
-    if (!running) return;
+    if (!running || !ctx) return;
     while (nextT < ctx.currentTime + 0.3) {
-      const bar = Math.floor(step / 8), s8 = step % 8, chord = CH[bar % 4];
-      if (s8 === 0) { pad(nextT, chord, E8 * 8); bass(nextT, chord[0], E8 * 3.6); }
-      if (s8 === 4 && bar >= 1) bass(nextT, chord[0], E8 * 3.6);
-      if (bar >= 1) pluck(nextT, chord[ARP[s8]] + 12);
-      if (bar >= 2 && (s8 === 0 || s8 === 4)) kick(nextT);
-      if (bar >= 3 && s8 % 2 === 1) hiss(nextT, 0.05, 0.03);
-      step++; nextT += E8;
+      const s = step % 16, bar = Math.floor(step / 16), chord = CH[bar % 4];
+      if (s % 4 === 0 && mood !== nextMood) {
+        mood = nextMood;
+        const t = nextT;
+        bus.gain.cancelScheduledValues(t); bus.gain.setValueAtTime(bus.gain.value, t); bus.gain.linearRampToValueAtTime(mood === 3 ? 0.62 : 1, t + (mood === 3 ? 4 : 0.6));
+      }
+      const beat = mood === 1 || mood === 2;
+      if (s === 0) { pad(nextT, chord, BAR); bass(nextT, chord[0], BEAT * 1.9, 1); }
+      else if (s === 8 && beat) bass(nextT, chord[0], BEAT * 1.4, 0.8);
+      else if (s === 14 && mood === 2) bass(nextT, chord[0] + 12, BEAT * 0.45, 0.5);
+      if (beat ? s % 2 === 0 : s % 4 === 0) { const k = s >> 1; keys(nextT, chord[ARP[k]] + 12, VEL[k] * (beat ? 1 : 0.9)); }
+      if (beat) {
+        shaker(nextT, SHK[s]);
+        if (s === 0 || s === 8) kick(nextT, s === 0 ? 1 : 0.85);
+        if (mood === 2 && s === 10 && bar % 2) kick(nextT, 0.55);
+      }
+      if (mood === 2 && (s === 4 || s === 12)) snap(nextT);
+      step++; nextT += S16;
     }
   };
   const ramp = (to, secs) => {
-    if (!master) return;
-    const t = ctx.currentTime; master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value, t); master.gain.linearRampToValueAtTime(to, t + secs);
+    if (!ctx || !master) return;
+    const t = ctx.currentTime;
+    master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value, t); master.gain.linearRampToValueAtTime(to, t + secs);
   };
+  const resumeCtx = () => { try { if (ctx && ctx.state !== 'running') { const p = ctx.resume(); if (p && p.catch) p.catch(() => {}); } } catch (_) {} };
   return {
-    // Call from inside the tap that opens the recap (iPhone needs a gesture).
+    // Call from inside the tap that opens the film (an iPhone needs the tap).
     unlock() {
+      open = true;
+      if (muted) return;
+      session('playback');
+      silentOn();
       try {
-        const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
-        if (!ctx) ctx = new AC();
-        if (ctx.state !== 'running') ctx.resume();
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!ctx) { try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) { ctx = new AC(); } }
+        resumeCtx();
         const b = ctx.createBuffer(1, 1, 22050), s = ctx.createBufferSource(); s.buffer = b; s.connect(ctx.destination); s.start(0);
       } catch (_) {}
     },
     start() {
-      if (!ctx) return; build();
-      if (ctx.state !== 'running') { try { ctx.resume(); } catch (_) {} }
-      if (!running) { running = true; step = 0; nextT = ctx.currentTime + 0.1; tick(); timer = setInterval(tick, 60); }
-      ramp(muted ? 0 : VOL, 1.6);
+      open = true;
+      if (!ctx || muted) return;
+      build(); resumeCtx();
+      if (!running) {
+        running = true; step = 0; mood = nextMood; nextT = ctx.currentTime + 0.03;
+        bus.gain.cancelScheduledValues(ctx.currentTime); bus.gain.setValueAtTime(mood === 3 ? 0.62 : 1, ctx.currentTime);
+        tick(); timer = setInterval(tick, 70);
+      }
+      ramp(VOL, 1.2);
     },
     stop() {
-      if (!ctx) return;
-      ramp(0, 0.45);
-      running = false; clearInterval(timer); timer = null;
+      open = false;
+      if (ctx) { ramp(0, 0.5); running = false; clearInterval(timer); timer = null; }
+      setTimeout(() => { if (!open) { silentOff(true); session('auto'); } }, 700);
     },
-    sfx(kind, inMs = 0, n = 0) {
+    // The arrangement for what's on screen; it changes on the next beat.
+    mood(level) { nextMood = level; },
+    sfx(kind, inMs = 0) {
       if (!ctx || !master || muted) return;
       const t = ctx.currentTime + inMs / 1000;
       try {
-        if (kind === 'whoosh') {
-          const { fl, g } = hiss(t, 0.7, 0.0001, 'bandpass', 300);
-          fl.Q.value = 0.9; fl.frequency.setValueAtTime(260, t); fl.frequency.exponentialRampToValueAtTime(3400, t + 0.5);
-          g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.32, t + 0.22); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.65);
-          g.connect(rev);
-        } else if (kind === 'boom') {
-          const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(95, t); o.frequency.exponentialRampToValueAtTime(36, t + 0.7);
-          const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.95, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
-          o.connect(g); g.connect(master); g.connect(rev); o.start(t); o.stop(t + 1.2);
-          hiss(t, 0.35, 0.45, 'lowpass', 380);
-        } else if (kind === 'sparkle') {
-          [88, 91, 95, 100, 103].forEach((mm, k) => pluck(t + k * 0.07, mm, 0.07));
-        } else if (kind === 'pop') {
-          const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(480, t); o.frequency.exponentialRampToValueAtTime(920, t + 0.07);
-          const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.11, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
-          o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.16);
-        } else if (kind === 'ticks') {
-          const T = 1.9;                                             // follows the slot's ease-out
-          for (let k = 1; k < n; k++) { const p = k / (n - 1); hiss(t + T * (1 - Math.cbrt(1 - p)), 0.025, 0.14, 'highpass', 2600); }
+        if (kind === 'whoosh') air(t, 0.8, 0.12, 'bandpass', 320, 3400, -0.35, 0.35);
+        else if (kind === 'swell') air(t, 2.4, 0.055, 'lowpass', 420, 3600);
+        else if (kind === 'hit') {
+          const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.9);
+          const g = ctx.createGain(); decay(g, t, 0.28, 0.012, 1.15);
+          o.connect(g); g.connect(master); o.start(t); o.stop(t + 1.25);
+          const o2 = ctx.createOscillator(); o2.type = 'triangle'; o2.frequency.setValueAtTime(230, t); o2.frequency.exponentialRampToValueAtTime(115, t + 0.3);
+          const g2 = ctx.createGain(); decay(g2, t, 0.24, 0.005, 0.5);
+          o2.connect(g2); g2.connect(master); toRev(g2, 0.45); o2.start(t); o2.stop(t + 0.55);
+          air(t, 0.6, 0.08, 'lowpass', 2600, 260);
+          bell(t + 0.01, 86, 0.045); bell(t + 0.01, 93, 0.018);
+        } else if (kind === 'chime') {
+          [74, 78, 81, 86].forEach((n, k) => bell(t + k * 0.12, n, 0.05));
         }
       } catch (_) {}
     },
+    // True while the film is open, sound is on, and the iPhone still hasn't let it play.
+    blocked() { return open && !muted && (!ctx || ctx.state !== 'running'); },
     get muted() { return muted; },
     setMuted(v) {
-      muted = v; try { localStorage.setItem('voyage:recapMuted', v ? '1' : '0'); } catch (_) {}
-      if (ctx && master) ramp(v ? 0 : VOL, 0.3);
+      muted = v;
+      try { localStorage.setItem('voyage:recapMuted', v ? '1' : '0'); } catch (_) {}
+      if (v) { ramp(0, 0.3); silentOff(false); session('auto'); } else ramp(VOL, 0.4);
     },
-    suspend() { try { ctx && ctx.suspend(); } catch (_) {} },
-    resume() { try { ctx && ctx.resume(); } catch (_) {} },
+    suspend() { try { if (ctx) ctx.suspend(); } catch (_) {} silentOff(false); },
+    resume() { if (!open || muted) return; session('playback'); silentOn(); resumeCtx(); },
   };
 })();
 
 // ── The player ─────────────────────────────────────────────────────
-let _rcGrain = null;
+let _rcGrainURL = null;
 function rcGrain() {
-  if (_rcGrain) return _rcGrain;
+  if (_rcGrainURL !== null) return _rcGrainURL;
   try {
     const c = document.createElement('canvas'); c.width = c.height = 160;
     const x = c.getContext('2d'); const img = x.createImageData(160, 160);
-    for (let i = 0; i < img.data.length; i += 4) { const v = Math.random() * 255; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 34; }
-    x.putImageData(img, 0, 0); _rcGrain = c.toDataURL();
-  } catch (_) { _rcGrain = ''; }
-  return _rcGrain;
+    for (let i = 0; i < img.data.length; i += 4) { const v = Math.random() * 255; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 14; }
+    x.putImageData(img, 0, 0); _rcGrainURL = c.toDataURL();
+  } catch (_) { _rcGrainURL = ''; }
+  return _rcGrainURL;
 }
 
 function TripRecap({ onClose }) {
   const d = React.useMemo(() => recapData(), []);
   const { ar } = d;
+  // Each scene lasts whole beats of the score (80 bpm), so the cuts land on
+  // the beat; `mood` is the arrangement under it.
   const scenes = React.useMemo(() => {
-    const s = [{ key: 'open', dur: 6200, tx: 'fade', el: RcOpen }];
-    if (d.daysShown >= 1) s.push({ key: 'count', dur: 5200, tx: 'zoom', el: RcCount });
-    if (d.expenses.length) s.push({ key: 'money', dur: 7200, tx: 'iris', el: RcMoney });
-    if (d.m.days.length >= 2) s.push({ key: 'journey', dur: 1500 + Math.min(5200, Math.max(2600, d.m.days.length * 520)) + 1900, tx: 'zoom', el: RcJourney });
-    if (d.cats.length) s.push({ key: 'bubbles', dur: 6800, tx: 'iris', el: RcBubbles });
-    if (d.biggest) s.push({ key: 'big', dur: 6400, tx: 'flash', el: RcBig });
-    if (d.payers.length >= 2) s.push({ key: 'podium', dur: 6800, tx: 'zoom', el: RcPodium });
-    if (d.flights.length || d.nights) s.push({ key: 'trips', dur: 7000, tx: 'iris', el: RcTrips });
-    if (d.plan.length) s.push({ key: 'places', dur: 6800, tx: 'zoom', el: RcPlaces });
-    s.push({ key: 'finale', dur: 0, tx: 'flash', el: RcFinale });
+    const beats = (ms) => Math.ceil(ms / 750) * 750;
+    const s = [{ key: 'title', dur: 6000, mood: 0, sharp: true, el: RcTitle }];
+    if (rcFigures(d).length >= 2) s.push({ key: 'figures', dur: 6000, mood: 1, el: RcFigures });
+    if (d.expenses.length) s.push({ key: 'total', dur: 7500, mood: 2, glow: true, el: RcTotal });
+    if (d.m.days.length >= 3 && d.m.days.filter((x) => x.v > 0).length >= 2) s.push({ key: 'daily', dur: beats(1300 + Math.min(3400, Math.max(2300, d.m.days.length * 250)) + 2600), mood: 2, el: RcDaily });
+    if (d.cats.length >= 2) s.push({ key: 'where', dur: 7500, mood: 2, el: RcWhere });
+    if (d.biggest) s.push({ key: 'biggest', dur: 6000, mood: 1, glow: true, el: RcBiggest });
+    if (d.payers.length >= 2) s.push({ key: 'who', dur: 6750, mood: 2, el: RcWho });
+    if (d.flights.length || d.nights) s.push({ key: 'travel', dur: 7500, mood: 2, el: RcTravel });
+    if (d.plan.length) s.push({ key: 'places', dur: d.plan.length > 6 ? 8250 : 6000, mood: 1, el: RcPlaces });
+    s.push({ key: 'finale', dur: 0, mood: 3, sharp: true, el: RcFinale });
     return s;
   }, [d]);
   const [i, setI] = React.useState(0);
@@ -1017,49 +1335,62 @@ function TripRecap({ onClose }) {
   const [run, setRun] = React.useState(0);
   const [paused, setPaused] = React.useState(false);
   const [muted, setMutedState] = React.useState(RcAudio.muted);
+  const [needTap, setNeedTap] = React.useState(false);
+  const reduce = !!window.vReduce?.();
   const pausedRef = React.useRef(false); pausedRef.current = paused;
   const iRef = React.useRef(0); iRef.current = i;
+  const runRef = React.useRef(0); runRef.current = run;
   const fills = React.useRef([]);
-  const clock = React.useRef({ t: 0, last: 0 });
+  const clocks = React.useRef({});
   const hold = React.useRef(null);
   const prevTimer = React.useRef(null);
-  const reduce = window.vReduce?.();
   const cur = scenes[i];
-  const sfx = React.useCallback((kind, ms, n) => RcAudio.sfx(kind, ms, n), []);
+  const clockOf = (key) => (clocks.current[key] = clocks.current[key] || { t: 0 });
+  const sfx = React.useCallback((kind, ms) => RcAudio.sfx(kind, ms), []);
 
   const goTo = (j) => {
     const from = iRef.current;
     j = Math.max(0, Math.min(scenes.length - 1, j));
-    if (j === from) { if (j === 0) { clock.current.t = 0; setRun((r) => r + 1); } return; }
+    if (j === from) {
+      if (j === 0) { delete clocks.current[`${runRef.current}-0`]; setRun((r) => r + 1); }
+      return;
+    }
     clearTimeout(prevTimer.current);
-    setPrev({ idx: from });
-    prevTimer.current = setTimeout(() => setPrev(null), 900);
+    setPrev({ idx: from, run: runRef.current });
+    prevTimer.current = setTimeout(() => setPrev(null), 800);
     setI(j);
-    RcAudio.sfx('whoosh');
+    RcAudio.sfx(j === scenes.length - 1 ? 'chime' : 'whoosh');
     window.haptic?.();
   };
   const goRef = React.useRef(goTo); goRef.current = goTo;
 
-  // Music for as long as the film is open; quiet while the app is hidden.
+  // Sound for as long as the film is open; quiet while the app is hidden.
   React.useEffect(() => {
+    RcAudio.mood(scenes[0].mood);
     RcAudio.start();
     const vis = () => { if (document.hidden) RcAudio.suspend(); else RcAudio.resume(); };
     document.addEventListener('visibilitychange', vis);
-    return () => { document.removeEventListener('visibilitychange', vis); RcAudio.stop(); clearTimeout(prevTimer.current); };
+    const iv = setInterval(() => setNeedTap(RcAudio.blocked()), 900);
+    return () => { document.removeEventListener('visibilitychange', vis); clearInterval(iv); RcAudio.stop(); clearTimeout(prevTimer.current); };
   }, []);
 
-  // The clock: fills the current bar and cuts to the next scene when full.
+  // The clock: runs the current scene's clock, fills its bar, cuts when full.
   React.useEffect(() => {
-    fills.current.forEach((el, k) => { if (el) el.style.transform = `scaleX(${k < i ? 1 : 0})`; });
-    if (!cur.dur) { const el = fills.current[i]; if (el) el.style.transform = 'scaleX(1)'; return; }
-    clock.current = { t: 0, last: performance.now() };
-    let raf = 0;
+    fills.current.forEach((el, k) => { if (el) el.style.transform = `scaleX(${k < i || (!scenes[k].dur && k === i) ? 1 : 0})`; });
+    const c = clockOf(`${run}-${i}`);
+    c.t = 0;
+    RcAudio.mood(cur.mood);
+    let last = performance.now(), raf = 0, cued = false;
     const loop = (now) => {
-      const c = clock.current; const dt = now - c.last; c.last = now;
+      const dt = Math.min(100, now - last); last = now;
       if (!pausedRef.current && !document.hidden) c.t += dt;
-      const p = Math.min(1, c.t / cur.dur);
-      const el = fills.current[i]; if (el) el.style.transform = `scaleX(${p})`;
-      if (p >= 1) { goRef.current(iRef.current + 1); return; }
+      if (cur.dur) {
+        const p = Math.min(1, c.t / cur.dur);
+        const el = fills.current[i]; if (el) el.style.transform = `scaleX(${p})`;
+        // tell the score a moment early, so the next scene's beat starts on the cut
+        if (!cued && c.t >= cur.dur - 450 && scenes[i + 1]) { cued = true; RcAudio.mood(scenes[i + 1].mood); }
+        if (p >= 1) { goRef.current(iRef.current + 1); return; }
+      }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -1084,6 +1415,7 @@ function TripRecap({ onClose }) {
     hold.current.timer = setTimeout(() => { if (hold.current) { hold.current.held = true; setPaused(true); } }, 220);
   };
   const up = (e) => {
+    RcAudio.resume();
     const h = hold.current; hold.current = null;
     if (!h) return;
     clearTimeout(h.timer);
@@ -1091,75 +1423,91 @@ function TripRecap({ onClose }) {
     if (h.held) { setPaused(false); return; }
     const w = e.currentTarget.getBoundingClientRect();
     const frac = (e.clientX - w.left) / w.width;
-    const back = ar ? frac > 0.68 : frac < 0.32;
+    const back = ar ? frac > 0.7 : frac < 0.3;
     goTo(back ? i - 1 : i + 1);
   };
   const cancel = () => { const h = hold.current; hold.current = null; if (h) { clearTimeout(h.timer); if (h.held) setPaused(false); } };
-  const toggleMute = (e) => { e.stopPropagation(); RcAudio.unlock(); const v = !muted; RcAudio.setMuted(v); setMutedState(v); if (!v) RcAudio.start(); };
+  const toggleMute = (e) => {
+    e.stopPropagation();
+    const v = !muted;
+    RcAudio.setMuted(v); setMutedState(v);
+    if (!v) { RcAudio.unlock(); RcAudio.start(); }
+  };
+  const tapSound = (e) => { e.stopPropagation(); RcAudio.unlock(); RcAudio.start(); setNeedTap(false); };
+  const replay = () => {
+    RcAudio.unlock(); RcAudio.start();
+    clocks.current = {};
+    setPrev(null); setI(0); setRun((r) => r + 1);
+  };
 
-  const enterAnim = { fade: 'rc-fin 700ms ease-out both', zoom: 'rc-zin 720ms cubic-bezier(.2,.8,.2,1) both', iris: 'rc-iris 820ms cubic-bezier(.6,.05,.3,1) both', flash: 'rc-fin 260ms ease-out both' };
-  const exitAnim = { fade: 'rc-fout 600ms ease-in both', zoom: 'rc-zout 720ms cubic-bezier(.5,0,.8,.4) both', iris: 'rc-dim 820ms ease-in both', flash: 'rc-fout 220ms ease-in both' };
-  const layers = [prev && prev.idx !== i ? { idx: prev.idx, cur: false } : null, { idx: i, cur: true }].filter(Boolean);
+  const layers = [prev && !(prev.idx === i && prev.run === run) ? { idx: prev.idx, run: prev.run, cur: false } : null, { idx: i, run, cur: true }].filter(Boolean);
   const grain = rcGrain();
   return (
-    <div role="dialog" aria-modal="true" aria-label={ar ? 'ملخص الرحلة' : 'Trip recap'}
-      className={[reduce ? 'rc-reduce' : '', paused ? 'rc-paused' : ''].join(' ')} style={{
-        position: 'absolute', inset: 0, zIndex: 200, background: '#000', overflow: 'hidden',
-        userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation',
+    <div role="dialog" aria-modal="true" aria-label={ar ? 'ملخص الرحلة' : 'Trip recap'} dir={ar ? 'rtl' : 'ltr'}
+      className={['rc-root', reduce ? 'rc-reduce' : '', paused ? 'rc-paused' : ''].join(' ')} style={{
+        position: 'absolute', inset: 0, zIndex: 200, background: '#060607', overflow: 'hidden',
+        userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'manipulation', '--rc-accent': d.accent,
       }}>
       <style>{RC_CSS}</style>
+      <RcBackdrop d={d} sharp={!!cur.sharp} glow={!!cur.glow} end={!cur.dur} />
+      <div key={`unveil-${run}`} aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 1, background: '#060607', pointerEvents: 'none', animation: 'rc-unveil 1600ms ease 150ms both' }} />
       {layers.map((l) => {
         const S = scenes[l.idx];
+        const first = l.cur && l.idx === 0;
         return (
-          <div key={`${run}-${l.idx}`} aria-hidden={l.cur ? undefined : 'true'} style={{
-            ..._rcFull, zIndex: l.cur ? 2 : 1,
-            animation: l.cur ? enterAnim[S.tx] : exitAnim[scenes[i].tx],
+          <div key={`${l.run}-${l.idx}`} aria-hidden={l.cur ? undefined : 'true'} className={l.cur ? 'rc-in' : 'rc-out'} style={{
+            position: 'absolute', inset: 0, zIndex: l.cur ? 2 : 1, pointerEvents: l.cur ? undefined : 'none',
+            animation: l.cur ? (first ? 'rc-op 1200ms ease both' : 'rc-scene-in 950ms var(--rc-ease) 140ms both') : 'rc-scene-out 560ms cubic-bezier(.4,0,1,1) both',
           }}>
-            <S.el d={d} dur={S.dur || 9000} sfx={sfx} onReplay={() => { RcAudio.unlock(); RcAudio.start(); setPrev(null); setI(0); setRun((r) => r + 1); }} onClose={onClose} />
+            <S.el d={d} dur={S.dur || 9000} clock={clockOf(`${l.run}-${l.idx}`)} sfx={sfx} onReplay={replay} onClose={onClose} />
           </div>
         );
       })}
-      {cur.tx === 'flash' && i > 0 && <div key={`flash-${run}-${i}`} style={{ ..._rcFull, zIndex: 3, background: '#fff', pointerEvents: 'none', animation: 'rc-flash 520ms ease-out both' }} />}
 
-      {/* film: grain + vignette over everything */}
-      <div style={{ ..._rcFull, zIndex: 4, pointerEvents: 'none', background: 'radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(0,0,0,.55) 100%)' }} />
-      {grain && <div className="rc-loop" style={{ position: 'absolute', inset: '-60%', zIndex: 4, pointerEvents: 'none', opacity: .5, mixBlendMode: 'overlay', backgroundImage: `url(${grain})`, animation: 'rc-grain 900ms steps(6) infinite' }} />}
+      {/* film: a soft vignette and a little grain over everything */}
+      <div style={{ position: 'absolute', inset: 0, zIndex: 4, pointerEvents: 'none', background: 'radial-gradient(130% 95% at 50% 45%, transparent 58%, rgba(0,0,0,.42) 100%)' }} />
+      {grain && <div className="rc-loop" style={{ position: 'absolute', inset: '-60%', zIndex: 4, pointerEvents: 'none', opacity: 0.5, backgroundImage: `url(${grain})`, animation: 'rc-grain 900ms steps(5) infinite' }} />}
 
       {cur.dur > 0 && (
         <div onPointerDown={down} onPointerUp={up} onPointerCancel={cancel} onPointerLeave={cancel}
-          style={{ ..._rcFull, zIndex: 5 }} />
+          style={{ position: 'absolute', inset: 0, zIndex: 5 }} />
       )}
 
       {/* progress, sound, close */}
       <div style={{
         position: 'absolute', insetInline: 0, top: 0, zIndex: 10,
-        padding: 'calc(env(safe-area-inset-top) + 10px) 12px 10px',
-        background: 'linear-gradient(180deg, rgba(0,0,0,.42), transparent)', pointerEvents: 'none',
+        padding: 'calc(var(--rc-sat) + 10px) 14px 14px',
+        background: 'linear-gradient(180deg, rgba(0,0,0,.38), transparent)', pointerEvents: 'none',
       }}>
         <div style={{ display: 'flex', gap: 4 }}>
           {scenes.map((s, k) => (
-            <div key={s.key} style={{ flex: 1, height: 3, borderRadius: 99, background: 'rgba(255,255,255,.28)', overflow: 'hidden' }}>
+            <div key={s.key} style={{ flex: 1, height: 2, borderRadius: 2, background: 'rgba(255,255,255,.24)', overflow: 'hidden' }}>
               <div ref={(el) => { fills.current[k] = el; }} style={{
-                height: '100%', borderRadius: 99, background: '#fff',
+                height: '100%', borderRadius: 2, background: 'rgba(255,255,255,.92)',
                 transformOrigin: ar ? '100% 50%' : '0 50%', transform: `scaleX(${k < i ? 1 : 0})`,
               }} />
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, color: '#fff' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, fontWeight: 700 }}>
-            <span className="wordmark" style={{ fontSize: 19, fontWeight: 400 }}>voyage</span>
-            {paused && <span style={{ opacity: .8 }}>{ar ? '· موقوف' : '· paused'}</span>}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, color: '#fff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <span className="wordmark" style={{ fontSize: 19, fontWeight: 400, opacity: 0.9 }}>voyage</span>
+            {paused && <span style={{ fontSize: 12.5, color: 'var(--rc-fg2)' }}>{ar ? 'موقوف' : 'Paused'}</span>}
           </div>
-          <div style={{ display: 'flex', gap: 8, pointerEvents: 'auto' }}>
-            <button onClick={toggleMute} aria-label={muted ? (ar ? 'شغّل الصوت' : 'Sound on') : (ar ? 'اكتم الصوت' : 'Mute')} style={_rcRound}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <div style={{ display: 'flex', gap: 8, pointerEvents: 'auto', alignItems: 'center' }}>
+            {needTap && !muted && (
+              <button onClick={tapSound} className="rc-glass" style={{ height: 34, padding: '0 12px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
+                {ar ? 'اضغط للصوت' : 'Tap for sound'}
+              </button>
+            )}
+            <button onClick={toggleMute} aria-label={muted ? (ar ? 'شغّل الصوت' : 'Sound on') : (ar ? 'اكتم الصوت' : 'Mute')} className="rc-glass" style={_rcRound}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11 5L6 9H3v6h3l5 4V5z" fill="#fff" />
                 {muted ? <path d="M17 9l5 6M22 9l-5 6" /> : <><path d="M15.5 8.5a5 5 0 010 7" /><path d="M18.5 5.5a9 9 0 010 13" /></>}
               </svg>
             </button>
-            <button onClick={onClose} aria-label={ar ? 'إغلاق' : 'Close'} style={_rcRound}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            <button onClick={onClose} aria-label={ar ? 'إغلاق' : 'Close'} className="rc-glass" style={_rcRound}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
             </button>
           </div>
         </div>
@@ -1167,10 +1515,7 @@ function TripRecap({ onClose }) {
     </div>
   );
 }
-const _rcRound = {
-  width: 36, height: 36, borderRadius: 999, background: 'rgba(255,255,255,.16)',
-  backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', display: 'grid', placeItems: 'center',
-};
+const _rcRound = { width: 34, height: 34, borderRadius: 999, display: 'grid', placeItems: 'center', padding: 0 };
 
 // ── Host + opener ──────────────────────────────────────────────────
 function RecapHost() {
@@ -1199,19 +1544,14 @@ window.openRecap = (tripId) => {
 };
 
 // ── The share image: a 1080×1350 poster drawn on a canvas ─────────
-const RC_PRESET = {
-  kyoto: ['#d39b91', '#3a3956'], lisbon: ['#ddae77', '#934c3a'], oaxaca: ['#e6964f', '#86281d'],
-  lofoten: ['#577ab5', '#101836'], patagon: ['#67acb0', '#183a5b'],
-};
-
 window.renderRecapImage = async function renderRecapImage(d, noPhoto) {
-  const { ar, trip, m, cats } = d;
-  const W = 1080, H = 1350, P = 76;
+  const { ar, trip, m } = d;
+  const W = 1080, H = 1350, P = 80;
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const x = c.getContext('2d');
   try { await document.fonts?.ready; } catch (_) {}
-  const SANS = '"Tajawal", "Geist", "IBM Plex Sans Arabic", system-ui, sans-serif';
-  const SERIF = '"Markazi Text", "Instrument Serif", Georgia, serif';
+  const SANS = '"Geist", "IBM Plex Sans Arabic", "Tajawal", system-ui, sans-serif';
+  const SERIF = ar ? '"Markazi Text", "Instrument Serif", Georgia, serif' : '"Instrument Serif", "Markazi Text", Georgia, serif';
   const S = ar ? W - P : P;
   const text = (str, px, weight, color, xx, yy, opt = {}) => {
     x.font = `${opt.italic ? 'italic ' : ''}${weight} ${px}px ${opt.serif ? SERIF : SANS}`;
@@ -1222,7 +1562,7 @@ window.renderRecapImage = async function renderRecapImage(d, noPhoto) {
   };
 
   // the cover, full bleed, falling into night
-  x.fillStyle = '#050608'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#060607'; x.fillRect(0, 0, W, H);
   let photo = false;
   const url = !noPhoto && (trip.coverUrl || trip.coverImageUrl);
   if (url) {
@@ -1238,61 +1578,67 @@ window.renderRecapImage = async function renderRecapImage(d, noPhoto) {
     const g = x.createLinearGradient(0, 0, W * 0.5, H * 0.75); g.addColorStop(0, a); g.addColorStop(1, b);
     x.fillStyle = g; x.fillRect(0, 0, W, H);
     const sun = x.createRadialGradient(W * 0.72, 300, 10, W * 0.72, 300, 380);
-    sun.addColorStop(0, 'rgba(255,236,214,0.5)'); sun.addColorStop(1, 'rgba(255,236,214,0)');
+    sun.addColorStop(0, 'rgba(255,236,214,0.45)'); sun.addColorStop(1, 'rgba(255,236,214,0)');
     x.fillStyle = sun; x.fillRect(0, 0, W, H);
-    x.fillStyle = 'rgba(10,12,22,0.35)';                     // two quiet ridges
+    x.fillStyle = 'rgba(10,12,22,0.32)';                     // two quiet ridges
     x.beginPath(); x.moveTo(0, 620); x.lineTo(260, 430); x.lineTo(470, 600); x.lineTo(700, 380); x.lineTo(W, 640); x.lineTo(W, H); x.lineTo(0, H); x.fill();
   }
   const fade = x.createLinearGradient(0, 0, 0, H);
-  fade.addColorStop(0, 'rgba(5,6,8,0.55)'); fade.addColorStop(0.2, 'rgba(5,6,8,0.12)'); fade.addColorStop(0.42, 'rgba(5,6,8,0.55)');
-  fade.addColorStop(0.62, 'rgba(5,6,8,0.92)'); fade.addColorStop(1, '#050608');
+  fade.addColorStop(0, 'rgba(6,6,7,0.55)'); fade.addColorStop(0.2, 'rgba(6,6,7,0.1)'); fade.addColorStop(0.4, 'rgba(6,6,7,0.5)');
+  fade.addColorStop(0.6, 'rgba(6,6,7,0.92)'); fade.addColorStop(1, '#060607');
   x.fillStyle = fade; x.fillRect(0, 0, W, H);
   const vig = x.createRadialGradient(W / 2, H * 0.45, H * 0.3, W / 2, H * 0.45, H * 0.85);
-  vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.5)');
+  vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.45)');
   x.fillStyle = vig; x.fillRect(0, 0, W, H);
-
-  // film grain
-  try {
+  try {                                                       // a little film grain
     const gc = document.createElement('canvas'); gc.width = 270; gc.height = 338;
     const gx = gc.getContext('2d'); const id = gx.createImageData(270, 338);
-    for (let i = 0; i < id.data.length; i += 4) { const v = Math.random() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 15; }
+    for (let i = 0; i < id.data.length; i += 4) { const v = Math.random() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 13; }
     gx.putImageData(id, 0, 0); x.imageSmoothingEnabled = false; x.drawImage(gc, 0, 0, W, H); x.imageSmoothingEnabled = true;
   } catch (_) {}
 
+  const fg = '#f5f2ec', fg2 = 'rgba(245,242,236,0.74)', fg3 = 'rgba(245,242,236,0.5)', line = 'rgba(245,242,236,0.18)';
   // top line
-  text('voyage', 48, 400, 'rgba(255,255,255,0.92)', ar ? P : P, 116, { serif: true, italic: true, align: 'left', dir: 'ltr' });
-  text(ar ? 'ملخص الرحلة' : 'TRIP RECAP', ar ? 30 : 24, 700, 'rgba(255,255,255,0.78)', W - P, 112, { align: 'right' });
+  x.font = 'italic 400 54px "Instrument Serif", Georgia, serif'; x.fillStyle = 'rgba(245,242,236,0.92)';
+  x.direction = 'ltr'; x.textAlign = 'left'; x.fillText('voyage', P, 118);
+  const eye = ar ? 'ملخص الرحلة' : 'TRIP RECAP';
+  const ew = text(eye, ar ? 30 : 24, 500, fg2, W - P, 112, { align: 'right' });
+  x.fillStyle = d.accent; x.fillRect(W - P - ew - 52, 102, 34, 3);
 
   // title + dates
   const title = trip.title || (ar ? 'رحلة' : 'Trip');
-  text(title, title.length <= 9 ? 150 : title.length <= 15 ? 118 : 88, 600, '#ffffff', S, 590, { serif: true, italic: true, maxW: W - P * 2 });
-  text([trip.dates, d.dayWord(d.daysShown), d.members.length > 1 ? d.peopleWord(d.members.length) : null].filter(Boolean).join(' · '), 34, 500, 'rgba(255,255,255,0.8)', S, 660, { maxW: W - P * 2 });
+  const tl = [...title].length;
+  text(title, tl <= 9 ? 150 : tl <= 15 ? 116 : 86, ar ? 500 : 400, fg, S, 590, { serif: true, italic: !ar, maxW: W - P * 2 });
+  text([trip.dates, d.dayWord(d.daysShown), d.members.length > 1 ? d.peopleWord(d.members.length) : null].filter(Boolean).join(' · '), 34, 400, fg2, S, 662, { maxW: W - P * 2 });
 
   // the hero number
-  text(ar ? 'صرفتوا' : 'Spent', 32, 700, 'rgba(255,255,255,0.66)', S, 790);
-  x.font = `800 150px ${SANS}`; x.direction = 'ltr';
+  x.fillStyle = line; x.fillRect(P, 712, W - P * 2, 2);
+  text(ar ? 'صرفتوا' : 'Spent', 30, 500, fg3, S, 776);
+  x.font = `300 148px ${SANS}`; x.direction = 'ltr';
   const numStr = d.num(m.total), nw = x.measureText(numStr).width;
   const nx = ar ? W - P - nw : P;
-  text(numStr, 150, 800, '#ffffff', nx, 930, { align: 'left', dir: 'ltr' });
-  text(d.curWord, 46, 700, 'rgba(255,255,255,0.78)', ar ? nx - 22 : nx + nw + 22, 930, { align: ar ? 'right' : 'left' });
+  text(numStr, 148, 300, fg, nx, 912, { align: 'left', dir: 'ltr' });
+  text(d.curWord, 44, 400, fg2, ar ? nx - 24 : nx + nw + 24, 912, { align: ar ? 'right' : 'left' });
 
   // a row of figures
-  x.fillStyle = 'rgba(255,255,255,0.18)'; x.fillRect(P, 985, W - P * 2, 2);
+  x.fillStyle = line; x.fillRect(P, 968, W - P * 2, 2);
   const stats = rcStats(d);
   const colW = (W - P * 2) / Math.max(1, stats.length);
   stats.forEach(([v, l], k) => {
     const left = ar ? W - P - (k + 1) * colW : P + k * colW;
     const sx = ar ? left + colW - (k ? 32 : 0) : left + (k ? 32 : 0);
-    if (k) { x.fillStyle = 'rgba(255,255,255,0.18)'; x.fillRect(ar ? left + colW : left, 1012, 2, 120); }
-    text(String(v), 92, 800, '#ffffff', sx, 1095);
-    text(l, 30, 600, 'rgba(255,255,255,0.66)', sx, 1138, { maxW: colW - 40 });
+    if (k) { x.fillStyle = line; x.fillRect(ar ? left + colW : left, 996, 2, 116); }
+    text(String(v), 92, 300, fg, sx, 1078, { dir: 'ltr', align: ar ? 'right' : 'left' });
+    text(l, 30, 400, fg3, sx, 1122, { maxW: colW - 40 });
   });
 
   // two highlights
-  const peak = m.peak, top = cats[0];
-  if (peak && peak.v > 0) text(`🔥 ${ar ? `أغلى يوم: اليوم ${peak.i} · ${d.fmt(peak.v)}` : `Biggest day: Day ${peak.i} · ${d.fmt(peak.v)}`}`, 32, 600, 'rgba(255,255,255,0.86)', S, 1212, { maxW: W - P * 2 });
-  if (top) text(`${window.CAT_META?.[top[0]]?.emoji || ''} ${ar ? `الأكثر: ${_rcCatName(top[0])} ${Math.round((top[1] / (m.total || 1)) * 100)}%` : `Most on: ${_rcCatName(top[0])} ${Math.round((top[1] / (m.total || 1)) * 100)}%`}`, 32, 600, 'rgba(255,255,255,0.86)', S, 1262, { maxW: W - P * 2 });
-  text(ar ? 'صُنعت في Voyage' : 'Made with Voyage', 24, 500, 'rgba(255,255,255,0.4)', S, 1318);
+  rcHighlights(d).forEach((h, k) => {
+    const yy = 1200 + k * 50;
+    x.fillStyle = d.accent; x.fillRect(ar ? W - P - 10 : P, yy - 18, 10, 10);
+    text(h, 31, 400, fg2, ar ? W - P - 30 : P + 30, yy, { maxW: W - P * 2 - 30 });
+  });
+  text(ar ? 'صُنعت في Voyage' : 'Made with Voyage', 24, 400, 'rgba(245,242,236,0.38)', S, 1310);
 
   try {
     return await new Promise((res, rej) => c.toBlob((bl) => (bl ? res(bl) : rej(new Error('blob'))), 'image/png'));

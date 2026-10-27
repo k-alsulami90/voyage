@@ -35,13 +35,46 @@ const _parseDay = (iso) => {
 };
 const _daysBetween = (a, b) => Math.round((_parseDay(b) - _parseDay(a)) / 86400000);
 
+// The daily budget, two ways:
+//   planPerDay — the plan: the money ÷ the trip's days. Fixed; Analysis
+//                compares every day against it.
+//   allowance  — today's budget: what's left of the money ÷ the days left,
+//                today included. It moves: spend less one day and the next
+//                days get more, spend more and they get less.
+// `pool` is the money for day-to-day spending; `daily` its expenses.
+const _dayBudget = (pool, daily, trip, today) => {
+  const dayOf = (e) => (e.createdAt ? window.localISO(e.createdAt) : today);
+  const start = trip.startDate, end = trip.endDate;
+  const totalDays = start && end ? Math.max(1, _daysBetween(start, end) + 1) : 1;
+  const planPerDay = pool / totalDays;
+  const spent = daily.reduce((s, e) => s + (e.usd || 0), 0);
+  let phase = 'during';
+  if (start && today < start) phase = 'before';
+  else if (end && today > end) phase = 'after';
+  let daysLeft, allowance, todaySpent = 0, todayLeft = null, nextDaysAllowance = null;
+  if (phase === 'during') {
+    daysLeft = Math.max(1, _daysBetween(today, end) + 1);              // includes today
+    const beforeToday = daily.filter((e) => dayOf(e) < today).reduce((s, e) => s + (e.usd || 0), 0);
+    todaySpent = daily.filter((e) => dayOf(e) === today).reduce((s, e) => s + (e.usd || 0), 0);
+    allowance = (pool - beforeToday) / daysLeft;
+    todayLeft = allowance - todaySpent;
+    if (daysLeft > 1) nextDaysAllowance = (pool - beforeToday - todaySpent) / (daysLeft - 1);
+  } else if (phase === 'before') {
+    daysLeft = totalDays;
+    allowance = (pool - spent) / totalDays;
+  } else {
+    daysLeft = 0;
+    allowance = 0;
+  }
+  return { pool, spent, left: pool - spent, totalDays, planPerDay, phase, daysLeft, allowance, todaySpent, todayLeft, nextDaysAllowance };
+};
+
 window.computeTodayBudget = (trip, expenses, todayISO) => {
   const w = window.walletsOf(trip);
   if (!w) return null;
   expenses = expenses || [];
   const today = todayISO || window.localISO();
   const ids = new Set(w.cards.map((c) => c.id));
-  const dayOf = (e) => (e.createdAt ? window.localISO(e.createdAt) : today);
   // Bookings (logged before the trip starts, or from a document's cost) are
   // GENERAL budget: they count in the trip total, not against the cards.
   const cardExp = expenses.filter((e) => ids.has(e.who) && !window.isGeneralBudgetExpense(e, trip));
@@ -53,31 +86,30 @@ window.computeTodayBudget = (trip, expenses, todayISO) => {
   const totalUSD = cards.reduce((s, c) => s + c.amountUSD, 0);
   const spentUSD = cards.reduce((s, c) => s + c.spent, 0);
   const leftUSD = totalUSD - spentUSD;
+  const b = _dayBudget(totalUSD, cardExp, trip, today);
+  return { cards, totalUSD, spentUSD, leftUSD, totalDays: b.totalDays, planPerDay: b.planPerDay, phase: b.phase, daysLeft: b.daysLeft,
+    allowance: b.allowance, todaySpent: b.todaySpent, todayLeft: b.todayLeft, nextDaysAllowance: b.nextDaysAllowance };
+};
 
-  const start = trip.startDate, end = trip.endDate;
-  const totalDays = start && end ? Math.max(1, _daysBetween(start, end) + 1) : 1;
-  const planPerDay = totalUSD / totalDays;
-
-  let phase = 'during';
-  if (start && today < start) phase = 'before';
-  else if (end && today > end) phase = 'after';
-
-  let daysLeft, allowance, todaySpent = 0, todayLeft = null, nextDaysAllowance = null;
-  if (phase === 'during') {
-    daysLeft = Math.max(1, _daysBetween(today, end) + 1);              // includes today
-    const beforeToday = cardExp.filter((e) => dayOf(e) < today).reduce((s, e) => s + (e.usd || 0), 0);
-    todaySpent = cardExp.filter((e) => dayOf(e) === today).reduce((s, e) => s + (e.usd || 0), 0);
-    allowance = (totalUSD - beforeToday) / daysLeft;
-    todayLeft = allowance - todaySpent;
-    if (daysLeft > 1) nextDaysAllowance = (totalUSD - beforeToday - todaySpent) / (daysLeft - 1);
-  } else if (phase === 'before') {
-    daysLeft = totalDays;
-    allowance = leftUSD / totalDays;
-  } else {
-    daysLeft = 0;
-    allowance = 0;
+// Today's budget for any trip: from the cards when the trip spends from
+// cards, otherwise from the trip budget minus the bookings (those count
+// once, not per day). null when there's no budget to divide.
+window.dailyBudget = (trip, expenses, todayISO) => {
+  trip = trip || window.TRIP;
+  if (!trip?.startDate || !trip?.endDate) return null;
+  expenses = expenses || window.EXPENSES || [];
+  const today = todayISO || window.localISO();
+  const w = window.walletsOf(trip);
+  if (w) {
+    const ids = new Set(w.cards.map((c) => c.id));
+    const pool = w.cards.reduce((s, c) => s + c.amountUSD, 0);
+    if (!(pool > 0)) return null;
+    return { ..._dayBudget(pool, expenses.filter((e) => ids.has(e.who) && !window.isGeneralBudgetExpense(e, trip)), trip, today), cards: true };
   }
-  return { cards, totalUSD, spentUSD, leftUSD, totalDays, planPerDay, phase, daysLeft, allowance, todaySpent, todayLeft, nextDaysAllowance };
+  const planned = trip.budget?.plannedUSD || 0;
+  if (!(planned > 0)) return null;
+  const general = expenses.filter((e) => window.isGeneralBudgetExpense(e, trip)).reduce((s, e) => s + (e.usd || 0), 0);
+  return { ..._dayBudget(Math.max(0, planned - general), expenses.filter((e) => !window.isGeneralBudgetExpense(e, trip)), trip, today), cards: false };
 };
 
 const _first = (m) => ((m && m.name) || '').trim().split(/\s+/)[0] || '?';
