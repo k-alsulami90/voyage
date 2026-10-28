@@ -25,8 +25,34 @@ window.walletsOf = (trip) => {
   const cards = (Array.isArray(w.cards) ? w.cards : [])
     .filter((c) => c && c.user_id)
     .map((c) => ({ id: c.user_id, amountUSD: parseFloat(c.amount_usd) || 0 }));
-  if (cards.length === 0) return null;
-  return { cards };
+  // The group's cash: one pot brought from home, in the currency it's
+  // carried in (usually the country's). amount_usd is its value when it
+  // was entered — the budget adds it to the cards in the same terms.
+  const c = w.cash;
+  const cashAmt = c ? parseFloat(c.amount) || 0 : 0;
+  const cash = cashAmt > 0 ? {
+    id: 'cash', amount: cashAmt, currency: String(c.currency || 'USD').toUpperCase(),
+    amountUSD: parseFloat(c.amount_usd) > 0 ? parseFloat(c.amount_usd) : window.toUSD(cashAmt, c.currency),
+  } : null;
+  if (cards.length === 0 && !cash) return null;
+  return { cards, cash };
+};
+
+// What an expense came to in a given currency: the amount as typed when it
+// was entered in that currency, otherwise converted.
+const _inCur = (e, cur) => (e.localCur === cur && e.local != null && isFinite(e.local) ? e.local : (e.usd || 0) * window.fxRate(cur));
+
+// The cash pot as it stands: spent and left, in its own currency (exact —
+// what's in your pocket) and in the budget's terms. Expenses before the
+// trip (bookings) don't come out of it, the same rule as the cards.
+window.cashOf = (trip, expenses) => {
+  const w = window.walletsOf(trip);
+  if (!w || !w.cash) return null;
+  const c = w.cash;
+  const paid = (expenses || []).filter((e) => e.cash && !window.isGeneralBudgetExpense(e, trip));
+  const spentUSD = paid.reduce((s, e) => s + (e.usd || 0), 0);
+  const spent = paid.reduce((s, e) => s + _inCur(e, c.currency), 0);
+  return { ...c, spentUSD, leftUSD: c.amountUSD - spentUSD, spent, left: c.amount - spent, count: paid.length, expenses: paid };
 };
 
 const _parseDay = (iso) => {
@@ -77,17 +103,19 @@ window.computeTodayBudget = (trip, expenses, todayISO) => {
   const ids = new Set(w.cards.map((c) => c.id));
   // Bookings (logged before the trip starts, or from a document's cost) are
   // GENERAL budget: they count in the trip total, not against the cards.
-  const cardExp = expenses.filter((e) => ids.has(e.who) && !window.isGeneralBudgetExpense(e, trip));
+  // Cash is its own pot: an expense paid in cash never touches a card.
+  const cardExp = expenses.filter((e) => !e.cash && ids.has(e.who) && !window.isGeneralBudgetExpense(e, trip));
 
   const cards = w.cards.map((c) => {
     const spent = cardExp.filter((e) => e.who === c.id).reduce((s, e) => s + (e.usd || 0), 0);
     return { ...c, spent, left: c.amountUSD - spent };
   });
-  const totalUSD = cards.reduce((s, c) => s + c.amountUSD, 0);
-  const spentUSD = cards.reduce((s, c) => s + c.spent, 0);
+  const cash = window.cashOf(trip, expenses);
+  const totalUSD = cards.reduce((s, c) => s + c.amountUSD, 0) + (cash ? cash.amountUSD : 0);
+  const spentUSD = cards.reduce((s, c) => s + c.spent, 0) + (cash ? cash.spentUSD : 0);
   const leftUSD = totalUSD - spentUSD;
-  const b = _dayBudget(totalUSD, cardExp, trip, today);
-  return { cards, totalUSD, spentUSD, leftUSD, totalDays: b.totalDays, planPerDay: b.planPerDay, phase: b.phase, daysLeft: b.daysLeft,
+  const b = _dayBudget(totalUSD, cash ? [...cardExp, ...cash.expenses] : cardExp, trip, today);
+  return { cards, cash, totalUSD, spentUSD, leftUSD, totalDays: b.totalDays, planPerDay: b.planPerDay, phase: b.phase, daysLeft: b.daysLeft,
     allowance: b.allowance, todaySpent: b.todaySpent, todayLeft: b.todayLeft, nextDaysAllowance: b.nextDaysAllowance };
 };
 
@@ -102,9 +130,10 @@ window.dailyBudget = (trip, expenses, todayISO) => {
   const w = window.walletsOf(trip);
   if (w) {
     const ids = new Set(w.cards.map((c) => c.id));
-    const pool = w.cards.reduce((s, c) => s + c.amountUSD, 0);
+    const pool = w.cards.reduce((s, c) => s + c.amountUSD, 0) + (w.cash ? w.cash.amountUSD : 0);
     if (!(pool > 0)) return null;
-    return { ..._dayBudget(pool, expenses.filter((e) => ids.has(e.who) && !window.isGeneralBudgetExpense(e, trip)), trip, today), cards: true };
+    const daily = expenses.filter((e) => !window.isGeneralBudgetExpense(e, trip) && (e.cash ? !!w.cash : ids.has(e.who)));
+    return { ..._dayBudget(pool, daily, trip, today), cards: true };
   }
   const planned = trip.budget?.plannedUSD || 0;
   if (!(planned > 0)) return null;
@@ -137,6 +166,11 @@ function TodayBudgetCard({ onManage, onOpen, onAnalysis }) {
   const cardsWord = (n) => ar
     ? window.arPlural(n, { one: 'بطاقة واحدة', two: 'بطاقتان', few: `${n} بطاقات`, many: `${n} بطاقة`, other: `${n} بطاقة` })
     : `${n} ${n === 1 ? 'card' : 'cards'}`;
+  // The money the group spends from: cards, the cash, or both.
+  const nCards = b.cards.length, hasCash = !!b.cash;
+  const moneyWord = hasCash ? (nCards ? (ar ? 'البطاقات والكاش' : 'Cards & cash') : (ar ? 'الكاش' : 'Cash')) : (ar ? 'البطاقات' : 'Cards');
+  const moneySub = hasCash ? (nCards ? `${cardsWord(nCards)} + ${ar ? 'كاش' : 'cash'}` : (ar ? 'كاش القروب' : "The group's cash")) : cardsWord(nCards);
+  const spentOn = hasCash ? (ar ? 'صرفتوا' : 'Spent') : (ar ? 'صرفتوا من البطاقات' : 'Spent on cards');
 
   let title, sub, label, big, pill;
   if (during) {
@@ -169,17 +203,17 @@ function TodayBudgetCard({ onManage, onOpen, onAnalysis }) {
       b.daysLeft > 1 && b.nextDaysAllowance != null
         ? <Stat key="a" label={ar ? `للأيام الجاية (${b.daysLeft - 1})` : `Next ${b.daysLeft - 1} days`} value={fmtC(b.nextDaysAllowance)}
             sub={ar ? `لكل يوم · خطتكم ${fmtC(b.planPerDay)}` : `a day · plan ${fmtC(b.planPerDay)}`} />
-        : <Stat key="a" label={ar ? 'صرفتوا من البطاقات' : 'Spent on cards'} value={fmtC(b.spentUSD)} sub={ar ? `من ${fmtC(b.totalUSD)}` : `of ${fmtC(b.totalUSD)}`} />,
+        : <Stat key="a" label={spentOn} value={fmtC(b.spentUSD)} sub={ar ? `من ${fmtC(b.totalUSD)}` : `of ${fmtC(b.totalUSD)}`} />,
       <Stat key="b" label={ar ? 'باقي للرحلة' : 'Left for the trip'} value={fmtC(b.leftUSD)} sub={ar ? `من ${fmtC(b.totalUSD)}` : `of ${fmtC(b.totalUSD)}`} />,
     ];
   } else if (before) {
     stats = [
-      <Stat key="a" label={ar ? 'مجموع البطاقات' : 'On the cards'} value={fmtC(b.totalUSD)} sub={cardsWord(b.cards.length)} />,
+      <Stat key="a" label={hasCash ? moneyWord : (ar ? 'مجموع البطاقات' : 'On the cards')} value={fmtC(b.totalUSD)} sub={moneySub} />,
       <Stat key="b" label={ar ? 'مدة الرحلة' : 'Trip length'} value={daysWord(b.totalDays)} sub={trip.startDate ? (ar ? `تبدأ ${window.fmtDate(trip.startDate)}` : `from ${window.fmtDate(trip.startDate)}`) : ''} />,
     ];
   } else {
     stats = [
-      <Stat key="a" label={ar ? 'صرفتوا من البطاقات' : 'Spent on cards'} value={fmtC(b.spentUSD)} sub={ar ? `من ${fmtC(b.totalUSD)}` : `of ${fmtC(b.totalUSD)}`} />,
+      <Stat key="a" label={spentOn} value={fmtC(b.spentUSD)} sub={ar ? `من ${fmtC(b.totalUSD)}` : `of ${fmtC(b.totalUSD)}`} />,
       <Stat key="b" label={ar ? 'متوسط اليوم' : 'Per day'} value={fmtC(b.totalDays ? b.spentUSD / b.totalDays : 0)} sub={ar ? `خطتكم ${fmtC(b.planPerDay)}` : `plan ${fmtC(b.planPerDay)}`} />,
     ];
   }
@@ -232,9 +266,10 @@ function TodayBudgetCard({ onManage, onOpen, onAnalysis }) {
         </div>
       </Section>
 
-      {/* The group's cards — physical 3D cards: swipe or tap to flip through */}
-      <Section title={ar ? 'البطاقات' : 'Cards'} sub={cardsWord(b.cards.length)} action={ar ? 'إدارة' : 'Manage'} onAction={onManage}>
-        <window.WalletCarousel cards={b.cards} members={members} fmt={fmtC} onOpenCard={(id) => window.openCardExpenses(id)} />
+      {/* The group's money — the cash as a banknote, the cards as physical
+          3D cards: swipe or tap to flip through */}
+      <Section title={moneyWord} sub={moneySub} action={ar ? 'إدارة' : 'Manage'} onAction={onManage}>
+        <window.WalletCarousel cards={b.cards} cash={b.cash} members={members} fmt={fmtC} onOpenCard={(id) => window.openCardExpenses(id)} />
       </Section>
     </>
   );
@@ -255,19 +290,34 @@ function WalletsSetup() {
     return m;
   });
   const [saving, setSaving] = React.useState(false);
+  // The group's cash: an amount in the currency it's carried in.
+  const local = trip?.localCurrency || home;
+  const rc = raw.cash && parseFloat(raw.cash.amount) > 0 ? raw.cash : null;
+  const [cashOn, setCashOn] = React.useState(!!rc);
+  const [cashCur, setCashCur] = React.useState(rc?.currency || (local !== home ? local : home));
+  const [cashAmt, setCashAmt] = React.useState(rc ? String(Math.round(parseFloat(rc.amount))) : '');
+  const cashNum = cashOn ? parseFloat(cashAmt) || 0 : 0;
+  const cashHome = window.toUSD(cashNum, cashCur) * rate;
   const ids = Object.keys(cards);
-  const totalHome = ids.reduce((s, id) => s + (parseFloat(cards[id]) || 0), 0);
+  const totalHome = ids.reduce((s, id) => s + (parseFloat(cards[id]) || 0), 0) + cashHome;
   const days = trip?.startDate && trip?.endDate ? Math.max(1, _daysBetween(trip.startDate, trip.endDate) + 1) : 1;
 
   const save = async () => {
     setSaving(true);
     try {
+      // Unchanged cash keeps the value it was entered at, so re-saving the
+      // cards doesn't nudge the budget with the day's exchange rate.
+      const sameCash = rc && parseFloat(rc.amount) === cashNum && rc.currency === cashCur;
       const wallets = {
         enabled,
         cards: ids.map((id) => ({
           user_id: id,
           amount_usd: Math.round(window.toUSD(parseFloat(cards[id]) || 0, home) * 100) / 100,
         })),
+        cash: cashNum > 0 ? {
+          amount: cashNum, currency: cashCur,
+          amount_usd: sameCash ? parseFloat(rc.amount_usd) : Math.round(window.toUSD(cashNum, cashCur) * 100) / 100,
+        } : null,
       };
       const { error } = await window.sb.from('trips').update({ wallets }).eq('id', trip.id);
       if (error) {
@@ -291,18 +341,19 @@ function WalletsSetup() {
   };
 
   // Only offer "Save" when something actually changed.
-  const snap = (en, cs) => JSON.stringify([!!en, Object.keys(cs).sort().map((k) => [k, Math.round(parseFloat(cs[k]) || 0)])]);
+  const snap = (en, cs, cash) => JSON.stringify([!!en, Object.keys(cs).sort().map((k) => [k, Math.round(parseFloat(cs[k]) || 0)]), cash]);
   const savedCards = {};
   (raw.cards || []).forEach((c) => { savedCards[c.user_id] = String(Math.round((parseFloat(c.amount_usd) || 0) * rate)); });
-  const dirty = snap(enabled, cards) !== snap(raw.enabled, savedCards);
+  const dirty = snap(enabled, cards, cashNum > 0 ? [Math.round(cashNum), cashCur] : null)
+    !== snap(raw.enabled, savedCards, rc ? [Math.round(parseFloat(rc.amount)), rc.currency] : null);
 
   return (
-    <SetGroup title={ar ? 'البطاقات والميزانية اليومية' : 'Cards & daily budget'}
-      footer={ar ? 'من البطاقات يحسب التطبيق كم باقي لكم كل يوم، وكم باقي في كل بطاقة.' : 'From the cards the app works out what you can spend each day and what is left on each card.'}>
+    <SetGroup title={ar ? 'البطاقات والكاش' : 'Cards & cash'}
+      footer={ar ? 'من البطاقات والكاش يحسب التطبيق كم تقدرون تصرفون كل يوم، وكم باقي في كل بطاقة وفي الكاش.' : 'From the cards and the cash the app works out what you can spend each day and what is left on each.'}>
       <SetRow icon={<IconCard size={16} stroke="#fff" />} tint={SET_TINT.teal}
-        label={ar ? 'نصرف من بطاقات محددة' : 'We spend from set cards'}
-        sub={ar ? 'تعرفون كم باقي في كل بطاقة، وكم تقدرون تصرفون اليوم' : 'See what is left on each card and what you can spend today'}
-        right={<SetSwitch on={enabled} onChange={(v) => setEnabled(v)} label={ar ? 'البطاقات' : 'Cards'} />} />
+        label={ar ? 'نصرف من بطاقات وكاش محدد' : 'We spend from set cards & cash'}
+        sub={ar ? 'تعرفون كم باقي في كل بطاقة وفي الكاش، وكم تقدرون تصرفون اليوم' : 'See what is left on each card and in the cash, and what you can spend today'}
+        right={<SetSwitch on={enabled} onChange={(v) => setEnabled(v)} label={ar ? 'البطاقات والكاش' : 'Cards & cash'} />} />
 
       {enabled && (
         <div style={{ padding: '4px 14px 14px' }}>
@@ -345,6 +396,44 @@ function WalletsSetup() {
                   );
                 })}
               </div>
+            </>
+          )}
+
+          {/* The group's cash */}
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '0.5px solid var(--hairline)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span aria-hidden="true" style={{ width: 30, height: 30, borderRadius: 9, flexShrink: 0, display: 'grid', placeItems: 'center',
+                background: 'linear-gradient(135deg, #4f8a73, #24503f)', boxShadow: 'inset 0 0 0 0.5px rgba(255,255,255,0.25)' }}>
+                <IconCash size={16} stroke="#fff" />
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{ar ? 'كاش القروب' : "The group's cash"}</div>
+                <div style={{ fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 1 }}>{ar ? 'الفلوس اللي معكم نقد من قبل السفر' : 'The cash you bring along'}</div>
+              </div>
+              <SetSwitch on={cashOn} onChange={(v) => setCashOn(v)} label={ar ? 'الكاش' : 'Cash'} />
+            </div>
+            {cashOn && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                <window.NumberField value={cashAmt} placeholder="0" onChange={(v) => setCashAmt(v)} style={field} />
+                {local !== home && (
+                  <div role="radiogroup" aria-label={ar ? 'عملة الكاش' : 'Cash currency'} style={{ display: 'inline-flex', padding: 3, borderRadius: 12, background: 'var(--cream)', border: '0.5px solid var(--hairline)', flexShrink: 0 }}>
+                    {[local, home].map((code) => (
+                      <button key={code} role="radio" aria-checked={cashCur === code} onClick={() => setCashCur(code)} style={{
+                        minWidth: 52, minHeight: 38, padding: '0 10px', borderRadius: 9, fontSize: 13, fontWeight: 600, fontFamily: 'var(--mono)',
+                        background: cashCur === code ? 'var(--sel)' : 'transparent', color: cashCur === code ? 'var(--sel-fg)' : 'var(--ink-soft)',
+                      }}>{code}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {cashOn && cashCur !== home && cashNum > 0 && (
+              <div className="mono" style={{ fontSize: 12, color: 'var(--ink-mute)', margin: '6px 2px 0' }}>≈ {Math.round(cashHome).toLocaleString('en')} {home}</div>
+            )}
+          </div>
+
+          {(ids.length > 0 || cashNum > 0) && (
+            <>
               {totalHome > 0 && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 8, marginTop: 12 }}>
                   <div style={{ background: 'var(--well)', borderRadius: 14, padding: '10px 12px' }}>
@@ -650,7 +739,7 @@ window.openExpenses = (f) => {
   const tid = window.TRIP?.id;
   if (tid) window.navigateRoute?.({ scope: 'trip', name: 'budget', tripId: tid });
 };
-window.openCardExpenses = (memberId) => window.openExpenses({ paidBy: memberId });
+window.openCardExpenses = (memberId) => window.openExpenses({ paidBy: memberId });   // 'cash' → the cash
 
 // Expenses filtered to one person/card: their card up top, three figures,
 // and a way back to everyone. (The category chips under it narrow the list.)
@@ -659,7 +748,9 @@ function PersonFocus({ memberId, conv, onClear }) {
   const trip = window.TRIP;
   const m = (window.MEMBERS || []).find((x) => x.id === memberId) || { id: memberId, name: '?', hue: 200 };
   const first = (m.name || '').split(' ')[0];
-  const mine = (window.EXPENSES || []).filter((e) => e.who === memberId);
+  // With cards, what someone paid in cash came out of the cash, not their card.
+  const cardsOn = !!window.walletsOf?.(trip);
+  const mine = (window.EXPENSES || []).filter((e) => e.who === memberId && !(cardsOn && e.cash));
   const total = mine.reduce((s, e) => s + (e.usd || 0), 0);
   const days = new Set(mine.map((e) => window.localISO(e.createdAt))).size;
   const b = window.walletsOf?.(trip) ? window.computeTodayBudget?.(trip, window.EXPENSES || [], window.localISO()) : null;
@@ -707,3 +798,53 @@ function PersonFocus({ memberId, conv, onClear }) {
   );
 }
 window.PersonFocus = PersonFocus;
+
+// Expenses paid in cash: the banknote up top, then the same three figures.
+function CashFocus({ conv, onClear }) {
+  const ar = window.isRTL;
+  const trip = window.TRIP;
+  const cash = window.cashOf?.(trip, window.EXPENSES || []);
+  const mine = (window.EXPENSES || []).filter((e) => e.cash);
+  const total = mine.reduce((s, e) => s + (e.usd || 0), 0);
+  const days = new Set(mine.map((e) => window.localISO(e.createdAt))).size;
+  const byCat = {};
+  mine.forEach((e) => { byCat[e.cat] = (byCat[e.cat] || 0) + (e.usd || 0); });
+  const top = Object.entries(byCat).sort((a, b2) => b2[1] - a[1])[0];
+  const tilt = window.useTiltRef ? window.useTiltRef({ max: 6 }) : undefined;
+  const tile = (label, value) => (
+    <div style={{ flex: 1, minWidth: 0, background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', borderRadius: 16, padding: '10px 12px' }}>
+      <div style={{ fontSize: 11, color: 'var(--ink-mute)' }}>{label}</div>
+      <div className="mono" style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
+    </div>
+  );
+  return (
+    <div style={{ padding: '6px 14px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 4px 10px' }}>
+        <div className="serif" style={{ fontSize: 20, color: 'var(--ink)' }}>{ar ? 'كاش القروب' : 'Group cash'}</div>
+        <button onClick={onClear} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 999,
+          background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-soft)' }}>
+          ✕ {ar ? 'كل المصاريف' : 'Everyone'}
+        </button>
+      </div>
+      {cash ? (
+        <div ref={tilt} style={{ height: 186, borderRadius: 12, position: 'relative' }} className="v-flip-in">
+          <window.CashNoteFace cash={cash} />
+        </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px', borderRadius: 22, background: 'var(--statement)', color: 'var(--statement-fg)' }}>
+          <span style={{ width: 46, height: 46, borderRadius: 14, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, #4f8a73, #24503f)' }}><IconCash size={22} stroke="#fff" /></span>
+          <div>
+            <div style={{ fontSize: 12.5, opacity: 0.75 }}>{ar ? 'المدفوع كاش' : 'Paid in cash'}</div>
+            <div className="mono" style={{ fontSize: 26, fontWeight: 700 }}><window.CountUp value={total} format={conv} /></div>
+          </div>
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        {tile(ar ? 'العمليات' : 'Payments', String(mine.length))}
+        {tile(ar ? 'متوسط اليوم' : 'Per day', conv(days ? total / days : 0))}
+        {tile(ar ? 'الأكثر' : 'Most on', top ? `${window.CAT_META?.[top[0]]?.emoji || ''} ${window.CAT_META?.[top[0]]?.[ar ? 'label_ar' : 'label_en'] || t(top[0]) || top[0]}` : '—')}
+      </div>
+    </div>
+  );
+}
+window.CashFocus = CashFocus;

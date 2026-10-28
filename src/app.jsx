@@ -1151,6 +1151,12 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
         key: m.id, id: m.id, member: m,
         label: m.id === window.currentUserId ? (window.isRTL ? 'أنا' : 'Me') : nameOf(m), sub: null,
       }));
+  // The group's cash, when the trip carries some: paid from the cash pot,
+  // logged by whoever paid.
+  if (wallets?.cash) {
+    payerOptions.push({ key: 'cash', id: window.currentUserId, cash: true,
+      label: window.isRTL ? 'كاش' : 'Cash', sub: window.isRTL ? 'للقروب' : 'shared' });
+  }
   // Personal spend (my own shopping…): one tap, only I see it, and it
   // never touches the group's budget — it shows in "Your trip cost".
   const me = members.find((m) => m.id === window.currentUserId);
@@ -1162,6 +1168,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
   const initialPayerKey = (() => {
     const valid = (k) => k && payerOptions.some((o) => o.key === k);
     if (existing?.isPersonal) return 'personal';
+    if (existing?.cash && valid('cash')) return 'cash';
     if (existing && valid(existing.who)) return existing.who;
     if (valid(window.currentUserId) && wallets) return window.currentUserId;
     if (valid(lastPayerKey)) return lastPayerKey;
@@ -1170,7 +1177,10 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
   })();
   const [payerKey, setPayerKey] = React.useState(initialPayerKey);
   const isPersonal = payerKey === 'personal';
-  const paidBy = (isPersonal ? window.currentUserId : payerKey) || window.currentUserId || members[0]?.id || '';
+  const isCash = payerKey === 'cash';
+  // Cash is logged by whoever paid it (an edit keeps who logged it).
+  const paidBy = (isPersonal ? window.currentUserId : isCash ? ((existing?.cash && existing.who) || window.currentUserId) : payerKey)
+    || window.currentUserId || members[0]?.id || '';
   const [detailsOpen, setDetailsOpen] = React.useState(!!existing || !!prefill);
   const [note,    setNote]    = React.useState(existing?.note || '');
   const [loading, setLoading] = React.useState(false);
@@ -1256,6 +1266,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
         title: finalTitle, category: cat, amountUSD: amtUSD,
         amountLocal: amtLocalForDB, localCurrency: local,
         note: note.trim() || null, splitWith: splitWithIds, isPersonal,
+        paidWith: isCash ? 'cash' : null,
       };
       const optimistic = {
         id: tempId, who: createdByFast, cat, title: payload.title,
@@ -1263,6 +1274,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
         usd: amtUSD, when: window.fmtDate(nowISO), createdAt: nowISO,
         note: payload.note || '', splitWith: splitWithIds, isPersonal,
         receiptPath: null, receiptUrl: null,
+        cash: isCash, local: amtLocalForDB != null ? parseFloat(amtLocalForDB) : null, localCur: local,
       };
       if (isPersonal) window.MY_PERSONAL_EXPENSES = [optimistic, ...(window.MY_PERSONAL_EXPENSES || [])];
       else window.EXPENSES = [optimistic, ...(window.EXPENSES || [])];
@@ -1308,6 +1320,8 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
         category: cat,
         paidBy: isEdit ? createdBy : undefined,
         isPersonal,
+        // only sent when cash is involved, so edits work before migration 023
+        paidWith: isCash ? 'cash' : (isEdit && existing?.cash ? null : undefined),
         amountUSD: amtUSD,
         amountLocal: amtLocalForDB,
         localCurrency: local,
@@ -1447,7 +1461,9 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
       {members.length > 0 && (
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 12.5, color: 'var(--ink-mute)', marginBottom: 6 }}>
-            {wallets ? (window.isRTL ? 'من أي بطاقة؟' : 'Which card?') : (window.isRTL ? 'مين دفع؟' : 'Who paid?')}
+            {wallets ? (wallets.cash
+              ? (wallets.cards.length ? (window.isRTL ? 'من أي بطاقة، أو كاش؟' : 'Which card, or cash?') : (window.isRTL ? 'من وين دفعتوا؟' : 'Paid from?'))
+              : (window.isRTL ? 'من أي بطاقة؟' : 'Which card?')) : (window.isRTL ? 'مين دفع؟' : 'Who paid?')}
           </div>
           <div className="no-scrollbar" style={{ display: 'flex', gap: 7, overflowX: 'auto', flexDirection: 'row', paddingBottom: 2 }}>
             {payerOptions.map((o) => {
@@ -1461,7 +1477,9 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                   transition: 'all 160ms',
                 }}>
-                  <Avatar m={o.member} size={26} />
+                  {o.cash
+                    ? <span aria-hidden="true" style={{ width: 26, height: 26, borderRadius: 8, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, #4f8a73, #24503f)', boxShadow: 'inset 0 0 0 0.5px rgba(255,255,255,0.3)' }}><IconCash size={16} stroke="#fff" /></span>
+                    : <Avatar m={o.member} size={26} />}
                   <span style={{ fontSize: 11.5, fontWeight: 600, color: active ? 'var(--statement-fg)' : 'var(--ink)', maxWidth: 84, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {o.label}
                   </span>

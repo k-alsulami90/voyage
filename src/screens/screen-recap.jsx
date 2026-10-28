@@ -148,9 +148,13 @@ function recapData() {
   const wallets = !!window.walletsOf?.(trip);
   const cats = Object.entries(m.byCat).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
   const biggest = expenses.slice().sort((a, b) => (b.usd || 0) - (a.usd || 0))[0] || null;
+  // Who paid — with cards, what went out in cash is the cash's, not whoever logged it.
   const payers = members
-    .map((mm) => ({ m: mm, v: expenses.filter((e) => e.who === mm.id).reduce((s, e) => s + (e.usd || 0), 0) }))
-    .filter((x) => x.v > 0).sort((a, b) => b.v - a.v);
+    .map((mm) => ({ m: mm, v: expenses.filter((e) => e.who === mm.id && !(wallets && e.cash)).reduce((s, e) => s + (e.usd || 0), 0) }))
+    .filter((x) => x.v > 0);
+  const cashPaid = wallets ? expenses.filter((e) => e.cash).reduce((s, e) => s + (e.usd || 0), 0) : 0;
+  if (cashPaid > 0) payers.push({ m: { id: 'cash', cash: true, name: ar ? 'الكاش' : 'Cash' }, v: cashPaid });
+  payers.sort((a, b) => b.v - a.v);
   const docs = Object.values(window.DOCS_BY_CAT || {}).flat()
     .filter((x) => x && (!x.ownerUserId || x.ownerUserId === window.currentUserId));
   const day = (v) => String(v || '').slice(0, 10);
@@ -272,9 +276,21 @@ function RcNum({ clock, value, fmt, at = 0, dur = 1600, style }) {
   );
 }
 
-// A monogram for a person — quiet, in their own hue.
+// A monogram for a person — quiet, in their own hue. The cash gets a note.
 function RcMono({ m, size = 30, at }) {
   const s = typeof size === 'number' ? `${size}px` : size;
+  if (m && m.cash) {
+    return (
+      <span className={at != null ? 'rc-fade' : undefined} style={{
+        animationDelay: at != null ? `${at}ms` : undefined, width: s, height: s, borderRadius: '28%', flexShrink: 0, display: 'inline-grid', placeItems: 'center',
+        background: 'linear-gradient(135deg, #4f8a73, #1f4537)', boxShadow: 'inset 0 0 0 1px rgba(246,222,160,.35)',
+      }}>
+        <svg viewBox="0 0 24 24" style={{ width: '58%', height: '58%' }} fill="none" stroke="#f6e3b0" strokeWidth="1.6" strokeLinecap="round">
+          <rect x="2.5" y="6" width="19" height="12" rx="2" /><circle cx="12" cy="12" r="2.6" /><path d="M6 9.2h1.6M16.4 14.8H18" />
+        </svg>
+      </span>
+    );
+  }
   const hue = m && m.hue != null ? m.hue : 210;
   return (
     <span className={at != null ? 'rc-fade' : undefined} style={{
@@ -691,7 +707,8 @@ function RcBiggest({ d, clock, sfx }) {
   const title = e.title || _rcCatName(e.cat);
   const size = [...title].length <= 14 ? 'min(12cqw, 6.6cqh)' : [...title].length <= 24 ? 'min(9.5cqw, 5.2cqh)' : 'min(7.6cqw, 4.2cqh)';
   const meta = [e.createdAt ? window.fmtDate(window.localISO(e.createdAt)) : null,
-    who && who !== '?' ? (onCard ? (ar ? `بطاقة ${who}` : `${who}'s card`) : (ar ? `دفعها ${who}` : `paid by ${who}`)) : null].filter(Boolean).join(' · ');
+    wallets && e.cash ? (ar ? 'كاش' : 'in cash')
+      : who && who !== '?' ? (onCard ? (ar ? `بطاقة ${who}` : `${who}'s card`) : (ar ? `دفعها ${who}` : `paid by ${who}`)) : null].filter(Boolean).join(' · ');
   React.useEffect(() => { sfx('hit', 2250); }, []);
   return (
     <div className="rc-stage">
@@ -725,10 +742,11 @@ function RcWho({ d, clock }) {
   const { ar, m, payers, wallets } = d;
   const lead = payers[0], rest = payers.slice(1, 5);
   const share = Math.round((lead.v / (m.total || 1)) * 100);
-  const label = (mm) => (wallets ? (ar ? `بطاقة ${_rcFirst(mm)}` : `${_rcFirst(mm)}'s card`) : _rcFirst(mm));
+  const label = (mm) => (mm.cash ? (ar ? 'الكاش' : 'The cash') : wallets ? (ar ? `بطاقة ${_rcFirst(mm)}` : `${_rcFirst(mm)}'s card`) : _rcFirst(mm));
+  const withCash = payers.some((p) => p.m.cash);
   return (
     <div className="rc-stage">
-      <RcEyebrow at={150}>{wallets ? (ar ? 'أي بطاقة شالت الحمل؟' : 'Which card carried it') : (ar ? 'مين دفع أكثر؟' : 'Who paid the most')}</RcEyebrow>
+      <RcEyebrow at={150}>{wallets ? (withCash ? (ar ? 'وش اللي شال الحمل؟' : 'What carried it') : (ar ? 'أي بطاقة شالت الحمل؟' : 'Which card carried it')) : (ar ? 'مين دفع أكثر؟' : 'Who paid the most')}</RcEyebrow>
       <div className="rc-fill">
         <RcMono m={lead.m} size="min(16cqw, 8.4cqh)" at={450} />
         <div className="rc-h2" style={{ fontSize: 'min(8.4cqw, 4.6cqh)', marginTop: 'min(2.6cqh, 20px)' }}><RcText text={label(lead.m)} at={700} stagger={110} /></div>

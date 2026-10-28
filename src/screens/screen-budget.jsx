@@ -77,8 +77,10 @@ function ScreenBudget({ go, openSheet, loading }) {
   // after person + search, so each chip says how many it would show.
   const expenses = window.EXPENSES || [];
   const q = search.trim().toLowerCase();
+  // With cards, an expense paid in cash belongs to the cash, not to whoever logged it.
+  const paidFrom = (e) => (wallets && e.cash ? 'cash' : e.who);
   const pool = expenses.filter((e) =>
-    (paidBy === 'all' || e.who === paidBy) &&
+    (paidBy === 'all' || paidFrom(e) === paidBy) &&
     (!dayFilter || (e.createdAt && window.localISO(e.createdAt) === dayFilter)) &&
     (!q || [e.title, e.note].some((v) => String(v || '').toLowerCase().includes(q))));
   const visible = filter === 'all' ? pool : pool.filter((e) => e.cat === filter);
@@ -87,7 +89,9 @@ function ScreenBudget({ go, openSheet, loading }) {
   const order = window.CAT_ORDER || ['culture', 'lodging', 'transit', 'food', 'shopping', 'wellness', 'misc'];
   const catKeys = [...order.filter((k) => catCount[k]), ...Object.keys(catCount).filter((k) => !order.includes(k))];
   if (filter !== 'all' && !catKeys.includes(filter)) catKeys.push(filter);
-  const payers = members.filter((m) => expenses.some((e) => e.who === m.id));
+  const payers = members.filter((m) => expenses.some((e) => paidFrom(e) === m.id));
+  const cashChip = wallets && expenses.some((e) => e.cash);
+  const sources = payers.length + (cashChip ? 1 : 0);
   const narrowed = filter !== 'all' || !!q || !!dayFilter;
   const countWord = (n) => (ar
     ? window.arPlural(n, { zero: 'ولا مصروف', one: 'مصروف واحد', two: 'مصروفان', few: `${n} مصاريف`, many: `${n} مصروفاً`, other: `${n} مصروف` })
@@ -142,8 +146,10 @@ function ScreenBudget({ go, openSheet, loading }) {
 
       {/* The card you came from, or the trip's summary (hidden while searching
          or looking at one day) */}
-      {paidBy !== 'all' ? (
-        <window.PersonFocus memberId={paidBy} conv={conv} onClear={() => { setPaidBy('all'); setFilter('all'); }} />
+      {paidBy === 'cash' ? (
+        <window.CashFocus conv={conv} onClear={() => { setPaidBy('all'); setFilter('all'); }} />
+      ) : paidBy !== 'all' ? (
+        <window.PersonFocus key={paidBy} memberId={paidBy} conv={conv} onClear={() => { setPaidBy('all'); setFilter('all'); }} />
       ) : !showSearch && !dayFilter && (
         <window.ExpenseSummary trip={trip} expenses={expenses} conv={conv}
           onAnalysis={expenses.length ? () => go('analytics') : null}
@@ -177,8 +183,25 @@ function ScreenBudget({ go, openSheet, loading }) {
               {window.CAT_META?.[k]?.emoji} {window.CAT_META?.[k]?.[ar ? 'label_ar' : 'label_en'] || window.catLabel(k)} · {catCount[k] || 0}
             </Chip>
           ))}
-          {payers.length > 1 && <span aria-hidden="true" style={{ width: 1, height: 22, background: 'var(--hairline-2)', flexShrink: 0, margin: '0 4px' }} />}
-          {payers.length > 1 && payers.map((m) => {
+          {sources > 1 && <span aria-hidden="true" style={{ width: 1, height: 22, background: 'var(--hairline-2)', flexShrink: 0, margin: '0 4px' }} />}
+          {sources > 1 && cashChip && (() => {
+            const on = paidBy === 'cash';
+            return (
+              <button onClick={() => { setPaidBy(on ? 'all' : 'cash'); setFilter('all'); window.haptic?.(); }} aria-pressed={on} style={{
+                flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 0', borderRadius: 999,
+                paddingInlineStart: 5, paddingInlineEnd: 12,
+                background: on ? 'var(--sel)' : 'var(--chip)', color: on ? 'var(--sel-fg)' : 'var(--ink-soft)',
+                border: '0.5px solid ' + (on ? 'transparent' : 'var(--hairline)'),
+                fontSize: 12.5, fontWeight: 500, whiteSpace: 'nowrap', minHeight: 32,
+              }}>
+                <span aria-hidden="true" style={{ width: 22, height: 22, borderRadius: 7, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, #4f8a73, #24503f)' }}>
+                  <IconCash size={13} stroke="#fff" />
+                </span>
+                {ar ? 'الكاش' : 'Cash'}
+              </button>
+            );
+          })()}
+          {sources > 1 && payers.map((m) => {
             const on = paidBy === m.id;
             const first = (m.name || '').split(' ')[0];
             return (
@@ -308,7 +331,8 @@ function ExpRow({ e, first, conv, alt, wallets, dateLabel, onOpen }) {
   const m = (window.MEMBERS || []).find((x) => x.id === e.who) || { name: '—', hue: 200, initials: '?' };
   const firstName = (m.name || '').split(' ')[0];
   const color = (window.CATEGORIES || []).find((c) => c.key === e.cat)?.color || 'var(--cat-misc)';
-  const who = wallets ? (ar ? `بطاقة ${firstName}` : `${firstName}'s card`) : firstName;
+  const paidCash = wallets && e.cash;
+  const who = paidCash ? (ar ? 'كاش' : 'Cash') : wallets ? (ar ? `بطاقة ${firstName}` : `${firstName}'s card`) : firstName;
   const pending = String(e.id).startsWith('temp-');
   const isPdf = e.receiptUrl && window.isPdfPath?.(e.receiptPath);
   return (
@@ -331,7 +355,9 @@ function ExpRow({ e, first, conv, alt, wallets, dateLabel, onOpen }) {
             )}
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 3, minWidth: 0 }}>
-            <Avatar m={m} size={14} />
+            {paidCash
+              ? <span aria-hidden="true" style={{ width: 14, height: 14, borderRadius: 4, flexShrink: 0, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, #4f8a73, #24503f)' }}><IconCash size={10} stroke="#fff" sw={2} /></span>
+              : <Avatar m={m} size={14} />}
             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{[who, dateLabel, e.note].filter(Boolean).join(' · ')}</span>
           </span>
         </span>

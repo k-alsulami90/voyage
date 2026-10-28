@@ -400,8 +400,100 @@ function WalletCardFace({ c, m, fmt, style }) {
 }
 window.WalletCardFace = WalletCardFace;
 
+// ── The group's cash, drawn as a banknote ───────────────────────────
+// Engraved wavy lines, a rosette with the currency's sign as a watermark,
+// a security thread and a printed frame — and on it what's left, in the
+// currency in your pocket, with its value at home beside it.
+const _NOTE_SIGN = { TRY: '₺', USD: '$', EUR: '€', GBP: '£', JPY: '¥', INR: '₹', IDR: 'Rp' };
+const _noteLines = (() => {
+  const out = [];
+  for (let k = 0; k < 15; k++) {
+    const y0 = 12 + (k * 156) / 14;
+    let d = '';
+    for (let x = 0; x <= 320; x += 8) {
+      const y = y0 + Math.sin(x / 27 + k * 0.6) * 4.4 + Math.sin(x / 8.5 + k * 1.3) * 0.7;
+      d += `${x ? ' L' : 'M'}${x},${y.toFixed(1)}`;
+    }
+    out.push(d);
+  }
+  return out;
+})();
+function _fmtNative(v, cur) {
+  const whole = window.CUR_WHOLE?.has(cur) || Math.abs(v) >= 100;
+  const sym = window.CUR_SYM?.[cur] || `${cur} `;
+  const n = Math.abs(v).toLocaleString('en', { minimumFractionDigits: 0, maximumFractionDigits: whole ? 0 : 2 });
+  return `${v < 0 ? '−' : ''}${sym}${n}`;
+}
+function CashNoteFace({ cash, style }) {
+  const ar = !!window.isRTL;
+  const cur = cash.currency;
+  const fmtN = (v) => _fmtNative(v, cur);
+  const pct = cash.amount > 0 ? Math.max(0, Math.min(1, cash.spent / cash.amount)) : 0;
+  const over = cash.left < 0;
+  const homeCur = (window.TRIP?.homeCurrency || 'USD').toUpperCase();
+  const atHome = cur !== homeCur ? window.fmtMoney(window.toUSD(cash.left, cur), { in: 'home' }) : null;
+  const sign = _NOTE_SIGN[cur] || cur;
+  const rx = ar ? 74 : 246;                     // the rosette sits at the far end
+  return (
+    <div style={{
+      position: 'relative', width: '100%', height: '100%', borderRadius: 12, overflow: 'hidden', color: '#fff', boxSizing: 'border-box',
+      background: 'linear-gradient(135deg, #427f69 0%, #2c5d4c 46%, #1c4135 100%)',
+      boxShadow: '0 18px 36px -12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.22)', ...style,
+    }}>
+      {/* engraving: wavy lines and a rosette */}
+      <svg aria-hidden="true" viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+        <g fill="none" stroke="rgba(255,255,255,0.075)" strokeWidth="0.8">
+          {_noteLines.map((d, k) => <path key={k} d={d} />)}
+        </g>
+        <g transform={`translate(${rx},92)`} fill="none" stroke="rgba(255,232,186,0.2)" strokeWidth="0.7">
+          {Array.from({ length: 24 }, (_, k) => <ellipse key={k} rx="46" ry="15" transform={`rotate(${k * 7.5})`} />)}
+          <circle r="48" /><circle r="52" strokeDasharray="1.5 2.5" /><circle r="17" />
+        </g>
+      </svg>
+      {/* the currency's sign, watermarked in the rosette */}
+      <div aria-hidden="true" style={{
+        position: 'absolute', top: '51%', left: `${(rx / 320) * 100}%`, transform: 'translate(-50%, -50%)', fontFamily: 'var(--serif, Georgia), serif', fontSize: sign.length > 2 ? 15 : 30,
+        fontWeight: 600, letterSpacing: sign.length > 2 ? '0.08em' : 0, color: 'rgba(255,240,205,0.34)', direction: 'ltr',
+      }}>{sign}</div>
+      {/* security thread + printed frame + sheen */}
+      <div aria-hidden="true" style={{ position: 'absolute', top: 0, bottom: 0, [ar ? 'left' : 'right']: '36%', width: 3,
+        background: 'repeating-linear-gradient(180deg, rgba(246,222,160,0.6) 0 7px, rgba(246,222,160,0.14) 7px 11px)' }} />
+      <div aria-hidden="true" style={{ position: 'absolute', inset: 7, borderRadius: 7, border: '1px solid rgba(255,255,255,0.16)' }} />
+      <div aria-hidden="true" style={{ position: 'absolute', inset: 0, background: 'linear-gradient(115deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 36%), radial-gradient(110% 90% at 100% 100%, rgba(255,255,255,0.08), transparent 60%)' }} />
+
+      <div style={{ position: 'relative', height: '100%', padding: '16px 18px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 600, opacity: 0.94 }}>
+            {window.IconCash ? <window.IconCash size={17} stroke="#fff" /> : null}{ar ? 'كاش القروب' : 'Group cash'}
+          </span>
+          <span className="mono" style={{ padding: '2px 8px', borderRadius: 6, border: '1px solid rgba(246,222,160,0.55)', color: '#f6e3b0', fontSize: 11.5, fontWeight: 600, letterSpacing: '0.06em' }}>{cur}</span>
+        </div>
+        <div>
+          <div style={{ fontSize: 11.5, opacity: 0.75 }}>{ar ? 'المتبقي' : 'Left'}</div>
+          <div className="mono" style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.01em', direction: 'ltr', textAlign: ar ? 'right' : 'left', color: over ? '#ffc2b3' : '#fff' }}>
+            <window.CountUp value={cash.left} format={fmtN} />
+          </div>
+          <div style={{ height: 4, borderRadius: 99, background: 'rgba(255,255,255,0.22)', marginTop: 8, overflow: 'hidden' }}>
+            <div className="v-grow" style={{ width: `${(over ? 1 : pct) * 100}%`, height: '100%', borderRadius: 99, background: over ? '#ffb4a2' : '#f6e3b0' }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11, marginTop: 5 }}>
+            <span style={{ opacity: 0.75, whiteSpace: 'nowrap' }}>
+              {ar ? `صُرف \u2066${fmtN(cash.spent)}\u2069 من \u2066${fmtN(cash.amount)}\u2069` : `${fmtN(cash.spent)} of ${fmtN(cash.amount)} spent`}
+            </span>
+            {atHome && <span className="mono" style={{ opacity: 0.72, direction: 'ltr', whiteSpace: 'nowrap' }}>≈ {atHome}</span>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+window.CashNoteFace = CashNoteFace;
+window.fmtNative = _fmtNative;
+
 // ── WalletCarousel: the group's cards in 3D cover-flow ─────────────────
-function WalletCarousel({ cards, members, fmt, onOpenCard }) {
+function WalletCarousel({ cards: cardList, cash, members, fmt, onOpenCard }) {
+  // The group's cash leads, as a banknote; then the cards.
+  const cards = cash ? [{ ...cash, id: 'cash', kind: 'cash' }, ...cardList] : cardList;
   const ar = !!window.isRTL, s = ar ? -1 : 1, n = cards.length;
   const wrapRef = React.useRef(null), cardEls = React.useRef([]), dotEls = React.useRef([]);
   const st = React.useRef({ p: 0, cancel: null, drag: null }).current;
@@ -477,7 +569,9 @@ function WalletCarousel({ cards, members, fmt, onOpenCard }) {
             <div key={c.id} ref={(el) => { cardEls.current[i] = el; }} style={{
               position: 'absolute', top: 4, left: '11%', width: '78%', height: 168, willChange: 'transform', backfaceVisibility: 'hidden',
             }}>
-              <WalletCardFace c={c} m={members.find((x) => x.id === c.id) || { id: c.id, name: '?', hue: 200 }} fmt={fmt} />
+              {c.kind === 'cash'
+                ? <CashNoteFace cash={c} />
+                : <WalletCardFace c={c} m={members.find((x) => x.id === c.id) || { id: c.id, name: '?', hue: 200 }} fmt={fmt} />}
             </div>
           );
         })}
@@ -488,7 +582,9 @@ function WalletCarousel({ cards, members, fmt, onOpenCard }) {
         </div>
       )}
       {onOpenCard && <div style={{ textAlign: 'center', fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 6 }}>
-        {window.isRTL ? 'اضغط على البطاقة لتشوف مصاريفها' : 'Tap a card to see its spending'}</div>}
+        {window.isRTL
+          ? (cash ? (cardList.length ? 'اضغط على البطاقة أو الكاش لتشوف مصاريفه' : 'اضغط على الكاش لتشوف مصاريفه') : 'اضغط على البطاقة لتشوف مصاريفها')
+          : (cash ? (cardList.length ? 'Tap a card or the cash to see its spending' : 'Tap the cash to see its spending') : 'Tap a card to see its spending')}</div>}
     </div>
   );
 }

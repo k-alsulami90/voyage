@@ -24,7 +24,8 @@ function ScreenTripSearch({ back, openSheet, openDoc, go }) {
   // ── Expenses: title, note, category (either language), who paid
   const catWords = (k) => [window.CAT_META?.[k]?.label_ar, window.CAT_META?.[k]?.label_en, window.catLabel?.(k)];
   const expenses = !hasQ ? [] : (window.EXPENSES || [])
-    .filter((e) => match(e.title) || match(e.note) || catWords(e.cat).some(match) || match(nameOf(e.who)))
+    .filter((e) => match(e.title) || match(e.note) || catWords(e.cat).some(match) || match(nameOf(e.who))
+      || (e.cash && ['كاش', 'نقد', 'cash'].some(match)))
     .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
 
   // ── Documents: title, details (airports, addresses…), kind

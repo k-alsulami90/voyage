@@ -602,6 +602,11 @@ window.loadExpenses = async (tripId) => {
     receiptPath: r.receipt_path || null,
     receiptUrl:  (r.receipt_path ? signed.get(r.receipt_path) : null) || null,
     isPersonal: !!r.is_personal,
+    // Paid from the group's cash (023) rather than a card. The amount in the
+    // trip's local currency is kept so the cash left can be told exactly.
+    cash:      r.paid_with === 'cash',
+    local:     r.amount_local != null ? parseFloat(r.amount_local) : null,
+    localCur:  r.local_currency || null,
   }));
   // Personal expenses (shopping etc.) are the logger's own: RLS only ever
   // returns MY personal rows, and they never enter the group's numbers.
@@ -1238,6 +1243,11 @@ window.loadAuditLog = async (tripId) => {
 
 // ── Write helpers ────────────────────────────────────────────
 
+// The cash column comes with migration 023 — until it's run, say so plainly.
+window.CASH_DB_MSG = () => (window.isRTL
+  ? 'الكاش يحتاج تحديث قاعدة البيانات: شغّل ملف 023_cash.sql في Supabase'
+  : 'Cash needs a database update: run 023_cash.sql in Supabase');
+
 window.addExpense = async (tripId, userId, fields) => {
   const basePayload = {
     trip_id:        tripId,
@@ -1250,6 +1260,7 @@ window.addExpense = async (tripId, userId, fields) => {
     note:           fields.note || null,
   };
   if (fields.isPersonal) basePayload.is_personal = true;
+  if (fields.paidWith === 'cash') basePayload.paid_with = 'cash';
   // Try with split_with first; if the column doesn't exist (migration not run),
   // gracefully fall back to a payload without it.
   let { data, error } = await window.sb.from('expenses')
@@ -1257,6 +1268,9 @@ window.addExpense = async (tripId, userId, fields) => {
     .select().single();
   if (error && /is_personal/i.test(error.message || '')) {
     throw new Error(window.isRTL ? 'المصاريف الشخصية تحتاج تحديث قاعدة البيانات (ملف 020)' : 'Personal expenses need migration 020');
+  }
+  if (error && /paid_with/i.test(error.message || '')) {
+    throw new Error(window.CASH_DB_MSG());
   }
   if (error && /split_with/i.test(error.message || '')) {
     ({ data, error } = await window.sb.from('expenses').insert(basePayload).select().single());
@@ -1653,11 +1667,18 @@ window.updateExpense = async (expenseId, tripId, fields) => {
   // Payer can be changed on edit (it was silently ignored before).
   if (fields.paidBy) baseUpdate.created_by = fields.paidBy;
   if (typeof fields.isPersonal === 'boolean') baseUpdate.is_personal = fields.isPersonal;
-  let { error } = await window.sb.from('expenses')
-    .update({ ...baseUpdate, split_with: fields.splitWith || [] })
-    .eq('id', expenseId);
-  if (error && /split_with/i.test(error.message || '')) {
-    ({ error } = await window.sb.from('expenses').update(baseUpdate).eq('id', expenseId));
+  if (fields.paidWith !== undefined) baseUpdate.paid_with = fields.paidWith === 'cash' ? 'cash' : null;
+  const attempt = async (payload) => {
+    let { error: e1 } = await window.sb.from('expenses').update({ ...payload, split_with: fields.splitWith || [] }).eq('id', expenseId);
+    if (e1 && /split_with/i.test(e1.message || '')) ({ error: e1 } = await window.sb.from('expenses').update(payload).eq('id', expenseId));
+    return e1;
+  };
+  let error = await attempt(baseUpdate);
+  // Cash column not there yet (023): an edit that isn't about cash still saves.
+  if (error && /paid_with/i.test(error.message || '')) {
+    if (fields.paidWith === 'cash') throw new Error(window.CASH_DB_MSG());
+    delete baseUpdate.paid_with;
+    error = await attempt(baseUpdate);
   }
   if (error) throw error;
   window.LIFETIME_STATS = null;

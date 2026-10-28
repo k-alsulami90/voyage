@@ -538,7 +538,12 @@ function TripAnalysis({ go, loading, openSheet }) {
   const pct = m.planned > 0 ? Math.min(1, m.total / m.planned) : 0;
   const top = expenses.slice().sort((x, y) => (y.usd || 0) - (x.usd || 0)).slice(0, 5);
   const fmtDay = (k) => _day(k).toLocaleDateString(ar ? 'ar' : 'en', { weekday: 'short', day: 'numeric', month: 'short' });
-  const payers = members.map((mm) => ({ m: mm, v: expenses.filter((e) => e.who === mm.id).reduce((s, e) => s + (e.usd || 0), 0) })).filter((x) => x.v > 0).sort((a, c) => c.v - a.v);
+  // Who paid — with cards, what was paid in cash counts for the cash, not for whoever logged it.
+  const wallets0 = !!window.walletsOf?.(trip);
+  const payers = members.map((mm) => ({ m: mm, v: expenses.filter((e) => e.who === mm.id && !(wallets0 && e.cash)).reduce((s, e) => s + (e.usd || 0), 0) })).filter((x) => x.v > 0);
+  const cashPaid = wallets0 ? expenses.filter((e) => e.cash).reduce((s, e) => s + (e.usd || 0), 0) : 0;
+  if (cashPaid > 0) payers.push({ m: { id: 'cash' }, cash: true, v: cashPaid });
+  payers.sort((a, c) => c.v - a.v);
   return (
     <div data-screen-label="Trip analysis" style={{ background: 'var(--cream)', minHeight: '100%', paddingBottom: 110 }}>
       {head}
@@ -592,14 +597,15 @@ function TripAnalysis({ go, loading, openSheet }) {
       </Panel>
       {/* Share of the spending per card (what's left on each card lives on Today) */}
       {payers.length > 1 && (
-        <Panel title={wallets ? (ar ? 'حسب البطاقة' : 'By card') : (ar ? 'مين دفع' : 'Who paid')}
-          sub={ar ? 'نصيب كل بطاقة من الصرف — اضغط لتشوف مصاريفها' : "Each one's share — tap for its expenses"}>
-          <RankBars rows={payers.map(({ m: mm, v }) => {
+        <Panel title={wallets ? (cashPaid > 0 ? (ar ? 'البطاقات والكاش' : 'Cards & cash') : (ar ? 'حسب البطاقة' : 'By card')) : (ar ? 'مين دفع' : 'Who paid')}
+          sub={ar ? (cashPaid > 0 ? 'نصيب كل بطاقة والكاش من الصرف — اضغط لتشوف مصاريفه' : 'نصيب كل بطاقة من الصرف — اضغط لتشوف مصاريفها') : "Each one's share — tap for its expenses"}>
+          <RankBars rows={payers.map(({ m: mm, v, cash }) => {
             const first = (mm.name || '').split(' ')[0];
             const share = Math.round((v / (m.total || 1)) * 100);
             return {
               key: mm.id, value: v, onClick: () => window.openCardExpenses?.(mm.id),
-              label: wallets ? (ar ? `بطاقة ${first}` : `${first}'s card`) : first,
+              label: cash ? (ar ? 'الكاش' : 'Cash') : wallets ? (ar ? `بطاقة ${first}` : `${first}'s card`) : first,
+              color: cash ? 'oklch(0.56 0.085 162)' : undefined,
               sub: ar ? `${share}% من الصرف` : `${share}% of spending`,
             };
           })} />

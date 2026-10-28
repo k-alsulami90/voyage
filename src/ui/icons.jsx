@@ -49,6 +49,7 @@ const IconGlobe    = (p) => <Ico {...p} d={<><circle cx="12" cy="12" r="9"/><pat
 const IconLogout   = (p) => <Ico {...p} d={<><path d="M14 4h4a2 2 0 012 2v12a2 2 0 01-2 2h-4"/><path d="M10 16l-4-4 4-4"/><path d="M6 12h10"/></>} />;
 const IconCalendar = (p) => <Ico {...p} d={<><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></>} />;
 const IconCard     = (p) => <Ico {...p} d={<><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M3 10h18M7 15h4"/></>} />;
+const IconCash     = (p) => <Ico {...p} d={<><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.2h1.6M16.4 14.8H18"/></>} />;
 const IconKey      = (p) => <Ico {...p} d={<><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/></>} />;
 const IconRefresh  = (p) => <Ico {...p} d={<><path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 5v6h-6"/></>} />;
 const IconPalette  = (p) => <Ico {...p} d={<><path d="M12 3a9 9 0 100 18c1.4 0 2-1 1.5-2.1-.6-1.2.2-2.4 1.5-2.4H18a3 3 0 003-3c0-5.6-4-10.5-9-10.5z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10.5" cy="7.5" r="1.2"/><circle cx="15" cy="8" r="1.2"/></>} />;
@@ -60,5 +61,5 @@ Object.assign(window, {
   IconSearch, IconFilter, IconSwap, IconEdit, IconTrash, IconCheck,
   IconLink, IconBell, IconArchive, IconSun, IconCompass, IconSparkle,
   IconCamera, IconClose, IconLock, IconMoon, IconMail, IconUser, IconShield,
-  IconGlobe, IconLogout, IconCalendar, IconCard, IconKey, IconRefresh, IconPalette,
+  IconGlobe, IconLogout, IconCalendar, IconCard, IconCash, IconKey, IconRefresh, IconPalette,
 });

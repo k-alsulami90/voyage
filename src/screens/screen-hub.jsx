@@ -429,8 +429,10 @@ function HubRecent({ fmtC, wallets, openSheet }) {
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.title}</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 2 }}>
-                  <Avatar m={m} size={14} />
-                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{wallets ? (ar ? `بطاقة ${first}` : `${first}'s card`) : first} · {e.when}</span>
+                  {wallets && e.cash
+                    ? <span aria-hidden="true" style={{ width: 14, height: 14, borderRadius: 4, flexShrink: 0, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, #4f8a73, #24503f)' }}><IconCash size={10} stroke="#fff" sw={2} /></span>
+                    : <Avatar m={m} size={14} />}
+                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{wallets && e.cash ? (ar ? 'كاش' : 'Cash') : wallets ? (ar ? `بطاقة ${first}` : `${first}'s card`) : first} · {e.when}</span>
                 </span>
               </span>
               <span className="mono" style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', flexShrink: 0 }}>{fmtC(e.usd)}</span>
