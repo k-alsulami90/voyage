@@ -501,6 +501,7 @@ function App() {
     setSheet(s);
   };
   const openDoc = (doc, category) => setDocView({ doc, category, prevRoute: route });
+  window.openDocView = openDoc;   // e.g. "My budget" opens the visa behind a fee
   // Swipe-back lands here (stable identity: the stage binds its gesture once).
   const navigateTo = React.useCallback((r) => setRoute(r), []);
 
@@ -1182,6 +1183,23 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
   const paidBy = (isPersonal ? window.currentUserId : isCash ? ((existing?.cash && existing.who) || window.currentUserId) : payerKey)
     || window.currentUserId || members[0]?.id || '';
   const [detailsOpen, setDetailsOpen] = React.useState(!!existing || !!prefill);
+  // ── When ───────────────────────────────────────────────
+  // Today unless changed: an expense logged later keeps the day it happened.
+  const todayKey = window.localISO();
+  const yestKey = window.localISO(new Date(Date.now() - 86400000));
+  const initialDay = existing?.createdAt ? (window.localISO(existing.createdAt) || todayKey)
+    : (prefill?.date && prefill.date <= todayKey ? prefill.date : todayKey);
+  const [day, setDay] = React.useState(initialDay);
+  // What to save: the chosen day at the time it is now (an edit keeps the
+  // expense's own time of day) — null when the day doesn't change.
+  const createdAtFor = () => {
+    if (isEdit ? day === initialDay : day === todayKey) return null;
+    const [y, mo, d] = day.split('-').map(Number);
+    const tm = isEdit && existing?.createdAt ? new Date(existing.createdAt) : new Date();
+    return new Date(y, mo - 1, d, tm.getHours(), tm.getMinutes(), tm.getSeconds()).toISOString();
+  };
+  const fmtDayChip = (k) => new Date(k + 'T00:00:00').toLocaleDateString(window._dateLocale ? window._dateLocale() : (window.isRTL ? 'ar' : 'en'),
+    { day: 'numeric', month: 'short', ...(k.slice(0, 4) !== todayKey.slice(0, 4) ? { year: 'numeric' } : {}) });
   const [note,    setNote]    = React.useState(existing?.note || '');
   const [loading, setLoading] = React.useState(false);
   const [error,   setError]   = React.useState(null);
@@ -1261,12 +1279,14 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
     const createdByFast = paidBy || window.currentUserId;
     if (!isEdit && !receiptFile && !(prefill && prefill.source)) {
       const tempId = 'temp-' + Date.now();
-      const nowISO = new Date().toISOString();
+      const atISO = createdAtFor();
+      const nowISO = atISO || new Date().toISOString();
       const payload = {
         title: finalTitle, category: cat, amountUSD: amtUSD,
         amountLocal: amtLocalForDB, localCurrency: local,
         note: note.trim() || null, splitWith: splitWithIds, isPersonal,
         paidWith: isCash ? 'cash' : null,
+        createdAt: atISO || undefined,
       };
       const optimistic = {
         id: tempId, who: createdByFast, cat, title: payload.title,
@@ -1322,6 +1342,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
         isPersonal,
         // only sent when cash is involved, so edits work before migration 023
         paidWith: isCash ? 'cash' : (isEdit && existing?.cash ? null : undefined),
+        createdAt: createdAtFor() || undefined,
         amountUSD: amtUSD,
         amountLocal: amtLocalForDB,
         localCurrency: local,
@@ -1494,6 +1515,36 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
           </div>
         </div>
       )}
+
+      {/* When — today unless changed (an expense from an earlier day) */}
+      {(() => {
+        const chip = (on) => ({
+          flex: 1, minWidth: 0, minHeight: 42, padding: '0 10px', borderRadius: 13, boxSizing: 'border-box',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          fontSize: 13, fontWeight: 600, transition: 'all 160ms', cursor: 'pointer',
+          background: on ? 'var(--statement)' : 'var(--cream-2)', color: on ? 'var(--statement-fg)' : 'var(--ink-soft)',
+          border: on ? '0.5px solid transparent' : '0.5px solid var(--hairline)',
+        });
+        const other = day !== todayKey && day !== yestKey;
+        return (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 12.5, color: 'var(--ink-mute)', marginBottom: 6 }}>{window.isRTL ? 'متى؟' : 'When?'}</div>
+            <div style={{ display: 'flex', gap: 7 }}>
+              {[[todayKey, window.isRTL ? 'اليوم' : 'Today'], [yestKey, window.isRTL ? 'أمس' : 'Yesterday']].map(([k, label]) => (
+                <button key={k} type="button" onClick={() => setDay(k)} aria-pressed={day === k} style={chip(day === k)}>{label}</button>
+              ))}
+              <label style={{ ...chip(other), position: 'relative', flex: 1.5 }}>
+                <IconCalendar size={14} stroke="currentColor" />
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{other ? fmtDayChip(day) : (window.isRTL ? 'يوم آخر' : 'Another day')}</span>
+                <input type="date" value={day} max={todayKey} aria-label={window.isRTL ? 'اختر اليوم' : 'Pick the day'}
+                  onChange={(e) => { if (e.target.value) setDay(e.target.value); }}
+                  onClick={(e) => { try { e.currentTarget.showPicker?.(); } catch (_) {} }}
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, fontSize: 16, cursor: 'pointer', border: 'none', padding: 0, margin: 0 }} />
+              </label>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Everything else is optional and auto-filled: title, split, note, receipt */}
       <button onClick={() => setDetailsOpen((v) => !v)} style={{
@@ -1695,7 +1746,12 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
         }}>{error}</div>
       )}
 
-      <div style={{ display: 'flex', gap: 10, flexDirection: 'row' }}>
+      {/* Save stays in reach on a small phone: it sticks to the bottom of the sheet */}
+      <div style={{
+        display: 'flex', gap: 10, flexDirection: 'row', position: 'sticky', bottom: -28, zIndex: 3,
+        margin: '0 -22px -28px', padding: '14px 22px 28px',
+        background: 'linear-gradient(180deg, transparent 0, var(--cream) 16px)',
+      }}>
         {isEdit && (
           <button onClick={async () => {
             if (!confirm(window.isRTL ? 'هل تريد حذف هذا المصروف؟' : 'Delete this expense?')) return;

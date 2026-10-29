@@ -1261,6 +1261,8 @@ window.addExpense = async (tripId, userId, fields) => {
   };
   if (fields.isPersonal) basePayload.is_personal = true;
   if (fields.paidWith === 'cash') basePayload.paid_with = 'cash';
+  // A day other than today (logged later): the expense keeps the day it happened.
+  if (fields.createdAt) basePayload.created_at = fields.createdAt;
   // Try with split_with first; if the column doesn't exist (migration not run),
   // gracefully fall back to a payload without it.
   let { data, error } = await window.sb.from('expenses')
@@ -1379,6 +1381,7 @@ window.linkDocExpense = async (docId, tripId) => {
 window.syncDocExpense = async (docId, tripId) => {
   const { data: doc } = await window.sb.from('documents').select('*').eq('id', docId).single();
   if (!doc) return;
+  if (doc.category === 'visas') return window.syncVisaFee(doc, tripId);
   // Only a PAID shared booking moves the budget.
   const wantsExpense = !doc.owner_user_id && doc.cost_usd != null && Number(doc.cost_usd) > 0
     && window.isDocPaid(doc);
@@ -1396,6 +1399,47 @@ window.syncDocExpense = async (docId, tripId) => {
     amount_local: doc.cost_local != null ? Number(doc.cost_local) : null,
     local_currency: doc.cost_currency || null,
   }).eq('id', doc.linked_expense_id);
+  window.LIFETIME_STATS = null;
+  await window.loadExpenses(tripId);
+};
+
+// A visa's fee is its holder's own cost: it becomes a PERSONAL expense
+// (only they see it, it never touches the group's budget) linked to the
+// visa, dated the day it was issued. Changing the fee updates it; clearing
+// it removes it. Only the visa's holder records it — a fee typed on someone
+// else's visa stays on the document (it shows in their own trip cost).
+window.syncVisaFee = async (doc, tripId) => {
+  const me = window.currentUserId;
+  const mine = doc.owner_user_id ? doc.owner_user_id === me : doc.uploaded_by === me;
+  const fee = doc.cost_usd != null ? Number(doc.cost_usd) : 0;
+  const issued = doc.details && doc.details.issued_on;
+  if (!(fee > 0) || !mine) {
+    if (doc.linked_expense_id && mine) await window.unlinkDocExpense(doc.id, tripId);
+    return;
+  }
+  const row = {
+    title: (window.isRTL ? `رسوم ${doc.title || 'التأشيرة'}` : `${doc.title || 'Visa'} fee`).slice(0, 100),
+    category: 'misc',
+    amount_usd: fee,
+    amount_local: doc.cost_local != null ? Number(doc.cost_local) : null,
+    local_currency: doc.cost_currency || null,
+    ...(issued ? { created_at: window._paidAtISO(issued) } : {}),
+  };
+  if (doc.linked_expense_id) {
+    const { error } = await window.sb.from('expenses').update(row).eq('id', doc.linked_expense_id);
+    if (error) throw error;
+  } else {
+    const { data: exp, error } = await window.sb.from('expenses').insert({
+      ...row, trip_id: tripId, created_by: me, is_personal: true, split_with: [],
+    }).select().single();
+    if (error) {
+      throw new Error(/is_personal/i.test(error.message || '')
+        ? (window.isRTL ? 'المصاريف الشخصية تحتاج تحديث قاعدة البيانات (ملف 020)' : 'Personal expenses need migration 020')
+        : error.message);
+    }
+    const { error: linkErr } = await window.sb.from('documents').update({ linked_expense_id: exp.id }).eq('id', doc.id);
+    if (linkErr) throw linkErr;
+  }
   window.LIFETIME_STATS = null;
   await window.loadExpenses(tripId);
 };
@@ -1668,6 +1712,7 @@ window.updateExpense = async (expenseId, tripId, fields) => {
   if (fields.paidBy) baseUpdate.created_by = fields.paidBy;
   if (typeof fields.isPersonal === 'boolean') baseUpdate.is_personal = fields.isPersonal;
   if (fields.paidWith !== undefined) baseUpdate.paid_with = fields.paidWith === 'cash' ? 'cash' : null;
+  if (fields.createdAt) baseUpdate.created_at = fields.createdAt;
   const attempt = async (payload) => {
     let { error: e1 } = await window.sb.from('expenses').update({ ...payload, split_with: fields.splitWith || [] }).eq('id', expenseId);
     if (e1 && /split_with/i.test(e1.message || '')) ({ error: e1 } = await window.sb.from('expenses').update(payload).eq('id', expenseId));

@@ -54,6 +54,8 @@ function ScreenAddDoc({ back, onCreated }) {
     setDetails({});
     setSecondary(null);
     setOwnerUserId(defaultOwner(cat));
+    // A visa fee is usually paid from home; bookings in the country's money.
+    setCostCur(cat === 'visas' ? tripHome : tripLocal);
   }, [cat]);
 
   const schema = window.DOC_SCHEMAS[cat] || window.DOC_SCHEMAS.visas;
@@ -121,8 +123,9 @@ function ScreenAddDoc({ back, onCreated }) {
       if (coverFile) tasks.push(window.uploadDocCover(doc.id, tripId, coverFile)
         .catch((e) => window.toast?.(e.message || 'Cover upload failed', 'error')));
       // Shared booking with a cost → goes into the trip's general budget
-      // automatically. Personal costs stay private ("Your trip cost").
-      if (!ownerUserId && costUSD) tasks.push(window.syncDocExpense(doc.id, tripId)
+      // automatically. Personal costs stay private ("Your trip cost"). A
+      // visa's fee becomes its holder's personal expense.
+      if (costUSD && (!ownerUserId || schema.feeIsPersonal)) tasks.push(window.syncDocExpense(doc.id, tripId)
         .catch((e) => window.toast?.(e.message || 'Expense link failed', 'error')));
       if (tasks.length) await Promise.allSettled(tasks);
       await window.loadDocuments(tripId);
@@ -238,8 +241,12 @@ function ScreenAddDoc({ back, onCreated }) {
 
         {/* 5 — Cost: shared → general budget; mine → my trip cost (private) */}
         {schema.showCost && (
-          <DocStep title={window.isRTL ? 'التكلفة' : 'Cost'} optional
-                   hint={ownerUserId
+          <DocStep title={schema.costLabel ? schema.costLabel() : (window.isRTL ? 'التكلفة' : 'Cost')} optional
+                   hint={schema.feeIsPersonal
+                     ? ((!ownerUserId || ownerUserId === window.currentUserId)
+                       ? (window.isRTL ? '🔒 تنحسب لك كمصروف شخصي — تشوفها في «ميزانيتي»، وما تدخل في ميزانية القروب.' : '🔒 Counted as your personal expense — see it in “My budget”; never in the group budget.')
+                       : (window.isRTL ? 'تظهر لصاحب التأشيرة في «تكلفة رحلته» بس.' : "Shows in the holder's own trip cost only."))
+                     : ownerUserId
                      ? (window.isRTL ? 'تظهر لك في «تكلفة رحلتك» ولا تدخل في ميزانية القروب.' : 'Shows in your trip cost only.')
                      : (window.isRTL ? 'إذا اندفعت، تنخصم من الميزانية العامة للرحلة (مو من مصروف اليوم).' : "Once paid, it counts in the trip's general budget (not today's).")}>
             <div style={{ display: 'flex', gap: 8, flexDirection: 'row' }}>
@@ -252,7 +259,7 @@ function ScreenAddDoc({ back, onCreated }) {
                   .map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            {parseFloat(cost) > 0 && (
+            {parseFloat(cost) > 0 && !schema.feeIsPersonal && (
               <PaymentFields details={details} setDetails={setDetails} shared={!ownerUserId} cost={cost} currency={costCur} />
             )}
           </DocStep>

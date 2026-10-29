@@ -275,8 +275,25 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
             )}
           </SetGroup>
 
+          {/* A VISA'S FEE — its holder's own expense */}
+          {schema.feeIsPersonal && doc.costUSD != null && doc.costUSD > 0 && (
+            <SetGroup title={schema.costLabel ? schema.costLabel() : (ar ? 'الرسوم' : 'Fee')}
+              footer={doc.linkedExpenseId
+                ? (ar ? '🔒 محسوبة لك كمصروف شخصي — تشوفها في «ميزانيتي»، وما تدخل في ميزانية القروب.' : '🔒 Counted as your personal expense — see it in “My budget”.')
+                : (ar ? 'تظهر لصاحب التأشيرة في «تكلفة رحلته».' : "Shows in the holder's own trip cost.")}>
+              <div style={{ padding: '14px 16px' }}>
+                <div className="mono" style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+                  {window.fmtDocCost ? window.fmtDocCost(doc) : window.fmtMoney(doc.costUSD, { in: 'home' })}
+                </div>
+                {doc.costCurrency && doc.costCurrency !== homeCode && (
+                  <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 1 }}>≈ {window.fmtMoney(doc.costUSD, { in: 'home' })}</div>
+                )}
+              </div>
+            </SetGroup>
+          )}
+
           {/* PAYMENT */}
-          {schema.showCost && doc.costUSD != null && doc.costUSD > 0 && (
+          {schema.showCost && !schema.feeIsPersonal && doc.costUSD != null && doc.costUSD > 0 && (
             <SetGroup title={ar ? 'الدفع' : 'Payment'}
               footer={doc.ownerUserId
                 ? (ar ? '🔒 تكلفتك — تظهر لك في «تكلفة رحلتك» بس' : '🔒 Your cost — only in your trip cost')
@@ -375,7 +392,8 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
           </SetGroup>
 
           {editSchema.showCost && (
-            <SetGroup title={ar ? 'التكلفة' : 'Cost'}>
+            <SetGroup title={editSchema.costLabel ? editSchema.costLabel() : (ar ? 'التكلفة' : 'Cost')}
+              footer={editSchema.feeIsPersonal ? (ar ? '🔒 تنحسب لك كمصروف شخصي في «ميزانيتي».' : '🔒 Counted as your personal expense in “My budget”.') : undefined}>
               <div style={{ padding: 14 }}>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <window.NumberField value={cost} onChange={setCost} placeholder="0"
@@ -387,7 +405,7 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
                       .map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
-                {parseFloat(cost) > 0 && (
+                {parseFloat(cost) > 0 && !editSchema.feeIsPersonal && (
                   <window.PaymentFields details={details} setDetails={setDetails} shared={!ownerUserId} legacyPaid={!!doc.linkedExpenseId} cost={cost} currency={costCur} />
                 )}
               </div>

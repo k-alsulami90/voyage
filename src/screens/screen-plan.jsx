@@ -455,6 +455,7 @@ function AddPlanItemSheet({ dayDate, days, existing, onDone, openSheet }) {
     openSheet?.('addExpense', {
       title: existing.title,
       cat: PLAN_TO_EXPENSE_CAT[_planCat(existing.category)] || 'misc',
+      date: existing.dayDate || undefined,   // the activity's day (if it's not still ahead)
       source: { plan: existing.id },   // links the expense back to this activity
     });
   };

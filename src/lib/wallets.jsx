@@ -475,8 +475,9 @@ function MyTripCostCard({ openSheet }) {
   const fmtC = (usd) => window.fmtMoney(usd, { in: 'home' });
   const groupTotal = (window.EXPENSES || []).reduce((s, e) => s + (e.usd || 0), 0);
   const share = groupTotal / Math.max(1, members.length);
+  // (a visa whose fee is already one of your personal expenses counts there, not twice)
   const myDocs = Object.values(window.DOCS_BY_CAT || {}).flat()
-    .filter((d) => d && d.ownerUserId === me && d.costUSD != null && d.costUSD > 0);
+    .filter((d) => d && d.ownerUserId === me && d.costUSD != null && d.costUSD > 0 && !(d.category === 'visas' && d.linkedExpenseId));
   const docsUSD = myDocs.reduce((s, d) => s + (d.costUSD || 0), 0);
   const personal = window.MY_PERSONAL_EXPENSES || [];
   const personalUSD = personal.reduce((s, e) => s + (e.usd || 0), 0);
@@ -508,20 +509,6 @@ function MyTripCostCard({ openSheet }) {
           {row(ar ? 'مصاريفك الشخصية' : 'Your personal spend', personalUSD,
                personal.length ? null : (ar ? 'من زر + اختر «شخصي»' : 'Tap + and choose “Personal”'))}
         </div>
-        {personal.length > 0 && (
-          <div style={{ marginTop: 6, display: 'grid', gap: 4 }}>
-            {personal.slice(0, 6).map((e) => (
-              <button key={e.id} onClick={() => openSheet?.('editExpense', e)} style={{
-                display: 'flex', alignItems: 'center', gap: 8, minHeight: 40, padding: '0 12px', borderRadius: 12,
-                background: 'var(--cream)', border: '0.5px solid var(--hairline)', textAlign: 'start',
-              }}>
-                <span style={{ flex: 1, fontSize: 13, color: 'var(--ink)' }}>{e.title}</span>
-                <span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>{e.when}</span>
-                <span className="mono" style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{fmtC(e.usd)}</span>
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -614,7 +601,8 @@ function PersonalLimitCard() {
   const [val, setVal] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   React.useEffect(() => { let on = true; window.loadMyLimit(trip?.id).then((v) => { if (on) setLimit(v); }); return () => { on = false; }; }, [trip?.id]);
-  const spent = (window.MY_PERSONAL_EXPENSES || []).reduce((s, e) => s + (e.usd || 0), 0);
+  const fromDocs = window._docLinkedExpenseIds ? window._docLinkedExpenseIds() : new Set();
+  const spent = (window.MY_PERSONAL_EXPENSES || []).filter((e) => !fromDocs.has(e.id)).reduce((s, e) => s + (e.usd || 0), 0);
   const save = async () => {
     const n = parseFloat(val); if (!(n >= 0)) return;
     setSaving(true);
@@ -632,7 +620,7 @@ function PersonalLimitCard() {
           <div>
             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{ar ? 'حدّ مصاريفك الشخصية' : 'Personal spending limit'}</div>
             <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 2 }}>
-              {ar ? 'تسوق وغيره — ما يشمل طيرانك ولا حجوزاتك' : 'Shopping etc. — excludes your flight and bookings'}
+              {ar ? 'تسوق وغيره — ما يشمل طيرانك ولا حجوزاتك ولا رسوم التأشيرة' : 'Shopping etc. — excludes your flight, bookings and visa fee'}
             </div>
           </div>
           {limit != null && !editing && (
@@ -670,38 +658,121 @@ function PersonalLimitCard() {
   );
 }
 
-// "My budget" view: limit, my trip cost, my categories.
+// "My budget" view: my limit, my trip cost, where my money went, and every
+// personal expense of mine, day by day (tap a category to narrow the list).
 function MyBudgetView({ openSheet }) {
   const ar = window.isRTL;
+  const trip = window.TRIP;
   const fmtC = (usd) => window.fmtMoney(usd, { in: 'home' });
+  const home = trip?.homeCurrency || 'USD', local = trip?.localCurrency || home;
+  const alt = home !== local ? (usd) => window.fmtMoney(usd, { in: 'local' }) : null;
   const personal = window.MY_PERSONAL_EXPENSES || [];
+  const [cat, setCat] = React.useState('all');
   const total = personal.reduce((s, e) => s + (e.usd || 0), 0);
   const byCat = {};
   personal.forEach((e) => { byCat[e.cat] = (byCat[e.cat] || 0) + (e.usd || 0); });
   const cats = (window.CATEGORIES || []).filter((c) => byCat[c.key] > 0);
+  const catName = (k) => window.CAT_META?.[k]?.[ar ? 'label_ar' : 'label_en'] || window.catLabel?.(k) || k;
+  const fromDocs = window._docLinkedExpenseIds ? window._docLinkedExpenseIds() : new Set();
+  const docOf = (e) => Object.values(window.DOCS_BY_CAT || {}).flat().find((d) => d && d.linkedExpenseId === e.id);
+  const open = (e) => {
+    const d = fromDocs.has(e.id) && docOf(e);
+    if (d && window.openDocView) window.openDocView(d, (window.DOC_CATEGORIES || []).find((c) => c.key === d.category));
+    else openSheet?.('editExpense', e);
+  };
+
+  // The list, newest first, by day; anything before the trip is one group.
+  const list = (cat === 'all' ? personal : personal.filter((e) => e.cat === cat))
+    .slice().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  const start = trip?.startDate, end = trip?.endDate;
+  const dayNum = (k) => (start && k && k >= start && (!end || k <= end))
+    ? Math.round((new Date(k + 'T00:00:00') - new Date(start + 'T00:00:00')) / 86400000) + 1 : 0;
+  const weekday = (k) => new Date(k + 'T00:00:00').toLocaleDateString(window._dateLocale ? window._dateLocale() : (ar ? 'ar' : 'en'), { weekday: 'long' });
+  const groups = [], before = [];
+  list.forEach((e) => {
+    const k = e.createdAt ? window.localISO(e.createdAt) : '';
+    if (start && k && k < start) { before.push({ e, k }); return; }
+    const g = groups[groups.length - 1];
+    if (g && g.k === k) g.items.push({ e, k }); else groups.push({ k, items: [{ e, k }] });
+  });
+  if (before.length) groups.push({ k: 'before', before: true, items: before });
+  const headOf = (g) => {
+    if (g.before) return { title: ar ? 'قبل الرحلة' : 'Before the trip', sub: '', dated: true };
+    if (!g.k) return { title: ar ? 'بدون تاريخ' : 'No date', sub: '' };
+    const n = dayNum(g.k);
+    return n ? { title: ar ? `اليوم ${n}` : `Day ${n}`, sub: `${weekday(g.k)} · ${window.fmtDate(g.k)}` } : { title: weekday(g.k), sub: window.fmtDate(g.k) };
+  };
+  const listTotal = list.reduce((s, e) => s + (e.usd || 0), 0);
+  const countWord = (n) => (ar
+    ? window.arPlural(n, { one: 'مصروف واحد', two: 'مصروفان', few: `${n} مصاريف`, many: `${n} مصروفاً`, other: `${n} مصروف` })
+    : `${n} ${n === 1 ? 'expense' : 'expenses'}`);
+
   return (
     <>
       <PersonalLimitCard />
       <window.MyTripCostCard openSheet={openSheet} />
       {cats.length > 0 && (
-        <div style={{ padding: '0 14px 16px' }}>
+        <div style={{ padding: '0 14px 4px' }}>
           <div style={{ background: 'var(--cream-2)', borderRadius: 22, padding: '16px 18px', border: '0.5px solid var(--hairline)' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 10 }}>{ar ? 'وين راحت مصاريفك الشخصية' : 'Where your money went'}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{ar ? 'وين راحت مصاريفك الشخصية' : 'Where your money went'}</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-mute)', margin: '2px 0 10px' }}>{ar ? 'اضغط على تصنيف لتشوف مصاريفه تحت' : 'Tap a category to see its expenses below'}</div>
             <div style={{ display: 'flex', height: 10, borderRadius: 999, overflow: 'hidden', gap: 2 }}>
-              {cats.map((c) => <div key={c.key} style={{ flex: byCat[c.key], background: c.color }} />)}
+              {cats.map((c) => <div key={c.key} style={{ flex: byCat[c.key], background: c.color, opacity: cat === 'all' || cat === c.key ? 1 : 0.3, transition: 'opacity 200ms' }} />)}
             </div>
-            <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
-              {cats.map((c) => (
-                <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 9, height: 9, borderRadius: 3, background: c.color }} />
-                  <span style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)' }}>{window.catLabel(c.key, c.label)}</span>
-                  <span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>{Math.round((byCat[c.key] / total) * 100)}%</span>
-                  <span className="mono" style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)', minWidth: 80, textAlign: 'end' }}>{fmtC(byCat[c.key])}</span>
-                </div>
-              ))}
+            <div style={{ marginTop: 8, display: 'grid', gap: 2 }}>
+              {cats.map((c) => {
+                const on = cat === c.key;
+                return (
+                  <button key={c.key} onClick={() => { setCat(on ? 'all' : c.key); window.haptic?.(); }} aria-pressed={on} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, width: '100%', minHeight: 38, padding: '0 8px',
+                    borderRadius: 10, textAlign: 'start', background: on ? 'var(--cream)' : 'transparent', boxSizing: 'border-box',
+                  }}>
+                    <span style={{ width: 9, height: 9, borderRadius: 3, background: c.color, flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: 13.5, color: 'var(--ink)', fontWeight: on ? 700 : 400 }}>{catName(c.key)}</span>
+                    <span style={{ fontSize: 12, color: 'var(--ink-mute)' }}>{Math.round((byCat[c.key] / total) * 100)}%</span>
+                    <span className="mono" style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)', minWidth: 80, textAlign: 'end' }}>{fmtC(byCat[c.key])}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
+      )}
+      {personal.length > 0 && window.ExpDay && window.ExpRow && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '18px 20px 0' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="serif" style={{ fontSize: 20, color: 'var(--ink)' }}>
+                {cat === 'all' ? (ar ? 'مصاريفك' : 'Your expenses') : catName(cat)}
+              </div>
+              <div style={{ fontSize: 12.5, color: 'var(--ink-mute)', marginTop: 2 }}>
+                🔒 {countWord(list.length)} · <span className="mono">{fmtC(listTotal)}</span> · {ar ? 'تظهر لك فقط' : 'only you see these'}
+              </div>
+            </div>
+            {cat !== 'all' && (
+              <button onClick={() => setCat('all')} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 999, flexShrink: 0,
+                background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-soft)',
+              }}>✕ {ar ? 'الكل' : 'All'}</button>
+            )}
+          </div>
+          {groups.map((g) => {
+            const h = headOf(g);
+            const sum = g.items.reduce((s, x) => s + (x.e.usd || 0), 0);
+            return (
+              <window.ExpDay key={g.k || 'nodate'} title={h.title} sub={h.sub}
+                total={g.items.length > 1 ? fmtC(sum) : null}>
+                {g.items.map((x, i) => (
+                  <window.ExpRow key={x.e.id} e={x.e} first={i === 0} conv={fmtC} alt={alt}
+                    meta={fromDocs.has(x.e.id) ? (ar ? '📘 من المستندات' : '📘 From documents') : catName(x.e.cat)}
+                    dateLabel={h.dated && x.k ? window.fmtDate(x.k) : null}
+                    onOpen={() => open(x.e)} />
+                ))}
+              </window.ExpDay>
+            );
+          })}
+          <div style={{ height: 8 }} />
+        </>
       )}
     </>
   );

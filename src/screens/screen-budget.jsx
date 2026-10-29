@@ -326,7 +326,9 @@ function ExpDay({ title, sub, pill, total, children }) {
 }
 
 // One expense: category tile · title · whose card · amount.
-function ExpRow({ e, first, conv, alt, wallets, dateLabel, onOpen }) {
+// `meta` (optional) replaces whose card / who paid — e.g. the category on
+// a list of your own personal expenses.
+function ExpRow({ e, first, conv, alt, wallets, dateLabel, onOpen, meta }) {
   const ar = window.isRTL;
   const m = (window.MEMBERS || []).find((x) => x.id === e.who) || { name: '—', hue: 200, initials: '?' };
   const firstName = (m.name || '').split(' ')[0];
@@ -355,10 +357,10 @@ function ExpRow({ e, first, conv, alt, wallets, dateLabel, onOpen }) {
             )}
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 3, minWidth: 0 }}>
-            {paidCash
+            {meta != null ? null : paidCash
               ? <span aria-hidden="true" style={{ width: 14, height: 14, borderRadius: 4, flexShrink: 0, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, #4f8a73, #24503f)' }}><IconCash size={10} stroke="#fff" sw={2} /></span>
               : <Avatar m={m} size={14} />}
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{[who, dateLabel, e.note].filter(Boolean).join(' · ')}</span>
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{[meta != null ? meta : who, dateLabel, e.note].filter(Boolean).join(' · ')}</span>
           </span>
         </span>
         {e.receiptUrl && (isPdf ? (
@@ -533,4 +535,4 @@ function ExpensesSwitch({ active, onChange }) {
   );
 }
 
-Object.assign(window, { ScreenBudget, Header, ExpensesSwitch, ExpRow });
+Object.assign(window, { ScreenBudget, Header, ExpensesSwitch, ExpRow, ExpDay });

@@ -7,6 +7,9 @@
 //   primaryFileLabel  — label for the main upload (file_path column)
 //   secondaryFile     — if present, allows a second upload (secondary_file_path)
 //   showCost          — whether to render the cost + "Add to expenses" toggle
+//   feeIsPersonal     — the cost is a fee its holder pays (a visa): it's
+//                       logged as their personal expense, no "paid" step
+//   costLabel         — what the cost is called on this kind
 //
 // Field types: 'text' | 'datetime' | 'date' | 'url'
 //   col: 2 means render side-by-side with the previous field on one row.
@@ -69,7 +72,11 @@ const DOC_SCHEMAS = {
       { key: 'expires_on', type: 'date', rangeStart: 'issued_on', label: () => window.isRTL ? 'تاريخ الانتهاء' : 'Expires' },
     ],
     primaryFileLabel: () => window.isRTL ? 'وثيقة التأشيرة' : 'Visa document',
-    showCost: false,
+    // The fee is the holder's own expense, not a booking someone pays for
+    // the group: it's logged as a personal expense (see syncVisaFee).
+    showCost: true,
+    feeIsPersonal: true,
+    costLabel: () => window.isRTL ? 'رسوم التأشيرة' : 'Visa fee',
   },
 };
 
