@@ -138,14 +138,20 @@ function FxFab({ trip }) {
       style={{
         position: 'absolute', zIndex: 49, insetInlineEnd: 12,
         bottom: 'calc(env(safe-area-inset-bottom) + 80px)',
-        height: 42, padding: '0 10px', borderRadius: 999, border: 'none',
-        display: 'flex', alignItems: 'center', gap: 6, flexDirection: 'row',
+        height: 56, padding: '0 12px', borderRadius: 999, border: 'none',
+        display: 'flex', alignItems: 'center', gap: 8, flexDirection: 'row',
         background: 'var(--statement)', color: 'var(--statement-fg)',
-        boxShadow: '0 10px 26px rgba(10, 14, 30, 0.32), inset 0 0 0 0.5px rgba(255,255,255,0.14)',
+        boxShadow: '0 14px 32px rgba(10, 14, 30, 0.36), 0 3px 8px rgba(10, 14, 30, 0.22), inset 0 0 0 0.5px rgba(255,255,255,0.18)',
       }}>
-      <FxCoin code={pair.from} size={21} />
-      <span style={{ display: 'grid', placeItems: 'center', opacity: 0.85, transform: 'rotate(90deg)' }}><FxSwapIcon size={14} sw={2.3} /></span>
-      <FxCoin code={pair.to} size={21} />
+      <FxCoin code={pair.from} size={29} />
+      <span style={{
+        width: 30, height: 30, borderRadius: 999, flexShrink: 0, display: 'grid', placeItems: 'center',
+        background: 'oklch(0.97 0.012 80)', color: 'oklch(0.22 0.025 250)',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+      }}>
+        <span style={{ display: 'grid', placeItems: 'center', transform: 'rotate(90deg)' }}><FxSwapIcon size={17} sw={2.5} /></span>
+      </span>
+      <FxCoin code={pair.to} size={29} />
     </button>
   );
 }
@@ -223,7 +229,7 @@ function FxConverter({ trip, onClose }) {
   const fromText = expr ? (hasOps ? _fxFmt(total, pair.from) : _fxGroup(expr.replace(/[+×]$/, ''))) : '0';
   const toText = _fxFmt(result, pair.to);
   const exprText = showExpr ? expr.split(/([+×])/).map((s) => (s === '+' || s === '×' ? ` ${s} ` : _fxGroup(s))).join('') : '';
-  const sizeFor = (s) => (s.length > 14 ? 24 : s.length > 10 ? 29 : 36);
+  const sizeFor = (s) => (s.length > 14 ? 25 : s.length > 10 ? 31 : 40);
   const caret = (h) => (
     <span aria-hidden="true" style={{ width: 2.5, height: h, borderRadius: 2, background: 'oklch(0.86 0.11 80)', animation: 'fxCaret 1.1s steps(1) infinite', marginInlineStart: 3, flexShrink: 0 }} />
   );
@@ -236,13 +242,13 @@ function FxConverter({ trip, onClose }) {
         marginInlineStart: -6, borderRadius: 16, background: 'transparent', color: 'inherit', border: 'none',
         minWidth: 0, flexShrink: 1, textAlign: 'start',
       }}>
-        <FxCoin code={code} size={30} />
+        <FxCoin code={code} size={33} />
         <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 16, fontWeight: 700, letterSpacing: '0.02em' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 18.5, fontWeight: 700, letterSpacing: '0.02em' }}>
             {code}
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.55 }} aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
           </span>
-          <span style={{ fontSize: 11.5, opacity: 0.6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 130 }}>{window.fxName(code)}</span>
+          <span style={{ fontSize: 13, opacity: 0.78, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{window.fxName(code)}</span>
         </span>
       </button>
     );
@@ -254,7 +260,7 @@ function FxConverter({ trip, onClose }) {
     return {
       height: 'clamp(46px, 6.7vh, 58px)', borderRadius: 16,
       display: 'grid', placeItems: 'center', fontFamily: 'var(--sans)',
-      fontSize: op ? 26 : k === 'C' ? 17 : k === '00' ? 20 : 24, fontWeight: op || k === 'C' ? 600 : 500,
+      fontSize: op ? 28 : k === 'C' ? 18 : k === '00' ? 22 : 26, fontWeight: op || k === 'C' ? 600 : 500,
       color: op || k === 'C' ? 'var(--clay-deep)' : 'var(--ink)',
       background: op ? 'oklch(0.62 0.13 35 / 0.11)' : k === 'del' || k === 'C' ? 'transparent' : 'var(--cream-2)',
       border: k === 'del' || k === 'C' ? '0.5px solid var(--hairline)' : '0.5px solid var(--hairline)',
@@ -294,13 +300,13 @@ function FxConverter({ trip, onClose }) {
         {[ 'from', 'to' ].map((side, i) => (
           <div key={side} style={{
             position: 'relative', display: 'flex', alignItems: 'center', gap: 10, flexDirection: 'row',
-            minHeight: 92, padding: '10px 16px',
+            minHeight: 96, padding: '10px 16px',
             borderTop: i === 1 ? '0.5px solid rgba(255,255,255,0.12)' : 'none',
           }}>
             {curBtn(side)}
             <div dir="ltr" style={{ direction: 'ltr', flex: 1, minWidth: 0, textAlign: ar ? 'left' : 'right', display: 'flex', flexDirection: 'column', alignItems: ar ? 'flex-start' : 'flex-end' }}>
               {side === 'from' && exprText && (
-                <div className="mono" style={{ display: 'flex', alignItems: 'center', fontSize: 13, opacity: 0.7, whiteSpace: 'nowrap', maxWidth: '100%', direction: 'ltr' }}>
+                <div className="mono" style={{ display: 'flex', alignItems: 'center', fontSize: 14, opacity: 0.78, whiteSpace: 'nowrap', maxWidth: '100%', direction: 'ltr' }}>
                   <span style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}>{exprText.length > 30 ? '…' + exprText.slice(-29) : exprText}</span>
                   {!picking && caret('1em')}
                 </div>
@@ -364,18 +370,18 @@ function FxConverter({ trip, onClose }) {
         <>
           {/* Today's rate + round prices at a glance (tap one) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div dir="ltr" className="mono" style={{ direction: 'ltr', textAlign: 'center', fontSize: 12, color: 'var(--ink-mute)' }}>
+            <div dir="ltr" className="mono" style={{ direction: 'ltr', textAlign: 'center', fontSize: 13.5, fontWeight: 500, color: 'var(--ink-soft)' }}>
               1 {pair.from} = {_fxRateText(rate)} {pair.to}
             </div>
             <div className="no-scrollbar" dir="ltr" style={{ direction: 'ltr', display: 'flex', gap: 7, overflowX: 'auto', padding: '1px 1px 2px' }}>
               {_fxQuick(pair.from).map((v) => (
                 <button key={v} onClick={() => { window.haptic?.(); setExpr(String(v)); }} className="fx-key" style={{
-                  flexShrink: 0, padding: '7px 11px', borderRadius: 999, border: '0.5px solid var(--hairline)',
+                  flexShrink: 0, padding: '8px 13px', borderRadius: 999, border: '0.5px solid var(--hairline)',
                   background: 'var(--cream-2)', color: 'var(--ink)', display: 'flex', alignItems: 'baseline', gap: 5,
                   fontVariantNumeric: 'tabular-nums',
                 }}>
-                  <span className="mono" style={{ fontSize: 13, fontWeight: 700 }}>{v.toLocaleString('en')}</span>
-                  <span className="mono" style={{ fontSize: 11.5, color: 'var(--ink-mute)' }}>→ {_fxFmt(_fxConvert(v, pair.from, pair.to), pair.to)}</span>
+                  <span className="mono" style={{ fontSize: 14.5, fontWeight: 700 }}>{v.toLocaleString('en')}</span>
+                  <span className="mono" style={{ fontSize: 13, color: 'var(--ink-soft)' }}>→ {_fxFmt(_fxConvert(v, pair.from, pair.to), pair.to)}</span>
                 </button>
               ))}
             </div>
@@ -408,7 +414,7 @@ function FxHost() {
   // Sized to its content: card + rate + prices + keypad (+ the home-bar inset).
   const vh = (typeof window !== 'undefined' && window.innerHeight) || 800;
   const keyH = Math.min(58, Math.max(46, vh * 0.067));
-  const need = 24 + 184 + 12 + 18 + 8 + 38 + 12 + (4 * keyH + 24) + 16 + 34;
+  const need = 24 + 192 + 12 + 20 + 8 + 40 + 12 + (4 * keyH + 24) + 16 + 34;
   const h = Math.min(0.94, need / vh);
   const Sheet = window.Sheet;
   if (!Sheet) return null;

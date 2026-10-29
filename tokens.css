@@ -478,7 +478,7 @@ textarea:focus-visible,
 
 /* Screens with the bottom nav: a little more room at the end, so the last
    row scrolls clear of the currency pill floating above the "+". */
-.v-has-nav::after { content: ''; display: block; height: 54px; }
+.v-has-nav::after { content: ''; display: block; height: 68px; }
 
 /* ── Motion (driven by src/lib/motion.jsx) ─────────────────────────────
    Screens: sections rise into place in a short cascade when they mount.
