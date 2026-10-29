@@ -289,7 +289,7 @@ function ScreenBudget({ go, openSheet, loading }) {
             {g.items.map((x, i) => (
               <ExpRow key={x.e.id} e={x.e} first={i === 0} conv={conv} alt={alt} wallets={wallets}
                 dateLabel={h.dated ? window.fmtDate(x.k) : null}
-                onOpen={() => openSheet?.('editExpense', x.e)} />
+                onOpen={() => window.openExpenseOrDoc(x.e, openSheet)} />
             ))}
           </ExpDay>
         );
@@ -335,6 +335,8 @@ function ExpRow({ e, first, conv, alt, wallets, dateLabel, onOpen, meta }) {
   const color = (window.CATEGORIES || []).find((c) => c.key === e.cat)?.color || 'var(--cat-misc)';
   const paidCash = wallets && e.cash;
   const who = paidCash ? (ar ? 'كاش' : 'Cash') : wallets ? (ar ? `بطاقة ${firstName}` : `${firstName}'s card`) : firstName;
+  // One part of a booking several people paid: say who else paid it.
+  const withWho = window.docPartWith?.(e.id) || null;
   const isPdf = e.receiptUrl && window.isPdfPath?.(e.receiptPath);
   // The receipt opens in the app's viewer — from the phone, signal or not.
   const openReceipt = (ev) => {
@@ -358,7 +360,7 @@ function ExpRow({ e, first, conv, alt, wallets, dateLabel, onOpen, meta }) {
             {meta != null ? null : paidCash
               ? <span aria-hidden="true" style={{ width: 14, height: 14, borderRadius: 4, flexShrink: 0, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, #4f8a73, #24503f)' }}><IconCash size={10} stroke="#fff" sw={2} /></span>
               : <Avatar m={m} size={14} />}
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{[meta != null ? meta : who, dateLabel, e.note].filter(Boolean).join(' · ')}</span>
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{[meta != null ? meta : who, withWho, dateLabel, e.note].filter(Boolean).map((x) => '\u2068' + x + '\u2069').join(' · ')}</span>
           </span>
         </span>
         {e.receiptUrl && (isPdf ? (

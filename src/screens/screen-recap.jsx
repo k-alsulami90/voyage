@@ -147,7 +147,8 @@ function recapData() {
   const members = window.MEMBERS || [];
   const wallets = !!window.walletsOf?.(trip);
   const cats = Object.entries(m.byCat).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
-  const biggest = expenses.slice().sort((a, b) => (b.usd || 0) - (a.usd || 0))[0] || null;
+  // A booking several people paid counts once, at its full cost.
+  const biggest = (window.mergeDocParts ? window.mergeDocParts(expenses) : expenses).slice().sort((a, b) => (b.usd || 0) - (a.usd || 0))[0] || null;
   // Who paid — with cards, what went out in cash is the cash's, not whoever logged it.
   const payers = members
     .map((mm) => ({ m: mm, v: expenses.filter((e) => e.who === mm.id && !(wallets && e.cash)).reduce((s, e) => s + (e.usd || 0), 0) }))
@@ -701,13 +702,15 @@ function RcWhere({ d, clock }) {
 
 function RcBiggest({ d, clock, sfx }) {
   const { ar, m, biggest: e, wallets } = d;
-  const who = _rcFirst(d.members.find((x) => x.id === e.who));
+  const payers = (e._payers && e._payers.length > 1) ? e._payers.map((id) => _rcFirst(d.members.find((x) => x.id === id))).filter((n) => n && n !== '?') : null;
+  const who = payers && payers.length > 1 ? null : _rcFirst(d.members.find((x) => x.id === e.who));
   const onCard = wallets && !window.isGeneralBudgetExpense?.(e, d.trip);
   const pct = m.total ? Math.round(((e.usd || 0) / m.total) * 100) : 0;
   const title = e.title || _rcCatName(e.cat);
   const size = [...title].length <= 14 ? 'min(12cqw, 6.6cqh)' : [...title].length <= 24 ? 'min(9.5cqw, 5.2cqh)' : 'min(7.6cqw, 4.2cqh)';
   const meta = [e.createdAt ? window.fmtDate(window.localISO(e.createdAt)) : null,
     wallets && e.cash ? (ar ? 'كاش' : 'in cash')
+      : payers && payers.length > 1 ? (ar ? `دفعوها ${payers.join(' و')}` : `paid by ${payers.join(' & ')}`)
       : who && who !== '?' ? (onCard ? (ar ? `بطاقة ${who}` : `${who}'s card`) : (ar ? `دفعها ${who}` : `paid by ${who}`)) : null].filter(Boolean).join(' · ');
   React.useEffect(() => { sfx('hit', 2250); }, []);
   return (

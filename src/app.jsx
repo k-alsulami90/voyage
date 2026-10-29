@@ -163,6 +163,8 @@ function App() {
     setDataVersion((v) => v + 1);
     if (fresh) window.cachePersistTrip?.(tripId);   // keep this visit on the phone
     if (fresh && results[3].status === 'fulfilled' && results[3].value === true) window.pruneTripFiles?.(tripId);
+    // A booking paid by several people, filed under one of them before: split it.
+    if (fresh && results[3].status === 'fulfilled' && results[3].value === true) window.healDocShares?.(tripId);
 
     if (rtUnsubRef.current) { rtUnsubRef.current(); rtUnsubRef.current = null; }
     rtUnsubRef.current = window.subscribeToTrip(tripId, () => {

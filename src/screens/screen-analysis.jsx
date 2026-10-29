@@ -536,7 +536,8 @@ function TripAnalysis({ go, loading, openSheet }) {
   const members = window.MEMBERS || [];
   const wallets = window.walletsOf?.(trip);
   const pct = m.planned > 0 ? Math.min(1, m.total / m.planned) : 0;
-  const top = expenses.slice().sort((x, y) => (y.usd || 0) - (x.usd || 0)).slice(0, 5);
+  // A booking several people paid counts once, at its full cost.
+  const top = (window.mergeDocParts ? window.mergeDocParts(expenses) : expenses).slice().sort((x, y) => (y.usd || 0) - (x.usd || 0)).slice(0, 5);
   const fmtDay = (k) => _day(k).toLocaleDateString(ar ? 'ar' : 'en', { weekday: 'short', day: 'numeric', month: 'short' });
   // Who paid — with cards, what was paid in cash counts for the cash, not for whoever logged it.
   const wallets0 = !!window.walletsOf?.(trip);
@@ -614,7 +615,7 @@ function TripAnalysis({ go, loading, openSheet }) {
       <Panel title={ar ? 'أكبر المصاريف' : 'Largest expenses'}>
         <div style={{ display: 'grid', gap: 2 }}>
           {top.map((e, i) => (
-            <button key={e.id} onClick={() => openSheet?.('editExpense', e)} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'start', background: 'transparent', padding: '9px 0', borderTop: i ? '0.5px solid var(--hairline)' : 'none' }}>
+            <button key={e.id} onClick={() => window.openExpenseOrDoc(e, openSheet)} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'start', background: 'transparent', padding: '9px 0', borderTop: i ? '0.5px solid var(--hairline)' : 'none' }}>
               <span style={{ width: 34, height: 34, borderRadius: 10, display: 'grid', placeItems: 'center', background: 'var(--cream)', fontSize: 16, flexShrink: 0, boxShadow: `inset 0 0 0 2px ${catColor(e.cat)}` }}>{window.CAT_META?.[e.cat]?.emoji || '•'}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.title}</div>

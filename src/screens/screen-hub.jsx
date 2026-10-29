@@ -418,7 +418,7 @@ function HubRecent({ fmtC, wallets, openSheet }) {
         const c = (window.CATEGORIES || []).find((x) => x.key === e.cat) || { color: 'var(--ink-mute)' };
         const first = (m.name || '').split(' ')[0];
         return (
-          <button key={e.id} onClick={() => openSheet?.('editExpense', e)}
+          <button key={e.id} onClick={() => window.openExpenseOrDoc(e, openSheet)}
             aria-label={ar ? `تعديل ${e.title}، ${fmtC(e.usd)}` : `Edit ${e.title}, ${fmtC(e.usd)}`}
             style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'start', padding: '0 14px', background: 'transparent' }}>
             <span style={{
@@ -432,7 +432,7 @@ function HubRecent({ fmtC, wallets, openSheet }) {
                   {wallets && e.cash
                     ? <span aria-hidden="true" style={{ width: 14, height: 14, borderRadius: 4, flexShrink: 0, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, #4f8a73, #24503f)' }}><IconCash size={10} stroke="#fff" sw={2} /></span>
                     : <Avatar m={m} size={14} />}
-                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{wallets && e.cash ? (ar ? 'كاش' : 'Cash') : wallets ? (ar ? `بطاقة ${first}` : `${first}'s card`) : first} · {e.when}</span>
+                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{[wallets && e.cash ? (ar ? 'كاش' : 'Cash') : wallets ? (ar ? `بطاقة ${first}` : `${first}'s card`) : first, window.docPartWith?.(e.id), e.when].filter(Boolean).map((x) => '\u2068' + x + '\u2069').join(' · ')}</span>
                 </span>
               </span>
               <span className="mono" style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', flexShrink: 0 }}>{fmtC(e.usd)}</span>

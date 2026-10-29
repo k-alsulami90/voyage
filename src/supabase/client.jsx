@@ -1458,18 +1458,126 @@ window.linkDocExpense = async (docId, tripId) => {
   return exp.id;
 };
 
+// ── A booking paid by several people ─────────────────────────
+// details.payers = { userId: amount } (in the booking's own currency).
+// Each payer's part becomes their OWN expense — so cards, "who paid",
+// balances and the expense list all show who really paid what. A part's id
+// is worked out from the booking + the payer, so the app can always find,
+// update or remove it without keeping a list of them anywhere (and two
+// phones doing it at once can't create it twice).
+window.docShareId = (docId, userId) => {
+  const s = `voyage:doc-part:${docId}:${userId}`;
+  const h = (seed) => { let x = seed >>> 0; for (let i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; x ^= x >>> 13; } return x.toString(16).padStart(8, '0'); };
+  const hex = h(0x811c9dc5) + h(0x9e3779b9) + h(0x85ebca6b) + h(0xc2b2ae35);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-8${hex.slice(13, 16)}-${(8 | (parseInt(hex[16], 16) & 3)).toString(16)}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+};
+// The parts of a PAID, SHARED booking with two or more payers:
+// [{ userId, usd, local }] adding up exactly to its cost — else null.
+// Works on a database row (cost_usd…) or an app doc (costUSD…).
+window.docShares = (doc) => {
+  if (!doc || doc.category === 'visas') return null;
+  const d = doc.details || {};
+  const owner = doc.owner_user_id !== undefined ? doc.owner_user_id : doc.ownerUserId;
+  const costUSD = Number(doc.cost_usd !== undefined ? doc.cost_usd : doc.costUSD);
+  if (owner || !(costUSD > 0) || !window.isDocPaid(doc)) return null;
+  const p = d.payers;
+  if (!p || typeof p !== 'object') return null;
+  const list = Object.entries(p).map(([id, v]) => [id, parseFloat(v) || 0]).filter(([, v]) => v > 0);
+  if (list.length < 2) return null;
+  const sum = list.reduce((t, [, v]) => t + v, 0);
+  const rawLocal = doc.cost_local !== undefined ? doc.cost_local : doc.costLocal;
+  const costLocal = rawLocal != null ? Number(rawLocal) : null;
+  const r2 = (n) => Math.round(n * 100) / 100;
+  let usdLeft = r2(costUSD), localLeft = costLocal != null ? r2(costLocal) : null;
+  return list.map(([userId, v], i) => {
+    const last = i === list.length - 1;
+    const usd = last ? usdLeft : r2((costUSD * v) / sum);
+    const local = costLocal == null ? null : (last ? localLeft : r2((costLocal * v) / sum));
+    usdLeft = r2(usdLeft - usd);
+    if (localLeft != null) localLeft = r2(localLeft - local);
+    return { userId, usd, local };
+  });
+};
+// Every part id a booking could have (each member, and anyone ever listed).
+const _docPartIds = (doc) => [...new Set([
+  ...(window.MEMBERS || []).map((m) => m.id),
+  ...Object.keys((doc && doc.details && doc.details.payers) || {}),
+])].map((u) => window.docShareId(doc.id, u));
+const _isDupErr = (e) => !!e && (e.code === '23505' || /duplicate key/i.test(e.message || ''));
+const _DOC_EXPENSE_CAT = { flights: 'transit', lodging: 'lodging', transport: 'transit', visas: 'misc' };
+const _docExpenseTitle = (doc) => {
+  const prefix = doc.category === 'flights' ? '✈ ' : doc.category === 'lodging' ? '🏨 ' : doc.category === 'transport' ? '🚆 ' : '';
+  return (prefix + (doc.title || 'Document')).slice(0, 100);
+};
+async function _syncDocShares(doc, tripId, shares) {
+  const members = (window.MEMBERS || []).map((m) => m.id);
+  const at = window._paidAtISO(doc.details && doc.details.paid_on);
+  const keep = new Set();
+  for (const part of shares) {
+    const id = window.docShareId(doc.id, part.userId);
+    keep.add(id);
+    const row = {
+      title: _docExpenseTitle(doc),
+      category: _DOC_EXPENSE_CAT[doc.category] || 'misc',
+      amount_usd: part.usd,
+      amount_local: part.local,
+      local_currency: doc.cost_currency || null,
+      note: doc.subtitle || null,
+      created_by: part.userId,
+      created_at: at,
+      // The whole group shares a booking; this payer covered this part of it.
+      split_with: members.filter((u) => u !== part.userId),
+    };
+    const { data: upd, error: ue } = await window.sb.from('expenses').update(row).eq('id', id).select('id');
+    if (ue) throw ue;
+    if (!upd || !upd.length) {
+      const { error: ie } = await window.sb.from('expenses').insert({ ...row, id, trip_id: tripId });
+      if (ie && !_isDupErr(ie)) throw ie;
+    }
+  }
+  // Someone who no longer paid a part: their part goes.
+  const stale = _docPartIds(doc).filter((id) => !keep.has(id));
+  if (stale.length) await window.sb.from('expenses').delete().in('id', stale);
+  // The one expense from before it was split: the parts replace it.
+  if (doc.linked_expense_id && !keep.has(doc.linked_expense_id)) {
+    await window.sb.from('expenses').delete().eq('id', doc.linked_expense_id);
+  }
+  // The booking points at the biggest part, so "paid" keeps working everywhere.
+  const top = shares.slice().sort((a, b) => b.usd - a.usd)[0];
+  const paidBy = doc.details && doc.details.paid_by;
+  const primary = window.docShareId(doc.id, shares.some((x) => x.userId === paidBy) ? paidBy : top.userId);
+  if (doc.linked_expense_id !== primary) {
+    const { error: le } = await window.sb.from('documents').update({ linked_expense_id: primary }).eq('id', doc.id);
+    if (le) throw le;
+  }
+  window.LIFETIME_STATS = null;
+  await window.loadExpenses(tripId);
+}
+
 // Keep a document's cost and the trip budget in step, automatically:
-//   shared doc with a cost  -> one linked expense (general budget)
+//   shared doc with a cost  -> one linked expense (general budget),
+//                              or one per payer when several paid it
 //   personal doc / no cost  -> no linked expense (personal cost stays private)
 window.syncDocExpense = async (docId, tripId) => {
   const { data: doc } = await window.sb.from('documents').select('*').eq('id', docId).single();
   if (!doc) return;
   if (doc.category === 'visas') return window.syncVisaFee(doc, tripId);
+  const shares = window.docShares(doc);
+  if (shares) { await _syncDocShares(doc, tripId, shares); return; }
+  // One payer (or none): any parts from an earlier split go first.
+  const parts = _docPartIds(doc);
+  let partsGone = false;
+  if (parts.length) {
+    const { data: gone } = await window.sb.from('expenses').delete().in('id', parts).select('id');
+    partsGone = !!(gone && gone.length);
+    if (doc.linked_expense_id && parts.includes(doc.linked_expense_id)) doc.linked_expense_id = null;
+  }
   // Only a PAID shared booking moves the budget.
   const wantsExpense = !doc.owner_user_id && doc.cost_usd != null && Number(doc.cost_usd) > 0
     && window.isDocPaid(doc);
   if (!wantsExpense) {
     if (doc.linked_expense_id) await window.unlinkDocExpense(docId, tripId);
+    else if (partsGone) { window.LIFETIME_STATS = null; await window.loadExpenses(tripId); }
     return;
   }
   if (!doc.linked_expense_id) { await window.linkDocExpense(docId, tripId); return; }
@@ -1539,14 +1647,103 @@ window.isGeneralBudgetExpense = (e, trip) => {
 window._docLinkedExpenseIds = () => {
   const set = new Set();
   Object.values(window.DOCS_BY_CAT || {}).forEach((list) => (list || []).forEach((d) => { if (d.linkedExpenseId) set.add(d.linkedExpenseId); }));
+  window._docPartsMap().forEach((_, id) => set.add(id));
   return set;
+};
+// expense id → { doc, userId, others } for the parts of split bookings.
+let _partsCache = { docs: null, members: 0, map: new Map() };
+window._docPartsMap = () => {
+  const docs = window.DOCS_BY_CAT;
+  const members = (window.MEMBERS || []).length;
+  if (_partsCache.docs !== docs || _partsCache.members !== members) {
+    const map = new Map();
+    Object.values(docs || {}).forEach((list) => (list || []).forEach((d) => {
+      const shares = d && window.docShares(d);
+      if (!shares) return;
+      shares.forEach((x) => map.set(window.docShareId(d.id, x.userId), {
+        doc: d, userId: x.userId, others: shares.filter((y) => y.userId !== x.userId).map((y) => y.userId),
+      }));
+    }));
+    _partsCache = { docs, members, map };
+  }
+  return _partsCache.map;
+};
+window.docPartOf = (expenseId) => window._docPartsMap().get(expenseId) || null;
+// The booking an expense came from (its one expense, or one of its parts).
+window.docOfExpense = (expenseId) => {
+  const part = window.docPartOf(expenseId);
+  if (part) return part.doc;
+  return Object.values(window.DOCS_BY_CAT || {}).flat().find((d) => d && d.linkedExpenseId === expenseId) || null;
+};
+// For lists of "the biggest": a booking's parts count as the one booking
+// (its full cost), remembering everyone who paid it in _payers.
+window.mergeDocParts = (list) => {
+  const out = [], byDoc = new Map();
+  (list || []).forEach((e) => {
+    const part = window.docPartOf(e.id);
+    if (!part) { out.push(e); return; }
+    const m = byDoc.get(part.doc.id);
+    if (m) { m.usd += e.usd || 0; if (!m._payers.includes(e.who)) m._payers.push(e.who); return; }
+    const merged = { ...e, usd: e.usd || 0, _payers: [e.who] };
+    byDoc.set(part.doc.id, merged); out.push(merged);
+  });
+  return out;
+};
+// "with Omar" / "مع عمر" — the others who paid the same booking.
+window.docPartWith = (expenseId) => {
+  const part = window.docPartOf(expenseId);
+  if (!part || !part.others.length) return null;
+  const ar = window.isRTL;
+  const withMe = part.others.includes(window.currentUserId);
+  const names = part.others.filter((id) => id !== window.currentUserId).map((id) => {
+    const m = (window.MEMBERS || []).find((x) => x.id === id);
+    return ((m && m.name) || '').trim().split(/\s+/)[0] || '?';
+  });
+  if (ar) return withMe ? (names.length ? `معك ومع ${names.join(' و')}` : 'معك') : `مع ${names.join(' و')}`;
+  return `with ${[...(withMe ? ['you'] : []), ...names].join(' & ')}`;
+};
+// Tap on an expense: one that came from a booking opens the booking (its
+// cost and who paid live there); any other opens the expense.
+window.openExpenseOrDoc = (e, openSheet) => {
+  const d = e && window.docOfExpense(e.id);
+  if (d && window.openDocView) { window.openDocView(d, (window.DOC_CATEGORIES || []).find((c) => c.key === d.category)); return; }
+  openSheet?.('editExpense', e);
+};
+// Bookings marked paid by several people before parts existed (one expense
+// under one payer): split them now, quietly. Runs after a trip loads.
+let _healing = false;
+window.healDocShares = async (tripId) => {
+  if (_healing || !tripId || window.DOCS_TRIP_ID !== tripId || navigator.onLine === false) return;
+  _healing = true;
+  let changed = false;
+  try {
+    const have = new Set((window.EXPENSES || []).map((e) => e.id));
+    const docs = Object.values(window.DOCS_BY_CAT || {}).flat();
+    for (const d of docs) {
+      const shares = d && window.docShares(d);
+      if (!shares) continue;
+      const ids = shares.map((x) => window.docShareId(d.id, x.userId));
+      if (ids.includes(d.linkedExpenseId) && ids.every((id) => have.has(id))) continue;   // already split
+      try { await window.syncDocExpense(d.id, tripId); changed = true; } catch (e) { console.warn('split booking', e); }
+    }
+    if (changed && window._activeTripId === tripId) { await window.loadDocuments(tripId); window.cachePersistTrip?.(tripId); }
+  } finally { _healing = false; }
 };
 
 window.unlinkDocExpense = async (docId, tripId) => {
   if (!window.sb) throw new Error('Not signed in');
   const { data: doc } = await window.sb.from('documents')
-    .select('linked_expense_id').eq('id', docId).single();
-  if (!doc?.linked_expense_id) return;
+    .select('id, linked_expense_id, details').eq('id', docId).single();
+  // The parts of a booking several people paid.
+  if (doc) {
+    const parts = _docPartIds(doc);
+    if (parts.length) await window.sb.from('expenses').delete().in('id', parts);
+  }
+  if (!doc?.linked_expense_id) {
+    window.LIFETIME_STATS = null;
+    await window.loadExpenses(tripId);
+    return;
+  }
   // ON DELETE SET NULL on linked_expense_id, so deleting the expense
   // also clears the pointer.
   await window.sb.from('expenses').delete().eq('id', doc.linked_expense_id);
