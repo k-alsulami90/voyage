@@ -297,7 +297,7 @@ function FileViewer({ spec, onClose }) {
 
       {/* The file */}
       <div ref={scRef} className="no-scrollbar" dir="ltr" style={{
-        position: 'absolute', inset: 0, overflow: 'auto', WebkitOverflowScrolling: 'touch',
+        direction: 'ltr', position: 'absolute', inset: 0, overflow: 'auto', WebkitOverflowScrolling: 'touch',
         overscrollBehavior: 'contain', touchAction: 'pan-x pan-y',
       }}>
         <div ref={innerRef} style={{

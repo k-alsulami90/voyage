@@ -256,6 +256,7 @@ window.loadTrips = async (userId) => {
     // Home currency follows the viewer's account preference, not the stored
     // per-trip value (which legacy trips may have left at USD).
     homeCurrency: window.USER_DEFAULT_CURRENCY || r.home_currency || 'USD',
+    localCurrency: r.local_currency || null,
     fx:           parseFloat(r.fx_rate) || 1,
     status:       r.status,
   }));

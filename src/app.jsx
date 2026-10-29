@@ -699,6 +699,8 @@ function App() {
       {window.RecapHost && <window.RecapHost />}
       {/* Tickets, boarding passes, visas, receipts — opened from the phone */}
       {window.FileViewerHost && <window.FileViewerHost />}
+      {/* Currency converter — opened by the pill above the "+" */}
+      {window.FxHost && <window.FxHost />}
       {joining && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 250,
@@ -853,7 +855,7 @@ function PlaneMark({ size = 15 }) {
 // from the first stop's centre to the last stop's centre, not edge to edge.
 function slotHalf(N) { return `${(0.5 / N) * 100}%`; }
 
-function RouteNav({ tabs, active, onChange, onAdd }) {
+function RouteNav({ tabs, active, onChange, onAdd, fxTrip }) {
   const N = tabs.length;
   const activeIndex = Math.max(0, tabs.findIndex((tb) => tb.k === active));
   // The plane follows VISUAL order, which flips under RTL.
@@ -867,6 +869,9 @@ function RouteNav({ tabs, active, onChange, onAdd }) {
   const slot = `${100 / N}%`;
 
   return (
+    <>
+    {/* Currency converter — one tap, above the "+" */}
+    {window.FxFab && <window.FxFab trip={fxTrip} />}
     <div style={navShell}>
       <div style={tabsWrap}>
         {/* the route line */}
@@ -917,6 +922,7 @@ function RouteNav({ tabs, active, onChange, onAdd }) {
         </button>
       )}
     </div>
+    </>
   );
 }
 
@@ -927,7 +933,7 @@ function AppNav({ active, onChange, onAdd }) {
     { k: 'trips',       l: t('myTrips'),     i: IconCompass },
     { k: 'appSettings', l: t('accountNav'),  i: IconGear },
   ];
-  return <RouteNav tabs={tabs} active={active} onChange={onChange} onAdd={onAdd} />;
+  return <RouteNav tabs={tabs} active={active} onChange={onChange} onAdd={onAdd} fxTrip={window.fxTripNow?.()} />;
 }
 
 // ── Trip-scope bottom nav ──
@@ -942,7 +948,7 @@ function TripNav({ active, onChange, onAdd }) {
     { k: 'docs',     l: t('vaultNav'),  i: IconDoc },
   ];
   const shown = active === 'analytics' ? 'budget' : active === 'settings' ? 'hub' : active;
-  return <RouteNav tabs={tabs} active={shown} onChange={onChange} onAdd={onAdd} />;
+  return <RouteNav tabs={tabs} active={shown} onChange={onChange} onAdd={onAdd} fxTrip={window.TRIP} />;
 }
 
 // Classic iOS-style tab bar — flush to the bottom edge, full width, safe-area inset.

@@ -14,7 +14,7 @@
 
 // Bump this on every deploy that changes shell behaviour. Vercel deploys
 // rebuild the file from git so the string itself is enough — no build step needed.
-const VERSION = 'v147-offline';
+const VERSION = 'v148-fx';
 const SHELL_CACHE  = `voyage-shell-${VERSION}`;
 const STATIC_CACHE = `voyage-static-${VERSION}`;
 // Kept across deploys (their URLs carry a version, or the content is stable):
@@ -47,6 +47,7 @@ const SHELL_FILES = [
   '/src/screens/screen-analysis.jsx',
   '/src/lib/wallets.jsx',
   '/src/lib/files.jsx',
+  '/src/lib/fx.jsx',
   // supabase
   '/src/supabase/client.jsx',
   // screens

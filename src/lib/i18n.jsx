@@ -567,6 +567,10 @@ window.fxRate = function(code) {
 //      table untouched, so the app always has usable rates.
 // The service worker is configured to bypass this host (network-only)
 // so we never serve a stale cached exchange rate.
+// Every currency the rate service knows (1 USD = N), for the converter —
+// so any currency can be picked, not only the app's trip currencies.
+// Kept on the phone like the main table, so it works with no signal.
+window.FX_ALL = {};
 window.refreshFxRates = async function() {
   try {
     const cached = JSON.parse(localStorage.getItem('voyage_fx') || 'null');
@@ -574,6 +578,8 @@ window.refreshFxRates = async function() {
       Object.assign(window.FX_RATES, cached.rates);
       if (cached.updated) window.FX_RATES_UPDATED = cached.updated;
     }
+    const all = JSON.parse(localStorage.getItem('voyage_fx_all') || 'null');
+    if (all && all.rates) window.FX_ALL = all.rates;
   } catch (_) { /* ignore bad cache */ }
 
   try {
@@ -586,6 +592,10 @@ window.refreshFxRates = async function() {
       if (typeof json.rates[c] === 'number' && json.rates[c] > 0) next[c] = json.rates[c];
     });
     if (Object.keys(next).length === 0) return;
+    const all = {};
+    Object.keys(json.rates).forEach((c) => { if (/^[A-Z]{3}$/.test(c) && typeof json.rates[c] === 'number' && json.rates[c] > 0) all[c] = json.rates[c]; });
+    window.FX_ALL = all;
+    try { localStorage.setItem('voyage_fx_all', JSON.stringify({ rates: all })); } catch (_) {}
     Object.assign(window.FX_RATES, next);
     const updated = (json.time_last_update_utc
       ? new Date(json.time_last_update_utc)

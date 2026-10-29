@@ -352,7 +352,7 @@ function ScreenStage({ route, render, onNavigate, scrollerRef, dimmed, children 
           }}>
           <div
             ref={(el) => { if (el) scrollers.current[l.key] = el; else delete scrollers.current[l.key]; }}
-            className={'no-scrollbar v-screen' + (l.calm ? ' v-calm' : '')}
+            className={'no-scrollbar v-screen' + (l.calm ? ' v-calm' : '') + (l.route && l.route.scope !== 'auth' && l.route.name !== 'onboarding' ? ' v-has-nav' : '')}
             style={{
               position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden',
               WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain',

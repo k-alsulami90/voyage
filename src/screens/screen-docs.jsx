@@ -266,12 +266,13 @@ function ScreenDocs({ go, openSheet, openDoc, loading }) {
       )}
 
       {/* "Add document" — a LABELED pill in ink, so it can't be confused
-         with the tab bar's clay "+" (which always adds an expense). */}
+         with the tab bar's clay "+" (which always adds an expense). It sits
+         in the opposite corner from the currency pill, on the same row. */}
       <button onClick={() => openSheet?.('addDoc')} style={{
           position: 'fixed',
-          bottom: 'calc(env(safe-area-inset-bottom) + 86px)',
-          left: '50%', translate: '-50% 0',   // `translate`, not transform: the press-scale on :active must not undo the centring
-          minHeight: 46, padding: '0 20px', borderRadius: 999,
+          bottom: 'calc(env(safe-area-inset-bottom) + 80px)',
+          insetInlineStart: 12,
+          minHeight: 42, padding: '0 18px', borderRadius: 999,
           background: 'var(--ink)', color: 'var(--cream)',
           display: 'inline-flex', alignItems: 'center', gap: 8,
           fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap',
