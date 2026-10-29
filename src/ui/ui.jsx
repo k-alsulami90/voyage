@@ -452,6 +452,11 @@ window._toastSubs = window._toastSubs || new Set();
 window._toastSeq  = 0;
 window.toast = function(msg, type = 'info', durationMs = 3200) {
   if (!msg) return;
+  // A step that truly needs the internet (uploading a new file, inviting…)
+  // tried with no signal: say that plainly, never "TypeError: Load failed".
+  if (type === 'error' && /failed to fetch|load failed|networkerror|network request failed|network connection|internet connection|timed? ?out|fetch failed/i.test(String(msg))) {
+    msg = window.isRTL ? 'هذي الخطوة تحتاج إنترنت' : 'This needs an internet connection';
+  }
   const id = ++window._toastSeq;
   const item = { id, msg: String(msg), type, at: Date.now(), durationMs };
   window._toastSubs.forEach((fn) => fn(item));
@@ -961,27 +966,6 @@ function PullToRefresh({ onRefresh, children }) {
   );
 }
 
-// ── Offline banner ──────────────────────────────────────────
-function OfflineBanner() {
-  const [online, setOnline] = React.useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
-  React.useEffect(() => {
-    const up = () => setOnline(true);
-    const down = () => setOnline(false);
-    window.addEventListener('online', up);
-    window.addEventListener('offline', down);
-    return () => {
-      window.removeEventListener('online', up);
-      window.removeEventListener('offline', down);
-    };
-  }, []);
-  if (online) return null;
-  return (
-    <div className="offline-banner">
-      {window.isRTL ? '⚠ أنت غير متصل · المصروفات التي تسجّلها تُزامن عند عودة الاتصال' : '⚠ Offline · expenses you log will sync when you reconnect'}
-    </div>
-  );
-}
-
 // ──────────────────────────────────────────────────────────────
 // ImageCropper — full-screen modal that lets the user pan + zoom
 // an image inside a square frame and emit a cropped JPEG Blob.
@@ -1185,4 +1169,4 @@ async function renderCrop(img, scale, off, frame, outputSize) {
   );
 }
 
-Object.assign(window, { Avatar, AvatarStack, RoleBadge, Chip, SectionLabel, KyotoHero, TintCard, Sheet, SwipeRow, Skeleton, TripSkeleton, ToastHost, ErrorBoundary, PullToRefresh, OfflineBanner, LargeTitleHeader, ActionSheetHost, ImageCropper });
+Object.assign(window, { Avatar, AvatarStack, RoleBadge, Chip, SectionLabel, KyotoHero, TintCard, Sheet, SwipeRow, Skeleton, TripSkeleton, ToastHost, ErrorBoundary, PullToRefresh, LargeTitleHeader, ActionSheetHost, ImageCropper });

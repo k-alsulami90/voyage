@@ -5,6 +5,32 @@ const _SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
 
 window.sb = window.supabase.createClient(_SUPABASE_URL, _SUPABASE_ANON);
 
+// The session supabase-js keeps on the phone, read straight from storage
+// (no network). Lets the app open with no signal instead of waiting on a
+// token refresh that can't happen. supabase-js still owns the session: it
+// refreshes it — or clears it, if it was really revoked — as soon as it
+// can reach the server.
+window._storedSession = () => {
+  try {
+    const ref = new URL(_SUPABASE_URL).hostname.split('.')[0];
+    const raw = localStorage.getItem(`sb-${ref}-auth-token`);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    const sess = (s && s.currentSession) || s;
+    return sess && sess.user && sess.user.id && sess.refresh_token ? sess : null;
+  } catch (_) { return null; }
+};
+// True only with a real signed-in session. Loads check this first so a
+// failed token refresh never makes them read as the anonymous key (which
+// RLS answers with nothing — and that "nothing" must never replace your
+// data on the phone).
+window.sbHasSession = async () => {
+  try { const { data } = await window.sb.auth.getSession(); return !!(data && data.session); }
+  catch (_) { return false; }
+};
+// A late answer for a trip you've already left must not land on screen.
+const _stale = (tripId) => !!(window._activeTripId && tripId && window._activeTripId !== tripId);
+
 // ── Auth helpers ─────────────────────────────────────────────
 
 window.sbSignIn = async (email, password) => {
@@ -42,7 +68,10 @@ window.sbSignUp = async (email, password, name) => {
   return data;
 };
 
-window.sbSignOut = () => window.sb.auth.signOut();
+// Signing out yourself clears the phone's copy of your trips; a session that
+// simply expired keeps it (and anything logged with no signal) for when you
+// sign back in.
+window.sbSignOut = () => { window._explicitSignOut = true; return window.sb.auth.signOut(); };
 
 // Send a password-reset email. User clicks the link and lands back on the app
 // with a recovery session; PASSWORD_RECOVERY event fires onAuthStateChange.
@@ -86,6 +115,11 @@ window.sbResendConfirmation = async (email) => {
 // USD their profile was seeded with. ─────────────────────
 window.loadUserPreferences = async (userId) => {
   if (!userId) return;
+  const ok = await _loadUserPreferences(userId);
+  if (ok) window.cachePersistPrefs?.();
+  return ok;
+};
+async function _loadUserPreferences(userId) {
   try {
     const { data, error } = await window.sb
       .from('profiles')
@@ -112,7 +146,7 @@ window.loadUserPreferences = async (userId) => {
     // 1. Explicit non-USD profile choice wins outright.
     if (profileCur && profileCur !== 'USD') {
       window.USER_DEFAULT_CURRENCY = profileCur;
-      return;
+      return true;
     }
 
     // 2. Otherwise infer from the user's trips. window.TRIPS may or
@@ -128,18 +162,21 @@ window.loadUserPreferences = async (userId) => {
       const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
       if (top) {
         window.USER_DEFAULT_CURRENCY = top[0];
-        return;
+        return true;
       }
     }
 
     // 3. Final fallback. Either the user genuinely lives in USD or
     //    we don't have enough data yet to infer better.
     window.USER_DEFAULT_CURRENCY = profileCur || 'USD';
+    return true;
   } catch (err) {
     console.warn('loadUserPreferences failed', err);
-    window.USER_DEFAULT_CURRENCY = 'USD';
+    // Keep what the phone already knows (no signal ≠ "your currency is USD").
+    if (!window.USER_DEFAULT_CURRENCY) window.USER_DEFAULT_CURRENCY = 'USD';
+    return false;
   }
-};
+}
 
 // ── Clear ALL mock data — call immediately on sign-in ────────
 // Trips-list readiness. Lifetime stats (Insights, Account card) are derived
@@ -195,7 +232,7 @@ window.loadTrips = async (userId) => {
     .select('*, trip_members(user_id, role)')
     .order('start_date', { ascending: false });
 
-  if (error) { console.error('loadTrips', error); return; }
+  if (error) { console.error('loadTrips', error); return false; }
 
   window.TRIPS = (data || []).map((r) => ({
     id:           r.id,
@@ -240,7 +277,8 @@ window.loadTrips = async (userId) => {
 
   // Persist for instant cold boot + offline viewing.
   window.cachePersistTrips?.();
-  window.cachePut?.('prefs', { currency: window.USER_DEFAULT_CURRENCY });
+  window.cachePersistPrefs?.();
+  return true;
 };
 
 // The trip happening today (start ≤ today ≤ end), or null. With two
@@ -259,14 +297,16 @@ window.loadSettlements = async (tripId) => {
   if (!tripId || !window.sb) return [];
   const { data, error } = await window.sb.from('settlements')
     .select('*').eq('trip_id', tripId).order('created_at', { ascending: false });
+  if (_stale(tripId)) return window.SETTLEMENTS || [];
   if (error) {
-    if (/settlements/i.test(error.message || '')) {
+    // Table not there yet (pre-migration) → genuinely none. Anything else
+    // (no signal…) keeps what's on the phone.
+    if (/relation .*settlements|settlements.*does not exist|schema cache/i.test(error.message || '')) {
       window.SETTLEMENTS = [];
       return [];
     }
     console.error('loadSettlements', error);
-    window.SETTLEMENTS = [];
-    return [];
+    return window.SETTLEMENTS || [];
   }
   window.SETTLEMENTS = data || [];
   return window.SETTLEMENTS;
@@ -315,18 +355,21 @@ window.deleteSettlement = async (settlementId, tripId) => {
 // optional start_time, title, category, and optional location.
 window.ITINERARY = [];
 window.loadItinerary = async (tripId) => {
-  if (!tripId || !window.sb) { window.ITINERARY = []; return []; }
+  if (!tripId || !window.sb) return window.ITINERARY || [];
   const { data, error } = await window.sb.from('itinerary_items')
     .select('*').eq('trip_id', tripId)
     .order('day_date', { ascending: true })
     .order('start_time', { ascending: true, nullsFirst: false })
     .order('sort_order', { ascending: true });
+  if (_stale(tripId)) return window.ITINERARY || [];
   if (error) {
-    if (/itinerary_items/i.test(error.message || '')) {
+    // Table not there yet (pre-migration) → genuinely empty. Anything else
+    // (no signal…) keeps the plan that's on the phone.
+    if (/relation .*itinerary_items|itinerary_items.*does not exist|schema cache/i.test(error.message || '')) {
       window.ITINERARY = []; return [];
     }
     console.error('loadItinerary', error);
-    window.ITINERARY = []; return [];
+    return window.ITINERARY || [];
   }
   window.ITINERARY = (data || []).map((r) => ({
     id: r.id,
@@ -341,6 +384,7 @@ window.loadItinerary = async (tripId) => {
     // Present only after the linked-expense migration runs; null otherwise.
     linkedExpenseId: r.linked_expense_id || null,
   }));
+  window.overlayPendingLinks?.(tripId);   // a plan item logged with no signal stays "logged"
   return window.ITINERARY;
 };
 
@@ -581,14 +625,19 @@ window.loadExpenses = async (tripId) => {
     .eq('trip_id', tripId)
     .order('created_at', { ascending: false });
 
-  if (error) { console.error('loadExpenses', error); return; }
+  if (error) { console.error('loadExpenses', error); return false; }
+  if (_stale(tripId)) return false;
 
   const rows = data || [];
   // Receipts live in the private documents bucket → sign their paths fresh
   // (the stored receipt_url is a now-dead public url).
   const signed = await window._signDocPaths(rows.map((r) => r.receipt_path));
+  if (_stale(tripId)) return false;
+  // A receipt's version = the link written when it was uploaded, so a
+  // replaced photo is fetched again. The phone's copy is used when it has one.
+  const rVer = (r) => (r.receipt_path ? window.fileVer(null, r.receipt_url) : null);
 
-  const mapped = rows.map((r) => ({
+  const mapped0 = rows.map((r) => ({
     id:        r.id,
     who:       r.created_by,
     cat:       r.category,
@@ -600,7 +649,8 @@ window.loadExpenses = async (tripId) => {
     note:      r.note || '',
     splitWith: Array.isArray(r.split_with) ? r.split_with.filter(Boolean) : [],
     receiptPath: r.receipt_path || null,
-    receiptUrl:  (r.receipt_path ? signed.get(r.receipt_path) : null) || null,
+    receiptVer:  rVer(r),
+    receiptUrl:  (r.receipt_path ? (window.localFileUrl?.(r.receipt_path, rVer(r)) || signed.get(r.receipt_path)) : null) || null,
     isPersonal: !!r.is_personal,
     // Paid from the group's cash (023) rather than a card. The amount in the
     // trip's local currency is kept so the cash left can be told exactly.
@@ -608,6 +658,8 @@ window.loadExpenses = async (tripId) => {
     local:     r.amount_local != null ? parseFloat(r.amount_local) : null,
     localCur:  r.local_currency || null,
   }));
+  // Changes made on the phone that haven't gone up yet stay on screen.
+  const mapped = window.overlayExpenseRows ? window.overlayExpenseRows(tripId, mapped0) : mapped0;
   // Personal expenses (shopping etc.) are the logger's own: RLS only ever
   // returns MY personal rows, and they never enter the group's numbers.
   // Keeping them in a separate list means every existing group sum
@@ -620,6 +672,10 @@ window.loadExpenses = async (tripId) => {
   // Mark this trip's data as freshly loaded; cache summary for cold-boot
   window._tripDataLoadedAt[tripId] = Date.now();
   window._cacheTripSummary(tripId);
+  // Receipts to the phone, in the background.
+  window.prefetchFiles?.(rows.filter((r) => r.receipt_path && signed.get(r.receipt_path))
+    .map((r) => ({ path: r.receipt_path, ver: rVer(r), url: signed.get(r.receipt_path) })));
+  return true;
 };
 
 // Recompute the values DERIVED from window.EXPENSES (category totals +
@@ -652,7 +708,8 @@ window.loadMembers = async (tripId) => {
     .select('*, profiles ( name, initials, avatar_hue )')
     .eq('trip_id', tripId);
 
-  if (error) { console.error('loadMembers', error); return; }
+  if (error) { console.error('loadMembers', error); return false; }
+  if (_stale(tripId)) return false;
 
   window.MEMBERS = (data || []).map((r) => ({
     id:       r.user_id,
@@ -661,6 +718,7 @@ window.loadMembers = async (tripId) => {
     hue:      r.profiles?.avatar_hue || 35,
     initials: r.profiles?.initials || '?',
   }));
+  return true;
 };
 
 // Sign a batch of private `documents`-bucket paths in one round-trip →
@@ -691,7 +749,8 @@ window.loadDocuments = async (tripId) => {
     .eq('trip_id', tripId)
     .order('created_at', { ascending: false });
 
-  if (error) { console.error('loadDocuments', error); return; }
+  if (error) { console.error('loadDocuments', error); return false; }
+  if (_stale(tripId)) return false;
 
   const rows = data || [];
   // Collect every private-bucket path on this trip and sign them all in a
@@ -703,6 +762,13 @@ window.loadDocuments = async (tripId) => {
     if (r.cover_path) toSign.push(r.cover_path);
   });
   const signed = await window._signDocPaths(toSign);
+  if (_stale(tripId)) return false;
+  // Each file's version (changes when it's replaced) — the phone keeps a copy
+  // of every file and opens that one, signal or not.
+  const vFile  = (r) => window.fileVer(r.file_size_bytes, r.link_url);
+  const vSec   = (r) => window.fileVer(r.secondary_file_size, r.secondary_file_path);
+  const vCover = (r) => window.fileVer(null, r.cover_url);
+  const toKeep = [];
 
   const byCat = { flights: [], lodging: [], visas: [], transport: [] };
   rows.forEach((r) => {
@@ -730,8 +796,10 @@ window.loadDocuments = async (tripId) => {
         : (r.file_path ? '...' : '--'),
       tint:      r.tint,
       filePath:  r.file_path || null,
-      coverUrl:  (r.cover_path ? signed.get(r.cover_path) : null) || null,
+      fileVer:   r.file_path ? vFile(r) : null,
+      coverUrl:  (r.cover_path ? (window.localFileUrl?.(r.cover_path, vCover(r)) || signed.get(r.cover_path)) : null) || null,
       coverPath: r.cover_path || null,
+      coverVer:  r.cover_path ? vCover(r) : null,
       link:      resolvedLink,
       linkLabel: resolvedLabel,
       photos:    (r.document_photos || []).map((p) => p.storage_path),
@@ -746,8 +814,12 @@ window.loadDocuments = async (tripId) => {
       secondaryFilePath: r.secondary_file_path || null,
       secondaryFileSize: r.secondary_file_size || null,
       secondaryLink,
+      secVer:    r.secondary_file_path ? vSec(r) : null,
     };
     if (byCat[r.category]) byCat[r.category].push(doc);
+    if (r.file_path && resolvedLink) toKeep.push({ path: r.file_path, ver: doc.fileVer, url: resolvedLink });
+    if (r.secondary_file_path && secondaryLink) toKeep.push({ path: r.secondary_file_path, ver: doc.secVer, url: secondaryLink });
+    if (r.cover_path && signed.get(r.cover_path)) toKeep.push({ path: r.cover_path, ver: doc.coverVer, url: signed.get(r.cover_path) });
   });
   window.DOCS_BY_CAT = byCat;
   // Tag which trip these docs belong to. The Smart Track card on Trips
@@ -760,6 +832,10 @@ window.loadDocuments = async (tripId) => {
     ...c,
     count: (byCat[c.key] || []).length,
   }));
+  window.overlayPendingLinks?.(tripId);   // a doc logged with no signal stays "logged"
+  // Every ticket, boarding pass, visa and booking to the phone, in the background.
+  window.prefetchFiles?.(toKeep);
+  return true;
 };
 
 // Upload a PDF/image to Supabase Storage and link it to a document record
@@ -1219,6 +1295,7 @@ window.loadLifetimeStats = async () => {
   // overwritten by a fresher full computation, so it's always a real past
   // snapshot — exactly what stale-while-revalidate wants.
   window.LIFETIME_STATS_LKG = window.LIFETIME_STATS;
+  window.cachePersistLifetime?.();
   return window.LIFETIME_STATS;
 };
 
@@ -1230,7 +1307,8 @@ window.loadAuditLog = async (tripId) => {
     .order('created_at', { ascending: false })
     .limit(20);
 
-  if (error) { console.error('loadAuditLog', error); return; }
+  if (error) { console.error('loadAuditLog', error); return false; }
+  if (_stale(tripId)) return false;
 
   window.AUDIT = (data || []).map((r) => ({
     id:     r.id,
@@ -1239,6 +1317,7 @@ window.loadAuditLog = async (tripId) => {
     target: r.target,
     when:   new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   }));
+  return true;
 };
 
 // ── Write helpers ────────────────────────────────────────────
@@ -1259,6 +1338,9 @@ window.addExpense = async (tripId, userId, fields) => {
     local_currency: fields.localCurrency,
     note:           fields.note || null,
   };
+  // A new expense gets its id on the phone (works with no signal, and a
+  // retried upload can't create a second copy).
+  if (fields.id) basePayload.id = fields.id;
   if (fields.isPersonal) basePayload.is_personal = true;
   if (fields.paidWith === 'cash') basePayload.paid_with = 'cash';
   // A day other than today (logged later): the expense keeps the day it happened.
@@ -1541,7 +1623,8 @@ window.addDocument = async (tripId, userId, fields) => {
 window.loadTripDetail = async (tripId) => {
   const { data, error } = await window.sb
     .from('trips').select('*').eq('id', tripId).single();
-  if (error) { console.error('loadTripDetail', error); return; }
+  if (error) { console.error('loadTripDetail', error); return false; }
+  if (_stale(tripId)) return false;
   const { daysIn, daysTotal } = window.tripDays(data.start_date, data.end_date);
   window.TRIP = {
     id:            data.id,
@@ -1568,6 +1651,7 @@ window.loadTripDetail = async (tripId) => {
     weather:       { temp: '--', cond: '' },
     next:          { label: '', when: '' },
   };
+  return true;
 };
 
 // Synchronously seed window.TRIP from the already-loaded trips list, so a
@@ -1605,6 +1689,7 @@ window.seedTripFromList = (tripId) => {
     status:        t.status,
     weather:       { temp: '--', cond: '' },
     next:          { label: '', when: '' },
+    _seed:         true,   // basics only — the phone's copy / the server fill the rest
   };
   // We just switched to a DIFFERENT trip, so the per-trip caches still
   // hold the previous trip's data. Reset them to empty (not the old
@@ -1612,6 +1697,7 @@ window.seedTripFromList = (tripId) => {
   // members / docs under the correct hero; the background loaders fill
   // them in immediately after.
   window.EXPENSES    = [];
+  window.MY_PERSONAL_EXPENSES = [];
   window.MEMBERS     = [];
   window.DOCS_BY_CAT = { flights: [], lodging: [], visas: [], transport: [] };
   window.DOCS_TRIP_ID = null;   // docs not yet loaded for this trip
@@ -1735,7 +1821,7 @@ window.updateExpense = async (expenseId, tripId, fields) => {
   });
 };
 
-window.deleteExpense = async (expenseId, tripId) => {
+window.deleteExpense = async (expenseId, tripId, opts = {}) => {
   // Clear any doc / plan-item pointers FIRST so a "logged" indicator can't
   // dangle at a deleted expense. (FKs may be ON DELETE SET NULL, but we do
   // it explicitly so behaviour doesn't depend on the schema being perfect.)
@@ -1752,7 +1838,7 @@ window.deleteExpense = async (expenseId, tripId) => {
     target:  `Expense ${expenseId}`,
   }).then(() => {});
   // Refresh docs + plan so their "logged" indicators clear immediately.
-  if (tripId) {
+  if (tripId && !opts.quiet) {
     try { await window.loadDocuments(tripId); } catch (_) {}
     try { await window.loadItinerary(tripId); } catch (_) {}
   }

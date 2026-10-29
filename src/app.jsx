@@ -103,10 +103,14 @@ function App() {
   // same existing session, so without this guard the app hydrates
   // (trips + prefs) twice — the "double-load" on startup.
   const hydratedForRef = React.useRef(null);
+  // The last network refresh didn't get through (no / weak signal): try
+  // again on reconnect or when the app comes back to the foreground.
+  const netFailedRef = React.useRef(false);
 
   const loadTripData = React.useCallback(async (tripId) => {
     if (!tripId) return;
     activeTripRef.current = tripId;
+    window._activeTripId = tripId;
     // Seed window.TRIP synchronously from the trips list so the screen
     // shows THIS trip's basics immediately (no blank, no flash of the
     // last-open trip). Only fall back to the loading skeleton when we
@@ -114,12 +118,20 @@ function App() {
     const seeded = window.seedTripFromList?.(tripId);
     setTripLoading(!seeded);
     if (seeded) setDataVersion((v) => v + 1);  // paint the seed now
-    // Fill the per-trip caches from the offline store (only empty slices)
-    // so the trip is viewable instantly / with no signal while the
-    // network refresh below runs. Drops the skeleton the moment it fills.
-    window.cacheHydrateTrip?.(tripId).then((filled) => {
-      if (filled) { setTripLoading(false); setDataVersion((v) => v + 1); }
-    });
+    // The phone's copy first (a few ms): the trip opens complete — today,
+    // budget, plan, documents — with or without signal. The network
+    // refresh below then replaces it.
+    const filled = await window.cacheHydrateTrip?.(tripId);
+    if (window._activeTripId !== tripId) return;
+    if (filled) { setTripLoading(false); setDataVersion((v) => v + 1); }
+    // No signal (or no session to ask with): the phone's copy is it for now.
+    if (navigator.onLine === false || !(await window.sbHasSession?.())) {
+      netFailedRef.current = true;
+      setTripLoading(false);
+      setDataVersion((v) => v + 1);
+      return;
+    }
+    if (window._activeTripId !== tripId) return;
     // Expose on window so non-React paths can trigger a trip load.
     // The Smart Track card on Trips Home is the prime caller: it picks
     // the next-up trip from window.TRIPS and asks for its docs to be
@@ -140,13 +152,17 @@ function App() {
     ]);
     results.forEach((r, i) => {
       if (r.status === 'rejected') {
-        const names = ['loadTripDetail','loadExpenses','loadMembers','loadDocuments','loadAuditLog'];
+        const names = ['loadTripDetail','loadExpenses','loadMembers','loadDocuments','loadAuditLog','loadSettlements','loadItinerary'];
         console.error(`${names[i]} failed for ${tripId}:`, r.reason);
       }
     });
+    if (window._activeTripId !== tripId) return;
+    const fresh = results[1].status === 'fulfilled' && results[1].value === true;
+    if (!fresh) netFailedRef.current = true;
     setTripLoading(false);
     setDataVersion((v) => v + 1);
-    window.cachePersistTrip?.(tripId);   // snapshot the fresh data for offline
+    if (fresh) window.cachePersistTrip?.(tripId);   // keep this visit on the phone
+    if (fresh && results[3].status === 'fulfilled' && results[3].value === true) window.pruneTripFiles?.(tripId);
 
     if (rtUnsubRef.current) { rtUnsubRef.current(); rtUnsubRef.current = null; }
     rtUnsubRef.current = window.subscribeToTrip(tripId, () => {
@@ -206,48 +222,89 @@ function App() {
         window.clearAllMockData();
         initialLoadDoneRef.current = true;
       }
-      // Instant paint from the offline cache BEFORE the network: restores
-      // the trips list (and the currency) so a cold boot shows your trips
-      // immediately, and so the app is usable with no signal. The network
-      // loads below overwrite it (stale-while-revalidate).
+      // The phone's copy BEFORE the network: trips, currency, account and
+      // the lifetime numbers paint instantly on a cold start — and are all
+      // there with no signal. The network loads below replace them.
       try {
-        const prefs = await window.cacheGet?.('prefs');
-        if (prefs && prefs.currency && !window.USER_DEFAULT_CURRENCY) {
-          window.USER_DEFAULT_CURRENCY = prefs.currency;
-        }
+        // Someone else signed in on this phone: their trips aren't yours.
+        const owner = await window.cacheGet?.('owner');
+        if (owner && owner !== userId) { await window.cacheClearAll?.(); await window.filesClearAll?.(); }
+        if (owner !== userId) await window.cachePut?.('owner', userId);
+        await window.offlineReady?.();
+        await window.cacheHydratePrefs?.();
+        await window.cacheHydrateLifetime?.();
         const filled = await window.cacheHydrateTrips?.();
         if (filled) setDataVersion((v) => v + 1);
       } catch (_) {}
+      await refreshFromNetwork(userId);
+    };
+
+    // Load profile-level preferences FIRST so fmtMoney has a sane
+    // fallback currency for the first render. The profile field is
+    // hardcoded 'USD' on signup though, so trip-inference is the
+    // signal that actually matters for most users -- we re-run
+    // loadUserPreferences AFTER loadTrips so it can fall back to
+    // the most-common trip currency when the profile says USD.
+    const refreshFromNetwork = async (userId) => {
+      if (!userId || navigator.onLine === false) { netFailedRef.current = true; return; }
       try {
-        // Load profile-level preferences FIRST so fmtMoney has a sane
-        // fallback currency for the first render. The profile field is
-        // hardcoded 'USD' on signup though, so trip-inference is the
-        // signal that actually matters for most users -- we re-run
-        // loadUserPreferences AFTER loadTrips so it can fall back to
-        // the most-common trip currency when the profile says USD.
+        if (!(await window.sbHasSession?.())) { netFailedRef.current = true; return; }
+        netFailedRef.current = false;
         await window.loadUserPreferences?.(userId);
-        await window.loadTrips(userId);
+        if ((await window.loadTrips(userId)) === false) netFailedRef.current = true;
         await window.loadUserPreferences?.(userId);
-        // If we were inside a trip, reload its data too (auth refresh recovery)
-        if (activeTripRef.current) {
-          await loadTripData(activeTripRef.current);
-        }
+        // If we were inside a trip (or the trip shown on My trips), reload it too
+        const tid = activeTripRef.current || window._activeTripId;
+        if (tid) await loadTripData(tid);
         setDataVersion((v) => v + 1);
-        window.replayOutbox?.();   // flush any expenses queued while offline
+        window.flushOutbox?.();   // anything logged with no signal goes up now
       } catch (err) {
+        netFailedRef.current = true;
         console.error('hydrate failed', err);
       }
     };
 
+    // Back online, or back in the app after a weak-signal refresh failed:
+    // fetch what changed. Silent — the screen just updates.
+    const onOnline = () => { if (window.currentUserId) refreshFromNetwork(window.currentUserId); };
+    const onVisible = () => {
+      if (!document.hidden && netFailedRef.current && navigator.onLine !== false && window.currentUserId) {
+        refreshFromNetwork(window.currentUserId);
+      }
+    };
+    window.addEventListener('online', onOnline);
+    document.addEventListener('visibilitychange', onVisible);
+
+    // Open right away with the session kept on the phone — no waiting on a
+    // token refresh (which can't happen with no signal). getSession() below
+    // confirms / refreshes it in the background.
+    const stored = window._storedSession?.();
+    if (stored) {
+      hydrateForUser(stored.user.id);
+      setSession(stored);
+    }
+
     window.sb.auth.getSession()
       .then(({ data: { session: s }, error }) => {
+        if (s) {
+          if (window.currentUserId && s.user.id !== window.currentUserId) {
+            initialLoadDoneRef.current = false;
+            activeTripRef.current = null;
+            hydratedForRef.current = null;
+          }
+          hydrateForUser(s.user.id);
+          setSession(s);
+          return;
+        }
+        // A stored session that just couldn't be refreshed (no signal)
+        // stays — the app keeps working on the phone's copy.
+        if (stored && error && (error.name === 'AuthRetryableFetchError' || window.isNetErr?.(error))) return;
         if (error) console.error('getSession error', error);
-        if (s) hydrateForUser(s.user.id);
-        setSession(s || null);
+        setSession(null);
       })
       .catch((err) => {
         console.error('getSession threw', err);
-        setSession(null);
+        if (!stored) setSession(null);
       });
 
     // Filter auth events — TOKEN_REFRESHED / USER_UPDATED must NOT wipe data
@@ -265,13 +322,19 @@ function App() {
         if (s) hydrateForUser(s.user.id);
         setSession(s);
       } else if (event === 'SIGNED_OUT') {
+        const explicit = !!window._explicitSignOut;
+        window._explicitSignOut = false;
         window.currentUserId = null;
+        window._activeTripId = null;
         activeTripRef.current = null;
         initialLoadDoneRef.current = false;
         hydratedForRef.current = null;
         if (rtUnsubRef.current) { rtUnsubRef.current(); rtUnsubRef.current = null; }
         window.clearAllMockData();
-        window.cacheClearAll?.();   // don't leave one user's data cached for the next
+        // You signed out: don't leave your trips and files on the phone.
+        // A session that merely expired keeps them (and anything logged
+        // with no signal) for when you sign back in.
+        if (explicit) { window.cacheClearAll?.(); window.filesClearAll?.(); }
         setSession(null);
         setDataVersion((v) => v + 1);
       } else if (event === 'PASSWORD_RECOVERY') {
@@ -290,6 +353,8 @@ function App() {
     return () => {
       subscription.unsubscribe();
       clearTimeout(timer);
+      window.removeEventListener('online', onOnline);
+      document.removeEventListener('visibilitychange', onVisible);
       if (rtUnsubRef.current) { rtUnsubRef.current(); rtUnsubRef.current = null; }
     };
   }, [loadTripData]);
@@ -632,6 +697,8 @@ function App() {
       </window.Overlay>
       {/* Trip recap — opened with window.openRecap() */}
       {window.RecapHost && <window.RecapHost />}
+      {/* Tickets, boarding passes, visas, receipts — opened from the phone */}
+      {window.FileViewerHost && <window.FileViewerHost />}
       {joining && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 250,
@@ -687,7 +754,6 @@ function App() {
       }} data-theme={tw.dark ? 'dark' : 'light'} dir={tw.lang === 'ar' ? 'rtl' : 'ltr'} lang={tw.lang}>
         {appShell}
         <ToastHost />
-        <OfflineBanner />
         <ActionSheetHost />
       </div>
     );
@@ -699,7 +765,6 @@ function App() {
         {appShell}
       </IOSDevice>
       <ToastHost />
-      <OfflineBanner />
       <ActionSheetHost />
 
       <TweaksPanel>
@@ -1228,6 +1293,10 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
   const [receiptPath, setReceiptPath] = React.useState(existing?.receiptPath || null);
   const [previewSrc,  setPreviewSrc]  = React.useState(null);  // object URL for File preview
   const receiptInputRef = React.useRef(null);
+  // The receipt opens in the app's viewer — from the phone, signal or not.
+  const openReceipt = () => window.openFile?.(receiptFile
+    ? { blob: receiptFile, title: title || (window.isRTL ? 'الإيصال' : 'Receipt') }
+    : { path: receiptPath, ver: existing?.receiptVer, url: receiptUrl, title: existing?.title || (window.isRTL ? 'الإيصال' : 'Receipt') });
 
   React.useEffect(() => {
     if (!receiptFile) { setPreviewSrc(null); return; }
@@ -1267,120 +1336,56 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
     // Remember the card/payer for next time — but never default to "personal".
     if (!isPersonal) { try { localStorage.setItem('voyage:lastPayer:' + (trip?.id || ''), payerKey); } catch (_) {} }
 
-    // ── OPTIMISTIC FAST PATH ──────────────────────────────────
-    // The common case (a brand-new expense, no receipt to upload, not
-    // logged from a doc/plan) is the hottest path — logging spend one-
-    // handed during a trip. Show it INSTANTLY: append to the local
-    // cache, recompute totals, close the sheet, and do the DB insert in
-    // the background. On failure we roll the row back and toast. Edits,
-    // receipts, and doc/plan-linked logs keep the awaited path below
-    // (they need the real row id, or to reconcile a replaced file).
+    // ── Saved on the phone first ──────────────────────────────
+    // Every save — new, edit, with a receipt, logged from a doc/plan — is
+    // applied right here and queued (offline.jsx). The sheet closes at
+    // once, exactly the same with or without signal, and the server
+    // catches up on its own. A new expense gets its id here, so editing or
+    // deleting it again never has to wait for the server.
     const tripId = trip?.id || 'demo';
-    const createdByFast = paidBy || window.currentUserId;
-    if (!isEdit && !receiptFile && !(prefill && prefill.source)) {
-      const tempId = 'temp-' + Date.now();
-      const atISO = createdAtFor();
-      const nowISO = atISO || new Date().toISOString();
-      const payload = {
-        title: finalTitle, category: cat, amountUSD: amtUSD,
-        amountLocal: amtLocalForDB, localCurrency: local,
-        note: note.trim() || null, splitWith: splitWithIds, isPersonal,
-        paidWith: isCash ? 'cash' : null,
-        createdAt: atISO || undefined,
-      };
-      const optimistic = {
-        id: tempId, who: createdByFast, cat, title: payload.title,
-        jpy: local === 'JPY' ? (parseFloat(amtLocalForDB) || 0) : 0,
-        usd: amtUSD, when: window.fmtDate(nowISO), createdAt: nowISO,
-        note: payload.note || '', splitWith: splitWithIds, isPersonal,
-        receiptPath: null, receiptUrl: null,
-        cash: isCash, local: amtLocalForDB != null ? parseFloat(amtLocalForDB) : null, localCur: local,
-      };
-      if (isPersonal) window.MY_PERSONAL_EXPENSES = [optimistic, ...(window.MY_PERSONAL_EXPENSES || [])];
-      else window.EXPENSES = [optimistic, ...(window.EXPENSES || [])];
-      window.recomputeExpenseDerived?.(tripId);
-      window.LIFETIME_STATS = null;
-      window.notifyDataChange?.();
-      onAdded?.();
-      onDone();   // close the sheet immediately
-      (async () => {
-        try {
-          await window.addExpense(tripId, createdByFast, payload);
-          await window.loadExpenses(tripId);   // reconcile temp → real row
-          window.cachePersistTrip?.(tripId);   // snapshot for offline
-          window.notifyDataChange?.();
-        } catch (err) {
-          if (!navigator.onLine) {
-            // Offline: KEEP the optimistic row and queue the write so it
-            // syncs automatically on reconnect. Persist so the pending row
-            // survives an app restart while still offline.
-            await window.outboxEnqueue?.({ type: 'expense', tripId, createdBy: createdByFast, payload });
-            window.cachePersistTrip?.(tripId);
-            window.notifyDataChange?.();
-            window.toast?.(window.isRTL ? 'حُفظ — سيُزامن عند عودة الاتصال' : 'Saved — will sync when you reconnect', 'success');
-          } else {
-            // Genuine server error while online: roll the row back.
-            window.EXPENSES = (window.EXPENSES || []).filter((e) => e.id !== tempId);
-            window.MY_PERSONAL_EXPENSES = (window.MY_PERSONAL_EXPENSES || []).filter((e) => e.id !== tempId);
-            window.recomputeExpenseDerived?.(tripId);
-            window.notifyDataChange?.();
-            window.toast?.(err.message || 'Failed to save expense', 'error');
-          }
-        }
-      })();
-      return;
-    }
-
+    const createdBy = paidBy || window.currentUserId;
+    const atISO = createdAtFor();
+    const fields = {
+      title: finalTitle, category: cat, amountUSD: amtUSD,
+      amountLocal: amtLocalForDB, localCurrency: local,
+      note: note.trim() || null, splitWith: splitWithIds, isPersonal,
+    };
     setLoading(true);
     setError(null);
     try {
-      const createdBy = paidBy || window.currentUserId;
-      const payload = {
-        title: finalTitle,
-        category: cat,
-        paidBy: isEdit ? createdBy : undefined,
-        isPersonal,
-        // only sent when cash is involved, so edits work before migration 023
-        paidWith: isCash ? 'cash' : (isEdit && existing?.cash ? null : undefined),
-        createdAt: createdAtFor() || undefined,
-        amountUSD: amtUSD,
-        amountLocal: amtLocalForDB,
-        localCurrency: local,
-        note: note.trim() || null,
-        splitWith: splitWithIds,
-      };
-      let expenseId;
+      const expId = isEdit ? existing.id : window.newId();
       if (isEdit) {
-        await window.updateExpense(existing.id, trip?.id || 'demo', payload);
-        expenseId = existing.id;
+        const payload = {
+          ...fields, paidBy: createdBy,
+          // only sent when cash is involved, so edits work before migration 023
+          paidWith: isCash ? 'cash' : (existing?.cash ? null : undefined),
+          createdAt: atISO || undefined,
+        };
+        const row = window.expenseRowFrom(expId, createdBy, { ...payload, paidWith: isCash ? 'cash' : null }, existing);
+        await window.outboxPush({ kind: 'edit', expId, tripId, payload, row });
       } else {
-        const inserted = await window.addExpense(trip?.id || 'demo', createdBy, payload);
-        expenseId = inserted?.id;
+        // The day it happened, always — it may only go up hours later.
+        const payload = { ...fields, paidWith: isCash ? 'cash' : null, createdAt: atISO || new Date().toISOString() };
+        const row = window.expenseRowFrom(expId, createdBy, payload);
+        await window.outboxPush({ kind: 'add', expId, tripId, createdBy, payload, row });
+        if (prefill?.source?.doc)  await window.outboxPush({ kind: 'link', expId, tripId, docId: prefill.source.doc });
+        if (prefill?.source?.plan) await window.outboxPush({ kind: 'link', expId, tripId, planId: prefill.source.plan });
       }
-      // Upload receipt if one was picked (after the row exists so we have the id)
-      if (receiptFile && expenseId) {
-        try {
-          await window.uploadReceipt(expenseId, trip?.id, receiptFile);
-        } catch (e) {
-          window.toast?.(e.message || 'Receipt upload failed', 'error');
-        }
-      } else if (isEdit && !receiptFile && !receiptUrl && existing?.receiptPath) {
-        // User cleared an existing receipt
-        try { await window.deleteReceipt(existing.id, existing.receiptPath); } catch (_) {}
+      // Receipt: a new photo goes up with it; a removed one is removed.
+      if (receiptFile) {
+        const buf = await receiptFile.arrayBuffer();
+        await window.outboxPush({ kind: 'receipt', expId, tripId,
+          file: { buf, type: receiptFile.type || 'image/jpeg', name: receiptFile.name || 'receipt.jpg' } });
+      } else if (isEdit && !receiptUrl && existing?.receiptPath) {
+        const serverPath = existing.receiptServerPath !== undefined
+          ? existing.receiptServerPath
+          : (existing._pendingReceipt ? null : existing.receiptPath);
+        await window.outboxPush({ kind: 'receiptDel', expId, tripId, path: serverPath });
       }
-      await window.loadExpenses(trip?.id || 'demo');
-      // Link this new expense back to the doc / plan item it was logged from,
-      // so that surface shows "logged" and clears if the expense is deleted.
-      if (!isEdit && expenseId && prefill?.source) {
-        try {
-          if (prefill.source.doc) {
-            await window.attachExpenseToDoc(prefill.source.doc, expenseId, trip?.id);
-          } else if (prefill.source.plan) {
-            await window.attachExpenseToItineraryItem(prefill.source.plan, expenseId, trip?.id);
-          }
-        } catch (e) { console.warn('link expense to source failed', e); }
-        window.notifyDataChange?.();
-      }
+      window.applyPendingOps?.(tripId);
+      window.recomputeExpenseDerived?.(tripId);
+      window.notifyDataChange?.();
+      window.cachePersistTrip?.(tripId);
       onAdded?.();
       onDone();
     } catch (err) {
@@ -1388,6 +1393,26 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
       window.toast?.(err.message || 'Failed to save expense', 'error');
       setLoading(false);
     }
+  };
+
+  // Delete: off the screen now, off the server as soon as there's signal.
+  const handleDelete = async () => {
+    if (!confirm(window.isRTL ? 'هل تريد حذف هذا المصروف؟' : 'Delete this expense?')) return;
+    const tripId = trip?.id || 'demo';
+    const id = existing.id;
+    setLoading(true);
+    try {
+      await window.outboxPush({ kind: 'del', expId: id, tripId });
+      window.EXPENSES = (window.EXPENSES || []).filter((e) => e.id !== id);
+      window.MY_PERSONAL_EXPENSES = (window.MY_PERSONAL_EXPENSES || []).filter((e) => e.id !== id);
+      Object.values(window.DOCS_BY_CAT || {}).forEach((list) => (list || []).forEach((d) => { if (d.linkedExpenseId === id) d.linkedExpenseId = null; }));
+      (window.ITINERARY || []).forEach((it) => { if (it.linkedExpenseId === id) it.linkedExpenseId = null; });
+      window.recomputeExpenseDerived?.(tripId);
+      window.notifyDataChange?.();
+      window.cachePersistTrip?.(tripId);
+      onAdded?.();
+      onDone();
+    } catch (err) { setError(err.message); setLoading(false); }
   };
 
   const fieldStyle = {
@@ -1684,15 +1709,16 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
             flexDirection: 'row',
           }}>
             {(receiptFile ? receiptFile.type === 'application/pdf' : window.isPdfPath?.(receiptPath)) ? (
-              <a href={previewSrc || receiptUrl} target="_blank" rel="noopener noreferrer" style={{
+              <button type="button" onClick={openReceipt} style={{
                 width: 58, height: 58, borderRadius: 10, flexShrink: 0, display: 'grid', placeItems: 'center',
-                background: 'var(--clay)', color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none',
-              }}>PDF</a>
+                background: 'var(--clay)', color: '#fff', fontSize: 12, fontWeight: 700, border: 'none',
+              }}>PDF</button>
             ) : (
             <img
               src={previewSrc || receiptUrl}
               alt="receipt"
-              onClick={() => window.openImageOverlay?.(previewSrc || receiptUrl)}
+              onClick={openReceipt}
+              onError={(ev) => { ev.currentTarget.style.visibility = 'hidden'; }}
               style={{
                 width: 58, height: 58, objectFit: 'cover',
                 borderRadius: 10, border: '0.5px solid var(--hairline)',
@@ -1753,16 +1779,7 @@ function AddExpenseSheet({ onDone, onAdded, existing, prefill }) {
         background: 'linear-gradient(180deg, transparent 0, var(--cream) 16px)',
       }}>
         {isEdit && (
-          <button onClick={async () => {
-            if (!confirm(window.isRTL ? 'هل تريد حذف هذا المصروف؟' : 'Delete this expense?')) return;
-            setLoading(true);
-            try {
-              await window.deleteExpense(existing.id, trip?.id);
-              await window.loadExpenses(trip?.id);
-              onAdded?.();
-              onDone();
-            } catch (err) { setError(err.message); setLoading(false); }
-          }} disabled={loading} style={{
+          <button onClick={handleDelete} disabled={loading} style={{
             padding: '16px 18px', borderRadius: 18,
             background: 'var(--cream-2)', color: 'var(--clay-deep)',
             border: '0.5px solid var(--hairline-2)',

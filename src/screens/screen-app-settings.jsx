@@ -101,7 +101,7 @@ function ScreenAppSettings({ go, onSignOut, dark = false, lang = 'en', onDarkTog
       .catch(() => {});
     // Lifetime stats — fetch if not already cached
     if (!window.LIFETIME_STATS) {
-      window.loadLifetimeStats?.().then((s) => setStats(s || null)).catch(() => {});
+      window.loadLifetimeStats?.().then((s) => { if (s) setStats(s); }).catch(() => {});   // no signal: keep the last numbers
     }
   }, []);
 

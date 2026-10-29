@@ -95,7 +95,9 @@ const copy = (rel) => {
   if (!fs.existsSync(from)) return;
   fs.cpSync(from, path.join(OUT, rel), { recursive: true });
 };
-['tokens.css', 'manifest.json', 'offline.html', 'favicon.ico', 'icons'].forEach(copy);
+// vendor/ = pdf.js for the in-app file viewer (versioned path, immutable).
+['tokens.css', 'manifest.json', 'offline.html', 'favicon.ico', 'icons', 'vendor'].forEach(copy);
+if (!fs.existsSync(path.join(OUT, 'vendor/pdfjs-4.10.38/pdf.worker.min.mjs'))) throw new Error('vendor/pdfjs missing');
 
 // Service worker: precache the bundle instead of the .jsx sources, and key
 // the caches to this build so every deploy replaces them cleanly.

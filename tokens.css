@@ -473,17 +473,7 @@ textarea:focus-visible,
 @keyframes ptrspin { to { transform: rotate(360deg); } }
 
 /* Network offline banner */
-.offline-banner {
-  position: fixed; top: 0; left: 0; right: 0;
-  background: var(--clay-deep); color: #fff;
-  padding: calc(env(safe-area-inset-top) + 6px) 16px 6px;
-  text-align: center;
-  font-size: 12px; font-weight: 500;
-  z-index: 200;
-  transform: translateY(-100%);
-  animation: slideDown 240ms cubic-bezier(.32,.72,0,1) forwards;
-}
-@keyframes slideDown { to { transform: translateY(0); } }
+
 
 
 /* ── Motion (driven by src/lib/motion.jsx) ─────────────────────────────

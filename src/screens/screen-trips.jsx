@@ -893,11 +893,13 @@ function SmartTrackCard({ event, trip, onOpenTrip }) {
             marginTop: 14, display: 'flex', gap: 8, flexDirection: 'row', flexWrap: 'wrap',
           }}>
             {event.secondaryFileUrl && (
-              <ActionPill label={event.secondaryFileLabel || 'Open'} href={event.secondaryFileUrl}
+              <ActionPill label={event.secondaryFileLabel || 'Open'}
+                onClick={() => window.openDocFile?.(event.doc, 'secondary', `${event.secondaryFileLabel || ''} · ${event.title}`)}
                 icon={<window.IconDoc size={13} stroke="currentColor" />} primary />
             )}
             {event.primaryFileUrl && (
-              <ActionPill label={event.primaryFileLabel || 'Open file'} href={event.primaryFileUrl}
+              <ActionPill label={event.primaryFileLabel || 'Open file'}
+                onClick={() => window.openDocFile?.(event.doc, 'primary', `${event.primaryFileLabel || ''} · ${event.title}`)}
                 icon={<window.IconDoc size={13} stroke="currentColor" />}
                 primary={!event.secondaryFileUrl} />
             )}
@@ -986,7 +988,7 @@ function SmartTrackRow({ event, last, onOpenTrip }) {
 // Sits on either the dark Insights card or the colored Smart Track surface.
 // Primary = bright white pill with dark ink text (high-contrast CTA).
 // Secondary = transparent with light border on whatever surface it's on.
-function ActionPill({ label, href, icon, primary }) {
+function ActionPill({ label, href, onClick, icon, primary }) {
   // PRIMARY pill: white background, dark text. The text color is
   // HARDCODED to a dark slate (not var(--ink)) because var(--ink) flips
   // to near-white in dark mode, which made the white-on-white pill
@@ -997,19 +999,22 @@ function ActionPill({ label, href, icon, primary }) {
   // SECONDARY pill: transparent, semi-white text. Always on the
   // dark Smart Track card gradient, so the white text reads in
   // both themes.
+  // Files open in the app's viewer (onClick); places open in Maps (href).
+  const Tag = onClick ? 'button' : 'a';
+  const link = onClick ? { type: 'button', onClick } : { href, target: '_blank', rel: 'noreferrer' };
   return (
-    <a href={href} target="_blank" rel="noreferrer" style={{
+    <Tag {...link} style={{
       padding: '8px 12px', borderRadius: 999,
       background: primary ? '#fff' : 'transparent',
       color: primary ? 'oklch(0.22 0.025 250)' : 'rgba(255,255,255,0.92)',
       border: primary ? 'none' : '0.5px solid rgba(255,255,255,0.22)',
-      fontSize: 12, fontWeight: 500,
+      fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
       display: 'inline-flex', alignItems: 'center', gap: 5, flexDirection: 'row',
       textDecoration: 'none',
     }}>
       {icon}
       {label}
-    </a>
+    </Tag>
   );
 }
 

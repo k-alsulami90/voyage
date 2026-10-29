@@ -166,9 +166,9 @@ function computeUpcomingEvents(opts = {}) {
           docCategory: 'flights',
           doc,
           locationUrl:    d.location_url || null,
-          primaryFileUrl: doc.filePath ? doc.link : null,
+          primaryFileUrl: doc.filePath ? (doc.link || doc.filePath) : null,
           primaryFileLabel: window.isRTL ? 'التذكرة' : 'E-ticket',
-          secondaryFileUrl: doc.secondaryLink,
+          secondaryFileUrl: doc.secondaryFilePath ? (doc.secondaryLink || doc.secondaryFilePath) : null,
           secondaryFileLabel: window.isRTL ? 'بطاقة الصعود' : 'Boarding pass',
         });
       }
@@ -188,7 +188,7 @@ function computeUpcomingEvents(opts = {}) {
           docCategory: 'lodging',
           doc,
           locationUrl:    d.location_url || null,
-          primaryFileUrl: doc.filePath ? doc.link : null,
+          primaryFileUrl: doc.filePath ? (doc.link || doc.filePath) : null,
           primaryFileLabel: window.isRTL ? 'الحجز' : 'Reservation',
         });
       }
@@ -205,7 +205,7 @@ function computeUpcomingEvents(opts = {}) {
           docCategory: 'lodging',
           doc,
           locationUrl: d.location_url || null,
-          primaryFileUrl: doc.filePath ? doc.link : null,
+          primaryFileUrl: doc.filePath ? (doc.link || doc.filePath) : null,
           primaryFileLabel: window.isRTL ? 'الحجز' : 'Reservation',
         });
       }
@@ -225,7 +225,7 @@ function computeUpcomingEvents(opts = {}) {
           docCategory: 'transport',
           doc,
           locationUrl:    d.location_url || null,
-          primaryFileUrl: doc.filePath ? doc.link : null,
+          primaryFileUrl: doc.filePath ? (doc.link || doc.filePath) : null,
           primaryFileLabel: window.isRTL ? 'مرجع الإيجار' : 'Rental ref',
         });
       }

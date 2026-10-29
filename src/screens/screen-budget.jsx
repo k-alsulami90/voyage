@@ -335,8 +335,12 @@ function ExpRow({ e, first, conv, alt, wallets, dateLabel, onOpen, meta }) {
   const color = (window.CATEGORIES || []).find((c) => c.key === e.cat)?.color || 'var(--cat-misc)';
   const paidCash = wallets && e.cash;
   const who = paidCash ? (ar ? 'كاش' : 'Cash') : wallets ? (ar ? `بطاقة ${firstName}` : `${firstName}'s card`) : firstName;
-  const pending = String(e.id).startsWith('temp-');
   const isPdf = e.receiptUrl && window.isPdfPath?.(e.receiptPath);
+  // The receipt opens in the app's viewer — from the phone, signal or not.
+  const openReceipt = (ev) => {
+    ev.stopPropagation();
+    window.openFile?.({ path: e.receiptPath, ver: e.receiptVer, url: e.receiptUrl, title: e.title });
+  };
   return (
     <div role="button" tabIndex={0} onClick={onOpen} onKeyDown={(ev) => { if (ev.key === 'Enter') onOpen(); }}
       aria-label={ar ? `تعديل ${e.title}، ${conv(e.usd)}` : `Edit ${e.title}, ${conv(e.usd)}`}
@@ -349,12 +353,6 @@ function ExpRow({ e, first, conv, alt, wallets, dateLabel, onOpen, meta }) {
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.title}</span>
-            {pending && (
-              <span style={{
-                flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 7px', borderRadius: 999,
-                background: 'oklch(0.78 0.13 80 / 0.18)', color: 'var(--honey)', fontSize: 10, fontWeight: 700,
-              }}><IconClock size={9} stroke="currentColor" />{ar ? 'بانتظار المزامنة' : 'Pending'}</span>
-            )}
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: 'var(--ink-mute)', marginTop: 3, minWidth: 0 }}>
             {meta != null ? null : paidCash
@@ -364,14 +362,15 @@ function ExpRow({ e, first, conv, alt, wallets, dateLabel, onOpen, meta }) {
           </span>
         </span>
         {e.receiptUrl && (isPdf ? (
-          <a href={e.receiptUrl} target="_blank" rel="noopener noreferrer" onClick={(ev) => ev.stopPropagation()}
+          <button type="button" onClick={openReceipt}
             aria-label={ar ? 'الإيصال' : 'Receipt'} style={{
             width: 30, height: 30, borderRadius: 8, flexShrink: 0, display: 'grid', placeItems: 'center',
-            background: 'var(--clay)', color: '#fff', fontSize: 9, fontWeight: 700, textDecoration: 'none',
-          }}>PDF</a>
+            background: 'var(--clay)', color: '#fff', fontSize: 9, fontWeight: 700, border: 'none', padding: 0,
+          }}>PDF</button>
         ) : (
           <img src={e.receiptUrl} alt={ar ? 'الإيصال' : 'Receipt'}
-            onClick={(ev) => { ev.stopPropagation(); window.openImageOverlay?.(e.receiptUrl); }}
+            onClick={openReceipt}
+            onError={(ev) => { ev.currentTarget.style.visibility = 'hidden'; }}
             style={{ width: 30, height: 30, objectFit: 'cover', borderRadius: 8, border: '0.5px solid var(--hairline)', flexShrink: 0, cursor: 'zoom-in' }} />
         ))}
         <span style={{ textAlign: 'end', flexShrink: 0 }}>

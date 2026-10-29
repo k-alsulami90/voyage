@@ -177,9 +177,10 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
   // Quick actions: the files and the place, one tap each
   const fileWord = { flights: ar ? 'التذكرة' : 'Ticket', lodging: ar ? 'الحجز' : 'Booking', transport: ar ? 'الحجز' : 'Booking', visas: ar ? 'التأشيرة' : 'Visa' }[doc.category] || (ar ? 'الملف' : 'File');
   const mapUrl = x.location_url || (x.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(x.address)}` : null);
+  // Files open in the app, from the phone — no signal needed.
   const actions = [
-    hasFile && doc.link ? { key: 'file', href: doc.link, icon: <IconDoc size={19} stroke="currentColor" />, label: fileWord } : null,
-    hasSec && doc.secondaryLink ? { key: 'sec', href: doc.secondaryLink, icon: <IconQR size={19} stroke="currentColor" />, label: ar ? 'بطاقة الصعود' : 'Boarding pass' } : null,
+    hasFile ? { key: 'file', onOpen: () => window.openDocFile(doc, 'primary', `${fileWord} · ${doc.title}`), icon: <IconDoc size={19} stroke="currentColor" />, label: fileWord } : null,
+    hasSec ? { key: 'sec', onOpen: () => window.openDocFile(doc, 'secondary', `${ar ? 'بطاقة الصعود' : 'Boarding pass'} · ${doc.title}`), icon: <IconQR size={19} stroke="currentColor" />, label: ar ? 'بطاقة الصعود' : 'Boarding pass' } : null,
     mapUrl ? { key: 'map', href: mapUrl, icon: <IconPin size={19} stroke="currentColor" />, label: ar ? 'الموقع' : 'Location' } : null,
   ].filter(Boolean);
 
@@ -251,17 +252,22 @@ function ScreenDocDetail({ doc: initialDoc, category, go, back, openSheet }) {
           {/* QUICK ACTIONS — open the ticket / boarding pass / map */}
           {actions.length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${actions.length}, minmax(0, 1fr))`, gap: 10, padding: '16px 14px 0' }}>
-              {actions.map((a) => (
-                <a key={a.key} href={a.href} target="_blank" rel="noreferrer" className="press-soft" style={{
-                  minHeight: actions.length === 1 ? 54 : 66, borderRadius: 18, textDecoration: 'none',
-                  background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', boxShadow: 'var(--shadow-xs)',
-                  display: 'flex', flexDirection: actions.length === 1 ? 'row' : 'column', alignItems: 'center', justifyContent: 'center',
-                  gap: actions.length === 1 ? 10 : 5, color: 'var(--ink)', fontSize: actions.length === 1 ? 14.5 : 13, fontWeight: 600,
-                }}>
-                  <span style={{ width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', background: tint, color: '#fff' }}>{a.icon}</span>
-                  {a.label}
-                </a>
-              ))}
+              {actions.map((a) => {
+                const Tag = a.onOpen ? 'button' : 'a';
+                const link = a.onOpen ? { type: 'button', onClick: a.onOpen } : { href: a.href, target: '_blank', rel: 'noreferrer' };
+                return (
+                  <Tag key={a.key} {...link} className="press-soft" style={{
+                    minHeight: actions.length === 1 ? 54 : 66, borderRadius: 18, textDecoration: 'none',
+                    background: 'var(--cream-2)', border: '0.5px solid var(--hairline)', boxShadow: 'var(--shadow-xs)',
+                    display: 'flex', flexDirection: actions.length === 1 ? 'row' : 'column', alignItems: 'center', justifyContent: 'center',
+                    gap: actions.length === 1 ? 10 : 5, color: 'var(--ink)', fontSize: actions.length === 1 ? 14.5 : 13, fontWeight: 600,
+                    fontFamily: 'inherit', width: '100%', padding: 0,
+                  }}>
+                    <span style={{ width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', background: tint, color: '#fff' }}>{a.icon}</span>
+                    {a.label}
+                  </Tag>
+                );
+              })}
             </div>
           )}
 
