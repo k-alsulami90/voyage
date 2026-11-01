@@ -199,6 +199,7 @@ window.clearAllMockData = () => {
   window.MEMBERS       = [];
   window.EXPENSES      = [];
   window.MY_PERSONAL_EXPENSES = [];
+  window.CASH_TOPUPS   = [];
   window.DOCS          = [];
   window.AUDIT         = [];
   window.LIFETIME_STATS = null;
@@ -665,8 +666,8 @@ window.loadExpenses = async (tripId) => {
   // returns MY personal rows, and they never enter the group's numbers.
   // Keeping them in a separate list means every existing group sum
   // (budget, today, cards, analytics, balances) stays group-only for free.
-  window.EXPENSES = mapped.filter((e) => !e.isPersonal);
-  window.MY_PERSONAL_EXPENSES = mapped.filter((e) => e.isPersonal);
+  // Cash taken out of a card goes to its own list too (not spending).
+  window.setExpenseRows(mapped);
 
   window.recomputeExpenseDerived(tripId);
 
@@ -677,6 +678,24 @@ window.loadExpenses = async (tripId) => {
   window.prefetchFiles?.(rows.filter((r) => r.receipt_path && signed.get(r.receipt_path))
     .map((r) => ({ path: r.receipt_path, ver: rVer(r), url: signed.get(r.receipt_path) })));
   return true;
+};
+
+// ── Cash taken out of a card (سحب كاش) ──────────────────────
+// Not spending — money moving from a card into the group's cash. Stored
+// as one expense row paid "in cash" with a NEGATIVE amount (the cash
+// grows by it), filed under the card it came from. It never enters
+// window.EXPENSES (so no total, chart or list counts it); it lives in
+// window.CASH_TOPUPS, and the cards/cash maths use it: the card is down
+// by it, the cash up by it. The ATM / bank fee is a normal expense on the
+// same card, with an id worked out from the withdrawal's.
+window.isTopupRow = (e) => !!(e && e.cash && !e.isPersonal && (Number(e.usd) || 0) < 0);
+window.topupFeeId = (topupId) => window.uuidFromKey(`voyage:topup-fee:${topupId}`);
+// Every expense row of the open trip, into its list.
+window.setExpenseRows = (all) => {
+  const rows = all || [];
+  window.EXPENSES = rows.filter((e) => !e.isPersonal && !window.isTopupRow(e));
+  window.MY_PERSONAL_EXPENSES = rows.filter((e) => e.isPersonal);
+  window.CASH_TOPUPS = rows.filter((e) => window.isTopupRow(e));
 };
 
 // Recompute the values DERIVED from window.EXPENSES (category totals +
@@ -1096,7 +1115,8 @@ window.loadLifetimeStats = async () => {
   } catch (_) {}
 
   const trips = window.TRIPS || [];
-  const expenses = (data || []).filter((e) => !e.is_personal);
+  // Cash taken out of a card is a transfer, not spending.
+  const expenses = (data || []).filter((e) => !e.is_personal && !(e.paid_with === 'cash' && (parseFloat(e.amount_usd) || 0) < 0));
 
   // ── Totals
   const totalSpentUSD = expenses.reduce((s, e) => s + (parseFloat(e.amount_usd) || 0), 0);
@@ -1465,12 +1485,22 @@ window.linkDocExpense = async (docId, tripId) => {
 // is worked out from the booking + the payer, so the app can always find,
 // update or remove it without keeping a list of them anywhere (and two
 // phones doing it at once can't create it twice).
-window.docShareId = (docId, userId) => {
-  const s = `voyage:doc-part:${docId}:${userId}`;
-  const h = (seed) => { let x = seed >>> 0; for (let i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; x ^= x >>> 13; } return x.toString(16).padStart(8, '0'); };
-  const hex = h(0x811c9dc5) + h(0x9e3779b9) + h(0x85ebca6b) + h(0xc2b2ae35);
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-8${hex.slice(13, 16)}-${(8 | (parseInt(hex[16], 16) & 3)).toString(16)}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+// A UUID worked out from a key: the same key always gives the same id.
+// The first version could print a negative number into the id (not a
+// valid UUID — the database refused those rows). Ids it got right are
+// kept exactly (rows already saved with them stay found); the rest are
+// now made correctly.
+const _UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+window.uuidFromKey = (s) => {
+  const build = (fix) => {
+    const h = (seed) => { let x = seed >>> 0; for (let i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; x ^= x >>> 13; } return (fix ? x >>> 0 : x).toString(16).padStart(8, '0'); };
+    const hex = h(0x811c9dc5) + h(0x9e3779b9) + h(0x85ebca6b) + h(0xc2b2ae35);
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-8${hex.slice(13, 16)}-${(8 | (parseInt(hex[16], 16) & 3)).toString(16)}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+  };
+  const first = build(false);
+  return _UUID_RE.test(first) ? first : build(true);
 };
+window.docShareId = (docId, userId) => window.uuidFromKey(`voyage:doc-part:${docId}:${userId}`);
 // The parts of a PAID, SHARED booking with two or more payers:
 // [{ userId, usd, local }] adding up exactly to its cost — else null.
 // Works on a database row (cost_usd…) or an app doc (costUSD…).
@@ -1896,6 +1926,7 @@ window.seedTripFromList = (tripId) => {
   // them in immediately after.
   window.EXPENSES    = [];
   window.MY_PERSONAL_EXPENSES = [];
+  window.CASH_TOPUPS = [];
   window.MEMBERS     = [];
   window.DOCS_BY_CAT = { flights: [], lodging: [], visas: [], transport: [] };
   window.DOCS_TRIP_ID = null;   // docs not yet loaded for this trip

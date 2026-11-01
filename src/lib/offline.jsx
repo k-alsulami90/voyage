@@ -147,6 +147,7 @@
       detail: window.TRIP,
       expenses: window.EXPENSES || [],
       personal: window.MY_PERSONAL_EXPENSES || [],
+      topups: window.CASH_TOPUPS || [],
       members: window.MEMBERS || [],
       itinerary: window.ITINERARY || [],
       settlements: window.SETTLEMENTS || [],
@@ -196,6 +197,7 @@
     const live = (list) => (list || []).filter((e) => e && !String(e.id).startsWith('temp-'));
     if (empty(window.EXPENSES) && Array.isArray(c.expenses)) window.EXPENSES = live(c.expenses);
     if (empty(window.MY_PERSONAL_EXPENSES) && Array.isArray(c.personal)) window.MY_PERSONAL_EXPENSES = live(c.personal);
+    if (empty(window.CASH_TOPUPS) && Array.isArray(c.topups)) window.CASH_TOPUPS = live(c.topups);
     if (empty(window.MEMBERS) && !empty(c.members)) window.MEMBERS = c.members;
     if (window.DOCS_TRIP_ID !== tripId && c.docs) {
       window.DOCS_BY_CAT = c.docs;
@@ -404,9 +406,9 @@
   // Re-apply everything still waiting for this trip onto the in-memory rows.
   window.applyPendingOps = (tripId) => {
     if (!tripId || !OUT.some((o) => o.tripId === tripId)) return false;
-    const all = window.overlayExpenseRows(tripId, [...(window.EXPENSES || []), ...(window.MY_PERSONAL_EXPENSES || [])]);
-    window.EXPENSES = all.filter((e) => !e.isPersonal);
-    window.MY_PERSONAL_EXPENSES = all.filter((e) => e.isPersonal);
+    const all = window.overlayExpenseRows(tripId, [...(window.EXPENSES || []), ...(window.MY_PERSONAL_EXPENSES || []), ...(window.CASH_TOPUPS || [])]);
+    if (window.setExpenseRows) window.setExpenseRows(all);
+    else { window.EXPENSES = all.filter((e) => !e.isPersonal); window.MY_PERSONAL_EXPENSES = all.filter((e) => e.isPersonal); }
     window.overlayPendingLinks(tripId);
     return true;
   };

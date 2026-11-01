@@ -703,6 +703,8 @@ function App() {
       {window.FileViewerHost && <window.FileViewerHost />}
       {/* Currency converter — opened by the pill above the "+" */}
       {window.FxHost && <window.FxHost />}
+      {/* Cash taken out of a card → into the group's cash */}
+      {window.CashTopupHost && <window.CashTopupHost />}
       {joining && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 250,

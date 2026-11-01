@@ -363,7 +363,8 @@ Object.assign(window, { bindTilt, useTiltRef, Tilt });
 function WalletCardFace({ c, m, fmt, style }) {
   const ar = !!window.isRTL;
   const hue = m.hue != null ? m.hue : 200;
-  const pct = c.amountUSD > 0 ? Math.max(0, Math.min(1, c.spent / c.amountUSD)) : 0;
+  const out = (c.spent || 0) + (c.withdrawn || 0);     // spent + cash taken out of it
+  const pct = c.amountUSD > 0 ? Math.max(0, Math.min(1, out / c.amountUSD)) : 0;
   const name = (m.name || '').split(' ')[0];
   return (
     <div style={{
@@ -391,8 +392,10 @@ function WalletCardFace({ c, m, fmt, style }) {
                 <div style={{ height: 4, borderRadius: 99, background: 'rgba(255,255,255,0.22)', marginTop: 8, overflow: 'hidden' }}>
                   <div className="v-grow" style={{ width: `${pct * 100}%`, height: '100%', borderRadius: 99, background: c.left < 0 ? '#ffb4a2' : '#fff' }} />
                 </div>
-                <div style={{ fontSize: 11, opacity: 0.75, marginTop: 5 }}>
-                  {ar ? `صُرف ${fmt(c.spent)} من ${fmt(c.amountUSD)}` : `${fmt(c.spent)} of ${fmt(c.amountUSD)} spent`}
+                <div style={{ fontSize: 11, opacity: 0.75, marginTop: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {c.withdrawn > 0
+                    ? (ar ? `صُرف ${fmt(c.spent)} · كاش ${fmt(c.withdrawn)} · من ${fmt(c.amountUSD)}` : `${fmt(c.spent)} spent · ${fmt(c.withdrawn)} cash · of ${fmt(c.amountUSD)}`)
+                    : (ar ? `صُرف ${fmt(c.spent)} من ${fmt(c.amountUSD)}` : `${fmt(c.spent)} of ${fmt(c.amountUSD)} spent`)}
                 </div>
               </div>
     </div>
